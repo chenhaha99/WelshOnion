@@ -1,0 +1,87 @@
+import { expect, test, type Page } from "@playwright/test";
+
+function watchErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  return errors;
+}
+
+async function shot(page: Page, name: string): Promise<void> {
+  await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
+}
+
+test("复制计划：有块有钱有请假的计划 → 列表里复制到明年 → 进新计划 → 键盘取消 → 手机", async ({ page }) => {
+  const errors = watchErrors(page);
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "新建第一个计划" }).click();
+  await page.getByRole("textbox", { name: "计划名" }).fill("关西 10 天");
+  await page.keyboard.press("Enter");
+  await page.getByLabel("出发日期").fill("2026-10-01");
+  await page.getByLabel("天数").fill("3");
+  await page.getByRole("button", { name: "确定" }).click();
+
+  // 源计划：10.1「西湖」已确认、挂 300 元；10.3 标请假
+  const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
+  const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
+  const lake = table.locator("tr[data-block-id]").first();
+  await table.getByRole("textbox", { name: "加一件事" }).fill("西湖");
+  await page.keyboard.press("Enter");
+  await lake.getByRole("button", { name: /^状态：/ }).click();
+  await page.getByRole("dialog", { name: "选择状态" }).getByRole("button", { name: "已确认", exact: true }).click();
+  await lake.getByRole("button", { name: "钱" }).click();
+  await page.keyboard.type("300");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Escape");
+  await expect(lake.locator("[data-money-cell]")).toHaveText("¥300");
+  await days.nth(2).getByRole("button", { name: "这天的操作" }).click();
+  await page.getByRole("menuitem", { name: "标成请假" }).click();
+  await expect(days.nth(2).getByText("请假")).toBeVisible();
+
+  // 回列表，在卡片上复制到 2027-04-29
+  await page.getByRole("link", { name: /我的计划/ }).click();
+  const sourceCard = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: "关西 10 天", exact: true }) });
+  await sourceCard.getByRole("button", { name: "复制" }).click();
+  await expect(sourceCard.getByLabel("名字")).toHaveValue("关西 10 天 副本");
+  await expect(sourceCard.getByLabel("名字")).toBeFocused();
+  await sourceCard.getByLabel("新的出发日期").fill("2027-04-29");
+  await shot(page, "01-duplicate-form");
+  await sourceCard.getByRole("button", { name: "复制" }).click();
+
+  // 进了新计划：日期平移，状态回到待定，钱还在，请假去掉
+  await expect(page.getByRole("button", { name: "关西 10 天 副本" })).toBeVisible();
+  await expect(days).toHaveCount(3);
+  await expect(days.nth(0).locator("[data-day-label]")).toContainText("4.29");
+  await expect(days.nth(2).locator("[data-day-label]")).toContainText("5.1");
+  const copiedLake = page.getByRole("table", { name: /4\.29/ }).locator("tr[data-block-id]").first();
+  await expect(copiedLake.getByRole("textbox", { name: "标题" })).toHaveValue("西湖");
+  await expect(copiedLake.getByRole("button", { name: "状态：待定" })).toBeVisible();
+  await expect(copiedLake.locator("[data-money-cell]")).toHaveText("¥300");
+  await expect(page.getByText("请假")).toHaveCount(0);
+  await shot(page, "02-copied-plan");
+
+  // 回列表两张卡；在原计划卡上只用键盘打开复制再 Esc：焦点回到「复制」
+  await page.getByRole("link", { name: /我的计划/ }).click();
+  await expect(page.getByRole("heading", { level: 2 })).toHaveCount(2);
+  const copyButton = sourceCard.getByRole("button", { name: "复制" });
+  await copyButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(sourceCard.getByLabel("名字")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(sourceCard.getByLabel("名字")).toHaveCount(0);
+  await expect(copyButton).toBeFocused();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  // 手机上卡片摘要一行放不下：只在「 · 」处换行，「1 人」这样的一项不拆开
+  const summaryParts = page.getByRole("listitem").first().locator("p span");
+  await expect(summaryParts).toHaveCount(3);
+  expect(await summaryParts.evaluateAll((spans) => spans.every((span) => span.getClientRects().length === 1))).toBe(true);
+  await shot(page, "03-mobile-list");
+  await copyButton.click();
+  await shot(page, "04-mobile-form");
+
+  expect(errors).toEqual([]);
+});

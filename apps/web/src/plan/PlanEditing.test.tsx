@@ -51,7 +51,10 @@ describe("列表卡片跟着改", () => {
     await user.click(within(settings).getByRole("button", { name: "关闭" }));
     await user.click(screen.getByRole("link", { name: /我的计划/ }));
 
-    expect(await screen.findByText("10.1 – 10.3 · 3 天 · 3 人")).toBeTruthy();
+    // 卡片摘要按「 · 」分成几段不换行的片段，按整行的字找
+    expect(
+      await screen.findByText((_, element) => element?.tagName === "P" && element.textContent === "10.1 – 10.3 · 3 天 · 3 人"),
+    ).toBeTruthy();
   });
 });
 

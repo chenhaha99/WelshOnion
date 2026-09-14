@@ -3,13 +3,14 @@ import {
   initPlanDoc,
   readLibrary,
   readPlan,
+  setDays,
   setPlanSettings,
 } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { openLibrary } from "./library";
 import { planDbName } from "./names";
-import { createPlan, deletePlan, openPlan, reconcilePlans } from "./plans";
+import { createPlan, deletePlan, duplicatePlan, openPlan, reconcilePlans } from "./plans";
 import { releaseAll, storeDoc, storedDbNames, track } from "./test-helpers";
 
 const NOW = "2026-09-14T10:00:00.000Z";
@@ -104,5 +105,37 @@ describe("计划索引对账", () => {
     await reconcilePlans(library.doc, NOW);
     expect(readLibrary(library.doc).planIndex.has("e")).toBe(false);
     expect(await storedDbNames()).toContain(planDbName("e"));
+  });
+});
+
+describe("复制计划", () => {
+  it("复制后能再打开", async () => {
+    const library = track(await openLibrary());
+    const source = await createPlan(library.doc, { name: "关西 10 天", now: NOW });
+    setDays(source.doc, { startDate: "2026-10-01", count: 3, tz: "Asia/Shanghai" });
+    await source.close();
+
+    const copy = await duplicatePlan(library.doc, source.planId, {
+      name: "关西 10 天 副本",
+      startDate: "2027-04-29",
+      now: NOW,
+    });
+    await copy.close();
+
+    const opened = track(await openPlan(library.doc, copy.planId, NOW));
+    const view = readPlan(opened.doc, readLibrary(library.doc));
+    expect(view.plan.name).toBe("关西 10 天 副本");
+    expect(view.bases[0]?.date).toBe("2027-04-29");
+    expect([...readLibrary(library.doc).planIndex.keys()].sort()).toEqual([source.planId, copy.planId].sort());
+  });
+
+  it("源计划不存在：失败，也不多出计划文档", async () => {
+    const library = track(await openLibrary());
+    const before = await storedDbNames();
+
+    await expect(duplicatePlan(library.doc, "nope", { name: "副本", now: NOW })).rejects.toMatchObject({
+      code: "NOT_INITIALIZED",
+    });
+    expect(await storedDbNames()).toEqual(before);
   });
 });

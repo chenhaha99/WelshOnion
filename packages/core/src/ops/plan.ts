@@ -2,6 +2,7 @@ import * as Y from "yjs";
 import { readLibrary, readPlan, summarizePlan } from "../read";
 import { initPlanDoc } from "../schema";
 import type { DayBudget, ValidatedField } from "../validate";
+import { addDays } from "./dates";
 import { LOCAL_ORIGIN } from "./origin";
 import { done, fail, firstInvalidField, type OpResult } from "./result";
 import { setOrDelete } from "./write";
@@ -27,6 +28,43 @@ export function createPlan(
     if (options.name !== undefined) planDoc.getMap("plan").set("name", options.name);
   });
   writeIndexEntry(library, planDoc, options.now);
+  return done();
+}
+
+export interface DuplicatePlanOptions {
+  planId: string;
+  name: string;
+  /** 新的出发日期；源计划一天都没有时不用给 */
+  startDate?: string;
+  now: string;
+}
+
+/**
+ * 把源计划整份复制进一份空的新计划文档：换 id 和名字，所有天平移到新的出发日期（顺序、时区、间隔不变），
+ * 块的状态回到待定、请假补班标记去掉（「定没定」和请假都是那一趟的事），再写计划索引。复制本身不进撤销，源计划不动。
+ */
+export function duplicatePlan(library: Y.Doc, source: Y.Doc, target: Y.Doc, options: DuplicatePlanOptions): OpResult {
+  if (options.startDate !== undefined) {
+    const invalid = firstInvalidField([["date", options.startDate]]);
+    if (invalid) return fail(invalid);
+  }
+
+  // 整份编码带过去，字段以后加了也不会漏；两份文档里的内部 id 相同不要紧，id 只在各自文档里用
+  Y.applyUpdate(target, Y.encodeStateAsUpdate(source));
+  target.transact(() => {
+    target.getMap("meta").set("plan_id", options.planId);
+    target.getMap("plan").set("name", options.name);
+
+    const bases = [...target.getMap<Y.Map<unknown>>("bases").values()];
+    const firstDate = bases.map((base) => base.get("date") as string).sort()[0];
+    if (firstDate !== undefined && options.startDate !== undefined) {
+      const deltaDays = Math.round((Date.parse(`${options.startDate}T00:00:00Z`) - Date.parse(`${firstDate}T00:00:00Z`)) / 86_400_000);
+      for (const base of bases) base.set("date", addDays(base.get("date") as string, deltaDays));
+    }
+    for (const base of bases) base.delete("day_flag");
+    for (const block of target.getMap<Y.Map<unknown>>("blocks").values()) block.set("status_id", "pending");
+  });
+  writeIndexEntry(library, target, options.now);
   return done();
 }
 

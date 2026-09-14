@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createPlan as writePlanDocs, setDays, setPlanSettings, touchPlan } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { NOW, renderApp } from "../app/test-render";
+import { dayLabels } from "../plan/test-helpers";
 import { openLibrary } from "../storage/library";
 import { planDbName } from "../storage/names";
 import { createPlan } from "../storage/plans";
@@ -64,7 +65,8 @@ describe("卡片内容", () => {
 
     renderApp("#/");
     const card = (await screen.findByRole("heading", { name: "国庆中秋 · 华东自驾", level: 2 })).closest("li")!;
-    expect(within(card).getByText("9.24 – 10.2 · 9 天 · 3 人")).toBeTruthy();
+    // 摘要按「 · 」分成几段不换行的片段，读整行的字
+    expect(card.querySelector("p")?.textContent).toBe("9.24 – 10.2 · 9 天 · 3 人");
   });
 });
 
@@ -175,5 +177,62 @@ describe("列表跟着本机实际情况变", () => {
     const otherTab = track(await openLibrary());
     track(await createPlan(otherTab.doc, { name: "杭州", now: NOW }));
     expect(await screen.findByRole("heading", { name: "杭州", level: 2 })).toBeTruthy();
+  });
+});
+
+describe("复制计划", () => {
+  async function findCard(name: string): Promise<HTMLElement> {
+    return (await screen.findByRole("heading", { name, level: 2 })).closest("li")!;
+  }
+
+  it("复制到新的日期：进入新计划，回到列表两张卡都在", async () => {
+    const user = userEvent.setup();
+    await storePlan({ name: "关西 10 天", lastOpened: "2026-09-01T08:00:00.000Z", days: { start: "2026-10-01", count: 3 } });
+    renderApp("#/");
+
+    await user.click(within(await findCard("关西 10 天")).getByRole("button", { name: "复制" }));
+    const card = cardOf("关西 10 天");
+    expect((within(card).getByLabelText("名字") as HTMLInputElement).value).toBe("关西 10 天 副本");
+    const date = within(card).getByLabelText("新的出发日期") as HTMLInputElement;
+    expect(date.value).toBe("2026-09-14");
+    fireEvent.change(date, { target: { value: "2027-04-29" } });
+    await user.click(within(card).getByRole("button", { name: "复制" }));
+
+    expect(await screen.findByRole("button", { name: "关西 10 天 副本" })).toBeTruthy();
+    await waitFor(async () =>
+      expect(await dayLabels()).toEqual([
+        expect.stringContaining("4.29"),
+        expect.stringContaining("4.30"),
+        expect.stringContaining("5.1"),
+      ]),
+    );
+    await user.click(screen.getByRole("link", { name: /我的计划/ }));
+    await waitFor(async () => expect((await cardNames()).sort()).toEqual(["关西 10 天", "关西 10 天 副本"].sort()));
+  });
+
+  it("取消不复制：卡片恢复原样，焦点回到「复制」", async () => {
+    const user = userEvent.setup();
+    await storePlan({ name: "关西 10 天", lastOpened: "2026-09-01T08:00:00.000Z", days: { start: "2026-10-01", count: 3 } });
+    renderApp("#/");
+
+    await user.click(within(await findCard("关西 10 天")).getByRole("button", { name: "复制" }));
+    await user.click(within(cardOf("关西 10 天")).getByRole("button", { name: "取消" }));
+
+    expect(await cardNames()).toEqual(["关西 10 天"]);
+    expect(within(cardOf("关西 10 天")).queryByLabelText("名字")).toBeNull();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(within(cardOf("关西 10 天")).getByRole("button", { name: "复制" })),
+    );
+  });
+
+  it("没有天的计划不问日期", async () => {
+    const user = userEvent.setup();
+    await storePlan({ name: "未命名计划", lastOpened: "2026-09-01T08:00:00.000Z" });
+    renderApp("#/");
+
+    await user.click(within(await findCard("未命名计划")).getByRole("button", { name: "复制" }));
+    const card = cardOf("未命名计划");
+    expect(within(card).getByLabelText("名字")).toBeTruthy();
+    expect(within(card).queryByLabelText("新的出发日期")).toBeNull();
   });
 });

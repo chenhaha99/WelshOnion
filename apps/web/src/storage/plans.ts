@@ -23,6 +23,33 @@ export async function createPlan(library: Y.Doc, options: { name?: string; now: 
   return { planId, doc: stored.doc, close: stored.close };
 }
 
+/**
+ * 复制计划：先打开源计划（本机没有就失败，不建新文档），再用新 id 建一份、按 core 复制；
+ * 关掉源计划，新计划和新建一样开着交给调用方。
+ */
+export async function duplicatePlan(
+  library: Y.Doc,
+  sourcePlanId: string,
+  options: { name: string; startDate?: string; now: string },
+): Promise<PlanHandle> {
+  const source = await loadPlan(sourcePlanId);
+  if (!source) {
+    await deleteDatabase(planDbName(sourcePlanId));
+    throw new core.DocumentError("NOT_INITIALIZED", `本机没有计划 ${sourcePlanId}`);
+  }
+  const planId = core.newId();
+  const stored = await loadStoredDoc(planDbName(planId));
+  const result = core.duplicatePlan(library, source.doc, stored.doc, { planId, ...options });
+  await source.close();
+  if (!result.ok) {
+    await stored.close();
+    await deleteDatabase(planDbName(planId));
+    throw new Error(`复制计划失败：${JSON.stringify(result.error)}`);
+  }
+  stored.startTabSync();
+  return { planId, doc: stored.doc, close: stored.close };
+}
+
 export async function openPlan(library: Y.Doc, planId: string, now: string): Promise<PlanHandle> {
   const stored = await loadPlan(planId);
   if (!stored) {

@@ -16,7 +16,7 @@ export type { DayBudget, ValidatedField, ValidationResult } from "./validate";
 export { compareBases } from "./order";
 export { LOCAL_ORIGIN, createPlanUndoManager } from "./ops/origin";
 export type { OpError, OpResult } from "./ops/result";
-export { createPlan, deletePlan, renamePlan, setPlanSettings, touchPlan } from "./ops/plan";
+export { createPlan, deletePlan, duplicatePlan, renamePlan, setPlanSettings, touchPlan } from "./ops/plan";
 export type { PlanSettingsPatch } from "./ops/plan";
 export {
   addDayInTz,
