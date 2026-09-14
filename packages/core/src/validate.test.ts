@@ -47,3 +47,12 @@ test("时间预算的形状", () => {
     expect(validateField("day_budget", bad)).toEqual({ ok: false, field: "day_budget" });
   }
 });
+
+test("颜色和坐标", () => {
+  expect(validateField("color", "#5b7fa6")).toEqual(OK);
+  expect(validateField("color", "blue")).toEqual({ ok: false, field: "color" });
+  expect(validateField("lat", 30.8677)).toEqual(OK);
+  expect(validateField("lat", 91)).toEqual({ ok: false, field: "lat" });
+  expect(validateField("lng", 120.4269)).toEqual(OK);
+  expect(validateField("lng", -181)).toEqual({ ok: false, field: "lng" });
+});

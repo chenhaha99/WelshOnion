@@ -51,6 +51,18 @@ export type { DropTarget } from "./ops/drag";
 export { addExpense, deleteExpense, linkExpense, unlinkExpense, updateExpense } from "./ops/expenses";
 export type { AddExpenseInput, ExpensePatch } from "./ops/expenses";
 export { backfillFuel, findFuelBackfill, fuelCostCents } from "./ops/fuel";
+export {
+  addKind,
+  addPlace,
+  addStatus,
+  deleteKind,
+  deleteStatus,
+  updateKind,
+  updatePlace,
+  updateStatus,
+} from "./ops/library";
+export type { AddPlaceInput, KindPatch, PlacePatch, ProviderData, StatusPatch } from "./ops/library";
+export { countBlocksUsing } from "./usage";
 export { readLibrary, readPlan, reconcilePlanIndex, summarizePlan } from "./read";
 export type {
   BaseView,

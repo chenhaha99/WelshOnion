@@ -8,7 +8,8 @@ export type OpError =
   | { code: "SAME_TZ" }
   | { code: "INDEX_OUT_OF_RANGE" }
   | { code: "NOT_UNDATED" }
-  | { code: "NOT_TIMED" };
+  | { code: "NOT_TIMED" }
+  | { code: "BUILTIN" };
 
 /** 操作的结果：失败时文档里什么都没发生。 */
 export type OpResult<T = undefined> = { ok: true; value: T } | { ok: false; error: OpError };

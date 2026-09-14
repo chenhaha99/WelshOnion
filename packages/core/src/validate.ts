@@ -18,7 +18,10 @@ export type ValidatedField =
   | "day_flag"
   | "date"
   | "tz"
-  | "day_budget";
+  | "day_budget"
+  | "color"
+  | "lat"
+  | "lng";
 
 export type ValidationResult = { ok: true } | { ok: false; field: ValidatedField };
 
@@ -58,6 +61,9 @@ const CHECKS: Record<ValidatedField, Check> = {
   date: isRealDate,
   tz: isKnownTimeZone,
   day_budget: orNull(isDayBudget),
+  color: (v) => typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v),
+  lat: (v) => typeof v === "number" && Number.isFinite(v) && v >= -90 && v <= 90,
+  lng: (v) => typeof v === "number" && Number.isFinite(v) && v >= -180 && v <= 180,
 };
 
 export function validateField(field: ValidatedField, value: unknown): ValidationResult {
