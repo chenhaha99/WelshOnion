@@ -353,3 +353,49 @@
     background-color: white;
   }
 }
+
+/* 时间轴拖拽的预览框：松手后的时间段，不挡指针 */
+@utility timeline-ghost {
+  position: absolute;
+  z-index: 10;
+  min-width: 2px;
+  padding: 0.0625rem 0.25rem;
+  border: 2px dashed rgb(47 58 69 / 0.55);
+  border-radius: 0.375rem;
+  background-color: rgb(255 255 255 / 0.55);
+  color: var(--color-ink);
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 时间轴拖拽的状态：横条能抓；端点上是左右箭头；拖动中原来的横条变淡、跟着走的块虚线描边、会叠上去的块实线描边 */
+[data-segment] > button {
+  cursor: grab;
+}
+
+[data-segment][data-edge] > button {
+  cursor: ew-resize;
+}
+
+[data-segment][data-dragging="true"] > button {
+  opacity: 0.35;
+}
+
+[data-segment][data-follower="true"] {
+  border-radius: 0.375rem;
+  outline: 2px dashed var(--kind-color);
+  outline-offset: 1px;
+}
+
+[data-segment][data-drop-target="true"] {
+  border-radius: 0.375rem;
+  outline: 2px solid var(--color-sage-deep);
+  outline-offset: 2px;
+}
+
+[data-timeline-dragging="true"],
+[data-timeline-dragging="true"] * {
+  cursor: grabbing !important;
+}

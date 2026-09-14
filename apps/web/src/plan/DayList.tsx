@@ -50,7 +50,7 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
         />
       </label>
       <StatusFilter libraryView={libraryView} selected={filter?.statusIds ?? []} onChange={setSelected} />
-      <Timeline plan={plan} libraryView={libraryView} moneyCells={cells} filter={filter} />
+      <Timeline doc={doc} library={library} plan={plan} libraryView={libraryView} moneyCells={cells} filter={filter} />
       <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
       <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
       <ol aria-label="日期列表" className="flex flex-col gap-3">
