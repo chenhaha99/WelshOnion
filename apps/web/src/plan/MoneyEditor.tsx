@@ -8,7 +8,7 @@ import {
   type KindView,
   type PlanView,
 } from "@welshonion/core";
-import { useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
 import { parseYuan } from "./money";
@@ -83,11 +83,14 @@ interface ExpenseRowProps {
   expense: ExpenseView;
   kinds: KindView[];
   countKindUsing: (kindId: string) => number;
-  /** 在哪块的编辑区里；不挂块的钱给 null */
+  /** 在哪块的编辑区里；不挂块的钱、按类型分组时给 null */
   blockId: string | null;
+  /** 按类型分组时写「挂在 10.1 周四 民宿」或「不挂块」；按天时不给 */
+  blocksLabel?: string;
 }
 
-function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId }: ExpenseRowProps) {
+/** 一笔钱一行：类型、金额、人均或总价、说明，共用时能从这块拿掉，删除这笔。按天的编辑区、按类型分组共用。 */
+export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId, blocksLabel }: ExpenseRowProps) {
   const shared = blockId !== null && expense.block_ids.length > 1;
   return (
     <div data-expense-id={expense.id} className="flex flex-wrap items-center gap-2">
@@ -136,6 +139,11 @@ function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId }: E
           }}
         />
       </div>
+      {blocksLabel !== undefined && (
+        <span data-expense-blocks className="text-xs text-ink-muted">
+          {blocksLabel}
+        </span>
+      )}
       {shared && blockId !== null && (
         <>
           <span className="text-xs text-ink-muted">也挂在别的块上</span>
@@ -162,13 +170,15 @@ interface DraftRowProps {
   blockId: string | null;
   defaultKindId: string;
   autoFocus: boolean;
+  /** 前面那一截字：默认「加一笔」；按类型分组的空行写块 */
+  lead?: ReactNode;
 }
 
 /**
  * 末尾那行空的：金额或说明填了一格、按回车或焦点离开这一行时才建这笔钱。
  * 只在离开整行时提交，免得填完金额跳去填说明时先建出一笔、填完说明又建一笔。
  */
-function DraftRow({ doc, library, blockId, defaultKindId, autoFocus }: DraftRowProps) {
+export function DraftRow({ doc, library, blockId, defaultKindId, autoFocus, lead }: DraftRowProps) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +218,7 @@ function DraftRow({ doc, library, blockId, defaultKindId, autoFocus }: DraftRowP
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) submit();
         }}
       >
-        <span className="w-28 pl-1 text-xs text-ink-muted">加一笔</span>
+        <span className="w-28 pl-1 text-xs text-ink-muted">{lead ?? "加一笔"}</span>
         <input
           aria-label="新一笔的金额"
           placeholder="金额（元）"

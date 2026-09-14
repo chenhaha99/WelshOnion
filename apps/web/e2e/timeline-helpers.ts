@@ -101,6 +101,31 @@ export async function keepUndated(page: Page, table: Locator, title: string, slo
   }
 }
 
+/** 在 title 这块上加一笔钱：金额 yuan；给了 note 就填说明，给了 kind 就把这笔钱改成那个类型。加完收起钱的编辑区。 */
+export async function addMoney(
+  page: Page,
+  table: Locator,
+  title: string,
+  yuan: string,
+  { kind, note }: { kind?: string; note?: string } = {},
+): Promise<void> {
+  const row = await rowOf(table, title);
+  await row.getByRole("button", { name: "钱" }).click();
+  const editor = page.getByRole("group", { name: `${title} 的钱` });
+  await editor.getByRole("textbox", { name: "新一笔的金额" }).fill(yuan);
+  if (note !== undefined) await editor.getByRole("textbox", { name: "新一笔的说明" }).fill(note);
+  await page.keyboard.press("Enter");
+  const added = editor.locator("[data-expense-id]").last();
+  await expect(added.getByRole("textbox", { name: "金额" })).toHaveValue(yuan);
+  if (kind !== undefined) {
+    await added.getByRole("button", { name: /^类型：/ }).click();
+    await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
+    await expect(added.getByRole("button", { name: `类型：${kind}` })).toBeVisible();
+  }
+  await row.getByRole("button", { name: "钱" }).click();
+  await expect(editor).toBeHidden();
+}
+
 export function timelineRow(page: Page, day: "10.1" | "10.2" | "10.3"): Locator {
   return page.getByRole("region", { name: "时间轴" }).getByRole("listitem", { name: new RegExp(day.replace(".", "\\.")) });
 }

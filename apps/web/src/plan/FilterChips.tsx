@@ -23,9 +23,7 @@ export function FilterChips({ label, lead, clearLabel, items, selected, onChange
             key={item.id}
             type="button"
             aria-pressed={pressed}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
-              pressed ? "border-sage bg-sage/15 text-ink" : "border-ink/10 bg-white/70 text-ink-muted hover:text-ink"
-            }`}
+            className={chipClass(pressed)}
             onClick={() => onChange(pressed ? selected.filter((id) => id !== item.id) : [...selected, item.id])}
           >
             <span aria-hidden="true" className="kind-dot" style={{ backgroundColor: item.color }} />
@@ -40,4 +38,11 @@ export function FilterChips({ label, lead, clearLabel, items, selected, onChange
       )}
     </div>
   );
+}
+
+/** 筛选、分组这类圆角按钮的样子：按下的有底色。 */
+export function chipClass(pressed: boolean): string {
+  return `inline-flex h-8 items-center gap-1.5 rounded-full border px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+    pressed ? "border-sage bg-sage/15 text-ink" : "border-ink/10 bg-white/70 text-ink-muted hover:text-ink"
+  }`;
 }

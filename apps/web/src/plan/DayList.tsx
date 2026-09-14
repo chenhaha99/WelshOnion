@@ -1,14 +1,20 @@
 import { shiftAllDays, type KindView, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { dayRowLabels, daysBetween } from "./day-labels";
 import { DayRow } from "./DayRow";
-import { FilterChips } from "./FilterChips";
+import { FilterChips, chipClass } from "./FilterChips";
+import { KindGroups } from "./KindGroups";
 import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
 import { SharesCard } from "./SharesCard";
 import { Timeline } from "./Timeline";
+
+const GROUPINGS = [
+  { value: "day", label: "按天" },
+  { value: "kind", label: "按类型" },
+] as const;
 
 interface DayListProps {
   doc: Y.Doc;
@@ -29,6 +35,9 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
   // 状态、类型删掉了，按下过的就不算了
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
+  // 按天还是按类型分组，也只在这一页
+  const [grouping, setGrouping] = useState<"day" | "kind">("day");
+  const pressedGrouping = useRef<HTMLButtonElement>(null);
   const statusKey = selectedStatuses.filter((id) => libraryView.statuses.has(id)).join(",");
   const kindKey = selectedKinds.filter((id) => libraryView.kinds.has(id)).join(",");
   const filter = useMemo<StatsFilter | undefined>(() => {
@@ -80,29 +89,55 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
       <Timeline doc={doc} library={library} plan={plan} libraryView={libraryView} moneyCells={cells} filter={filter} />
       <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
       <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
-      {/* 按类型筛时，钱算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上 */}
-      {hiddenCents > 0 && (
+      <div role="group" aria-label="分组" className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-ink-muted">分组</span>
+        {GROUPINGS.map(({ value, label }) => (
+          <button
+            key={value}
+            ref={grouping === value ? pressedGrouping : undefined}
+            type="button"
+            aria-pressed={grouping === value}
+            className={chipClass(grouping === value)}
+            onClick={() => setGrouping(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {/* 按天、又按类型筛时，钱算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上。按类型分组时钱都在组里 */}
+      {grouping === "day" && hiddenCents > 0 && (
         <p data-hidden-money className="text-sm text-ink-muted">
           {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的块上`}
         </p>
       )}
-      <ol aria-label="日期列表" className="flex flex-col gap-3">
-        {bases.map((base, index) => (
-          <DayRow
-            key={base.id}
-            doc={doc}
-            library={library}
-            libraryView={libraryView}
-            plan={plan}
-            base={base}
-            label={labels[index]!}
-            index={index}
-            count={bases.length}
-            moneyCells={cells}
-            filter={filter}
-          />
-        ))}
-      </ol>
+      {grouping === "day" ? (
+        <ol aria-label="日期列表" className="flex flex-col gap-3">
+          {bases.map((base, index) => (
+            <DayRow
+              key={base.id}
+              doc={doc}
+              library={library}
+              libraryView={libraryView}
+              plan={plan}
+              base={base}
+              label={labels[index]!}
+              index={index}
+              count={bases.length}
+              moneyCells={cells}
+              filter={filter}
+            />
+          ))}
+        </ol>
+      ) : (
+        <KindGroups
+          doc={doc}
+          library={library}
+          libraryView={libraryView}
+          plan={plan}
+          filter={filter}
+          onEmptyFocus={() => pressedGrouping.current?.focus()}
+        />
+      )}
     </section>
   );
 }

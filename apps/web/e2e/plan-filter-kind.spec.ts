@@ -1,24 +1,6 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
-import { DAY1, addBlocks, newPlan, pickKind, rowOf, schedule } from "./timeline-helpers";
+import { expect, test } from "@playwright/test";
+import { DAY1, addBlocks, addMoney, newPlan, pickKind, rowOf, schedule } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
-
-/** 在 title 这块上加一笔钱；给了 kind 就把这笔钱改成那个类型。加完收起钱的编辑区。 */
-async function addMoney(page: Page, table: Locator, title: string, yuan: string, kind?: string): Promise<void> {
-  const row = await rowOf(table, title);
-  await row.getByRole("button", { name: "钱" }).click();
-  const editor = page.getByRole("group", { name: `${title} 的钱` });
-  await editor.getByRole("textbox", { name: "新一笔的金额" }).fill(yuan);
-  await page.keyboard.press("Enter");
-  const added = editor.locator("[data-expense-id]").last();
-  await expect(added.getByRole("textbox", { name: "金额" })).toHaveValue(yuan);
-  if (kind !== undefined) {
-    await added.getByRole("button", { name: /^类型：/ }).click();
-    await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
-    await expect(added.getByRole("button", { name: `类型：${kind}` })).toBeVisible();
-  }
-  await row.getByRole("button", { name: "钱" }).click();
-  await expect(editor).toBeHidden();
-}
 
 test("按类型筛选：只看住宿 → 钱格另有别的类型、挂在被筛掉的块上 → 和状态一起 → 全部类型 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
@@ -31,8 +13,8 @@ test("按类型筛选：只看住宿 → 钱格另有别的类型、挂在被筛
   await schedule(page, table, "民宿", "22:00", "2");
   // 民宿：房费 480、早餐 30（餐饮）；横店（游玩）：住宿费 300（住宿）
   await addMoney(page, table, "民宿", "480");
-  await addMoney(page, table, "民宿", "30", "餐饮");
-  await addMoney(page, table, "横店", "300", "住宿");
+  await addMoney(page, table, "民宿", "30", { kind: "餐饮" });
+  await addMoney(page, table, "横店", "300", { kind: "住宿" });
 
   // 「类型」那一排只列用到的，按类型的顺序
   const kinds = page.getByRole("group", { name: "按类型筛选" });
