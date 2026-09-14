@@ -57,6 +57,9 @@ test("时间预算：设默认 → 每天两行 → 填错 → 这天单独设 �
   await km.fill("2.5");
   await page.keyboard.press("Enter");
   await expect(settings.getByText("要填不小于 0 的整数")).toBeVisible();
+  // 电脑上还是右边 320 像素宽的抽屉，左边的计划页看得见
+  const wideBox = (await settings.boundingBox())!;
+  expect([wideBox.x + wideBox.width, wideBox.width]).toEqual([page.viewportSize()!.width, 320]);
   await shot(page, "01-settings");
   await km.fill("");
   await page.keyboard.press("Enter");
@@ -86,13 +89,17 @@ test("时间预算：设默认 → 每天两行 → 填错 → 这天单独设 �
   await expect(editor).toBeHidden();
   await expect(day2.getByRole("button", { name: "这天的操作" })).toBeFocused();
 
-  // 矮的手机屏：抽屉能滚，最后一栏够得着
+  // 矮的手机屏：设置占满屏幕、能滚，最后一栏够得着；滚到下面「关闭」还在屏幕里，点了关掉
   await page.setViewportSize({ width: 390, height: 640 });
   await page.getByRole("button", { name: "国庆杭州" }).click();
+  const phoneBox = (await settings.boundingBox())!;
+  expect([phoneBox.x, phoneBox.y, phoneBox.width, phoneBox.height]).toEqual([0, 0, 390, 640]);
   await km.scrollIntoViewIfNeeded();
   await expect(km).toBeInViewport();
+  const close = settings.getByRole("button", { name: "关闭" });
+  await expect(close).toBeInViewport();
   await shot(page, "03-mobile-settings");
-  await page.keyboard.press("Escape");
+  await close.click();
   await expect(settings).toBeHidden();
 
   // 手机上每天两行都只在项和项之间换行
