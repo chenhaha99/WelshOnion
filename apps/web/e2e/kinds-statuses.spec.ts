@@ -1,17 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-
-function watchErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  return errors;
-}
-
-async function shot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
-}
+import { expect, test } from "@playwright/test";
+import { shot, watchErrors } from "./walkthrough";
 
 // 每个选项旁边都有「「名字」的操作」按钮，按名字找选项时一律精确匹配
 test("类型和状态：新建并用上 → 改色 → 删除确认 → 新建状态 → 键盘 → 手机", async ({ page }) => {

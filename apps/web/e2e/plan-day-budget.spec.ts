@@ -1,17 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-
-function watchErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  return errors;
-}
-
-async function shot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
-}
+import { shot, watchErrors } from "./walkthrough";
 
 async function schedule(page: Page, row: Locator, title: string, start: string, hours: string): Promise<void> {
   await expect(row.getByRole("textbox", { name: "标题" })).toHaveValue(title);

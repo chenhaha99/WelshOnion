@@ -1,17 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-
-function watchErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  return errors;
-}
-
-async function shot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
-}
+import { expect, test } from "@playwright/test";
+import { shot, watchErrors } from "./walkthrough";
 
 test("按状态筛选：只看待定 → 只用键盘挨个确认 → 全部显示 → 手机", async ({ page }) => {
   const errors = watchErrors(page);

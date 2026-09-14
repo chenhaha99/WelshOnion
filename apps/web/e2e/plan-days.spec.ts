@@ -1,17 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-
-function watchErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  return errors;
-}
-
-async function shot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
-}
+import { expect, test } from "@playwright/test";
+import { shot, watchErrors } from "./walkthrough";
 
 test("几天：新建 → 定 3 天 → 键盘插天 → 撤销重做 → 时区和请假 → 设置 → 回列表", async ({ page }) => {
   const errors = watchErrors(page);

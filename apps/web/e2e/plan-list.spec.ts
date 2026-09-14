@@ -1,19 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import { shot, watchErrors } from "./walkthrough";
 
 /** 页面报错、React 在控制台喊的警告，都算走查不通过。 */
-function watchErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  return errors;
-}
-
-async function shot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
-}
-
 function cardTitles(page: Page) {
   return page.getByRole("heading", { level: 2 });
 }

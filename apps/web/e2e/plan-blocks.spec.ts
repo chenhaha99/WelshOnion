@@ -1,17 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-
-function watchErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  return errors;
-}
-
-async function shot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
-}
+import { expect, test } from "@playwright/test";
+import { shot, watchErrors } from "./walkthrough";
 
 test("安排表：连着加几件事 → 改类型状态 → 排时间 → 缩进 → 删除再撤销", async ({ page }) => {
   const errors = watchErrors(page);
