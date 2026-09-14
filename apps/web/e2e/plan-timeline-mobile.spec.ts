@@ -71,6 +71,10 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   expect(await shownDay(page)).toBe("第 1 天 · 9.13 周日");
   expect(await topMinute(scroller)).toBe(8 * 60);
   await expect(timeline.getByRole("button", { name: "前一天" })).toBeDisabled();
+  // 滚到整点时，最上面那个钟点的字整个露在框里，不被切掉一半
+  const scrollerTop = (await scroller.boundingBox())!.y;
+  const eightTop = (await timeline.locator("[data-hour-tick]").filter({ hasText: /^8$/ }).boundingBox())!.y;
+  expect(eightTop).toBeGreaterThanOrEqual(scrollerTop);
 
   // 宽屏切回横排：一天一行
   await page.setViewportSize({ width: 1280, height: 900 });

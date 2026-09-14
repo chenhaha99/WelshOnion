@@ -1,4 +1,11 @@
-import type { BaseView, LibraryView, PlanView, StatsFilter } from "@welshonion/core";
+import {
+  shiftDayFrom,
+  type BaseView,
+  type BlockView,
+  type LibraryView,
+  type PlanView,
+  type StatsFilter,
+} from "@welshonion/core";
 import {
   useMemo,
   type CSSProperties,
@@ -54,6 +61,10 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter }
   }, [plan, libraryView, filter]);
   const hasTimed = [...plan.blocks.values()].some((block) => block.start_minute !== null);
   const wide = useWideScreen();
+  // 详情里「这天从这件起往后推迟」：只交给排上时间的横条、竖条
+  const shiftLater = (block: BlockView, deltaMin: number) => {
+    shiftDayFrom(doc, library, block.start_base_id, block.start_minute!, deltaMin);
+  };
 
   return (
     <section aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
@@ -76,9 +87,17 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter }
           labels={labels}
           moneyCells={moneyCells}
           filter={filter}
+          shiftLater={shiftLater}
         />
       ) : (
-        <DayTimeline plan={plan} rows={rows} labels={labels} moneyCells={moneyCells} filter={filter} />
+        <DayTimeline
+          plan={plan}
+          rows={rows}
+          labels={labels}
+          moneyCells={moneyCells}
+          filter={filter}
+          shiftLater={shiftLater}
+        />
       )}
     </section>
   );
@@ -93,13 +112,24 @@ interface WideTimelineProps {
   labels: readonly string[];
   moneyCells: ReadonlyMap<string, MoneyCell>;
   filter: StatsFilter | undefined;
+  shiftLater: (block: BlockView, deltaMin: number) => void;
 }
 
 /**
  * 横排：一天一行，横向 0–24 点按真实比例，右边一栏放这天没排时间的事。
  * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条看详情。拖拽见 use-timeline-drag。
  */
-function WideTimeline({ doc, library, plan, libraryView, rows, labels, moneyCells, filter }: WideTimelineProps) {
+function WideTimeline({
+  doc,
+  library,
+  plan,
+  libraryView,
+  rows,
+  labels,
+  moneyCells,
+  filter,
+  shiftLater,
+}: WideTimelineProps) {
   const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter });
 
   return (
@@ -144,6 +174,7 @@ function WideTimeline({ doc, library, plan, libraryView, rows, labels, moneyCell
               labelHere={drag.preview !== null && drag.preview.pieces[0]?.row === index}
               trayDropLabel={drag.trayDrop?.row === index ? drag.trayDrop.label : null}
               handlers={drag.handlers}
+              shiftLater={shiftLater}
               onChipPointerDown={(event, blockId) => drag.chipHandlers.onPointerDown(event, blockId, index)}
               onChipClickCapture={drag.chipHandlers.onClickCapture}
             />
@@ -172,6 +203,7 @@ interface TimelineRowProps {
   /** 正拖进这一行的「没排时间」栏时，会进哪一格；没往这里拖是 null */
   trayDropLabel: string | null;
   handlers: SegmentHandlers;
+  shiftLater: (block: BlockView, deltaMin: number) => void;
   onChipPointerDown: (event: ReactPointerEvent<HTMLDivElement>, blockId: string) => void;
   onChipClickCapture: (event: ReactMouseEvent<HTMLDivElement>) => void;
 }
@@ -191,6 +223,7 @@ function TimelineRow({
   labelHere,
   trayDropLabel,
   handlers,
+  shiftLater,
   onChipPointerDown,
   onChipClickCapture,
 }: TimelineRowProps) {
@@ -243,6 +276,7 @@ function TimelineRow({
             moneyCell={moneyCells.get(item.blockId)}
             dragView={dragView}
             handlers={handlers}
+            shiftLater={shiftLater}
           />
         ))}
         {preview?.pieces.map((piece, index) => (
@@ -285,10 +319,11 @@ interface SegmentProps {
   moneyCell: MoneyCell | undefined;
   dragView: DragView | null;
   handlers: SegmentHandlers;
+  shiftLater: (block: BlockView, deltaMin: number) => void;
 }
 
 /** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点开详情。 */
-function Segment({ plan, item, top, height, moneyCell, dragView, handlers }: SegmentProps) {
+function Segment({ plan, item, top, height, moneyCell, dragView, handlers, shiftLater }: SegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
@@ -323,6 +358,7 @@ function Segment({ plan, item, top, height, moneyCell, dragView, handlers }: Seg
         triggerClassName={buttonClass}
         align="start"
         moneyCell={moneyCell}
+        onShiftLater={(deltaMin) => shiftLater(block, deltaMin)}
       />
     </div>
   );

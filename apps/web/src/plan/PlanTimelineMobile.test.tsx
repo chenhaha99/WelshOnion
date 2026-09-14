@@ -5,23 +5,11 @@ import { addBlock, deleteDay, setDays, type AddBlockInput } from "@welshonion/co
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openStoredPlan } from "./test-helpers";
+import { daysFromOct1, openStoredPlan, stubNarrowScreen } from "./test-helpers";
 
 // 测试里「现在」是 2026-09-14 18:00（北京），系统时区是北京，见 app/test-render.tsx
 
-/** 模拟窗口宽 390 像素：只要问「至少 720 像素宽吗」都答不是。 */
-beforeEach(() => {
-  vi.stubGlobal("matchMedia", (query: string) => ({
-    matches: !query.includes("min-width: 720px"),
-    media: query,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  }));
-});
+beforeEach(() => stubNarrowScreen());
 
 afterEach(async () => {
   cleanup();

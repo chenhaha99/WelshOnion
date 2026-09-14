@@ -1,6 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { readLibrary, readPlan, setDays, type LibraryView, type PlanView } from "@welshonion/core";
+import { vi } from "vitest";
 import type * as Y from "yjs";
 import { NOW, renderApp } from "../app/test-render";
 import { openLibrary } from "../storage/library";
@@ -42,6 +43,20 @@ export function daysFromOct1(doc: Y.Doc, count: number): string[] {
   const result = setDays(doc, { startDate: "2026-10-01", count, tz: "Asia/Shanghai" });
   if (!result.ok) throw new Error("建天失败");
   return result.value.baseIds;
+}
+
+/** 模拟窗口宽 390 像素：只要问「至少 720 像素宽吗」都答不是。在 beforeEach 里调，afterEach 里 vi.unstubAllGlobals()。 */
+export function stubNarrowScreen(): void {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: !query.includes("min-width: 720px"),
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }));
 }
 
 export async function dayLabels(): Promise<string[]> {

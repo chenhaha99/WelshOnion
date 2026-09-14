@@ -1,4 +1,4 @@
-import { baseStartUtcMs, type PlanView, type StatsFilter } from "@welshonion/core";
+import { baseStartUtcMs, type BlockView, type PlanView, type StatsFilter } from "@welshonion/core";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useNow, useTimeZone } from "../app/services";
 import { BlockPopover } from "./BlockBubble";
@@ -26,6 +26,8 @@ interface DayTimelineProps {
   labels: readonly string[];
   moneyCells: ReadonlyMap<string, MoneyCell>;
   filter: StatsFilter | undefined;
+  /** 详情里「这天从这件起往后推迟」的做法 */
+  shiftLater: (block: BlockView, deltaMin: number) => void;
 }
 
 /**
@@ -33,7 +35,7 @@ interface DayTimelineProps {
  * 打开时落在今天（没出发是第一天，已结束是最后一天），滚到现在或这天第一件事；只在打开、翻天时滚。
  * 块画成竖条，同一层重叠的并排成列，停留、住宿这类在左边的细条里；框下面列出这天没排时间的事（没有就不出现）。窄屏上不能拖。
  */
-export function DayTimeline({ plan, rows, labels, moneyCells, filter }: DayTimelineProps) {
+export function DayTimeline({ plan, rows, labels, moneyCells, filter, shiftLater }: DayTimelineProps) {
   const now = useNow();
   const timeZone = useTimeZone();
   const today = todayIn(now(), timeZone);
@@ -80,7 +82,8 @@ export function DayTimeline({ plan, rows, labels, moneyCells, filter }: DayTimel
           回到今天
         </button>
       )}
-      <div ref={scroller} data-day-scroll className="h-[28rem] overflow-y-auto rounded-lg border border-ink/5">
+      {/* 上下各留 8 像素：钟点的字以线为中心画，滚到整点时最上面那个字不被框切掉一半 */}
+      <div ref={scroller} data-day-scroll className="h-[28rem] overflow-y-auto rounded-lg border border-ink/5 py-2">
         <div className="grid grid-cols-[2.5rem_1fr]" style={{ height: 24 * HOUR_HEIGHT }}>
           <div aria-hidden className="relative">
             {HOUR_TICKS.map((hour) => (
@@ -118,6 +121,7 @@ export function DayTimeline({ plan, rows, labels, moneyCells, filter }: DayTimel
                 item={item}
                 place={{ left: (item.lane - 1) * STRIP_WIDTH, width: STRIP_WIDTH - GAP }}
                 moneyCell={moneyCells.get(item.blockId)}
+                shiftLater={shiftLater}
               />
             ))}
             {layout.main.map((item) => (
@@ -127,6 +131,7 @@ export function DayTimeline({ plan, rows, labels, moneyCells, filter }: DayTimel
                 item={item}
                 place={column(item, layout.laneCount, stripsWidth)}
                 moneyCell={moneyCells.get(item.blockId)}
+                shiftLater={shiftLater}
               />
             ))}
           </div>
@@ -161,10 +166,11 @@ interface DaySegmentProps {
   /** 横向的位置：第几列、多宽 */
   place: CSSProperties;
   moneyCell: MoneyCell | undefined;
+  shiftLater: (block: BlockView, deltaMin: number) => void;
 }
 
 /** 一段竖条：外框放位置和 data 属性（和横排一样），里面的按钮点开详情。背景细条太窄，不写字。 */
-function DaySegment({ plan, item, place, moneyCell }: DaySegmentProps) {
+function DaySegment({ plan, item, place, moneyCell, shiftLater }: DaySegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
@@ -192,6 +198,7 @@ function DaySegment({ plan, item, place, moneyCell }: DaySegmentProps) {
         triggerClassName={buttonClass}
         align="start"
         moneyCell={moneyCell}
+        onShiftLater={(deltaMin) => shiftLater(block, deltaMin)}
       />
     </div>
   );
