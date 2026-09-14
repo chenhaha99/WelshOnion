@@ -1,18 +1,24 @@
-import { passesFilter, type BaseView, type PlanView, type StatsFilter } from "@welshonion/core";
-import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
-import { Popover } from "../app/Popover";
-import { BlockBubble } from "./BlockBubble";
+import { passesFilter, type BaseView, type BlockView, type PlanView, type StatsFilter } from "@welshonion/core";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+import { BlockPopover } from "./BlockBubble";
 import { blockTimeLabel } from "./block-time";
 import type { MoneyCell } from "./money-cells";
+import { kindColor } from "./timeline-draw";
 
-const DELETED_COLOR = "#9aa3ad";
+/** 一天里没排时间、通过筛选的事，顺序同安排表（整天、上午、下午、晚上，同一格按这天的排序）。 */
+export function undatedBlocks(plan: PlanView, base: BaseView, filter: StatsFilter | undefined): BlockView[] {
+  const groups = plan.undated.get(base.id)!;
+  return [...groups.day, ...groups.morning, ...groups.afternoon, ...groups.evening]
+    .map((id) => plan.blocks.get(id)!)
+    .filter((block) => passesFilter(block, filter));
+}
 
 interface UndatedTrayProps {
   plan: PlanView;
   base: BaseView;
+  /** 要列的事，由 undatedBlocks 算好 */
+  blocks: readonly BlockView[];
   moneyCells: ReadonlyMap<string, MoneyCell>;
-  /** 按状态筛选；没开是 undefined */
-  filter: StatsFilter | undefined;
   trayRef: (element: HTMLDivElement | null) => void;
   /** 正拖进这一栏时，松手会进哪一格（「上午」）；没往这里拖是 null */
   dropLabel: string | null;
@@ -23,25 +29,20 @@ interface UndatedTrayProps {
 }
 
 /**
- * 时间轴一行右边的「没排时间」栏：这天没排时间、通过筛选的事，顺序同安排表（整天、上午、下午、晚上，同一格按这天的排序）。
- * 每件写标题和时间格的字，点一下打开详情，按住能拖。这一栏一直在，没有事时是空的，横条也能拖进来。
+ * 时间轴的「没排时间」：一天里没排时间的一串事，每件写标题和时间格的字，点一下打开详情。
+ * 横排在每行右边，按住能拖；这一栏一直在，没有事时是空的，横条也能拖进来。竖排在框下面，不能拖。
  */
 export function UndatedTray({
   plan,
   base,
+  blocks,
   moneyCells,
-  filter,
   trayRef,
   dropLabel,
   draggingId,
   onChipPointerDown,
   onChipClickCapture,
 }: UndatedTrayProps) {
-  const groups = plan.undated.get(base.id)!;
-  const blocks = [...groups.day, ...groups.morning, ...groups.afternoon, ...groups.evening]
-    .map((id) => plan.blocks.get(id)!)
-    .filter((block) => passesFilter(block, filter));
-
   return (
     <div
       ref={trayRef}
@@ -53,7 +54,6 @@ export function UndatedTray({
     >
       {blocks.map((block) => {
         const time = blockTimeLabel(block, base.date);
-        const name = `${block.title} ${time}`;
         return (
           <div
             key={block.id}
@@ -62,13 +62,13 @@ export function UndatedTray({
             data-slot={block.slot ?? "day"}
             data-pending={block.status.id === "pending"}
             data-dragging={draggingId === block.id ? true : undefined}
-            style={{ "--kind-color": block.kind.deleted ? DELETED_COLOR : block.kind.color } as CSSProperties}
+            style={kindColor(plan, block.id)}
             onPointerDown={(event) => onChipPointerDown(event, block.id)}
             onClickCapture={onChipClickCapture}
           >
-            <Popover
-              label={name}
-              triggerTitle={name}
+            <BlockPopover
+              block={block}
+              time={time}
               trigger={
                 <>
                   <span className="truncate">{block.title}</span>
@@ -76,14 +76,9 @@ export function UndatedTray({
                 </>
               }
               triggerClassName="timeline-chip"
-              role="dialog"
-              panelLabel={block.title}
-              panelClassName="menu w-72 p-3"
               align="end"
-              estimatedHeight={200}
-            >
-              {(close) => <BlockBubble block={block} time={time} moneyCell={moneyCells.get(block.id)} close={close} />}
-            </Popover>
+              moneyCell={moneyCells.get(block.id)}
+            />
           </div>
         );
       })}

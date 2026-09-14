@@ -11,13 +11,18 @@ export interface Point {
   y: number;
 }
 
-export async function newPlan(page: Page, dayCount = 2): Promise<void> {
-  await page.setViewportSize({ width: 1280, height: 900 });
+/** 新建一个计划、定好几天。默认 10.1 出发、在 1280 × 900 的窗口里。 */
+export async function newPlan(
+  page: Page,
+  dayCount = 2,
+  { startDate = "2026-10-01", width = 1280, height = 900 }: { startDate?: string; width?: number; height?: number } = {},
+): Promise<void> {
+  await page.setViewportSize({ width, height });
   await page.goto("/");
   await page.getByRole("button", { name: "新建第一个计划" }).click();
   await page.getByRole("textbox", { name: "计划名" }).fill("国庆杭州");
   await page.keyboard.press("Enter");
-  await page.getByLabel("出发日期").fill("2026-10-01");
+  await page.getByLabel("出发日期").fill(startDate);
   await page.getByLabel("天数").fill(String(dayCount));
   await page.getByRole("button", { name: "确定" }).click();
   await expect(page.getByRole("list", { name: "日期列表" }).getByRole("listitem")).toHaveCount(dayCount);

@@ -1,20 +1,51 @@
 import type { BlockView, TransportMode } from "@welshonion/core";
+import type { ReactNode } from "react";
+import { Popover } from "../app/Popover";
 import { distanceKmText } from "./block-details";
 import { durationLabel } from "./block-time";
 import { moneyCellLabel, type MoneyCell } from "./money-cells";
 
 const TRANSPORT_NAMES: Readonly<Record<TransportMode, string>> = { drive: "自驾", transit: "公共交通", walk: "步行" };
 
-interface BlockBubbleProps {
+interface BlockPopoverProps {
   block: BlockView;
   /** 时间格的字：「09:00–12:00」「上午 · 2 小时」 */
+  time: string;
+  trigger: ReactNode;
+  triggerClassName: string;
+  align: "start" | "end";
+  moneyCell: MoneyCell | undefined;
+}
+
+/** 时间轴上的一件事：按钮的读屏名是「标题 时间」，点开是只读的详情。横条、竖条、「没排时间」栏里的一件共用。 */
+export function BlockPopover({ block, time, trigger, triggerClassName, align, moneyCell }: BlockPopoverProps) {
+  const name = `${block.title} ${time}`;
+  return (
+    <Popover
+      label={name}
+      triggerTitle={name}
+      trigger={trigger}
+      triggerClassName={triggerClassName}
+      role="dialog"
+      panelLabel={block.title}
+      panelClassName="menu w-72 p-3"
+      align={align}
+      estimatedHeight={220}
+    >
+      {(close) => <BlockBubble block={block} time={time} moneyCell={moneyCell} close={close} />}
+    </Popover>
+  );
+}
+
+interface BlockBubbleProps {
+  block: BlockView;
   time: string;
   moneyCell: MoneyCell | undefined;
   close: (returnFocus?: boolean) => void;
 }
 
-/** 时间轴上点横条、点「没排时间」栏里的一件弹出的详情：只读，要改就「在表里改」跳到安排表那一行。 */
-export function BlockBubble({ block, time, moneyCell, close }: BlockBubbleProps) {
+/** 详情：只读，要改就「在表里改」跳到安排表那一行。 */
+function BlockBubble({ block, time, moneyCell, close }: BlockBubbleProps) {
   const duration = block.duration_min ?? 0;
   // 没排时间的块，时间格的字里已经带着时长
   const timeLine = block.start_minute === null || duration === 0 ? time : `${time} · ${durationLabel(duration)}`;

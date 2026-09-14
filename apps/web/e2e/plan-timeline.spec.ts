@@ -110,10 +110,16 @@ test("时间轴：排出一天 → 按时长画 → 看详情、在表里改 →
   expect(await scroller.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   expect((await axisWidth()) / 24).toBeGreaterThanOrEqual(30);
 
-  // 手机上在卡片里横着滚，页面本身不横着滚
-  await page.setViewportSize({ width: 390, height: 844 });
+  // 窄一点的电脑窗口：还是横着铺，在卡片里横着滚，页面本身不横着滚
+  await page.setViewportSize({ width: 900, height: 800 });
   await expect.poll(() => scroller.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
   expect((await axisWidth()) / 24).toBeGreaterThanOrEqual(30);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(900);
+
+  // 手机上换成竖排的一天，页面本身不横着滚
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(timeline.locator("[data-day-scroll]")).toBeVisible();
+  await expect(scroller).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await timeline.scrollIntoViewIfNeeded();
   await shot(page, "03-mobile");
