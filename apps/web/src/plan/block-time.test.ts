@@ -1,7 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { blockTimeLabel } from "./block-time";
+import { blockTimeLabel, clockOnDay, durationLabel } from "./block-time";
 
 const OCT1 = "2026-10-01";
+
+describe("某天的时刻", () => {
+  it("当天写时:分", () => {
+    expect(clockOnDay(0, OCT1)).toBe("00:00");
+    expect(clockOnDay(1140, OCT1)).toBe("19:00");
+  });
+
+  it("落在后面的日期：写上月.日", () => {
+    expect(clockOnDay(1500, OCT1)).toBe("10.2 01:00");
+    expect(clockOnDay(3120, OCT1)).toBe("10.3 04:00");
+    expect(clockOnDay(1500, "2026-09-30")).toBe("10.1 01:00");
+  });
+
+  it("正好半夜 0 点：写成当天 24:00", () => {
+    expect(clockOnDay(1440, OCT1)).toBe("24:00");
+  });
+});
+
+describe("时长写法", () => {
+  it("不到 1 小时写分钟，否则写小时，最多一位小数", () => {
+    expect(durationLabel(45)).toBe("45 分钟");
+    expect(durationLabel(180)).toBe("3 小时");
+    expect(durationLabel(90)).toBe("1.5 小时");
+    expect(durationLabel(1200)).toBe("20 小时");
+  });
+});
 
 describe("时间格的写法", () => {
   it("有时间：开始–结束", () => {

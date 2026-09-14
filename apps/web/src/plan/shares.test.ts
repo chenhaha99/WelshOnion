@@ -18,7 +18,6 @@ import {
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import {
-  durationLabel,
   moneyNoteLabel,
   moneyRowLabel,
   moneyShares,
@@ -76,15 +75,6 @@ describe("取整百分比（最大余数法）", () => {
     expect(sharePercents([1200, 180, 60])).toEqual([83, 13, 4]);
     expect(sharePercents([1200, 600])).toEqual([67, 33]);
     expect(sharePercents([1, 1, 1])).toEqual([34, 33, 33]);
-  });
-});
-
-describe("时长写法", () => {
-  it("不到 1 小时写分钟，否则写小时，最多一位小数", () => {
-    expect(durationLabel(45)).toBe("45 分钟");
-    expect(durationLabel(180)).toBe("3 小时");
-    expect(durationLabel(90)).toBe("1.5 小时");
-    expect(durationLabel(1200)).toBe("20 小时");
   });
 });
 

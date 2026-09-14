@@ -11,10 +11,11 @@ import {
   type LibraryView,
   type PlanView,
 } from "@welshonion/core";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type * as Y from "yjs";
 import { Menu, type MenuItem } from "../app/Menu";
 import { BlockTable } from "./BlockTable";
+import { dayFactsParts } from "./day-facts";
 import { COMMON_TIME_ZONES, cityName } from "./day-labels";
 import type { MoneyCell } from "./money-cells";
 
@@ -38,6 +39,7 @@ interface DayRowProps {
 export function DayRow({ doc, library, libraryView, plan, base, label, index, count, moneyCells }: DayRowProps) {
   const [mode, setMode] = useState<Mode>({ kind: "normal" });
   const backToNormal = () => setMode({ kind: "normal" });
+  const facts = dayFactsParts(plan, base, moneyCells);
 
   const insert = (direction: Direction, crossingBlocks?: "before" | "after") => {
     const insertDay = direction === "above" ? insertDayAbove : insertDayBelow;
@@ -109,6 +111,17 @@ export function DayRow({ doc, library, libraryView, plan, base, label, index, co
             取消
           </button>
         </div>
+      )}
+
+      {facts.length > 0 && (
+        <p data-day-facts className="text-sm text-ink-muted tabular-nums">
+          {facts.map((part, index) => (
+            <Fragment key={index}>
+              {index > 0 && " · "}
+              <span className="whitespace-nowrap">{part}</span>
+            </Fragment>
+          ))}
+        </p>
       )}
 
       <BlockTable

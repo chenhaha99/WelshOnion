@@ -6,6 +6,7 @@ import {
   type LibraryView,
   type PlanView,
 } from "@welshonion/core";
+import { durationLabel } from "./block-time";
 import { formatYuan } from "./money";
 
 const DELETED_COLOR = "#9aa3ad";
@@ -25,12 +26,6 @@ export function sharePercents(values: readonly number[]): number[] {
     percents[index] = percents[index]! + 1;
   }
   return percents;
-}
-
-/** 「45 分钟」「3 小时」「1.5 小时」：不到 1 小时写分钟，否则写小时，最多一位小数。 */
-export function durationLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes} 分钟`;
-  return `${Math.round((minutes / 60) * 10) / 10} 小时`;
 }
 
 interface KindLook {
