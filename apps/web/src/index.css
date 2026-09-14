@@ -181,3 +181,62 @@
   box-shadow: -16px 0 48px rgb(47 58 69 / 0.12);
   backdrop-filter: blur(24px) saturate(1.2);
 }
+
+/* 每天的安排表：一行一个块，左边一道类型颜色；待定的虚线、颜色点变淡 */
+@utility block-table {
+  border-collapse: separate;
+  border-spacing: 0 0.25rem;
+  & td {
+    padding: 0.125rem 0.375rem;
+    vertical-align: middle;
+  }
+}
+
+@utility block-row {
+  & > td {
+    background-color: rgb(255 255 255 / 0.5);
+  }
+  & > td:first-child {
+    border-left: 3px solid var(--kind-color);
+    border-radius: 0.5rem 0 0 0.5rem;
+  }
+  & > td:last-child {
+    border-radius: 0 0.5rem 0.5rem 0;
+  }
+  &[data-pending="true"] > td:first-child {
+    border-left-style: dashed;
+  }
+  &[data-pending="true"] .kind-dot {
+    opacity: 0.45;
+  }
+}
+
+@utility kind-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+}
+
+/* 表格里的输入框和下拉：平时像文字，指上去、点进去才显出边框 */
+@utility input-bare {
+  width: 100%;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  background-color: transparent;
+  color: var(--color-ink);
+  &::placeholder {
+    color: rgb(107 119 132 / 0.7);
+  }
+  &:hover {
+    border-color: rgb(47 58 69 / 0.12);
+  }
+  &:focus {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 0;
+    background-color: white;
+  }
+}

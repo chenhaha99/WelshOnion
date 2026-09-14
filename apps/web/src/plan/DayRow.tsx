@@ -8,10 +8,13 @@ import {
   setDayTz,
   type BaseView,
   type DayFlag,
+  type LibraryView,
+  type PlanView,
 } from "@welshonion/core";
 import { useState } from "react";
 import type * as Y from "yjs";
 import { Menu, type MenuItem } from "../app/Menu";
+import { BlockTable } from "./BlockTable";
 import { COMMON_TIME_ZONES, cityName } from "./day-labels";
 
 type Direction = "above" | "below";
@@ -21,13 +24,16 @@ type Mode = { kind: "normal" } | { kind: "pick-tz"; purpose: "change" | "add" } 
 
 interface DayRowProps {
   doc: Y.Doc;
+  library: Y.Doc;
+  libraryView: LibraryView;
+  plan: PlanView;
   base: BaseView;
   label: string;
   index: number;
   count: number;
 }
 
-export function DayRow({ doc, base, label, index, count }: DayRowProps) {
+export function DayRow({ doc, library, libraryView, plan, base, label, index, count }: DayRowProps) {
   const [mode, setMode] = useState<Mode>({ kind: "normal" });
   const backToNormal = () => setMode({ kind: "normal" });
 
@@ -56,7 +62,7 @@ export function DayRow({ doc, base, label, index, count }: DayRowProps) {
   ];
 
   return (
-    <li className="glass-card relative flex flex-col gap-3 px-5 py-3 has-[[aria-expanded=true]]:z-10">
+    <li className="glass-card relative flex flex-col gap-2 px-5 py-3 has-[[aria-expanded=true]]:z-10">
       <div className="flex min-h-9 items-center gap-3">
         <span data-day-label className="text-ink tabular-nums">
           {label}
@@ -102,6 +108,16 @@ export function DayRow({ doc, base, label, index, count }: DayRowProps) {
           </button>
         </div>
       )}
+
+      <BlockTable
+        doc={doc}
+        library={library}
+        libraryView={libraryView}
+        plan={plan}
+        baseId={base.id}
+        date={base.date}
+        dayLabel={label}
+      />
     </li>
   );
 }

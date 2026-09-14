@@ -1,6 +1,7 @@
 import { renamePlan, setPlanSettings, type PlanSettingsView } from "@welshonion/core";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type * as Y from "yjs";
+import { CommitInput } from "../app/CommitInput";
 
 interface SettingsDrawerProps {
   doc: Y.Doc;
@@ -46,6 +47,7 @@ export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDraw
         label="人数"
         value={String(settings.traveler_count)}
         inputMode="numeric"
+        className="input tabular-nums"
         commit={(text) => {
           if (!/^\d+$/.test(text) || Number(text) < 1) return "人数要是正整数";
           const count = Number(text);
@@ -59,6 +61,7 @@ export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDraw
         label="每公里成本（元）"
         value={settings.cost_per_km_cents === null ? "" : String(settings.cost_per_km_cents / 100)}
         inputMode="decimal"
+        className="input tabular-nums"
         hint="油费加过路费，自驾时用；空着就不算"
         commit={(text) => {
           if (text !== "" && !/^\d+(\.\d{1,2})?$/.test(text)) return "要填不小于 0 的数，最多两位小数";
@@ -68,70 +71,5 @@ export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDraw
         }}
       />
     </aside>
-  );
-}
-
-interface CommitInputProps {
-  label: string;
-  /** 文档里现在存的值 */
-  value: string;
-  /** 保存（或决定不保存）；返回要显示的错误，没错给 null */
-  commit: (text: string) => string | null;
-  inputMode?: "text" | "numeric" | "decimal";
-  hint?: string;
-}
-
-function CommitInput({ label, value, commit, inputMode = "text", hint }: CommitInputProps) {
-  const id = useId();
-  const [text, setText] = useState(value);
-  const [editing, setEditing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // 没在改的时候跟着文档走（撤销、别的标签页改了都会变）
-  useEffect(() => {
-    if (!editing) setText(value);
-  }, [value, editing]);
-
-  const submit = () => {
-    const message = commit(text.trim());
-    setError(message);
-    // 出错时留着用户填的字，方便改；保存了就回到跟着文档走
-    if (message === null) setEditing(false);
-  };
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm text-ink-muted">
-        {label}
-      </label>
-      <input
-        id={id}
-        className="input tabular-nums"
-        inputMode={inputMode}
-        value={text}
-        aria-invalid={error !== null}
-        aria-describedby={error ? `${id}-error` : undefined}
-        onChange={(event) => {
-          setEditing(true);
-          setText(event.target.value);
-        }}
-        onBlur={() => {
-          if (editing) submit();
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            submit();
-          }
-        }}
-      />
-      {error ? (
-        <p id={`${id}-error`} className="text-sm text-danger">
-          {error}
-        </p>
-      ) : (
-        hint && <p className="text-xs text-ink-muted">{hint}</p>
-      )}
-    </div>
   );
 }

@@ -1,10 +1,18 @@
-import { shiftAllDays, type BaseView } from "@welshonion/core";
+import { shiftAllDays, type LibraryView, type PlanView } from "@welshonion/core";
 import type * as Y from "yjs";
 import { dayRowLabels, daysBetween } from "./day-labels";
 import { DayRow } from "./DayRow";
 
-/** 日期列表（以后表格「按天分组」的组头）；出发日期一改，整趟一起平移。bases 已排好序且不为空。 */
-export function DayList({ doc, bases }: { doc: Y.Doc; bases: BaseView[] }) {
+interface DayListProps {
+  doc: Y.Doc;
+  library: Y.Doc;
+  libraryView: LibraryView;
+  plan: PlanView;
+}
+
+/** 日期列表：每天一个组头和它的安排表；出发日期一改，整趟一起平移。计划里至少有一天。 */
+export function DayList({ doc, library, libraryView, plan }: DayListProps) {
+  const bases = plan.bases;
   const labels = dayRowLabels(bases);
   const firstDate = bases[0]!.date;
 
@@ -22,9 +30,19 @@ export function DayList({ doc, bases }: { doc: Y.Doc; bases: BaseView[] }) {
           }}
         />
       </label>
-      <ol aria-label="日期列表" className="flex flex-col gap-2">
+      <ol aria-label="日期列表" className="flex flex-col gap-3">
         {bases.map((base, index) => (
-          <DayRow key={base.id} doc={doc} base={base} label={labels[index]!} index={index} count={bases.length} />
+          <DayRow
+            key={base.id}
+            doc={doc}
+            library={library}
+            libraryView={libraryView}
+            plan={plan}
+            base={base}
+            label={labels[index]!}
+            index={index}
+            count={bases.length}
+          />
         ))}
       </ol>
     </section>

@@ -61,10 +61,8 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
   const now = useNow();
   const libraryVersion = useDocVersion(library);
   const planVersion = useDocVersion(handle.doc);
-  const plan = useMemo(
-    () => readPlan(handle.doc, readLibrary(library)),
-    [handle.doc, library, libraryVersion, planVersion],
-  );
+  const libraryView = useMemo(() => readLibrary(library), [library, libraryVersion]);
+  const plan = useMemo(() => readPlan(handle.doc, libraryView), [handle.doc, libraryView, planVersion]);
   const undo = usePlanUndo(handle.doc);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const titleButton = useRef<HTMLButtonElement>(null);
@@ -110,7 +108,11 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
         </button>
       </h1>
 
-      {plan.bases.length === 0 ? <AskDays doc={handle.doc} /> : <DayList doc={handle.doc} bases={plan.bases} />}
+      {plan.bases.length === 0 ? (
+        <AskDays doc={handle.doc} />
+      ) : (
+        <DayList doc={handle.doc} library={library} libraryView={libraryView} plan={plan} />
+      )}
 
       {settingsOpen && (
         <SettingsDrawer

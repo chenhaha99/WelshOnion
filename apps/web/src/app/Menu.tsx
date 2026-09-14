@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export interface MenuItem {
   label: string;
@@ -7,12 +8,16 @@ export interface MenuItem {
   danger?: boolean;
 }
 
+const ITEM_HEIGHT_PX = 37;
+
 /**
  * 一个按钮 + 一列选项。打开时焦点落在第一项，上下键移动；
- * Esc、点外面、选了一项都会关掉，Esc 和选项关掉后焦点回到按钮。
+ * Esc、点外面、滚动页面、选了一项都会关掉，Esc 和选项关掉后焦点回到按钮。
+ * 选项列表放到页面最外层、按按钮位置摆：不会被会横向滚动的表格裁掉，也不受行的背景模糊影响。
  */
 export function Menu({ label, items, children }: { label: string; items: MenuItem[]; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<CSSProperties | null>(null);
+  const open = position !== null;
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -22,14 +27,36 @@ export function Menu({ label, items, children }: { label: string; items: MenuIte
     enabledItems(menu.current)[0]?.focus();
     const closeIfOutside = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (!menu.current?.contains(target) && !button.current?.contains(target)) setOpen(false);
+      if (!menu.current?.contains(target) && !button.current?.contains(target)) setPosition(null);
     };
+    const close = () => setPosition(null);
     document.addEventListener("pointerdown", closeIfOutside);
-    return () => document.removeEventListener("pointerdown", closeIfOutside);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", closeIfOutside);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
   }, [open]);
 
+  const toggle = () => {
+    if (open || !button.current) {
+      setPosition(null);
+      return;
+    }
+    const rect = button.current.getBoundingClientRect();
+    const estimatedHeight = items.length * ITEM_HEIGHT_PX + 8;
+    const roomBelow = window.innerHeight - rect.bottom;
+    const placeAbove = roomBelow < estimatedHeight && rect.top > roomBelow;
+    setPosition({
+      right: Math.max(8, window.innerWidth - rect.right),
+      ...(placeAbove ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+    });
+  };
+
   const closeAndReturnFocus = () => {
-    setOpen(false);
+    setPosition(null);
     button.current?.focus();
   };
 
@@ -48,7 +75,7 @@ export function Menu({ label, items, children }: { label: string; items: MenuIte
   };
 
   return (
-    <div className="relative">
+    <>
       <button
         ref={button}
         type="button"
@@ -57,30 +84,39 @@ export function Menu({ label, items, children }: { label: string; items: MenuIte
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         className="btn btn-ghost px-2.5"
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggle}
       >
         {children}
       </button>
-      {open && (
-        <div ref={menu} id={menuId} role="menu" className="menu absolute top-full right-0 mt-1" onKeyDown={onMenuKeyDown}>
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              disabled={item.disabled}
-              className={item.danger ? "menu-item text-danger" : "menu-item"}
-              onClick={() => {
-                closeAndReturnFocus();
-                item.onSelect();
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      {open &&
+        createPortal(
+          <div
+            ref={menu}
+            id={menuId}
+            role="menu"
+            className="menu fixed z-40"
+            style={position}
+            onKeyDown={onMenuKeyDown}
+          >
+            {items.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                disabled={item.disabled}
+                className={item.danger ? "menu-item text-danger" : "menu-item"}
+                onClick={() => {
+                  closeAndReturnFocus();
+                  item.onSelect();
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
