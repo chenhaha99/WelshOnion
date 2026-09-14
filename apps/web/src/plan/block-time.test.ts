@@ -48,8 +48,14 @@ describe("时间格的写法", () => {
 
   it("没排时间：写格子名，没分格就是整天", () => {
     expect(blockTimeLabel({ start_minute: null, duration_min: null, slot: null }, OCT1)).toBe("整天");
-    expect(blockTimeLabel({ start_minute: null, duration_min: 90, slot: "morning" }, OCT1)).toBe("上午");
     expect(blockTimeLabel({ start_minute: null, duration_min: null, slot: "afternoon" }, OCT1)).toBe("下午");
     expect(blockTimeLabel({ start_minute: null, duration_min: null, slot: "evening" }, OCT1)).toBe("晚上");
+  });
+
+  it("没排时间但填了时长：格子名后面写上时长，时长 0 不写", () => {
+    expect(blockTimeLabel({ start_minute: null, duration_min: 90, slot: "morning" }, OCT1)).toBe("上午 · 1.5 小时");
+    expect(blockTimeLabel({ start_minute: null, duration_min: 120, slot: null }, OCT1)).toBe("整天 · 2 小时");
+    expect(blockTimeLabel({ start_minute: null, duration_min: 45, slot: null }, OCT1)).toBe("整天 · 45 分钟");
+    expect(blockTimeLabel({ start_minute: null, duration_min: 0, slot: null }, OCT1)).toBe("整天");
   });
 });

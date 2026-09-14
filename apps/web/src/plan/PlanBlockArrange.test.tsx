@@ -103,7 +103,7 @@ describe("排时间和取消时间", () => {
     await waitFor(async () => expect(await blockTexts("10.1")).toEqual([{ title: "西湖", time: "09:00–12:00" }]));
   });
 
-  it("取消时间：回到整天那一格的最后", async () => {
+  it("取消时间：回到整天那一格的最后，时长留着", async () => {
     const user = userEvent.setup();
     await openStoredPlan(oneDayWith({ title: "西湖", minute: 540, duration: 120 }, { title: "灵隐寺", slot: "day" }));
 
@@ -113,7 +113,7 @@ describe("排时间和取消时间", () => {
     await waitFor(async () =>
       expect(await blockTexts("10.1")).toEqual([
         { title: "灵隐寺", time: "整天" },
-        { title: "西湖", time: "整天" },
+        { title: "西湖", time: "整天 · 2 小时" },
       ]),
     );
   });

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ChangeEvent, type KeyboardEvent } from "react";
 
 interface CommitInputProps {
   label: string;
@@ -12,6 +12,8 @@ interface CommitInputProps {
   hint?: string;
   /** 空着时输入框里的淡字 */
   placeholder?: string;
+  /** 多行：回车是换行，只在离开时保存 */
+  multiline?: boolean;
   className?: string;
 }
 
@@ -24,6 +26,7 @@ export function CommitInput({
   inputMode = "text",
   hint,
   placeholder,
+  multiline = false,
   className = "input",
 }: CommitInputProps) {
   const id = useId();
@@ -42,35 +45,34 @@ export function CommitInput({
     if (message === null) setEditing(false);
   };
 
-  const input = (
-    <input
-      id={id}
-      className={className}
-      inputMode={inputMode}
-      placeholder={placeholder}
-      value={text}
-      aria-label={showLabel ? undefined : label}
-      aria-invalid={error !== null}
-      aria-describedby={error ? `${id}-error` : undefined}
-      onChange={(event) => {
-        setEditing(true);
-        setText(event.target.value);
-      }}
-      onBlur={() => {
-        if (editing) submit();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          submit();
-        } else if (event.key === "Escape" && editing) {
-          event.stopPropagation();
-          setEditing(false);
-          setError(null);
-        }
-      }}
-    />
-  );
+  const shared = {
+    id,
+    className,
+    placeholder,
+    value: text,
+    "aria-label": showLabel ? undefined : label,
+    "aria-invalid": error !== null,
+    "aria-describedby": error ? `${id}-error` : undefined,
+    onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setEditing(true);
+      setText(event.target.value);
+    },
+    onBlur: () => {
+      if (editing) submit();
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && !multiline) {
+        event.preventDefault();
+        submit();
+      } else if (event.key === "Escape" && editing) {
+        event.stopPropagation();
+        setEditing(false);
+        setError(null);
+      }
+    },
+  };
+
+  const input = multiline ? <textarea {...shared} rows={3} /> : <input {...shared} inputMode={inputMode} />;
 
   const below = error ? (
     <p id={`${id}-error`} className="text-sm text-danger">

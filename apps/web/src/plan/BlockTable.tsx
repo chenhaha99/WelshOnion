@@ -24,6 +24,7 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent 
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
 import { Menu, type MenuItem } from "../app/Menu";
+import { BlockDetails } from "./BlockDetails";
 import { blockTimeLabel, clock } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
 import { MoneyEditor } from "./MoneyEditor";
@@ -195,6 +196,8 @@ function BlockRow({
 }: BlockRowProps) {
   const [timeOpen, setTimeOpen] = useState(false);
   const [moneyOpen, setMoneyOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const row = useRef<HTMLTableRowElement>(null);
   const color = block.kind.deleted ? DELETED_COLOR : block.kind.color;
   const indent = block.indent ?? 0;
   const undated = block.start_minute === null;
@@ -207,6 +210,13 @@ function BlockRow({
     danger: true,
     onSelect: () => deleteBlock(doc, library, block.id),
   };
+  const detailsItem: MenuItem = { label: "详情…", onSelect: () => setDetailsOpen(true) };
+  // 收起详情后焦点回到这一行的行菜单按钮（按钮一直在）；先挪焦点，没保存的长备注借这次离开存上
+  const closeDetails = () => {
+    row.current?.querySelector<HTMLElement>("button[aria-label='这件事的操作']")?.focus();
+    setDetailsOpen(false);
+  };
+  const subtitleLine = [block.subtitle, block.note === null ? null : "有长备注"].filter((part) => part !== null).join(" · ");
   const items: MenuItem[] = undated
     ? [
         indent === 0
@@ -223,13 +233,15 @@ function BlockRow({
           // 放到下下个前面；后面没有了就放最后
           onSelect: () => moveUndated(doc, block.id, { slot, beforeId: slotGroup[position + 2] }),
         },
+        detailsItem,
         deleteItem,
       ]
-    : [deleteItem];
+    : [detailsItem, deleteItem];
 
   return (
     <>
       <tr
+        ref={row}
         data-block-id={block.id}
         data-pending={block.status.id === "pending"}
         className="block-row"
@@ -247,6 +259,11 @@ function BlockRow({
               return null;
             }}
           />
+          {subtitleLine !== "" && (
+            <p data-block-subtitle className="truncate px-2 text-xs text-ink-muted">
+              {subtitleLine}
+            </p>
+          )}
         </td>
         <td className="w-32">
           <KindPicker doc={doc} library={library} block={block} kinds={kinds} countUsing={countKindUsing} />
@@ -289,6 +306,13 @@ function BlockRow({
         <tr>
           <td colSpan={COLUMN_COUNT}>
             <TimeEditor doc={doc} library={library} block={block} onDone={() => setTimeOpen(false)} />
+          </td>
+        </tr>
+      )}
+      {detailsOpen && (
+        <tr>
+          <td colSpan={COLUMN_COUNT}>
+            <BlockDetails doc={doc} library={library} block={block} onDone={closeDetails} />
           </td>
         </tr>
       )}
@@ -341,6 +365,13 @@ function TimeEditor({ doc, library, block, onDone }: TimeEditorProps) {
   const schedule = () => {
     if (minute === null || duration === null) return;
     setBlockTimed(doc, library, block.id, { minute, duration });
+    onDone();
+  };
+
+  // 没排时间的块只存时长，不排时间、不动格子
+  const saveDuration = () => {
+    if (duration === null) return;
+    resizeBlock(doc, block.id, duration);
     onDone();
   };
 
@@ -414,9 +445,14 @@ function TimeEditor({ doc, library, block, onDone }: TimeEditorProps) {
       />
       <span>分钟</span>
       {undated ? (
-        <button type="button" className="btn btn-primary" disabled={minute === null || duration === null} onClick={schedule}>
-          排上时间
-        </button>
+        <>
+          <button type="button" className="btn btn-primary" disabled={minute === null || duration === null} onClick={schedule}>
+            排上时间
+          </button>
+          <button type="button" className="btn btn-ghost" disabled={duration === null} onClick={saveDuration}>
+            只存时长
+          </button>
+        </>
       ) : (
         <>
           <button type="button" className="btn btn-primary" disabled={minute === null || duration === null} onClick={save}>

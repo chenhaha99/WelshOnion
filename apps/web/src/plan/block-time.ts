@@ -15,9 +15,15 @@ export function slotLabel(slot: SlotName | null): string {
   return slot === null ? "整天" : SLOT_NAMES[slot];
 }
 
-/** 时间格的字：没排时间写格子名；有时间写「开始–结束」（结束时刻的写法见 clockOnDay）；时长为 0 只写开始时刻。 */
+/**
+ * 时间格的字：没排时间写格子名，填了时长加「 · 时长」（「整天 · 2 小时」）；
+ * 有时间写「开始–结束」（结束时刻的写法见 clockOnDay）；时长为 0 只写开始时刻。
+ */
 export function blockTimeLabel(block: BlockTimeFields, baseDate: string): string {
-  if (block.start_minute === null) return slotLabel(block.slot);
+  if (block.start_minute === null) {
+    const duration = block.duration_min ?? 0;
+    return duration > 0 ? `${slotLabel(block.slot)} · ${durationLabel(duration)}` : slotLabel(block.slot);
+  }
   const start = clock(block.start_minute);
   const duration = block.duration_min ?? 0;
   if (duration === 0) return start;
