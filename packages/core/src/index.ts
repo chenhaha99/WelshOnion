@@ -46,7 +46,7 @@ export {
   updateBlock,
 } from "./ops/blocks";
 export type { AddBlockInput, BlockPatch, Placement, SlotChoice } from "./ops/blocks";
-export { duplicateBlock, moveBlock, setBlockLayer, shiftDayFrom } from "./ops/drag";
+export { duplicateBlock, moveBlock, resizeBlockStart, setBlockLayer, shiftDayFrom } from "./ops/drag";
 export type { DropTarget } from "./ops/drag";
 export { addExpense, deleteExpense, linkExpense, unlinkExpense, updateExpense } from "./ops/expenses";
 export type { AddExpenseInput, ExpensePatch } from "./ops/expenses";

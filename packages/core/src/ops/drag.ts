@@ -1,5 +1,5 @@
 /**
- * 拖拽那一族：挪块、复制块、叠放或拿出来、从这里往后整体推迟。
+ * 拖拽那一族：挪块、复制块、拖左端改开始、叠放或拿出来、从这里往后整体推迟。
  * 跟着走的块在操作开始时只算一次；时间、层、跟着走的块在同一个事务里处理完，是一步撤销。
  *
  * 位置按「一行一天、每行 1440 分钟」换算：排好序的底座编号 0、1、2……，位置 = 行号 × 1440 + 分钟。
@@ -8,6 +8,7 @@
 import * as Y from "yjs";
 import { newId } from "../ids";
 import { effectiveLayer, followersOf, kindLayer, layerWhenOnto } from "../nesting";
+import { compareBases } from "../order";
 import { readLibrary, readPlan, type BlockView, type LibraryView, type PlanView } from "../read";
 import { blockInterval, type Interval } from "../time";
 import type { Placement } from "./blocks";
@@ -30,6 +31,43 @@ export interface DropTarget {
 interface Position {
   baseId: string;
   minute: number;
+}
+
+/**
+ * 拖左端：开始挪到给定底座的给定分钟（可以超出 0–1439，由这里换算），结束不动，时长跟着变。
+ * 里面的块和层都不动，所以不能拿挪块加改时长拼。开始晚于结束就失败，什么都不改。
+ */
+export function resizeBlockStart(planDoc: Y.Doc, blockId: string, target: Position): OpResult {
+  if (!Number.isInteger(target.minute)) return fail({ code: "INVALID_FIELD", field: "start_minute" });
+  const rows = rawRows(planDoc);
+  const block = planDoc.getMap<YMap>("blocks").get(blockId);
+  const baseId = block?.get("start_base_id") as string | undefined;
+  // 底座已经被删的块当成已删除，和读取入口一致
+  if (!block || baseId === undefined || !rows.index.has(baseId)) return fail({ code: "NOT_FOUND", id: blockId });
+  const startMinute = block.get("start_minute") as number | undefined;
+  if (startMinute === undefined) return fail({ code: "NOT_TIMED" });
+  const targetRow = rows.index.get(target.baseId);
+  if (targetRow === undefined) return fail({ code: "NOT_FOUND", id: target.baseId });
+
+  const end = toLinear(rows, { baseId, minute: startMinute }) + ((block.get("duration_min") as number | undefined) ?? 0);
+  const destination = fromLinear(rows, targetRow * MINUTES_PER_DAY + target.minute);
+  const duration = end - toLinear(rows, destination);
+  if (duration < 0) return fail({ code: "INVALID_FIELD", field: "duration_min" });
+
+  planDoc.transact(() => {
+    place(block, destination);
+    block.set("duration_min", duration);
+  }, LOCAL_ORIGIN);
+  return done();
+}
+
+/** 直接从文档里排好底座，不经过读取入口（这里用不到资料库）。 */
+function rawRows(planDoc: Y.Doc): Rows {
+  const ids = [...planDoc.getMap<YMap>("bases").entries()]
+    .map(([id, map]) => ({ id, date: map.get("date") as string }))
+    .sort(compareBases)
+    .map((base) => base.id);
+  return { ids, index: new Map(ids.map((id, row) => [id, row])) };
 }
 
 export function moveBlock(planDoc: Y.Doc, library: Y.Doc, blockId: string, target: DropTarget): OpResult {

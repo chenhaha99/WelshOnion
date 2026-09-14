@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { beforeEach, describe, expect, test } from "vitest";
 import { initLibraryDoc, initPlanDoc } from "../schema";
 import { addBase, addBlock as seedBlock, addExpense } from "../testing";
-import { duplicateBlock, moveBlock, setBlockLayer, shiftDayFrom } from "./drag";
+import { duplicateBlock, moveBlock, resizeBlockStart, setBlockLayer, shiftDayFrom } from "./drag";
 import { createPlanUndoManager } from "./origin";
 
 let library: Y.Doc;
@@ -49,6 +49,73 @@ describe("位置怎么换算", () => {
   test("往后拖出最后一天", () => {
     moveBlock(planDoc, library, "k", { baseId: "d2", minute: 1500 });
     expect(position("k")).toEqual(["d2", 1439]);
+  });
+});
+
+describe("拖左端改开始", () => {
+  test("往右拖左端，里面的块不动", () => {
+    hengdianDay();
+    expect(resizeBlockStart(planDoc, "hengdian", { baseId: "d1", minute: 600 }).ok).toBe(true);
+
+    expect(position("hengdian")).toEqual(["d1", 600]);
+    expect(raw("hengdian")?.get("duration_min")).toBe(660);
+    expect(position("mingqing")).toEqual(["d1", 600]);
+    expect(raw("mingqing")?.get("duration_min")).toBe(120);
+    expect(raw("mingqing")?.get("layer")).toBe(3);
+    expect(position("photo")).toEqual(["d1", 660]);
+    expect(raw("photo")?.get("duration_min")).toBe(30);
+  });
+
+  test("往左拖过午夜", () => {
+    seedBlock(planDoc, "k", { start_base_id: "d2", start_minute: 60, duration_min: 60 });
+    resizeBlockStart(planDoc, "k", { baseId: "d2", minute: -60 });
+    expect(position("k")).toEqual(["d1", 1380]);
+    expect(raw("k")?.get("duration_min")).toBe(180);
+  });
+
+  test("拖到和结束同一刻", () => {
+    seedBlock(planDoc, "k", { start_base_id: "d1", start_minute: 600, duration_min: 60 });
+    resizeBlockStart(planDoc, "k", { baseId: "d1", minute: 660 });
+    expect(position("k")).toEqual(["d1", 660]);
+    expect(raw("k")?.get("duration_min")).toBe(0);
+  });
+
+  test("拖过结束：失败，什么都不改", () => {
+    seedBlock(planDoc, "k", { start_base_id: "d1", start_minute: 600, duration_min: 60 });
+    expect(resizeBlockStart(planDoc, "k", { baseId: "d1", minute: 700 })).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_FIELD", field: "duration_min" },
+    });
+    expect(position("k")).toEqual(["d1", 600]);
+    expect(raw("k")?.get("duration_min")).toBe(60);
+  });
+
+  test("往前拖出第一天", () => {
+    seedBlock(planDoc, "k", { start_base_id: "d1", start_minute: 30, duration_min: 60 });
+    resizeBlockStart(planDoc, "k", { baseId: "d1", minute: -30 });
+    expect(position("k")).toEqual(["d1", 0]);
+    expect(raw("k")?.get("duration_min")).toBe(90);
+  });
+
+  test("一步撤销", () => {
+    hengdianDay();
+    const undo = createPlanUndoManager(planDoc);
+    resizeBlockStart(planDoc, "hengdian", { baseId: "d1", minute: 600 });
+    undo.undo();
+    expect(position("hengdian")).toEqual(["d1", 540]);
+    expect(raw("hengdian")?.get("duration_min")).toBe(720);
+  });
+
+  test("块不存在或没排时间", () => {
+    seedBlock(planDoc, "u", { start_base_id: "d1", duration_min: 60 });
+    expect(resizeBlockStart(planDoc, "gone", { baseId: "d1", minute: 600 })).toMatchObject({
+      ok: false,
+      error: { code: "NOT_FOUND", id: "gone" },
+    });
+    expect(resizeBlockStart(planDoc, "u", { baseId: "d1", minute: 600 })).toMatchObject({
+      ok: false,
+      error: { code: "NOT_TIMED" },
+    });
   });
 });
 
