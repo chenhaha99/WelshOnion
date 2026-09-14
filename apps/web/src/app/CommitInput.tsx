@@ -10,6 +10,8 @@ interface CommitInputProps {
   commit: (text: string) => string | null;
   inputMode?: "text" | "numeric" | "decimal";
   hint?: string;
+  /** 空着时输入框里的淡字 */
+  placeholder?: string;
   className?: string;
 }
 
@@ -21,6 +23,7 @@ export function CommitInput({
   commit,
   inputMode = "text",
   hint,
+  placeholder,
   className = "input",
 }: CommitInputProps) {
   const id = useId();
@@ -44,6 +47,7 @@ export function CommitInput({
       id={id}
       className={className}
       inputMode={inputMode}
+      placeholder={placeholder}
       value={text}
       aria-label={showLabel ? undefined : label}
       aria-invalid={error !== null}

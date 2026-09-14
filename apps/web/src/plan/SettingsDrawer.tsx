@@ -1,7 +1,8 @@
-import { renamePlan, setPlanSettings, type PlanSettingsView } from "@welshonion/core";
+import { renamePlan, setPlanSettings, type DayBudget, type PlanSettingsView } from "@welshonion/core";
 import { useEffect, useRef } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
+import { BudgetFields } from "./BudgetFields";
 import { parseYuan } from "./money";
 
 interface SettingsDrawerProps {
@@ -23,7 +24,7 @@ export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDraw
       ref={panel}
       role="dialog"
       aria-label="计划设置"
-      className="drawer fixed top-0 right-0 z-30 flex h-full w-80 max-w-full flex-col gap-5 p-6"
+      className="drawer fixed top-0 right-0 z-30 flex h-full w-80 max-w-full flex-col gap-5 overflow-y-auto p-6"
       onKeyDown={(event) => {
         if (event.key === "Escape") onClose();
       }}
@@ -71,6 +72,17 @@ export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDraw
           return null;
         }}
       />
+
+      <section aria-label="每天的时间预算" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-medium text-ink">每天的时间预算</h3>
+          <p className="text-xs text-ink-muted">空着就不设；每天还能在这天的菜单里单独改</p>
+        </div>
+        <BudgetFields
+          budget={settings.default_day_budget as DayBudget | null}
+          save={(next) => setPlanSettings(doc, { default_day_budget: next })}
+        />
+      </section>
     </aside>
   );
 }
