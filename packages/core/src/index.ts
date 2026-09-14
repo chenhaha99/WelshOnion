@@ -31,6 +31,21 @@ export {
   shiftAllDays,
 } from "./ops/days";
 export type { InsertDayOptions } from "./ops/days";
+export { baseStartUtcMs, blockInterval } from "./time";
+export type { Interval } from "./time";
+export { effectiveLayer, followersOf, kindLayer, layerWhenOnto } from "./nesting";
+export {
+  addBlock,
+  deleteBlock,
+  moveUndated,
+  resizeBlock,
+  setBlockIndent,
+  setBlockStatus,
+  setBlockTimed,
+  setBlockUndated,
+  updateBlock,
+} from "./ops/blocks";
+export type { AddBlockInput, BlockPatch, Placement, SlotChoice } from "./ops/blocks";
 export { readLibrary, readPlan, reconcilePlanIndex, summarizePlan } from "./read";
 export type {
   BaseView,
