@@ -172,16 +172,35 @@ interface DraftRowProps {
   autoFocus: boolean;
   /** 前面那一截字：默认「加一笔」；按类型分组的空行写块 */
   lead?: ReactNode;
+  /** 给了就多一个「挂到」下拉：第一项「不挂块」，建出来挂在选的块上（这时不看 blockId） */
+  blockChoices?: ReadonlyArray<{ id: string; label: string }>;
+  /** 给了就多一个「类型」下拉，默认选 defaultKindId */
+  kindChoices?: ReadonlyArray<{ id: string; name: string }>;
 }
 
 /**
  * 末尾那行空的：金额或说明填了一格、按回车或焦点离开这一行时才建这笔钱。
  * 只在离开整行时提交，免得填完金额跳去填说明时先建出一笔、填完说明又建一笔。
  */
-export function DraftRow({ doc, library, blockId, defaultKindId, autoFocus, lead }: DraftRowProps) {
+export function DraftRow({
+  doc,
+  library,
+  blockId,
+  defaultKindId,
+  autoFocus,
+  lead,
+  blockChoices,
+  kindChoices,
+}: DraftRowProps) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [target, setTarget] = useState("");
+  const [kindId, setKindId] = useState(defaultKindId);
   const [error, setError] = useState<string | null>(null);
+  // 筛选变了、选过的块或类型不在选项里了：块回到「不挂块」，类型换成第一个，免得建出来看不见
+  const chosenTarget = blockChoices?.some((choice) => choice.id === target) ? target : "";
+  const chosenKind =
+    kindChoices && !kindChoices.some((kind) => kind.id === kindId) ? (kindChoices[0]?.id ?? defaultKindId) : kindId;
 
   const submit = () => {
     const amountText = amount.trim();
@@ -192,14 +211,17 @@ export function DraftRow({ doc, library, blockId, defaultKindId, autoFocus, lead
       setError(AMOUNT_ERROR);
       return;
     }
+    const attachTo = blockChoices ? chosenTarget : (blockId ?? "");
     addExpense(doc, library, {
       title: noteText,
       amountCents: parsed.cents,
-      blockIds: blockId === null ? [] : [blockId],
-      kindId: defaultKindId,
+      blockIds: attachTo === "" ? [] : [attachTo],
+      kindId: kindChoices ? chosenKind : defaultKindId,
     });
     setAmount("");
     setNote("");
+    // 挂到不留着上一次的选择：连着加时容易挂错块；类型留着，方便连着加同一类
+    setTarget("");
     setError(null);
   };
 
@@ -219,6 +241,20 @@ export function DraftRow({ doc, library, blockId, defaultKindId, autoFocus, lead
         }}
       >
         <span className="w-28 pl-1 text-xs text-ink-muted">{lead ?? "加一笔"}</span>
+        {kindChoices && (
+          <select
+            aria-label="类型"
+            className="input h-8"
+            value={chosenKind}
+            onChange={(event) => setKindId(event.target.value)}
+          >
+            {kindChoices.map((kind) => (
+              <option key={kind.id} value={kind.id}>
+                {kind.name}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           aria-label="新一笔的金额"
           placeholder="金额（元）"
@@ -240,6 +276,21 @@ export function DraftRow({ doc, library, blockId, defaultKindId, autoFocus, lead
           onChange={(event) => setNote(event.target.value)}
           onKeyDown={submitOnEnter}
         />
+        {blockChoices && (
+          <select
+            aria-label="挂到"
+            className="input h-8 max-w-full"
+            value={chosenTarget}
+            onChange={(event) => setTarget(event.target.value)}
+          >
+            <option value="">不挂块</option>
+            {blockChoices.map((choice) => (
+              <option key={choice.id} value={choice.id}>
+                {choice.label}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       {error && <p className="pl-1 text-sm text-danger">{error}</p>}
     </div>

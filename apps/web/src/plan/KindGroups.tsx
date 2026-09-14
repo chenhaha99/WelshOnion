@@ -49,8 +49,9 @@ interface KindGroupsProps {
 }
 
 /**
- * 按类型分组：一类一组，这一类通过筛选的钱一笔一行（写挂在哪些块上），这一类一笔钱都没挂的块一行空的、填了就建。
- * 行按行程的先后排，不挂块的钱在最后。行变了、焦点掉到页面最外面时，落回同一行，那一行不在了就落到原来位置的下一行。
+ * 按类型分组：一类一组，这一类通过筛选的钱一笔一行（写挂在哪些块上），这一类一笔钱都没挂的块一行空的、填了就建，
+ * 每组末尾加一笔；下面一行加别的类型的钱。行按行程的先后排，不挂块的钱在最后。
+ * 行变了、焦点掉到页面最外面时，落回同一行，那一行不在了就落到原来位置的下一行。
  */
 export function KindGroups({ doc, library, libraryView, plan, filter, onEmptyFocus }: KindGroupsProps) {
   const kinds = [...libraryView.kinds.values()].sort((a, b) => a.order - b.order);
@@ -58,6 +59,17 @@ export function KindGroups({ doc, library, libraryView, plan, filter, onEmptyFoc
   const tripOrder = tripOrderOf(plan);
   const blockLabel = blockLabeller(plan);
   const groups = kindGroups(plan, libraryView, filter, tripOrder);
+  // 加钱时「挂到」只列通过筛选的块，按行程的先后：加完看得见
+  const blockChoices = [...tripOrder.keys()]
+    .map((blockId) => plan.blocks.get(blockId)!)
+    .filter((block) => passesFilter(block, filter))
+    .map((block) => ({ id: block.id, label: blockLabel(block) }));
+  // 「加一笔别的类型的钱」：按了按类型筛时只能选按下的那几类，同样是为了加完看得见
+  const kindIds = filter?.kindIds;
+  const otherKindChoices = kindIds ? kinds.filter((kind) => kindIds.includes(kind.id)) : kinds;
+  const otherDefaultKind = otherKindChoices.some((kind) => kind.id === "other")
+    ? "other"
+    : (otherKindChoices[0]?.id ?? "other");
 
   const list = useRef<HTMLOListElement>(null);
   const focusSpot = useRef<FocusSpot | null>(null);
@@ -89,48 +101,76 @@ export function KindGroups({ doc, library, libraryView, plan, filter, onEmptyFoc
   }, [rowKey]);
 
   return (
-    <ol ref={list} aria-label="类型分组" className="flex flex-col gap-3" onFocus={rememberFocus}>
-      {groups.map((group) => (
-        <li key={group.key} aria-label={group.name} className="glass-card flex flex-col gap-2 px-5 py-3">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h3 className="flex items-center gap-1.5 text-base text-ink">
-              <span aria-hidden="true" className="kind-dot" style={{ backgroundColor: group.color }} />
-              {group.name}
-            </h3>
-            <span data-group-summary className="text-sm text-ink-muted tabular-nums">
-              {summaryOf(group, plan)}
-            </span>
-          </div>
-          {group.rows.map((row) =>
-            row.type === "expense" ? (
-              <div key={row.id} data-row-id={row.id}>
-                <ExpenseRow
-                  doc={doc}
-                  library={library}
-                  expense={row.expense}
-                  kinds={kinds}
-                  countKindUsing={countKindUsing}
-                  blockId={null}
-                  blocksLabel={attachedLabel(row.expense, plan, tripOrder, blockLabel)}
-                />
-              </div>
-            ) : (
-              <div key={row.id} data-row-id={row.id} data-empty-block-id={row.id}>
+    <>
+      <ol ref={list} aria-label="类型分组" className="flex flex-col gap-3" onFocus={rememberFocus}>
+        {groups.map((group) => (
+          <li key={group.key} aria-label={group.name} className="glass-card flex flex-col gap-2 px-5 py-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h3 className="flex items-center gap-1.5 text-base text-ink">
+                <span aria-hidden="true" className="kind-dot" style={{ backgroundColor: group.color }} />
+                {group.name}
+              </h3>
+              <span data-group-summary className="text-sm text-ink-muted tabular-nums">
+                {summaryOf(group, plan)}
+              </span>
+            </div>
+            {group.rows.map((row) =>
+              row.type === "expense" ? (
+                <div key={row.id} data-row-id={row.id}>
+                  <ExpenseRow
+                    doc={doc}
+                    library={library}
+                    expense={row.expense}
+                    kinds={kinds}
+                    countKindUsing={countKindUsing}
+                    blockId={null}
+                    blocksLabel={attachedLabel(row.expense, plan, tripOrder, blockLabel)}
+                  />
+                </div>
+              ) : (
+                <div key={row.id} data-row-id={row.id} data-empty-block-id={row.id}>
+                  <DraftRow
+                    doc={doc}
+                    library={library}
+                    blockId={row.id}
+                    // 块的类型被删了时，新一笔先记成「其他」（同按天时）
+                    defaultKindId={libraryView.kinds.has(row.block.kind.id) ? row.block.kind.id : "other"}
+                    autoFocus={false}
+                    lead={<span data-block-label>{blockLabel(row.block)}</span>}
+                  />
+                </div>
+              ),
+            )}
+            {/* 被删掉的类型那一组不加：新钱不该记成已删除的类型 */}
+            {group.key !== DELETED_GROUP && (
+              <div data-add-row>
                 <DraftRow
                   doc={doc}
                   library={library}
-                  blockId={row.id}
-                  // 块的类型被删了时，新一笔先记成「其他」（同按天时）
-                  defaultKindId={libraryView.kinds.has(row.block.kind.id) ? row.block.kind.id : "other"}
+                  blockId={null}
+                  defaultKindId={group.key}
                   autoFocus={false}
-                  lead={<span data-block-label>{blockLabel(row.block)}</span>}
+                  blockChoices={blockChoices}
                 />
               </div>
-            ),
-          )}
-        </li>
-      ))}
-    </ol>
+            )}
+          </li>
+        ))}
+      </ol>
+      {/* 每组末尾只能加这个计划已经用到的类型；第一笔新类型的钱从这里加 */}
+      <section aria-label="加一笔别的类型的钱" className="glass-card flex flex-col gap-2 px-5 py-3">
+        <DraftRow
+          doc={doc}
+          library={library}
+          blockId={null}
+          defaultKindId={otherDefaultKind}
+          autoFocus={false}
+          lead="加一笔别的类型"
+          kindChoices={otherKindChoices}
+          blockChoices={blockChoices}
+        />
+      </section>
+    </>
   );
 }
 
