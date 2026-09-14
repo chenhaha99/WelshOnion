@@ -1,17 +1,29 @@
 import { DocumentError } from "@welshonion/core";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type * as Y from "yjs";
+import { normalizeSystemTimeZone } from "../plan/day-labels";
 import { openLibrary } from "../storage/library";
 import { LateNotice, Notice } from "./Notice";
 
+/** 当前时间和系统时区：页面都从这里取，测试可以换成固定值。 */
+interface Environment {
+  now: () => string;
+  timeZone: string;
+}
+
 const LibraryContext = createContext<Y.Doc | null>(null);
-const NowContext = createContext<(() => string) | null>(null);
+const EnvironmentContext = createContext<Environment | null>(null);
 
 type LibraryState = { status: "opening" } | { status: "open"; doc: Y.Doc } | { status: "too-new" };
 
-/** 整个应用只打开一次资料库；当前时间也从这里取，测试可以换成固定值。 */
-export function AppServices({ now, children }: { now: () => string; children: ReactNode }) {
+/** 整个应用只打开一次资料库。 */
+export function AppServices({
+  now,
+  timeZone,
+  children,
+}: Environment & { children: ReactNode }) {
   const [state, setState] = useState<LibraryState>({ status: "opening" });
+  const environment = useMemo(() => ({ now, timeZone: normalizeSystemTimeZone(timeZone) }), [now, timeZone]);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,9 +63,9 @@ export function AppServices({ now, children }: { now: () => string; children: Re
     );
   }
   return (
-    <NowContext.Provider value={now}>
+    <EnvironmentContext.Provider value={environment}>
       <LibraryContext.Provider value={state.doc}>{children}</LibraryContext.Provider>
-    </NowContext.Provider>
+    </EnvironmentContext.Provider>
   );
 }
 
@@ -63,8 +75,16 @@ export function useLibrary(): Y.Doc {
   return library;
 }
 
+function useEnvironment(): Environment {
+  const environment = useContext(EnvironmentContext);
+  if (!environment) throw new Error("只能在 AppServices 里面用");
+  return environment;
+}
+
 export function useNow(): () => string {
-  const now = useContext(NowContext);
-  if (!now) throw new Error("useNow 只能在 AppServices 里面用");
-  return now;
+  return useEnvironment().now;
+}
+
+export function useTimeZone(): string {
+  return useEnvironment().timeZone;
 }

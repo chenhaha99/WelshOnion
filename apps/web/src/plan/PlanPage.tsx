@@ -1,9 +1,13 @@
-import { DocumentError, readLibrary, readPlan } from "@welshonion/core";
-import { useEffect, useMemo, useState } from "react";
+import { DocumentError, readLibrary, readPlan, summarizePlan, touchPlan } from "@welshonion/core";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BackToList, LateNotice, Notice } from "../app/Notice";
 import { useLibrary, useNow } from "../app/services";
 import { useDocVersion } from "../app/use-doc-version";
 import { openPlan, type PlanHandle } from "../storage/plans";
+import { AskDays } from "./AskDays";
+import { DayList } from "./DayList";
+import { SettingsDrawer } from "./SettingsDrawer";
+import { usePlanUndo } from "./use-plan-undo";
 
 type PlanState = { status: "opening" } | { status: "open"; handle: PlanHandle } | { status: "missing" };
 
@@ -54,18 +58,71 @@ export function PlanPage({ planId }: { planId: string }) {
 
 function OpenPlan({ handle }: { handle: PlanHandle }) {
   const library = useLibrary();
+  const now = useNow();
   const libraryVersion = useDocVersion(library);
   const planVersion = useDocVersion(handle.doc);
   const plan = useMemo(
     () => readPlan(handle.doc, readLibrary(library)),
     [handle.doc, library, libraryVersion, planVersion],
   );
+  const undo = usePlanUndo(handle.doc);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const titleButton = useRef<HTMLButtonElement>(null);
+
+  // 摘要和索引对不上就刷新索引，回到列表（包括别的标签页开着的列表）看到的卡片是新的
+  useEffect(() => {
+    const entry = readLibrary(library).planIndex.get(handle.planId);
+    // 索引里没了是被别的标签页删了：外层会显示提示，这里不能把它写回来
+    if (!entry) return;
+    const summary = summarizePlan(plan);
+    const stale =
+      entry.name !== summary.name ||
+      entry.traveler_count !== summary.traveler_count ||
+      entry.date_start !== summary.date_start ||
+      entry.date_end !== summary.date_end ||
+      entry.day_count !== summary.day_count;
+    if (stale) touchPlan(library, handle.doc, now());
+  }, [plan, library, handle, now]);
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8">
-      <BackToList />
-      <h1 className="text-2xl font-medium text-ink">{plan.plan.name}</h1>
-      <p className="text-ink-muted">日程编辑还在做。</p>
+    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
+      <div className="flex items-center justify-between gap-4">
+        <BackToList />
+        <div className="flex gap-1">
+          <button type="button" className="btn btn-ghost" disabled={!undo.canUndo} onClick={undo.undo}>
+            撤销
+          </button>
+          <button type="button" className="btn btn-ghost" disabled={!undo.canRedo} onClick={undo.redo}>
+            重做
+          </button>
+        </div>
+      </div>
+
+      <h1 className="text-2xl font-medium text-ink">
+        <button
+          ref={titleButton}
+          type="button"
+          title="计划设置"
+          className="rounded-lg text-left hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
+          onClick={() => setSettingsOpen(true)}
+        >
+          {plan.plan.name}
+        </button>
+      </h1>
+
+      {plan.bases.length === 0 ? <AskDays doc={handle.doc} /> : <DayList doc={handle.doc} bases={plan.bases} />}
+
+      {settingsOpen && (
+        <SettingsDrawer
+          doc={handle.doc}
+          library={library}
+          settings={plan.plan}
+          onClose={() => {
+            setSettingsOpen(false);
+            titleButton.current?.focus();
+          }}
+        />
+      )}
     </main>
   );
 }

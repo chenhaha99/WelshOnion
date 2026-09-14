@@ -127,3 +127,57 @@
     opacity: 1;
   }
 }
+
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  height: 1.375rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-inline: 0.5rem;
+  border: 1px solid rgb(47 58 69 / 0.1);
+  border-radius: 999px;
+  background-color: rgb(255 255 255 / 0.7);
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+}
+
+@utility menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  padding: 0.25rem;
+  border: 1px solid rgb(255 255 255 / 0.8);
+  border-radius: 0.75rem;
+  /* 菜单长在带背景模糊的行里，嵌套的背景模糊会让下面几行的字透出来（走查截图里看到的），所以用不透明的底、不做模糊 */
+  background-color: rgb(253 253 252);
+  box-shadow:
+    0 1px 2px rgb(47 58 69 / 0.06),
+    0 16px 40px rgb(47 58 69 / 0.14);
+}
+
+@utility menu-item {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  &:hover:not(:disabled),
+  &:focus-visible {
+    background-color: rgb(111 154 130 / 0.12);
+    outline: none;
+  }
+  &:disabled {
+    color: rgb(107 119 132 / 0.5);
+    cursor: default;
+  }
+}
+
+/* 设置抽屉：从右边滑出，不盖住后面的内容（改完要立刻看见数字变） */
+@utility drawer {
+  border-left: 1px solid rgb(255 255 255 / 0.8);
+  background-color: rgb(255 255 255 / 0.8);
+  box-shadow: -16px 0 48px rgb(47 58 69 / 0.12);
+  backdrop-filter: blur(24px) saturate(1.2);
+}
