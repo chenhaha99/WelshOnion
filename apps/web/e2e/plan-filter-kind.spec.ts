@@ -1,0 +1,77 @@
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { DAY1, addBlocks, newPlan, pickKind, rowOf, schedule } from "./timeline-helpers";
+import { shot, watchErrors } from "./walkthrough";
+
+/** 在 title 这块上加一笔钱；给了 kind 就把这笔钱改成那个类型。加完收起钱的编辑区。 */
+async function addMoney(page: Page, table: Locator, title: string, yuan: string, kind?: string): Promise<void> {
+  const row = await rowOf(table, title);
+  await row.getByRole("button", { name: "钱" }).click();
+  const editor = page.getByRole("group", { name: `${title} 的钱` });
+  await editor.getByRole("textbox", { name: "新一笔的金额" }).fill(yuan);
+  await page.keyboard.press("Enter");
+  const added = editor.locator("[data-expense-id]").last();
+  await expect(added.getByRole("textbox", { name: "金额" })).toHaveValue(yuan);
+  if (kind !== undefined) {
+    await added.getByRole("button", { name: /^类型：/ }).click();
+    await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
+    await expect(added.getByRole("button", { name: `类型：${kind}` })).toBeVisible();
+  }
+  await row.getByRole("button", { name: "钱" }).click();
+  await expect(editor).toBeHidden();
+}
+
+test("按类型筛选：只看住宿 → 钱格另有别的类型、挂在被筛掉的块上 → 和状态一起 → 全部类型 → 手机", async ({ page }) => {
+  const errors = watchErrors(page);
+  await newPlan(page, 1);
+  const table = page.getByRole("table", { name: DAY1 });
+  const rows = table.locator("tr[data-block-id]");
+  await addBlocks(page, table, ["民宿", "横店", "午饭"]);
+  await pickKind(page, table, "民宿", "住宿");
+  await pickKind(page, table, "午饭", "餐饮");
+  await schedule(page, table, "民宿", "22:00", "2");
+  // 民宿：房费 480、早餐 30（餐饮）；横店（游玩）：住宿费 300（住宿）
+  await addMoney(page, table, "民宿", "480");
+  await addMoney(page, table, "民宿", "30", "餐饮");
+  await addMoney(page, table, "横店", "300", "住宿");
+
+  // 「类型」那一排只列用到的，按类型的顺序
+  const kinds = page.getByRole("group", { name: "按类型筛选" });
+  await expect(kinds.getByRole("button")).toHaveText(["住宿", "餐饮", "游玩"]);
+
+  // 只看住宿：表只剩民宿；钱格只算住宿、另写一行；上面写挂在被筛掉的块上的钱；总览只算住宿；时间轴只画民宿
+  await kinds.getByRole("button", { name: "住宿", exact: true }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(table.locator("[data-filtered-out]")).toHaveText("筛掉了 2 件");
+  const inn = await rowOf(table, "民宿");
+  await expect(inn.locator("[data-money-cell]")).toHaveText("¥480");
+  await expect(inn.locator("[data-money-note]")).toHaveText("另有别的类型的钱");
+  await expect(page.getByText("有 ¥300 挂在被筛掉的块上")).toBeVisible();
+  await expect(page.getByRole("region", { name: "钱的总览" })).toContainText("总额 ¥780");
+  await expect(page.getByRole("region", { name: "时间轴" }).locator("[data-segment]")).toHaveCount(1);
+  await shot(page, "01-lodging-only");
+
+  // 和状态一起：民宿还是待定，再按「已确认」，一件都不显示；取消状态
+  const statuses = page.getByRole("group", { name: "按状态筛选" });
+  await statuses.getByRole("button", { name: "已确认", exact: true }).click();
+  await expect(rows).toHaveCount(0);
+  await expect(table.locator("[data-filtered-out]")).toHaveText("筛掉了 3 件");
+  await statuses.getByRole("button", { name: "全部显示" }).click();
+  await expect(rows).toHaveCount(1);
+
+  // 全部类型：都回来，上面那一句和钱格下面那一行都不见
+  await kinds.getByRole("button", { name: "全部类型" }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(page.getByText(/挂在被筛掉的块上/)).toHaveCount(0);
+  await expect((await rowOf(table, "民宿")).locator("[data-money-note]")).toHaveCount(0);
+
+  // 手机：两排按钮放不下就换行，不撑出屏幕
+  await page.setViewportSize({ width: 390, height: 844 });
+  await kinds.getByRole("button", { name: "住宿", exact: true }).click();
+  await expect(rows).toHaveCount(1);
+  const box = (await kinds.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await shot(page, "02-mobile");
+
+  expect(errors).toEqual([]);
+});

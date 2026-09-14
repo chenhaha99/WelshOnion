@@ -28,7 +28,7 @@ import { BlockDetails } from "./BlockDetails";
 import { blockTimeLabel, clock } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
 import { MoneyEditor } from "./MoneyEditor";
-import { moneyCellLabel, type MoneyCell } from "./money-cells";
+import { moneyCellEmpty, moneyCellLabel, moneyCellNote, type MoneyCell } from "./money-cells";
 import { KindPicker, StatusPicker } from "./pickers";
 
 /** 新建的块默认「游玩」：第 ③ 步列的多是景点和活动，选错了在下拉里改。 */
@@ -218,6 +218,7 @@ function BlockRow({
     setDetailsOpen(false);
   };
   const subtitleLine = [block.subtitle, block.note === null ? null : "有长备注"].filter((part) => part !== null).join(" · ");
+  const moneyNote = moneyCellNote(moneyCell);
   const items: MenuItem[] = undated
     ? [
         indent === 0
@@ -286,15 +287,20 @@ function BlockRow({
           </button>
         </td>
         <td className="w-36">
-          {/* 没挂钱时淡色的「填钱」：空格子本身就是还没填的进度 */}
+          {/* 没钱可显示时淡色的「填钱」：空格子本身就是还没填的进度；按类型筛时，别的类型的钱在下面另写一行 */}
           <button
             type="button"
             aria-label="钱"
             aria-expanded={moneyOpen}
-            className={`input-bare text-left text-sm whitespace-nowrap tabular-nums ${moneyCell ? "text-ink" : "text-ink-muted/60"}`}
+            className={`input-bare text-left text-sm whitespace-nowrap tabular-nums ${moneyCellEmpty(moneyCell) ? "text-ink-muted/60" : "text-ink"}`}
             onClick={() => setMoneyOpen((value) => !value)}
           >
             <span data-money-cell>{moneyCellLabel(moneyCell)}</span>
+            {moneyNote !== null && (
+              <span data-money-note className="block text-xs text-ink-muted">
+                {moneyNote}
+              </span>
+            )}
           </button>
         </td>
         <td className="w-12 text-right">

@@ -3,7 +3,7 @@ import { useId, type ReactNode } from "react";
 import { Popover } from "../app/Popover";
 import { distanceKmText } from "./block-details";
 import { durationLabel } from "./block-time";
-import { moneyCellLabel, type MoneyCell } from "./money-cells";
+import { moneyCellEmpty, moneyCellLabel, type MoneyCell } from "./money-cells";
 
 const TRANSPORT_NAMES: Readonly<Record<TransportMode, string>> = { drive: "自驾", transit: "公共交通", walk: "步行" };
 
@@ -72,7 +72,7 @@ function BlockBubble({ block, time, moneyCell, close, onShiftLater }: BlockBubbl
       <p className="text-ink tabular-nums">{timeLine}</p>
       {block.subtitle !== null && <p className="text-ink-muted">{block.subtitle}</p>}
       {route !== null && <p className="text-ink">{route}</p>}
-      {moneyCell !== undefined && <p className="text-ink tabular-nums">钱：{moneyCellLabel(moneyCell)}</p>}
+      {!moneyCellEmpty(moneyCell) && <p className="text-ink tabular-nums">钱：{moneyCellLabel(moneyCell)}</p>}
       {block.note !== null && <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-ink-muted">{block.note}</p>}
       {onShiftLater && (
         <div role="group" aria-labelledby={shiftLabelId} className="flex flex-col gap-1 pt-1">
