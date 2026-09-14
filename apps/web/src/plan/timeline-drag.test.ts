@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { clampLinear, dragResult, previewSegments, slotOfMinute, splitLinear, undatedStartMinute } from "./timeline-drag";
+import {
+  clampLinear,
+  clampToDay,
+  dragLabelPlace,
+  dragResult,
+  edgeScrollStep,
+  previewSegments,
+  slotOfMinute,
+  splitLinear,
+  undatedStartMinute,
+} from "./timeline-drag";
 
 // 位置都是「线性分钟」：第几行 × 1440 + 这一行第几分钟
 
@@ -119,5 +129,63 @@ describe("从栏里拖出来的开始时刻", () => {
     expect(undatedStartMinute(-20)).toBe(0);
     expect(undatedStartMinute(1439)).toBe(1425);
     expect(undatedStartMinute(1500)).toBe(1425);
+  });
+});
+
+describe("竖排里夹在块开始的那一天", () => {
+  it("开始最早 00:00，最晚 23:45", () => {
+    expect(clampToDay(-60, 0)).toBe(0);
+    expect(clampToDay(600, 0)).toBe(600);
+    expect(clampToDay(1440, 0)).toBe(1425);
+  });
+
+  it("第 2 行的块按第 2 行算", () => {
+    expect(clampToDay(1380, 1)).toBe(1440);
+    expect(clampToDay(2000, 1)).toBe(2000);
+    expect(clampToDay(2880, 1)).toBe(2865);
+  });
+});
+
+describe("框边自己滚", () => {
+  // 框露在屏幕里的部分：纵坐标 100 到 548
+  it("离两边都超过 40 像素不滚", () => {
+    expect(edgeScrollStep(300, 100, 548)).toBe(0);
+    expect(edgeScrollStep(140, 100, 548)).toBe(0);
+    expect(edgeScrollStep(508, 100, 548)).toBe(0);
+  });
+
+  it("离上边 40 像素以内往上滚，越靠边越快，至少 1 像素", () => {
+    expect(edgeScrollStep(139, 100, 548)).toBe(-1);
+    expect(edgeScrollStep(120, 100, 548)).toBe(-5);
+    expect(edgeScrollStep(100, 100, 548)).toBe(-10);
+  });
+
+  it("离下边 40 像素以内往下滚", () => {
+    expect(edgeScrollStep(509, 100, 548)).toBe(1);
+    expect(edgeScrollStep(528, 100, 548)).toBe(5);
+    expect(edgeScrollStep(548, 100, 548)).toBe(10);
+  });
+
+  it("拖出了边按最快滚", () => {
+    expect(edgeScrollStep(60, 100, 548)).toBe(-10);
+    expect(edgeScrollStep(700, 100, 548)).toBe(10);
+  });
+});
+
+describe("松手后的时间写在哪", () => {
+  const size = { width: 100, height: 20 };
+
+  it("字的下边在指针上方 56 像素，横向以指针为中心", () => {
+    expect(dragLabelPlace({ x: 200, y: 400 }, size, 390)).toEqual({ left: 150, top: 324 });
+  });
+
+  it("左右夹在屏幕里，留 8 像素", () => {
+    expect(dragLabelPlace({ x: 20, y: 400 }, size, 390)).toEqual({ left: 8, top: 324 });
+    expect(dragLabelPlace({ x: 380, y: 400 }, size, 390)).toEqual({ left: 282, top: 324 });
+  });
+
+  it("上面放不下（离屏幕上边不到 8 像素）就放在指针下方 56 像素", () => {
+    expect(dragLabelPlace({ x: 200, y: 84 }, size, 390)).toEqual({ left: 150, top: 8 });
+    expect(dragLabelPlace({ x: 200, y: 70 }, size, 390)).toEqual({ left: 150, top: 126 });
   });
 });

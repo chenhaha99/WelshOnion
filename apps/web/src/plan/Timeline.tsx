@@ -17,6 +17,7 @@ import { useWideScreen } from "../app/use-wide-screen";
 import { BlockPopover } from "./BlockBubble";
 import { blockTimeLabel } from "./block-time";
 import { DayTimeline } from "./DayTimeline";
+import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
 import type { MoneyCell } from "./money-cells";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
@@ -44,7 +45,7 @@ interface TimelineProps {
 }
 
 /**
- * 时间轴：屏幕够宽时横着铺（一天一行，能拖），窄屏上竖着铺、一次一天（见 DayTimeline）。
+ * 时间轴：屏幕够宽时横着铺（一天一行），窄屏上竖着铺、一次一天（见 DayTimeline）；两种都能拖（见 use-timeline-drag）。
  * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。
  */
 export function Timeline({ doc, library, plan, libraryView, moneyCells, filter }: TimelineProps) {
@@ -69,7 +70,7 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter }
   return (
     <section aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
       <h2 className="text-sm font-medium text-ink">时间轴</h2>
-      {/* 竖排没有右边的栏，也不能拖 */}
+      {/* 竖排没有右边的栏 */}
       {!hasTimed && (
         <p className="text-sm text-ink-muted">
           {wide
@@ -91,7 +92,10 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter }
         />
       ) : (
         <DayTimeline
+          doc={doc}
+          library={library}
           plan={plan}
+          libraryView={libraryView}
           rows={rows}
           labels={labels}
           moneyCells={moneyCells}
@@ -130,11 +134,12 @@ function WideTimeline({
   filter,
   shiftLater,
 }: WideTimelineProps) {
-  const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter });
+  const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter, day: null });
 
   return (
     // 横轴至少 720 像素（每小时 30 像素），放不下就在卡片里横着滚
     <div
+      ref={drag.containerRef}
       data-timeline-scroll
       data-timeline-dragging={drag.dragView ? true : undefined}
       className="-mx-2 overflow-x-auto px-2 pb-1"
@@ -171,7 +176,8 @@ function WideTimeline({
               filter={filter}
               dragView={drag.dragView}
               preview={drag.preview && { ...drag.preview, pieces: drag.preview.pieces.filter((piece) => piece.row === index) }}
-              labelHere={drag.preview !== null && drag.preview.pieces[0]?.row === index}
+              // 时间写在指针上方时（手指拖），预览框里不写
+              labelHere={drag.preview !== null && drag.pointerLabel === null && drag.preview.pieces[0]?.row === index}
               trayDropLabel={drag.trayDrop?.row === index ? drag.trayDrop.label : null}
               handlers={drag.handlers}
               shiftLater={shiftLater}
@@ -181,6 +187,7 @@ function WideTimeline({
           ))}
         </ol>
       </div>
+      {drag.pointerLabel && <DragLabel label={drag.pointerLabel} />}
     </div>
   );
 }

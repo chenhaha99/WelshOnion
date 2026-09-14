@@ -487,6 +487,29 @@
   cursor: grabbing !important;
 }
 
+/* 手指长按横条、竖条、栏里的一件是要拿起来拖：不弹 iOS 的系统长按菜单 */
+[data-segment],
+[data-undated-chip] {
+  -webkit-touch-callout: none;
+}
+
+/* 拖动中松手后的时间，写在指针上方（手指按着的地方看不见） */
+@utility timeline-drag-label {
+  position: fixed;
+  z-index: 50;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid rgb(47 58 69 / 0.15);
+  border-radius: 0.375rem;
+  background-color: rgb(255 255 255 / 0.95);
+  box-shadow: 0 2px 8px rgb(47 58 69 / 0.15);
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* 「没排时间」栏的拖拽：栏里的一件能抓，被拖时变淡；拖进来时整栏虚线描边，底下一个预览框写会进哪一格 */
 @utility timeline-tray-ghost {
   display: flex;
