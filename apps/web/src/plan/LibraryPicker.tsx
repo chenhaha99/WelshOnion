@@ -73,7 +73,7 @@ export function LibraryPicker({ label, current, options, ...actions }: LibraryPi
       triggerClassName="input-bare flex items-center gap-1.5 text-left"
       role="dialog"
       panelLabel={`选择${label}`}
-      panelClassName="menu max-h-96 w-64 overflow-y-auto"
+      panelClassName="menu w-64"
       align="start"
       estimatedHeight={options.length * OPTION_HEIGHT_PX + 56}
       initialFocus={(panel) => panel.querySelector<HTMLElement>("[aria-pressed=true]")}

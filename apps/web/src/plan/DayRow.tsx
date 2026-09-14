@@ -16,6 +16,7 @@ import type * as Y from "yjs";
 import { Menu, type MenuItem } from "../app/Menu";
 import { BlockTable } from "./BlockTable";
 import { COMMON_TIME_ZONES, cityName } from "./day-labels";
+import type { MoneyCell } from "./money-cells";
 
 type Direction = "above" | "below";
 
@@ -31,9 +32,10 @@ interface DayRowProps {
   label: string;
   index: number;
   count: number;
+  moneyCells: ReadonlyMap<string, MoneyCell>;
 }
 
-export function DayRow({ doc, library, libraryView, plan, base, label, index, count }: DayRowProps) {
+export function DayRow({ doc, library, libraryView, plan, base, label, index, count, moneyCells }: DayRowProps) {
   const [mode, setMode] = useState<Mode>({ kind: "normal" });
   const backToNormal = () => setMode({ kind: "normal" });
 
@@ -117,6 +119,7 @@ export function DayRow({ doc, library, libraryView, plan, base, label, index, co
         baseId={base.id}
         date={base.date}
         dayLabel={label}
+        moneyCells={moneyCells}
       />
     </li>
   );

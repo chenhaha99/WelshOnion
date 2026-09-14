@@ -19,6 +19,10 @@ const PopoverLayer = createContext<HTMLElement | null>(null);
 /** 现在开着的弹层，后开的在后面：页面上的 Esc 只交给最上层的那个。 */
 const openPopovers: symbol[] = [];
 
+/** 面板离屏幕边至少留多少、离按钮隔多少（像素） */
+const VIEWPORT_MARGIN = 8;
+const GAP = 4;
+
 interface PopoverProps {
   /** 触发按钮的读屏名字；不给就用按钮上的内容 */
   label?: string;
@@ -29,7 +33,7 @@ interface PopoverProps {
   panelClassName: string;
   /** 面板和按钮哪边对齐 */
   align: "start" | "end";
-  /** 面板大概多高（像素），用来决定往下还是往上展开 */
+  /** 面板还没画出来时估计的高度（像素），用来决定先往下还是往上开 */
   estimatedHeight: number;
   /** 打开时焦点放哪；不给就放面板里第一个能聚焦的 */
   initialFocus?: (panel: HTMLElement) => HTMLElement | null;
@@ -40,7 +44,8 @@ interface PopoverProps {
 
 /**
  * 按钮 + 放在页面最外层、按按钮位置摆的面板：不会被会滚动的表格裁掉，也不受背景模糊影响。
- * Esc、点外面、滚动页面、窗口变大小时关掉；Esc 关掉后焦点回到按钮。
+ * 面板始终整个在屏幕里：往下放不下就挑空间大的那边，最大高度按剩余空间封顶，内容在面板里滚。
+ * Esc、点外面、窗口变大小时关掉；页面滚动时面板跟着按钮走，按钮滚出屏幕才关；Esc 关掉后焦点回到按钮。
  */
 export function Popover({
   label,
@@ -85,20 +90,35 @@ export function Popover({
         close(true);
       }
     };
-    // 面板自己里面滚动（选项很多时）不关
-    const closeOnScroll = (event: Event) => {
-      if (!panel.contains(event.target as Node)) setPosition(null);
+    // 滚动不关：浏览器的滚动事件是稍后才送到的，刚滚完页面马上点按钮，面板会被这次「迟到的滚动」关掉。
+    // 改成跟着按钮重新摆，按钮整个滚出屏幕才关；每帧最多摆一次
+    let frame = 0;
+    const reposition = () => {
+      frame = 0;
+      const trigger = button.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        setPosition(null);
+        return;
+      }
+      setPosition(placePanel(trigger, panel, align, estimatedHeight));
     };
-    const closeOnResize = () => setPosition(null);
+    const scheduleReposition = (event: Event) => {
+      // 面板自己里面滚动（选项很多时）不用重摆
+      if (event.type === "scroll" && panel.contains(event.target as Node)) return;
+      if (frame === 0) frame = requestAnimationFrame(reposition);
+    };
     document.addEventListener("pointerdown", closeIfOutside);
     document.addEventListener("keydown", closeOnEscape);
-    window.addEventListener("scroll", closeOnScroll, true);
-    window.addEventListener("resize", closeOnResize);
+    window.addEventListener("scroll", scheduleReposition, true);
+    window.addEventListener("resize", scheduleReposition);
     return () => {
       document.removeEventListener("pointerdown", closeIfOutside);
       document.removeEventListener("keydown", closeOnEscape);
-      window.removeEventListener("scroll", closeOnScroll, true);
-      window.removeEventListener("resize", closeOnResize);
+      window.removeEventListener("scroll", scheduleReposition, true);
+      window.removeEventListener("resize", scheduleReposition);
+      if (frame !== 0) cancelAnimationFrame(frame);
       const index = openPopovers.lastIndexOf(self);
       if (index !== -1) openPopovers.splice(index, 1);
     };
@@ -106,15 +126,11 @@ export function Popover({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, panel]);
 
-  // 面板挂上、还没画出来之前量一下宽度：伸出屏幕左右边的挪回屏幕里（手机上按钮靠右时会伸出去）
+  // 面板挂上、还没画出来之前，按量到的真实宽高再摆一次
   useLayoutEffect(() => {
-    if (!panel) return;
-    const rect = panel.getBoundingClientRect();
-    const maxLeft = window.innerWidth - rect.width - 8;
-    if (rect.left >= 8 && rect.left <= maxLeft) return;
-    setPosition(
-      (current) => current && { top: current.top, bottom: current.bottom, left: Math.max(8, Math.min(rect.left, maxLeft)) },
-    );
+    if (!panel || !button.current) return;
+    setPosition(placePanel(button.current, panel, align, estimatedHeight));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel]);
 
   const toggle = () => {
@@ -122,13 +138,7 @@ export function Popover({
       setPosition(null);
       return;
     }
-    const rect = button.current.getBoundingClientRect();
-    const roomBelow = window.innerHeight - rect.bottom;
-    const placeAbove = roomBelow < estimatedHeight && rect.top > roomBelow;
-    setPosition({
-      ...(align === "end" ? { right: Math.max(8, window.innerWidth - rect.right) } : { left: Math.max(8, rect.left) }),
-      ...(placeAbove ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
-    });
+    setPosition(placePanel(button.current, null, align, estimatedHeight));
   };
 
   return (
@@ -152,8 +162,8 @@ export function Popover({
             id={panelId}
             role={role}
             aria-label={panelLabel}
-            className={`${panelClassName} fixed z-40`}
-            style={position}
+            className={`${panelClassName} fixed z-40 overflow-y-auto`}
+            style={{ ...position, maxWidth: `calc(100vw - ${VIEWPORT_MARGIN * 2}px)` }}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.stopPropagation();
@@ -169,6 +179,31 @@ export function Popover({
         )}
     </>
   );
+}
+
+/**
+ * 按按钮在屏幕上的位置摆面板。面板还没挂上时用估计高度、宽度当 0 算，挂上后再按真实大小摆一次。
+ * 往下放不下、上面空间又更大，就往上放；最大高度就是那一边剩下的空间；左右夹在屏幕里。
+ */
+function placePanel(
+  button: HTMLElement,
+  panel: HTMLElement | null,
+  align: "start" | "end",
+  estimatedHeight: number,
+): CSSProperties {
+  const rect = button.getBoundingClientRect();
+  const roomBelow = window.innerHeight - rect.bottom - GAP - VIEWPORT_MARGIN;
+  const roomAbove = rect.top - GAP - VIEWPORT_MARGIN;
+  const wantedHeight = panel ? panel.scrollHeight : estimatedHeight;
+  const placeAbove = wantedHeight > roomBelow && roomAbove > roomBelow;
+
+  const width = panel ? panel.offsetWidth : 0;
+  const preferredLeft = align === "end" ? rect.right - width : rect.left;
+  const left = Math.max(VIEWPORT_MARGIN, Math.min(preferredLeft, window.innerWidth - width - VIEWPORT_MARGIN));
+
+  return placeAbove
+    ? { left, bottom: window.innerHeight - rect.top + GAP, maxHeight: Math.max(0, roomAbove) }
+    : { left, top: rect.bottom + GAP, maxHeight: Math.max(0, roomBelow) };
 }
 
 function firstFocusable(panel: HTMLElement): HTMLElement | null {

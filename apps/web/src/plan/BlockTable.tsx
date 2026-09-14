@@ -24,11 +24,14 @@ import { CommitInput } from "../app/CommitInput";
 import { Menu, type MenuItem } from "../app/Menu";
 import { blockTimeLabel, clock } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
+import { MoneyEditor } from "./MoneyEditor";
+import { moneyCellLabel, type MoneyCell } from "./money-cells";
 import { KindPicker, StatusPicker } from "./pickers";
 
 /** 新建的块默认「游玩」：第 ③ 步列的多是景点和活动，选错了在下拉里改。 */
 const DEFAULT_KIND_ID = "sight";
 const DELETED_COLOR = "#9aa3ad";
+const COLUMN_COUNT = 6;
 
 interface BlockTableProps {
   doc: Y.Doc;
@@ -38,10 +41,12 @@ interface BlockTableProps {
   baseId: string;
   date: string;
   dayLabel: string;
+  /** 全计划的钱格摘要，按块 id */
+  moneyCells: ReadonlyMap<string, MoneyCell>;
 }
 
 /** 一天的安排表：一行一个块，末尾「加一件事」。 */
-export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayLabel }: BlockTableProps) {
+export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayLabel, moneyCells }: BlockTableProps) {
   const blocks = blocksOfDay(plan, baseId);
   const kinds = [...libraryView.kinds.values()].sort(byOrder);
   const statuses = [...libraryView.statuses.values()].sort(byOrder);
@@ -51,13 +56,14 @@ export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayL
 
   return (
     <div className="-mx-2 overflow-x-auto">
-      <table aria-label={`${dayLabel} 的安排`} className="block-table w-full min-w-[36rem]">
+      <table aria-label={`${dayLabel} 的安排`} className="block-table w-full min-w-[42rem]">
         <thead className="sr-only">
           <tr>
             <th>标题</th>
             <th>类型</th>
             <th>状态</th>
             <th>时间</th>
+            <th>钱</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -67,6 +73,7 @@ export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayL
               key={block.id}
               doc={doc}
               library={library}
+              plan={plan}
               block={block}
               date={date}
               kinds={kinds}
@@ -75,10 +82,11 @@ export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayL
               followerCount={followersOf(plan, libraryView, block.id).length}
               countKindUsing={countKindUsing}
               countStatusUsing={countStatusUsing}
+              moneyCell={moneyCells.get(block.id)}
             />
           ))}
           <tr>
-            <td colSpan={5}>
+            <td colSpan={COLUMN_COUNT}>
               <AddBlock doc={doc} library={library} baseId={baseId} />
             </td>
           </tr>
@@ -91,6 +99,7 @@ export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayL
 interface BlockRowProps {
   doc: Y.Doc;
   library: Y.Doc;
+  plan: PlanView;
   block: BlockView;
   date: string;
   kinds: KindView[];
@@ -101,11 +110,14 @@ interface BlockRowProps {
   followerCount: number;
   countKindUsing: (kindId: string) => number;
   countStatusUsing: (statusId: string) => number;
+  /** 这块的钱格摘要；一笔钱都没挂就是 undefined */
+  moneyCell: MoneyCell | undefined;
 }
 
 function BlockRow({
   doc,
   library,
+  plan,
   block,
   date,
   kinds,
@@ -114,8 +126,10 @@ function BlockRow({
   followerCount,
   countKindUsing,
   countStatusUsing,
+  moneyCell,
 }: BlockRowProps) {
   const [timeOpen, setTimeOpen] = useState(false);
+  const [moneyOpen, setMoneyOpen] = useState(false);
   const color = block.kind.deleted ? DELETED_COLOR : block.kind.color;
   const indent = block.indent ?? 0;
   const undated = block.start_minute === null;
@@ -188,6 +202,18 @@ function BlockRow({
             </span>
           </button>
         </td>
+        <td className="w-36">
+          {/* 没挂钱时淡色的「填钱」：空格子本身就是还没填的进度 */}
+          <button
+            type="button"
+            aria-label="钱"
+            aria-expanded={moneyOpen}
+            className={`input-bare text-left text-sm whitespace-nowrap tabular-nums ${moneyCell ? "text-ink" : "text-ink-muted/60"}`}
+            onClick={() => setMoneyOpen((value) => !value)}
+          >
+            <span data-money-cell>{moneyCellLabel(moneyCell)}</span>
+          </button>
+        </td>
         <td className="w-12 text-right">
           <Menu label="这件事的操作" items={items}>
             ⋯
@@ -196,8 +222,26 @@ function BlockRow({
       </tr>
       {timeOpen && (
         <tr>
-          <td colSpan={5}>
+          <td colSpan={COLUMN_COUNT}>
             <TimeEditor doc={doc} library={library} block={block} onDone={() => setTimeOpen(false)} />
+          </td>
+        </tr>
+      )}
+      {moneyOpen && (
+        <tr>
+          <td colSpan={COLUMN_COUNT}>
+            <MoneyEditor
+              doc={doc}
+              library={library}
+              plan={plan}
+              kinds={kinds}
+              countKindUsing={countKindUsing}
+              block={block}
+              label={`${block.title} 的钱`}
+              // 块的类型被删了时，新一笔先记成「其他」
+              defaultKindId={block.kind.deleted ? "other" : block.kind.id}
+              onDone={() => setMoneyOpen(false)}
+            />
           </td>
         </tr>
       )}

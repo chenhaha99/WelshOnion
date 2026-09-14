@@ -2,6 +2,7 @@ import { renamePlan, setPlanSettings, type PlanSettingsView } from "@welshonion/
 import { useEffect, useRef } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
+import { parseYuan } from "./money";
 
 interface SettingsDrawerProps {
   doc: Y.Doc;
@@ -64,9 +65,9 @@ export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDraw
         className="input tabular-nums"
         hint="油费加过路费，自驾时用；空着就不算"
         commit={(text) => {
-          if (text !== "" && !/^\d+(\.\d{1,2})?$/.test(text)) return "要填不小于 0 的数，最多两位小数";
-          const cents = text === "" ? null : Math.round(Number(text) * 100);
-          if (cents !== settings.cost_per_km_cents) setPlanSettings(doc, { cost_per_km_cents: cents });
+          const parsed = parseYuan(text);
+          if (!parsed.ok) return "要填不小于 0 的数，最多两位小数";
+          if (parsed.cents !== settings.cost_per_km_cents) setPlanSettings(doc, { cost_per_km_cents: parsed.cents });
           return null;
         }}
       />
