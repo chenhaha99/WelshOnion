@@ -48,6 +48,9 @@ export {
 export type { AddBlockInput, BlockPatch, Placement, SlotChoice } from "./ops/blocks";
 export { duplicateBlock, moveBlock, setBlockLayer, shiftDayFrom } from "./ops/drag";
 export type { DropTarget } from "./ops/drag";
+export { addExpense, deleteExpense, linkExpense, unlinkExpense, updateExpense } from "./ops/expenses";
+export type { AddExpenseInput, ExpensePatch } from "./ops/expenses";
+export { backfillFuel, findFuelBackfill, fuelCostCents } from "./ops/fuel";
 export { readLibrary, readPlan, reconcilePlanIndex, summarizePlan } from "./read";
 export type {
   BaseView,

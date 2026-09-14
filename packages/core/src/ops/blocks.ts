@@ -3,6 +3,7 @@ import { newId } from "../ids";
 import { followersOf, layerWhenOnto } from "../nesting";
 import { readLibrary, readPlan, type Slot, type TransportMode } from "../read";
 import type { ValidatedField } from "../validate";
+import { attachFuel, hasTransitMoney, qualifiesForFuel } from "./fuel";
 import { LOCAL_ORIGIN } from "./origin";
 import { done, fail, firstInvalidField, ok, type OpResult } from "./result";
 import { removeBlocks } from "./remove";
@@ -95,6 +96,15 @@ export function updateBlock(planDoc: Y.Doc, library: Y.Doc, blockId: string, pat
     if (missing) return fail({ code: "NOT_FOUND", id: missing });
   }
 
+  // 自驾油费：「自驾、有距离、设了每公里成本」这次刚凑齐、块上还没有交通类的钱，就在同一步里挂上
+  const cost = planDoc.getMap("plan").get("cost_per_km_cents");
+  const modeAfter = patch.transport_mode !== undefined ? patch.transport_mode : block.get("transport_mode");
+  const distanceAfter = patch.distance_m !== undefined ? patch.distance_m : block.get("distance_m");
+  const shouldAttachFuel =
+    !qualifiesForFuel(block.get("transport_mode"), block.get("distance_m"), cost) &&
+    qualifiesForFuel(modeAfter, distanceAfter, cost) &&
+    !hasTransitMoney(planDoc, blockId);
+
   planDoc.transact(() => {
     for (const key of ["title", "subtitle", "kind_id", "transport_mode", "distance_m"] as const) {
       const value = patch[key];
@@ -113,6 +123,7 @@ export function updateBlock(planDoc: Y.Doc, library: Y.Doc, blockId: string, pat
       note.insert(0, patch.note);
       block.set("note", note);
     }
+    if (shouldAttachFuel) attachFuel(planDoc, blockId, distanceAfter as number, cost as number);
   }, LOCAL_ORIGIN);
   return done();
 }
