@@ -37,3 +37,13 @@ test("不管字段之间合不合理", () => {
   expect(validateField("start_minute", 1380)).toEqual(OK);
   expect(validateField("duration_min", 2000)).toEqual(OK);
 });
+
+test("时间预算的形状", () => {
+  const full = { start: "08:00", end: "22:00", max_drive_min: 240, max_drive_km: 300 };
+  expect(validateField("day_budget", full)).toEqual(OK);
+  expect(validateField("day_budget", { max_drive_km: 300 })).toEqual(OK);
+  expect(validateField("day_budget", null)).toEqual(OK);
+  for (const bad of [{ start: "25:00" }, { max_drive_km: -1 }, { speed: 80 }]) {
+    expect(validateField("day_budget", bad)).toEqual({ ok: false, field: "day_budget" });
+  }
+});

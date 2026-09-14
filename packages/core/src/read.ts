@@ -6,6 +6,7 @@
  *   写入时不可能拦住它们
  */
 import * as Y from "yjs";
+import { compareBases, compareStrings } from "./order";
 
 export type Slot = "morning" | "afternoon" | "evening";
 export type TransportMode = "drive" | "transit" | "walk";
@@ -207,7 +208,7 @@ export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
       day_flag: optional<DayFlag>(map, "day_flag"),
       day_budget: optional<PlainObject>(map, "day_budget"),
     }))
-    .sort((a, b) => compare(a.date, b.date) || compare(a.id, b.id));
+    .sort(compareBases);
 
   const blocks = new Map<string, BlockView>();
   for (const [id, map] of sortedEntries(doc.getMap<Record_>("blocks"))) {
@@ -314,7 +315,7 @@ function undatedOrder(baseId: string, baseMap: Record_, blocks: ReadonlyMap<stri
   for (const id of stringList(baseMap, "undated")) {
     if (members.has(id)) placed.add(id);
   }
-  const rest = [...members].filter((id) => !placed.has(id)).sort(compare);
+  const rest = [...members].filter((id) => !placed.has(id)).sort(compareStrings);
   return [...placed, ...rest];
 }
 
@@ -357,9 +358,5 @@ function stringList(map: Record_, key: string): string[] {
 }
 
 function sortedEntries(map: Y.Map<Record_>): [string, Record_][] {
-  return [...map.entries()].sort(([a], [b]) => compare(a, b));
-}
-
-function compare(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
+  return [...map.entries()].sort(([a], [b]) => compareStrings(a, b));
 }
