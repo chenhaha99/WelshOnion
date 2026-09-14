@@ -50,21 +50,34 @@ function segmentData(segment: HTMLElement) {
   return { from, to, track, lane, depth, pending };
 }
 
+/** 这一行的「没排时间」栏。 */
+function trayOf(row: HTMLElement): HTMLElement {
+  return within(row).getByRole("group", { name: "没排时间" });
+}
+
+/** 栏里每件的读屏名，按顺序。 */
+function chipNames(tray: HTMLElement): string[] {
+  return within(tray)
+    .queryAllByRole("button")
+    .map((button) => button.getAttribute("aria-label") ?? "");
+}
+
 async function pressFilter(user: ReturnType<typeof userEvent.setup>, name: string): Promise<void> {
   await user.click(within(await screen.findByRole("group", { name: "按状态筛选" })).getByRole("button", { name }));
 }
 
-const HINT = "排上时间的事会画在这里：在下面的安排表里点时间格排时间";
+const HINT = "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者在下面的安排表里点时间格";
 
 describe("时间轴一天一行", () => {
   it("两天的计划：标签和刻度，放在「只看」和钱的总览中间", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 2));
 
     const region = await timeline();
-    expect(within(region).getAllByRole("listitem").map((row) => row.getAttribute("aria-label"))).toEqual([
-      "第 1 天 · 10.1 周四",
-      "第 2 天 · 10.2 周五",
-    ]);
+    expect(
+      within(region)
+        .getAllByRole("listitem")
+        .map((row) => row.getAttribute("aria-label")),
+    ).toEqual(["第 1 天 · 10.1 周四", "第 2 天 · 10.2 周五"]);
     expect([...region.querySelectorAll("[data-hour-tick]")].map((tick) => tick.textContent)).toEqual(
       ["0", "2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24"],
     );
@@ -76,7 +89,7 @@ describe("时间轴一天一行", () => {
 });
 
 describe("块怎么画", () => {
-  it("按时长占宽度；时长为 0 画在那一刻；没排时间的不画", async () => {
+  it("按时长占宽度；时长为 0 画在那一刻；没排时间的不画在横轴上", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
@@ -96,7 +109,7 @@ describe("块怎么画", () => {
     expect(segmentData(tide)).toMatchObject({ from: "720", to: "720" });
     expect(tide.style.left).toBe("50%");
 
-    expect(within(await timeline()).queryByRole("button", { name: /^灵隐寺/ })).toBeNull();
+    expect(row.querySelectorAll('[data-segment] [aria-label^="灵隐寺"]')).toHaveLength(0);
   });
 
   it("住一晚画两段；停留、住宿画在背景条；叠在上面的缩进", async () => {
@@ -154,6 +167,53 @@ describe("块怎么画", () => {
 
     await waitFor(async () => expect(within(await timeline()).queryByRole("button", { name: /^西湖 / })).toBeNull());
     expect(segmentData(segmentOf(await timelineRow("10.1"), "游船"))).toMatchObject({ lane: "1" });
+  });
+});
+
+describe("没排时间栏", () => {
+  function listForOct1(plan: Y.Doc, library: Y.Doc): void {
+    const [oct1] = daysFromOct1(plan, 1);
+    block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "morning", duration: 120 });
+    block(plan, library, { baseId: oct1!, kindId: "sight", title: "河坊街", slot: "day" });
+    block(plan, library, { baseId: oct1!, kindId: "sight", statusId: "confirmed", title: "宋城", slot: "afternoon" });
+    block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+  }
+
+  it("按整天、上午、下午、晚上排，只放没排时间的；颜色和虚实同横条", async () => {
+    await openStoredPlan(listForOct1);
+
+    const tray = trayOf(await timelineRow("10.1"));
+    expect(chipNames(tray)).toEqual(["河坊街 整天", "灵隐寺 上午 · 2 小时", "宋城 下午"]);
+    const temple = within(tray).getByRole("button", { name: "灵隐寺 上午 · 2 小时" }).closest<HTMLElement>("[data-undated-chip]")!;
+    expect(temple.style.getPropertyValue("--kind-color")).toBe("#77a389");
+    expect(temple.dataset.pending).toBe("true");
+    const songcheng = within(tray).getByRole("button", { name: "宋城 下午" }).closest<HTMLElement>("[data-undated-chip]")!;
+    expect(songcheng.dataset.pending).toBe("false");
+  });
+
+  it("只看已确认的：栏里也只剩通过筛选的", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(listForOct1);
+
+    await pressFilter(user, "已确认");
+
+    await waitFor(async () => expect(chipNames(trayOf(await timelineRow("10.1")))).toEqual(["宋城 下午"]));
+  });
+
+  it("点开详情：时间只写一遍", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(listForOct1);
+
+    await user.click(within(trayOf(await timelineRow("10.1"))).getByRole("button", { name: "灵隐寺 上午 · 2 小时" }));
+
+    const dialog = screen.getByRole("dialog", { name: "灵隐寺" });
+    expect(within(dialog).getByText("游玩 · 待定")).toBeTruthy();
+    expect(within(dialog).getByText("上午 · 2 小时")).toBeTruthy();
+  });
+
+  it("空的一天也有栏", async () => {
+    await openStoredPlan((plan) => daysFromOct1(plan, 2));
+    expect(chipNames(trayOf(await timelineRow("10.2")))).toEqual([]);
   });
 });
 

@@ -77,6 +77,22 @@ export function previewSegments(
   return segments;
 }
 
+/**
+ * 开始时刻换算成变回没排时间时的格子：06:00–11:59 上午、12:00–17:59 下午、18:00–23:59 晚上；
+ * 00:00–05:59 不属于任何一格，归整天。
+ */
+export function slotOfMinute(minute: number): "day" | "morning" | "afternoon" | "evening" {
+  if (minute >= 1080) return "evening";
+  if (minute >= 720) return "afternoon";
+  if (minute >= 360) return "morning";
+  return "day";
+}
+
+/** 没排时间的块拖上时间轴时的开始分钟：吸附到 15 分钟，夹在 00:00–23:45（排上时间的操作只收 0–1439，不做过午夜的换算）。 */
+export function undatedStartMinute(minute: number): number {
+  return Math.min(Math.max(snap(minute), 0), MINUTES_PER_DAY - SNAP_MIN);
+}
+
 /** 四舍五入到 15 分钟；加 0 把 -0 变成 0。 */
 function snap(minutes: number): number {
   return Math.round(minutes / SNAP_MIN) * SNAP_MIN + 0;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampLinear, dragResult, previewSegments, splitLinear } from "./timeline-drag";
+import { clampLinear, dragResult, previewSegments, slotOfMinute, splitLinear, undatedStartMinute } from "./timeline-drag";
 
 // 位置都是「线性分钟」：第几行 × 1440 + 这一行第几分钟
 
@@ -91,5 +91,33 @@ describe("预览框每行一段", () => {
 
   it("时长为 0 是一个点", () => {
     expect(previewSegments(720, 0, 1)).toEqual([{ row: 0, from: 720, to: 720 }]);
+  });
+});
+
+describe("开始时刻换算成格子", () => {
+  it("00:00–05:59 整天，06:00 起上午，12:00 起下午，18:00 起晚上", () => {
+    expect([0, 359, 360, 719, 720, 1079, 1080, 1439].map(slotOfMinute)).toEqual([
+      "day",
+      "day",
+      "morning",
+      "morning",
+      "afternoon",
+      "afternoon",
+      "evening",
+      "evening",
+    ]);
+  });
+});
+
+describe("从栏里拖出来的开始时刻", () => {
+  it("吸附到 15 分钟", () => {
+    expect(undatedStartMinute(847)).toBe(840);
+    expect(undatedStartMinute(853)).toBe(855);
+  });
+
+  it("最早 00:00，最晚 23:45", () => {
+    expect(undatedStartMinute(-20)).toBe(0);
+    expect(undatedStartMinute(1439)).toBe(1425);
+    expect(undatedStartMinute(1500)).toBe(1425);
   });
 });

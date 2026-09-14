@@ -1,109 +1,23 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import {
+  addBlocks,
+  box,
+  center,
+  DAY1,
+  DAY2,
+  DAY3,
+  drag,
+  hourWidth,
+  newPlan,
+  pickKind,
+  rowOf,
+  schedule,
+  segment,
+  timelineRow,
+  timeOf,
+  trayOf,
+} from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
-
-const DAY1 = /10\.1 周四 的安排/;
-const DAY2 = /10\.2 周五 的安排/;
-const DAY3 = /10\.3 周六 的安排/;
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-async function newPlan(page: Page, dayCount = 2): Promise<void> {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/");
-  await page.getByRole("button", { name: "新建第一个计划" }).click();
-  await page.getByRole("textbox", { name: "计划名" }).fill("国庆杭州");
-  await page.keyboard.press("Enter");
-  await page.getByLabel("出发日期").fill("2026-10-01");
-  await page.getByLabel("天数").fill(String(dayCount));
-  await page.getByRole("button", { name: "确定" }).click();
-  await expect(page.getByRole("list", { name: "日期列表" }).getByRole("listitem")).toHaveCount(dayCount);
-}
-
-async function addBlocks(page: Page, table: Locator, titles: string[]): Promise<void> {
-  await table.getByRole("textbox", { name: "加一件事" }).click();
-  for (const title of titles) {
-    await page.keyboard.type(title);
-    await page.keyboard.press("Enter");
-  }
-}
-
-/** 安排表里标题是 title 的那一行。排时间会改变行的先后，所以按标题找到块 id 再定位。 */
-async function rowOf(table: Locator, title: string): Promise<Locator> {
-  const id = await table
-    .locator("tr[data-block-id]")
-    .evaluateAll(
-      (rows, wanted) =>
-        rows
-          .find((row) => row.querySelector<HTMLInputElement>('input[aria-label="标题"]')?.value === wanted)
-          ?.getAttribute("data-block-id") ?? null,
-      title,
-    );
-  if (id === null) throw new Error(`表里没有「${title}」`);
-  return table.locator(`tr[data-block-id="${id}"]`);
-}
-
-async function timeOf(table: Locator, title: string): Promise<string> {
-  return (await rowOf(table, title)).locator("[data-block-time]").innerText();
-}
-
-async function pickKind(page: Page, table: Locator, title: string, kind: string): Promise<void> {
-  await (await rowOf(table, title)).getByRole("button", { name: /^类型：/ }).click();
-  // 选项旁边有「「住宿」的操作」按钮，按名字找选项要精确匹配
-  await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
-}
-
-async function schedule(page: Page, table: Locator, title: string, start: string, hours: string, minutes = "0") {
-  await (await rowOf(table, title)).getByRole("button", { name: "时间" }).click();
-  const editor = page.getByRole("group", { name: `${title} 的时间` });
-  await editor.getByLabel("开始").fill(start);
-  await editor.getByRole("spinbutton", { name: "小时" }).fill(hours);
-  await editor.getByRole("spinbutton", { name: "分钟" }).fill(minutes);
-  await editor.getByRole("button", { name: "排上时间" }).click();
-  await expect(editor).toBeHidden();
-}
-
-function timelineRow(page: Page, day: "10.1" | "10.2" | "10.3"): Locator {
-  return page.getByRole("region", { name: "时间轴" }).getByRole("listitem", { name: new RegExp(day.replace(".", "\\.")) });
-}
-
-/** 时间轴这一行里读屏名以「title 」开头的那段横条的外框。 */
-function segment(row: Locator, title: string): Locator {
-  return row.locator("[data-segment]").filter({ has: row.page().getByRole("button", { name: new RegExp(`^${title} `) }) });
-}
-
-/**
- * 量时间轴里某个元素在屏幕上的位置。先把整张时间轴滚进屏幕：在下面的安排表里点过以后页面会往下滚，
- * 时间轴跑到屏幕上面，量出来的点在屏幕外，鼠标按下去什么都收不到。整张卡片一次滚好，前后量的几个点才对得上。
- */
-async function box(locator: Locator) {
-  await locator.page().getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
-  const found = await locator.boundingBox();
-  if (!found) throw new Error("量不到位置");
-  return found;
-}
-
-function center(rect: { x: number; y: number; width: number; height: number }): Point {
-  return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-}
-
-/** 这一行的横轴上，1 小时有多少像素。 */
-async function hourWidth(row: Locator): Promise<number> {
-  return (await box(row.locator("[data-timeline-axis]"))).width / 24;
-}
-
-/** 用鼠标从 from 拖到 to（分几步移动，会越过 4 像素的门槛）；release 为 false 时停在终点不松手。 */
-async function drag(page: Page, from: Point, to: Point, options: { alt?: boolean; release?: boolean } = {}) {
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  if (options.alt) await page.keyboard.down("Alt");
-  await page.mouse.move(to.x, to.y, { steps: 8 });
-  if (options.release === false) return;
-  await page.mouse.up();
-  if (options.alt) await page.keyboard.up("Alt");
-}
 
 test("拖中间：点一下开详情 → 预览 → 挪 → 撤销重做 → 吸附 → 换天 → 过 24 点 → 拖跨午夜的后半段", async ({ page }) => {
   const errors = watchErrors(page);
@@ -157,9 +71,11 @@ test("拖中间：点一下开详情 → 预览 → 挪 → 撤销重做 → 吸
   await drag(page, lakeNow, { x: lakeNow.x, y: day2Axis.y + day2Axis.height - 8 });
   await expect.poll(() => timeOf(day2Table, "西湖")).toBe("09:45–12:45");
 
-  // 过 24 点：夜宵 22:00 往右拖 3 小时，落到 10.2 01:00
+  // 拖到下一天的凌晨：按住夜宵中间（22:30），拖到 10.2 那一行的 01:30，落在 10.2 01:00
+  // 指针拖出横轴右边就进了右边的「没排时间」栏，所以跨午夜是往下一行拖
   const supper = center(await box(segment(day1, "夜宵")));
-  await drag(page, supper, { x: supper.x + 3 * hour, y: supper.y });
+  const day2AxisNow = await box(day2.locator("[data-timeline-axis]"));
+  await drag(page, supper, { x: day2AxisNow.x + (90 / 1440) * day2AxisNow.width, y: day2AxisNow.y + day2AxisNow.height - 8 });
   await expect.poll(() => timeOf(day2Table, "夜宵")).toBe("01:00–02:00");
 
   // 拖跨午夜的块的后半段：整块一起挪
@@ -331,13 +247,15 @@ test("按住 Alt 复制 → Esc 放弃 → 拖的时候块没了", async ({ page
   await expect(page.getByRole("dialog", { name: "西湖" })).toHaveCount(0);
   expect(await timeOf(day1Table, "西湖")).toBe("09:00–12:00");
 
-  // 拖的时候块没了：刚排上时间的灵隐寺，拖到一半按 Ctrl+Z 撤销掉排时间（它加的时候没填时长，撤销后回到「整天」）
+  // 拖的时候块没了：刚排上时间的灵隐寺，拖到一半按 Ctrl+Z 撤销掉排时间
+  // 它加的时候没填时长，撤销后回到「整天」：横轴上没了，出现在右边的「没排时间」栏里
   await schedule(page, day1Table, "灵隐寺", "14:00", "2");
   const temple = center(await box(segment(day1, "灵隐寺")));
   await drag(page, temple, { x: temple.x + hour / 2, y: temple.y }, { release: false });
   await expect(ghost.first()).toBeVisible();
   await page.keyboard.press("Control+z");
-  await expect(day1.getByRole("button", { name: /^灵隐寺 / })).toHaveCount(0);
+  await expect(day1.locator("[data-timeline-axis]").getByRole("button", { name: /^灵隐寺 / })).toHaveCount(0);
+  await expect(trayOf(day1).getByRole("button", { name: "灵隐寺 整天" })).toBeVisible();
   await expect(ghost).toHaveCount(0);
   await page.mouse.up();
   await expect.poll(() => timeOf(day1Table, "灵隐寺")).toBe("整天");
