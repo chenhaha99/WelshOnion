@@ -219,6 +219,119 @@
   border-radius: 999px;
 }
 
+/* 时间轴的横条：类型色的淡底和边；待定虚线、底色更淡；接着下一行的那头是平的 */
+@utility timeline-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding-inline: 0.375rem;
+  border: 1px solid var(--kind-color);
+  border-radius: 0.375rem;
+  background-color: color-mix(in srgb, var(--kind-color) 34%, white);
+  color: var(--color-ink);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  &:hover {
+    background-color: color-mix(in srgb, var(--kind-color) 45%, white);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 1px;
+  }
+  /* 新建的块默认待定，规划期满屏都是它：淡一点，但要一眼看得出块在哪 */
+  [data-pending="true"] > & {
+    border-style: dashed;
+    background-color: color-mix(in srgb, var(--kind-color) 22%, white);
+  }
+  [data-continues-before="true"] > & {
+    border-left-width: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  [data-continues-after="true"] > & {
+    border-right-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}
+
+/* 背景条（停留、住宿这类垫在下面的类型）：比横条薄、字小 */
+@utility timeline-strip {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding-inline: 0.25rem;
+  border: 1px solid color-mix(in srgb, var(--kind-color) 70%, white);
+  border-radius: 0.25rem;
+  background-color: color-mix(in srgb, var(--kind-color) 24%, white);
+  color: var(--color-ink-muted);
+  font-size: 0.6875rem;
+  line-height: 0.75rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  &:hover {
+    color: var(--color-ink);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 1px;
+  }
+  [data-pending="true"] > & {
+    border-style: dashed;
+    background-color: color-mix(in srgb, var(--kind-color) 12%, white);
+  }
+  [data-continues-before="true"] > & {
+    border-left-width: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  [data-continues-after="true"] > & {
+    border-right-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}
+
+/* 时长为 0 的块：一条类型色的竖线，点击区域左右各放宽 6 像素 */
+@utility timeline-marker {
+  position: absolute;
+  top: 0;
+  left: -0.375rem;
+  width: 0.75rem;
+  height: 100%;
+  cursor: pointer;
+  &::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: calc(50% - 1px);
+    width: 2px;
+    border-radius: 1px;
+    background-color: var(--kind-color);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 1px;
+  }
+  [data-pending="true"] > &::before {
+    opacity: 0.5;
+  }
+}
+
+/* 背景块覆盖的时间段在主轨后面铺的淡色 */
+@utility timeline-wash {
+  background-color: color-mix(in srgb, var(--kind-color) 9%, transparent);
+  pointer-events: none;
+}
+
 /* 表格里的输入框和下拉：平时像文字，指上去、点进去才显出边框 */
 @utility input-bare {
   width: 100%;

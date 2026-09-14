@@ -7,6 +7,7 @@ import { moneyCells } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
 import { SharesCard } from "./SharesCard";
 import { StatusFilter } from "./StatusFilter";
+import { Timeline } from "./Timeline";
 
 interface DayListProps {
   doc: Y.Doc;
@@ -16,8 +17,8 @@ interface DayListProps {
 }
 
 /**
- * 日期列表：按状态筛选、钱的总览、占比，然后每天一个组头和它的安排表；出发日期一改，整趟一起平移。计划里至少有一天。
- * 按下了哪些状态只放在这里（不进计划文档、不进撤销），往下传给钱、占比和每一天。
+ * 日期列表：按状态筛选、时间轴、钱的总览、占比，然后每天一个组头和它的安排表；出发日期一改，整趟一起平移。计划里至少有一天。
+ * 按下了哪些状态只放在这里（不进计划文档、不进撤销），往下传给时间轴、钱、占比和每一天。
  */
 export function DayList({ doc, library, libraryView, plan }: DayListProps) {
   const bases = plan.bases;
@@ -49,6 +50,7 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
         />
       </label>
       <StatusFilter libraryView={libraryView} selected={filter?.statusIds ?? []} onChange={setSelected} />
+      <Timeline plan={plan} libraryView={libraryView} moneyCells={cells} filter={filter} />
       <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
       <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
       <ol aria-label="日期列表" className="flex flex-col gap-3">

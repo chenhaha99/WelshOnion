@@ -83,7 +83,8 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
   }, [plan, library, handle, now]);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
+    // 放宽到 1152 像素：时间轴的 24 小时要放得下（每小时至少 30 像素）
+    <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
       <div className="flex items-center justify-between gap-4">
         <BackToList />
         <div className="flex gap-1">

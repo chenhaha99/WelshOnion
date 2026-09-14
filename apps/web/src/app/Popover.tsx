@@ -26,6 +26,8 @@ const GAP = 4;
 interface PopoverProps {
   /** 触发按钮的读屏名字；不给就用按钮上的内容 */
   label?: string;
+  /** 鼠标停在按钮上时的提示 */
+  triggerTitle?: string;
   trigger: ReactNode;
   triggerClassName: string;
   role: "menu" | "dialog";
@@ -49,6 +51,7 @@ interface PopoverProps {
  */
 export function Popover({
   label,
+  triggerTitle,
   trigger,
   triggerClassName,
   role,
@@ -155,6 +158,7 @@ export function Popover({
         ref={button}
         type="button"
         aria-label={label}
+        title={triggerTitle}
         aria-haspopup={role}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}

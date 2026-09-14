@@ -1,0 +1,122 @@
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { shot, watchErrors } from "./walkthrough";
+
+async function pickKind(page: Page, row: Locator, kind: string): Promise<void> {
+  await row.getByRole("button", { name: /^类型：/ }).click();
+  // 选项旁边有「「住宿」的操作」按钮，按名字找选项要精确匹配
+  await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
+}
+
+async function schedule(page: Page, row: Locator, title: string, start: string, hours: string): Promise<void> {
+  await row.getByRole("button", { name: "时间" }).click();
+  const editor = page.getByRole("group", { name: `${title} 的时间` });
+  await editor.getByLabel("开始").fill(start);
+  await editor.getByRole("spinbutton", { name: "小时" }).fill(hours);
+  await editor.getByRole("spinbutton", { name: "分钟" }).fill("0");
+  await editor.getByRole("button", { name: "排上时间" }).click();
+  await expect(editor).toBeHidden();
+}
+
+/** 时间轴这一行里读屏名以「title 」开头的那段横条的外框。 */
+function segment(row: Locator, title: string): Locator {
+  return row.locator("[data-segment]").filter({ has: row.page().getByRole("button", { name: new RegExp(`^${title} `) }) });
+}
+
+/** 按屏幕上量到的位置，换算这段横条从这一行的第几分钟画到第几分钟。 */
+async function measuredMinutes(row: Locator, title: string): Promise<{ from: number; to: number }> {
+  const [box, axis] = await Promise.all([segment(row, title).boundingBox(), row.locator("[data-timeline-axis]").boundingBox()]);
+  const perMinute = axis!.width / 1440;
+  return { from: (box!.x - axis!.x) / perMinute, to: (box!.x + box!.width - axis!.x) / perMinute };
+}
+
+test("时间轴：排出一天 → 按时长画 → 看详情、在表里改 → 电脑和手机上的宽度", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "新建第一个计划" }).click();
+  await page.getByRole("textbox", { name: "计划名" }).fill("国庆杭州");
+  await page.keyboard.press("Enter");
+  await page.getByLabel("出发日期").fill("2026-10-01");
+  await page.getByLabel("天数").fill("2");
+  await page.getByRole("button", { name: "确定" }).click();
+
+  const timeline = page.getByRole("region", { name: "时间轴" });
+  const hint = timeline.getByText("排上时间的事会画在这里：在下面的安排表里点时间格排时间");
+  await expect(hint).toBeVisible();
+
+  // 用表格排出一天：排时间不改变这几行的先后
+  const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
+  const rows = table.locator("tr[data-block-id]");
+  await table.getByRole("textbox", { name: "加一件事" }).click();
+  for (const title of ["在杭州", "西湖", "游船", "民宿"]) {
+    await page.keyboard.type(title);
+    await page.keyboard.press("Enter");
+  }
+  await expect(rows).toHaveCount(4);
+  await pickKind(page, rows.nth(0), "停留");
+  await schedule(page, rows.nth(0), "在杭州", "00:00", "48");
+  await schedule(page, rows.nth(1), "西湖", "09:00", "3");
+  await schedule(page, rows.nth(2), "游船", "10:00", "1");
+  await pickKind(page, rows.nth(3), "住宿");
+  await schedule(page, rows.nth(3), "民宿", "22:00", "10");
+  await expect(hint).toHaveCount(0);
+
+  // 位置对得上时间（误差不到 5 分钟）
+  const day1 = timeline.getByRole("listitem", { name: /10\.1/ });
+  const day2 = timeline.getByRole("listitem", { name: /10\.2/ });
+  const lake = await measuredMinutes(day1, "西湖");
+  expect(lake.from).toBeCloseTo(540, -1);
+  expect(lake.to).toBeCloseTo(720, -1);
+  const innNight = await measuredMinutes(day1, "民宿");
+  expect(innNight.from).toBeCloseTo(1320, -1);
+  expect(innNight.to).toBeCloseTo(1440, -1);
+  const innMorning = await measuredMinutes(day2, "民宿");
+  expect(innMorning.from).toBeCloseTo(0, -1);
+  expect(innMorning.to).toBeCloseTo(480, -1);
+
+  // 游船和西湖重叠，画在下面一道；停留、住宿在上方的背景条里
+  const lakeBox = (await segment(day1, "西湖").boundingBox())!;
+  const boatBox = (await segment(day1, "游船").boundingBox())!;
+  expect(boatBox.y).toBeGreaterThanOrEqual(lakeBox.y + lakeBox.height);
+  await expect(segment(day1, "在杭州")).toHaveAttribute("data-track", "background");
+  await expect(segment(day1, "民宿")).toHaveAttribute("data-track", "background");
+  expect((await segment(day1, "在杭州").boundingBox())!.y).toBeLessThan(lakeBox.y);
+  await timeline.scrollIntoViewIfNeeded();
+  await shot(page, "01-timeline");
+
+  // 点第二天那段看详情，在表里改：焦点落到 10.1 安排表「民宿」的标题框
+  await segment(day2, "民宿").getByRole("button").click();
+  const bubble = page.getByRole("dialog", { name: "民宿" });
+  await expect(bubble).toContainText("住宿 · 待定");
+  await expect(bubble).toContainText("22:00–10.2 08:00 · 10 小时");
+  await shot(page, "02-details");
+  await bubble.getByRole("button", { name: "在表里改" }).click();
+  await expect(bubble).toBeHidden();
+  await expect(rows.nth(3).getByRole("textbox", { name: "标题" })).toBeFocused();
+
+  // 只用键盘：回车打开详情，Esc 关掉，焦点回到横条
+  const lakeBar = segment(day1, "西湖").getByRole("button");
+  await lakeBar.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "西湖" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "西湖" })).toBeHidden();
+  await expect(lakeBar).toBeFocused();
+
+  // 电脑上不用横着滚，每小时至少 30 像素
+  const scroller = timeline.locator("[data-timeline-scroll]");
+  const axisWidth = async () => (await day1.locator("[data-timeline-axis]").boundingBox())!.width;
+  expect(await scroller.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect((await axisWidth()) / 24).toBeGreaterThanOrEqual(30);
+
+  // 手机上在卡片里横着滚，页面本身不横着滚
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => scroller.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  expect((await axisWidth()) / 24).toBeGreaterThanOrEqual(30);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await timeline.scrollIntoViewIfNeeded();
+  await shot(page, "03-mobile");
+
+  expect(errors).toEqual([]);
+});
