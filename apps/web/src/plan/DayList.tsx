@@ -5,6 +5,7 @@ import { dayRowLabels, daysBetween } from "./day-labels";
 import { DayRow } from "./DayRow";
 import { moneyCells } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
+import { SharesCard } from "./SharesCard";
 
 interface DayListProps {
   doc: Y.Doc;
@@ -13,7 +14,7 @@ interface DayListProps {
   plan: PlanView;
 }
 
-/** 日期列表：钱的总览，然后每天一个组头和它的安排表；出发日期一改，整趟一起平移。计划里至少有一天。 */
+/** 日期列表：钱的总览、占比，然后每天一个组头和它的安排表；出发日期一改，整趟一起平移。计划里至少有一天。 */
 export function DayList({ doc, library, libraryView, plan }: DayListProps) {
   const bases = plan.bases;
   const labels = dayRowLabels(bases);
@@ -36,6 +37,7 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
         />
       </label>
       <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} />
+      <SharesCard libraryView={libraryView} plan={plan} />
       <ol aria-label="日期列表" className="flex flex-col gap-3">
         {bases.map((base, index) => (
           <DayRow
