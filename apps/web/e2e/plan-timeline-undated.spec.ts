@@ -43,7 +43,7 @@ test("从栏里拖到时间轴上：没填时长给 1 小时 → 撤销 → 用�
   // 没填时长的河坊街拖到 10.2 的 19:00：1 小时
   await drag(page, center(await box(chip(day1, "河坊街"))), await axisPoint(day2, 19 * 60), { release: false });
   await expect(ghost.first()).toHaveText("19:00–20:00");
-  await shot(page, "01-from-tray");
+  await shot(page, "01-from-tray", { dragging: true });
   await page.mouse.up();
   await expect.poll(() => timeOf(day2Table, "河坊街")).toBe("19:00–20:00");
   await expect(chip(day1, "河坊街")).toHaveCount(0);
@@ -104,7 +104,7 @@ test("拖进栏里变回没排时间：按开始时刻进格子 → 另一天的
   await drag(page, center(await box(segment(day1, "西湖"))), center(await box(trayOf(day1))), { release: false });
   await expect(trayOf(day1)).toHaveAttribute("data-drop-target", "true");
   await expect(trayOf(day1).locator("[data-drag-ghost]")).toHaveText("上午");
-  await shot(page, "01-into-tray");
+  await shot(page, "01-into-tray", { dragging: true });
   await page.mouse.up();
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("上午 · 3 小时");
   await expect(chip(day1, "西湖")).toHaveCount(1);

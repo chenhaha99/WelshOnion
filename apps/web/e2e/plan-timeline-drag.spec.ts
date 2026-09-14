@@ -46,7 +46,7 @@ test("拖中间：点一下开详情 → 预览 → 挪 → 撤销重做 → 吸
   await expect(ghost.first()).toHaveText("10:00–13:00");
   await expect(segment(day1, "西湖")).toHaveAttribute("data-dragging", "true");
   expect(await timeOf(day1Table, "西湖")).toBe("09:00–12:00");
-  await shot(page, "01-dragging");
+  await shot(page, "01-dragging", { dragging: true });
   await page.mouse.up();
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("10:00–13:00");
   await expect(ghost).toHaveCount(0);
@@ -167,7 +167,7 @@ test("叠上去还是放旁边：描边 → 叠上去 → 放旁边 → 类型�
   await drag(page, palace, { x: palace.x, y: hengdian.y + hengdian.height / 2 }, { release: false });
   await expect(segment(day1, "横店")).toHaveAttribute("data-drop-target", "true");
   await page.getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
-  await shot(page, "01-drop-onto");
+  await shot(page, "01-drop-onto", { dragging: true });
   await page.mouse.up();
   await expect(segment(day1, "明清宫苑")).toHaveAttribute("data-lane", "1");
   await expect(segment(day1, "明清宫苑")).toHaveAttribute("data-depth", "1");
@@ -229,7 +229,7 @@ test("按住 Alt 复制 → Esc 放弃 → 拖的时候块没了", async ({ page
   await drag(page, lake, { x: lake.x, y: day2Axis.y + day2Axis.height - 8 }, { alt: true, release: false });
   await expect(ghost.first()).toHaveText("复制 · 09:00–12:00");
   await page.getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
-  await shot(page, "01-alt-copy");
+  await shot(page, "01-alt-copy", { dragging: true });
   await page.mouse.up();
   await page.keyboard.up("Alt");
   await expect.poll(() => timeOf(day2Table, "西湖")).toBe("09:00–12:00");
