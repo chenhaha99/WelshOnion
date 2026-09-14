@@ -1,4 +1,11 @@
-import { countBlocksUsing, fillProgress, moneySummary, type LibraryView, type PlanView } from "@welshonion/core";
+import {
+  countBlocksUsing,
+  fillProgress,
+  moneySummary,
+  type LibraryView,
+  type PlanView,
+  type StatsFilter,
+} from "@welshonion/core";
 import { useState } from "react";
 import type * as Y from "yjs";
 import { formatYuan } from "./money";
@@ -9,16 +16,17 @@ interface MoneyOverviewProps {
   library: Y.Doc;
   libraryView: LibraryView;
   plan: PlanView;
+  filter?: StatsFilter;
 }
 
 /**
- * 日期列表上面的钱的总览：总额、人均、已填几笔、还有几个块没挂钱，任何时候都显示（渐进）；
+ * 日期列表上面的钱的总览：总额、人均、已填几笔、还有几个块没挂钱，任何时候都显示（渐进），按筛选算；
  * 旁边「不属于任何一天」点开增删改不挂块的钱（签证、保险）。
  */
-export function MoneyOverview({ doc, library, libraryView, plan }: MoneyOverviewProps) {
+export function MoneyOverview({ doc, library, libraryView, plan, filter }: MoneyOverviewProps) {
   const [unattachedOpen, setUnattachedOpen] = useState(false);
-  const summary = moneySummary(plan);
-  const progress = fillProgress(plan);
+  const summary = moneySummary(plan, filter);
+  const progress = fillProgress(plan, filter);
   const kinds = [...libraryView.kinds.values()].sort((a, b) => a.order - b.order);
 
   const line = [

@@ -249,3 +249,40 @@ describe("各状态几件", () => {
     expect(statusLine(plan, library)).toBe("还没有事");
   });
 });
+
+describe("带筛选", () => {
+  const confirmedOnly = { statusIds: ["confirmed"] };
+
+  function linkedMoney(built: Built, blockId: string, kindId: string, cents: number): void {
+    const result = addExpense(built.plan, built.library, { title: kindId, amountCents: cents, kindId, blockIds: [blockId] });
+    if (!result.ok) throw new Error("建钱失败");
+  }
+
+  /** 西湖（游玩，待定）挂 300 元；晚饭（餐饮，已确认）挂 120 元；另有不挂块的 600 元。 */
+  function lakeAndDinner(built: Built): void {
+    const lake = timed(built, "西湖", "sight", 540, 180);
+    const dinner = timed(built, "晚饭", "food", 1080, 60);
+    setBlockStatus(built.plan, built.library, [dinner], "confirmed");
+    linkedMoney(built, lake, "sight", 30000);
+    linkedMoney(built, dinner, "food", 12000);
+    money(built, "other", 60000);
+  }
+
+  it("钱：挂在被筛掉的块上的不算，不挂块的照算", () => {
+    const { plan, library } = build(lakeAndDinner);
+    expect(moneyShares(plan, library, confirmedOnly).rows.map(moneyRowLabel)).toEqual([
+      "其他 ¥600 · 83%",
+      "餐饮 ¥120 · 17%",
+    ]);
+  });
+
+  it("时间：被筛掉的块不占时间", () => {
+    const { plan, library } = build(lakeAndDinner);
+    expect(timeShares(plan, library, false, confirmedOnly).rows.map(timeRowLabel)).toEqual(["餐饮 1 小时 · 100%"]);
+  });
+
+  it("各状态几件：只数通过筛选的块", () => {
+    const { plan, library } = build(lakeAndDinner);
+    expect(statusLine(plan, library, confirmedOnly)).toBe("1 件事：已确认 1");
+  });
+});

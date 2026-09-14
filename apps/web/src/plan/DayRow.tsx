@@ -13,6 +13,7 @@ import {
   type DayFlag,
   type LibraryView,
   type PlanView,
+  type StatsFilter,
 } from "@welshonion/core";
 import { Fragment, useEffect, useRef, useState } from "react";
 import type * as Y from "yjs";
@@ -43,12 +44,14 @@ interface DayRowProps {
   index: number;
   count: number;
   moneyCells: ReadonlyMap<string, MoneyCell>;
+  /** 按状态筛选；没开是 undefined */
+  filter?: StatsFilter;
 }
 
-export function DayRow({ doc, library, libraryView, plan, base, label, index, count, moneyCells }: DayRowProps) {
+export function DayRow({ doc, library, libraryView, plan, base, label, index, count, moneyCells, filter }: DayRowProps) {
   const [mode, setMode] = useState<Mode>({ kind: "normal" });
   const backToNormal = () => setMode({ kind: "normal" });
-  const facts = dayFactsParts(plan, base, moneyCells);
+  const facts = dayFactsParts(plan, base, moneyCells, filter);
   const budget = dayFacts(plan, base.id).budget;
   const budgetLine = budget === null ? [] : budgetParts(budget);
 
@@ -180,6 +183,8 @@ export function DayRow({ doc, library, libraryView, plan, base, label, index, co
         date={base.date}
         dayLabel={label}
         moneyCells={moneyCells}
+        filter={filter}
+        onEmptyFocus={() => menuSlot.current?.querySelector("button")?.focus()}
       />
     </li>
   );

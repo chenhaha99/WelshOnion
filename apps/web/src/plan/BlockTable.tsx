@@ -6,6 +6,7 @@ import {
   LOCAL_ORIGIN,
   moveBlock,
   moveUndated,
+  passesFilter,
   resizeBlock,
   setBlockIndent,
   setBlockTimed,
@@ -16,9 +17,10 @@ import {
   type LibraryView,
   type PlanView,
   type SlotChoice,
+  type StatsFilter,
   type StatusView,
 } from "@welshonion/core";
-import { useState, type CSSProperties } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
 import { Menu, type MenuItem } from "../app/Menu";
@@ -43,11 +45,67 @@ interface BlockTableProps {
   dayLabel: string;
   /** 全计划的钱格摘要，按块 id */
   moneyCells: ReadonlyMap<string, MoneyCell>;
+  /** 按状态筛选；没开是 undefined */
+  filter?: StatsFilter;
+  /** 这天一行都不剩时把焦点交出去（落到这天的菜单按钮） */
+  onEmptyFocus: () => void;
 }
 
-/** 一天的安排表：一行一个块，末尾「加一件事」。 */
-export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayLabel, moneyCells }: BlockTableProps) {
-  const blocks = blocksOfDay(plan, baseId);
+/** 焦点最后在哪一行、这一行的哪个位置（读屏名里「：」前面那段，比如「状态：」「这件事的操作」）。 */
+interface FocusSpot {
+  blockId: string;
+  index: number;
+  control: string;
+}
+
+/**
+ * 一天的安排表：一行一个块，末尾「加一件事」。带筛选时只画通过的块，写「筛掉了 N 件」。
+ * 一行消失（改状态被筛掉、删除）而焦点掉到页面最外面时，焦点落到下一行的同一个位置，没有下一行就上一行，都没有就交给这天的组头。
+ */
+export function BlockTable({
+  doc,
+  library,
+  libraryView,
+  plan,
+  baseId,
+  date,
+  dayLabel,
+  moneyCells,
+  filter,
+  onEmptyFocus,
+}: BlockTableProps) {
+  const dayBlocks = blocksOfDay(plan, baseId);
+  const blocks = dayBlocks.filter((block) => passesFilter(block, filter));
+  const hiddenCount = dayBlocks.length - blocks.length;
+  const tbody = useRef<HTMLTableSectionElement>(null);
+  const focusSpot = useRef<FocusSpot | null>(null);
+
+  // 弹出去的选择器、菜单不在表格里：焦点在那里时不改记录，记的还是打开它的那个按钮
+  const rememberFocus = (event: FocusEvent<HTMLTableSectionElement>) => {
+    const target = event.target;
+    const row = target.closest<HTMLElement>("tr[data-block-id]");
+    const label = target.getAttribute("aria-label");
+    if (!row || !label || !event.currentTarget.contains(row)) return;
+    const blockId = row.dataset.blockId!;
+    focusSpot.current = { blockId, index: blocks.findIndex((block) => block.id === blockId), control: controlKey(label) };
+  };
+
+  const visibleIds = blocks.map((block) => block.id).join(",");
+  useLayoutEffect(() => {
+    const spot = focusSpot.current;
+    if (!spot || blocks.some((block) => block.id === spot.blockId)) return;
+    focusSpot.current = null;
+    if (document.activeElement !== null && document.activeElement !== document.body) return;
+    const next = blocks[Math.min(spot.index, blocks.length - 1)];
+    // 一行都不剩时不落到「加一件事」：焦点在输入框里时 Ctrl+Z 撤销的是输入框里的字，删完想马上撤销会没反应
+    if (!next) {
+      onEmptyFocus();
+      return;
+    }
+    tbody.current?.querySelector<HTMLElement>(`tr[data-block-id="${next.id}"] ${controlSelector(spot.control)}`)?.focus();
+    // 只在显示的行变了时看一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleIds]);
   const kinds = [...libraryView.kinds.values()].sort(byOrder);
   const statuses = [...libraryView.statuses.values()].sort(byOrder);
   const undatedGroups = plan.undated.get(baseId);
@@ -67,7 +125,7 @@ export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayL
             <th>操作</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody ref={tbody} onFocus={rememberFocus}>
           {blocks.map((block) => (
             <BlockRow
               key={block.id}
@@ -85,6 +143,13 @@ export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayL
               moneyCell={moneyCells.get(block.id)}
             />
           ))}
+          {hiddenCount > 0 && (
+            <tr data-filtered-out>
+              <td colSpan={COLUMN_COUNT} className="text-sm text-ink-muted">
+                筛掉了 {hiddenCount} 件
+              </td>
+            </tr>
+          )}
           <tr>
             <td colSpan={COLUMN_COUNT}>
               <AddBlock doc={doc} library={library} baseId={baseId} />
@@ -418,4 +483,14 @@ function AddBlock({ doc, library, baseId }: { doc: Y.Doc; library: Y.Doc; baseId
 
 function byOrder(a: { order: number }, b: { order: number }): number {
   return a.order - b.order;
+}
+
+/** 读屏名里「：」前面那段当位置：「状态：待定」「状态：已确认」是同一个位置。 */
+function controlKey(label: string): string {
+  const colon = label.indexOf("：");
+  return colon === -1 ? label : label.slice(0, colon + 1);
+}
+
+function controlSelector(control: string): string {
+  return control.endsWith("：") ? `[aria-label^="${control}"]` : `[aria-label="${control}"]`;
 }

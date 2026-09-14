@@ -1,4 +1,4 @@
-import { expenseTotalCents, type PlanView } from "@welshonion/core";
+import { expensePasses, expenseTotalCents, passesFilter, type PlanView, type StatsFilter } from "@welshonion/core";
 import { blocksOfDay } from "./day-blocks";
 import { formatYuan } from "./money";
 
@@ -16,11 +16,14 @@ export interface MoneyCell {
 /**
  * 每个挂了钱的块的钱格摘要。一笔钱挂多个块时，「显示块」是表里最早的那块
  * （先按天的顺序、再按这天安排表的顺序），只算进它；其他块记成「共用」。不挂块的钱不进钱格。
+ * 带筛选时只算通过筛选的钱，显示块和「共用」都只在通过筛选的块里挑（被筛掉的块不显示）。
  */
-export function moneyCells(plan: PlanView): Map<string, MoneyCell> {
+export function moneyCells(plan: PlanView, filter?: StatsFilter): Map<string, MoneyCell> {
   const tableOrder = new Map<string, number>();
   for (const base of plan.bases) {
-    for (const block of blocksOfDay(plan, base.id)) tableOrder.set(block.id, tableOrder.size);
+    for (const block of blocksOfDay(plan, base.id)) {
+      if (passesFilter(block, filter)) tableOrder.set(block.id, tableOrder.size);
+    }
   }
 
   const cells = new Map<string, MoneyCell>();
@@ -34,6 +37,7 @@ export function moneyCells(plan: PlanView): Map<string, MoneyCell> {
   };
 
   for (const expense of plan.expenses.values()) {
+    if (!expensePasses(expense, plan, filter)) continue;
     const [displayBlock, ...others] = expense.block_ids
       .filter((blockId) => tableOrder.has(blockId))
       .sort((a, b) => (tableOrder.get(a) ?? 0) - (tableOrder.get(b) ?? 0));

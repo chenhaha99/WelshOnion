@@ -6,9 +6,11 @@ import {
   moneySummary,
   readLibrary,
   readPlan,
+  setBlockStatus,
   setDays,
   updateBlock,
   type PlanView,
+  type StatsFilter,
 } from "@welshonion/core";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
@@ -35,8 +37,8 @@ function build(setup: (built: Built) => void): PlanView {
 }
 
 /** 第 index 天（从 0 数）那一行的字，各项用「 · 」连起来；一项都没有是 null。 */
-function lineOf(plan: PlanView, index: number): string | null {
-  const parts = dayFactsParts(plan, plan.bases[index]!, moneyCells(plan));
+function lineOf(plan: PlanView, index: number, filter?: StatsFilter): string | null {
+  const parts = dayFactsParts(plan, plan.bases[index]!, moneyCells(plan, filter), filter);
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
@@ -142,6 +144,20 @@ describe("还有多少没排", () => {
       undated(built, built.oct1, "看展", "sight");
     });
     expect(lineOf(plan, 0)).toBe("还有 3.5 小时没排");
+  });
+});
+
+describe("带筛选", () => {
+  it("被筛掉的块不进这天怎么样", () => {
+    const plan = build((built) => {
+      const lake = timed(built, built.oct1, "西湖", "sight", 540, 180);
+      const dinner = timed(built, built.oct1, "晚饭", "food", 1080, 60);
+      setBlockStatus(built.plan, built.library, [dinner], "confirmed");
+      money(built, 30000, [lake]);
+      money(built, 4550, [dinner]);
+    });
+    expect(lineOf(plan, 0)).toBe("09:00 起 · 19:00 收工 · 花 ¥345.50");
+    expect(lineOf(plan, 0, { statusIds: ["confirmed"] })).toBe("18:00 起 · 19:00 收工 · 花 ¥45.50");
   });
 });
 

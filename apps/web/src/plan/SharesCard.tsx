@@ -1,4 +1,4 @@
-import type { LibraryView, PlanView } from "@welshonion/core";
+import type { LibraryView, PlanView, StatsFilter } from "@welshonion/core";
 import { useState } from "react";
 import {
   moneyNoteLabel,
@@ -13,6 +13,7 @@ import {
 interface SharesCardProps {
   libraryView: LibraryView;
   plan: PlanView;
+  filter?: StatsFilter;
 }
 
 /** 条上的一段、说明里的一项；value 是 null 的（全没填的钱）不画在条上。 */
@@ -27,11 +28,11 @@ interface ShareItem {
  * 钱的总览下面的「占比」：钱、时间各一条按类型分段的条和说明，再写各状态几件。
  * 只摆事实，不判断多不多；「算上最底层的类型」只影响这张卡片，不存进计划。
  */
-export function SharesCard({ libraryView, plan }: SharesCardProps) {
+export function SharesCard({ libraryView, plan, filter }: SharesCardProps) {
   const [includeBaseLayer, setIncludeBaseLayer] = useState(false);
-  const money = moneyShares(plan, libraryView);
+  const money = moneyShares(plan, libraryView, filter);
   const moneyNote = moneyNoteLabel(money);
-  const time = timeShares(plan, libraryView, includeBaseLayer);
+  const time = timeShares(plan, libraryView, includeBaseLayer, filter);
 
   return (
     <section aria-label="占比" className="glass-card flex flex-col gap-4 px-5 py-4">
@@ -85,7 +86,7 @@ export function SharesCard({ libraryView, plan }: SharesCardProps) {
       <div role="group" aria-label="定没定">
         <p className="flex flex-wrap items-baseline gap-x-3">
           <PartTitle>定没定</PartTitle>
-          <span className="text-sm text-ink tabular-nums">{statusLine(plan, libraryView)}</span>
+          <span className="text-sm text-ink tabular-nums">{statusLine(plan, libraryView, filter)}</span>
         </p>
       </div>
     </section>

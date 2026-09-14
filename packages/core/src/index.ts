@@ -63,6 +63,7 @@ export {
 } from "./ops/library";
 export type { AddPlaceInput, KindPatch, PlacePatch, ProviderData, StatusPatch } from "./ops/library";
 export { countBlocksUsing } from "./usage";
+export { expensePasses, passesFilter } from "./stats/filter";
 export type { StatsFilter } from "./stats/filter";
 export { dayFacts, occupiedMinutes, timeByKind, unscheduledMinutes } from "./stats/time";
 export type { DayFacts, TimeByKindOptions } from "./stats/time";

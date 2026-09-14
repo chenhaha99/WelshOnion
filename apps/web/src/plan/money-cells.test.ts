@@ -5,9 +5,11 @@ import {
   initPlanDoc,
   readLibrary,
   readPlan,
+  setBlockStatus,
   setDays,
   setPlanSettings,
   type PlanView,
+  type StatsFilter,
 } from "@welshonion/core";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
@@ -53,9 +55,9 @@ function planWith(setup: (build: Builder) => void, travelers = 1): PlanView {
   return readPlan(plan, readLibrary(library));
 }
 
-function labelOf(view: PlanView, title: string): string {
+function labelOf(view: PlanView, title: string, filter?: StatsFilter): string {
   const block = [...view.blocks.values()].find((item) => item.title === title)!;
-  return moneyCellLabel(moneyCells(view).get(block.id));
+  return moneyCellLabel(moneyCells(view, filter).get(block.id));
 }
 
 describe("钱格怎么显示", () => {
@@ -113,5 +115,31 @@ describe("钱格怎么显示", () => {
       expense({ title: "民宿两晚", cents: 50000, blockIds: [firstNight, secondNight] });
     });
     expect(labelOf(view, "民宿二")).toBe("共用");
+  });
+});
+
+describe("带筛选", () => {
+  const confirmedOnly: StatsFilter = { statusIds: ["confirmed"] };
+
+  it("共用的钱显示在通过筛选的块里表上最早的那块", () => {
+    const view = planWith(({ plan, library, block, expense }) => {
+      const firstNight = block(0, "民宿一", "lodging");
+      const secondNight = block(1, "民宿二", "lodging");
+      setBlockStatus(plan, library, [secondNight], "confirmed");
+      expense({ title: "民宿两晚", cents: 50000, blockIds: [firstNight, secondNight] });
+    });
+    expect(labelOf(view, "民宿一")).toBe("¥500");
+    expect(labelOf(view, "民宿二", confirmedOnly)).toBe("¥500");
+  });
+
+  it("被筛掉的块不进钱格", () => {
+    const view = planWith(({ plan, library, block, expense }) => {
+      expense({ title: "门票", cents: 30000, blockIds: [block(0, "西湖")] });
+      const lunch = block(0, "午饭", "food");
+      setBlockStatus(plan, library, [lunch], "confirmed");
+      expense({ title: "面", cents: 12000, blockIds: [lunch] });
+    });
+    const titles = [...moneyCells(view, confirmedOnly).keys()].map((id) => view.blocks.get(id)?.title);
+    expect(titles).toEqual(["午饭"]);
   });
 });

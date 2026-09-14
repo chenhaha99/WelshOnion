@@ -1,4 +1,4 @@
-import { dayFacts, unscheduledMinutes, type BaseView, type PlanView } from "@welshonion/core";
+import { dayFacts, unscheduledMinutes, type BaseView, type PlanView, type StatsFilter } from "@welshonion/core";
 import { clockOnDay, durationLabel } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
 import { formatYuan } from "./money";
@@ -6,10 +6,15 @@ import type { MoneyCell } from "./money-cells";
 
 /**
  * 每天组头下面那一行「这天怎么样」的各项：几点起、几点收工、自驾多久多远、还有多少没排、这天花多少。
- * 没有的项不写，一项都没有是空数组。只摆数，不判断赶不赶。
+ * 没有的项不写，一项都没有是空数组。只摆数，不判断赶不赶。带筛选时被筛掉的块不算（钱格要用同一个筛选算）。
  */
-export function dayFactsParts(plan: PlanView, base: BaseView, cells: ReadonlyMap<string, MoneyCell>): string[] {
-  const facts = dayFacts(plan, base.id);
+export function dayFactsParts(
+  plan: PlanView,
+  base: BaseView,
+  cells: ReadonlyMap<string, MoneyCell>,
+  filter?: StatsFilter,
+): string[] {
+  const facts = dayFacts(plan, base.id, filter);
   const parts: string[] = [];
 
   if (facts.firstStartMinute !== null && facts.lastEndMinute !== null) {
@@ -22,7 +27,7 @@ export function dayFactsParts(plan: PlanView, base: BaseView, cells: ReadonlyMap
   ];
   if (drive.length > 0) parts.push(`自驾 ${drive.join(" ")}`);
 
-  const unscheduled = unscheduledMinutes(plan, base.id);
+  const unscheduled = unscheduledMinutes(plan, base.id, filter);
   if (unscheduled > 0) parts.push(`还有 ${durationLabel(unscheduled)}没排`);
 
   const money = dayMoney(plan, base.id, cells);

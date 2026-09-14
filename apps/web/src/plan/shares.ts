@@ -5,6 +5,7 @@ import {
   timeByKind,
   type LibraryView,
   type PlanView,
+  type StatsFilter,
 } from "@welshonion/core";
 import { durationLabel } from "./block-time";
 import { formatYuan } from "./money";
@@ -72,9 +73,9 @@ export interface MoneyShares {
 }
 
 /** 钱的占比：按钱自己的类型，只算填了金额的；总数是 0 的类不进比例。 */
-export function moneyShares(plan: PlanView, library: LibraryView): MoneyShares {
-  const summary = moneySummary(plan);
-  const progress = fillProgress(plan);
+export function moneyShares(plan: PlanView, library: LibraryView, filter?: StatsFilter): MoneyShares {
+  const summary = moneySummary(plan, filter);
+  const progress = fillProgress(plan, filter);
   const filled = byShownKind(summary.byKind, library);
   const unfilled = byShownKind(progress.unfilledByKind, library);
 
@@ -126,9 +127,14 @@ export interface TimeShares {
 }
 
 /** 时间的占比：按类型、用占用法算的分钟；分母是算进来的几类的合计；层 0 的类型默认不算，没排时间的块不进。 */
-export function timeShares(plan: PlanView, library: LibraryView, includeBaseLayer: boolean): TimeShares {
-  const withBase = timeByKind(plan, library, { includeBaseLayer: true });
-  const withoutBase = timeByKind(plan, library);
+export function timeShares(
+  plan: PlanView,
+  library: LibraryView,
+  includeBaseLayer: boolean,
+  filter?: StatsFilter,
+): TimeShares {
+  const withBase = timeByKind(plan, library, { includeBaseLayer: true, filter });
+  const withoutBase = timeByKind(plan, library, { filter });
   const { minutes } = includeBaseLayer ? withBase : withoutBase;
   const entries = sortedByValue(byShownKind(minutes, library), library);
   const percents = sharePercents(entries.map(([, value]) => value));
@@ -158,8 +164,8 @@ export function timeEmptyLabel(shares: TimeShares): string {
 }
 
 /** 「4 件事：待定 2 · 已确认 1 · 已预订 1」：每个状态各有几件，按状态顺序，0 件的不写；不替用户决定哪个算「定了」。 */
-export function statusLine(plan: PlanView, library: LibraryView): string {
-  const counts = statusCounts(plan);
+export function statusLine(plan: PlanView, library: LibraryView, filter?: StatsFilter): string {
+  const counts = statusCounts(plan, filter);
   const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
   if (total === 0) return "还没有事";
 
