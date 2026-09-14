@@ -1,5 +1,6 @@
 import {
   addBlock,
+  countBlocksUsing,
   deleteBlock,
   followersOf,
   LOCAL_ORIGIN,
@@ -7,7 +8,6 @@ import {
   moveUndated,
   resizeBlock,
   setBlockIndent,
-  setBlockStatus,
   setBlockTimed,
   setBlockUndated,
   updateBlock,
@@ -24,6 +24,7 @@ import { CommitInput } from "../app/CommitInput";
 import { Menu, type MenuItem } from "../app/Menu";
 import { blockTimeLabel, clock } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
+import { KindPicker, StatusPicker } from "./pickers";
 
 /** 新建的块默认「游玩」：第 ③ 步列的多是景点和活动，选错了在下拉里改。 */
 const DEFAULT_KIND_ID = "sight";
@@ -45,6 +46,8 @@ export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayL
   const kinds = [...libraryView.kinds.values()].sort(byOrder);
   const statuses = [...libraryView.statuses.values()].sort(byOrder);
   const undatedGroups = plan.undated.get(baseId);
+  const countKindUsing = (kindId: string) => countBlocksUsing(plan, { kindId });
+  const countStatusUsing = (statusId: string) => countBlocksUsing(plan, { statusId });
 
   return (
     <div className="-mx-2 overflow-x-auto">
@@ -70,6 +73,8 @@ export function BlockTable({ doc, library, libraryView, plan, baseId, date, dayL
               statuses={statuses}
               slotGroup={block.start_minute === null ? (undatedGroups?.[block.slot ?? "day"] ?? []) : []}
               followerCount={followersOf(plan, libraryView, block.id).length}
+              countKindUsing={countKindUsing}
+              countStatusUsing={countStatusUsing}
             />
           ))}
           <tr>
@@ -94,9 +99,22 @@ interface BlockRowProps {
   slotGroup: readonly string[];
   /** 删除时会被一起带走的块数 */
   followerCount: number;
+  countKindUsing: (kindId: string) => number;
+  countStatusUsing: (statusId: string) => number;
 }
 
-function BlockRow({ doc, library, block, date, kinds, statuses, slotGroup, followerCount }: BlockRowProps) {
+function BlockRow({
+  doc,
+  library,
+  block,
+  date,
+  kinds,
+  statuses,
+  slotGroup,
+  followerCount,
+  countKindUsing,
+  countStatusUsing,
+}: BlockRowProps) {
   const [timeOpen, setTimeOpen] = useState(false);
   const color = block.kind.deleted ? DELETED_COLOR : block.kind.color;
   const indent = block.indent ?? 0;
@@ -152,37 +170,10 @@ function BlockRow({ doc, library, block, date, kinds, statuses, slotGroup, follo
           />
         </td>
         <td className="w-32">
-          <div className="flex items-center gap-1.5">
-            <span className="kind-dot" aria-hidden style={{ backgroundColor: color }} />
-            <select
-              aria-label="类型"
-              className="input-bare"
-              value={block.kind.id}
-              onChange={(event) => updateBlock(doc, library, block.id, { kind_id: event.target.value })}
-            >
-              {block.kind.deleted && <option value={block.kind.id}>已删除的类型</option>}
-              {kinds.map((kind) => (
-                <option key={kind.id} value={kind.id}>
-                  {kind.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <KindPicker doc={doc} library={library} block={block} kinds={kinds} countUsing={countKindUsing} />
         </td>
         <td className="w-28">
-          <select
-            aria-label="状态"
-            className="input-bare"
-            value={block.status.id}
-            onChange={(event) => setBlockStatus(doc, library, [block.id], event.target.value)}
-          >
-            {block.status.deleted && <option value={block.status.id}>已删除的状态</option>}
-            {statuses.map((status) => (
-              <option key={status.id} value={status.id}>
-                {status.name}
-              </option>
-            ))}
-          </select>
+          <StatusPicker doc={doc} library={library} block={block} statuses={statuses} countUsing={countStatusUsing} />
         </td>
         <td className="w-40">
           <button

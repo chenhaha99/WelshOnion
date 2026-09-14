@@ -38,8 +38,12 @@ test("安排表：连着加几件事 → 改类型状态 → 排时间 → 缩�
   await expect(add).toBeFocused();
   await shot(page, "01-added");
 
-  await rows.nth(0).getByRole("combobox", { name: "类型" }).selectOption("food");
-  await rows.nth(1).getByRole("combobox", { name: "状态" }).selectOption("confirmed");
+  await rows.nth(0).getByRole("button", { name: /^类型：/ }).click();
+  // 选项旁边有「「餐饮」的操作」按钮，按名字找选项要精确匹配
+  await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: "餐饮", exact: true }).click();
+  await expect(rows.nth(0).getByRole("button", { name: "类型：餐饮" })).toBeVisible();
+  await rows.nth(1).getByRole("button", { name: /^状态：/ }).click();
+  await page.getByRole("dialog", { name: "选择状态" }).getByRole("button", { name: "已确认", exact: true }).click();
   await expect(rows.nth(1)).toHaveAttribute("data-pending", "false");
 
   // 给早茶排上 08:00 起 1 小时

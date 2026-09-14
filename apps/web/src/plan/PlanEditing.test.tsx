@@ -1,25 +1,14 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { readLibrary, readPlan, type PlanView } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
-import { NOW } from "../app/test-render";
-import { openLibrary } from "../storage/library";
-import { openPlan } from "../storage/plans";
-import { releaseAll, track } from "../storage/test-helpers";
-import { dayLabels, daysFromOct1, openDayMenu, openStoredPlan } from "./test-helpers";
+import { releaseAll } from "../storage/test-helpers";
+import { dayLabels, daysFromOct1, openDayMenu, openOtherTab, openStoredPlan } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
   await releaseAll();
 });
-
-/** 像另一个标签页那样打开计划，读本机存下的内容。 */
-async function readStoredPlan(planId: string): Promise<PlanView> {
-  const library = track(await openLibrary());
-  const plan = track(await openPlan(library.doc, planId, NOW));
-  return readPlan(plan.doc, readLibrary(library.doc));
-}
 
 async function openSettings(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "测试计划" }));
@@ -85,10 +74,11 @@ describe("计划设置抽屉", () => {
   it("改每公里成本：按元填，存成分", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan();
+    const other = await openOtherTab(planId);
 
     const settings = await openSettings(user);
     await user.type(within(settings).getByLabelText("每公里成本（元）"), "0.8{Enter}");
-    await waitFor(async () => expect((await readStoredPlan(planId)).plan.cost_per_km_cents).toBe(80));
+    await waitFor(() => expect(other.plan().plan.cost_per_km_cents).toBe(80));
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: "计划设置" })).toBeNull();
@@ -99,6 +89,7 @@ describe("计划设置抽屉", () => {
   it("人数填错：不保存，栏下说明", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan();
+    const other = await openOtherTab(planId);
 
     const settings = await openSettings(user);
     const travelers = within(settings).getByLabelText("人数");
@@ -106,6 +97,6 @@ describe("计划设置抽屉", () => {
     await user.type(travelers, "0{Enter}");
 
     expect(within(settings).getByText("人数要是正整数")).toBeTruthy();
-    expect((await readStoredPlan(planId)).plan.traveler_count).toBe(1);
+    expect(other.plan().plan.traveler_count).toBe(1);
   });
 });

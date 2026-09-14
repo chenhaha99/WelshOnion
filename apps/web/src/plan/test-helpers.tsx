@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
-import { readLibrary, readPlan, setDays, type PlanView } from "@welshonion/core";
+import { readLibrary, readPlan, setDays, type LibraryView, type PlanView } from "@welshonion/core";
 import type * as Y from "yjs";
 import { NOW, renderApp } from "../app/test-render";
 import { openLibrary } from "../storage/library";
@@ -18,11 +18,23 @@ export async function openStoredPlan(setup?: (plan: Y.Doc, library: Y.Doc) => vo
   return plan.planId;
 }
 
-/** 像另一个标签页那样打开计划，读本机存下的内容。 */
-export async function readStoredPlan(planId: string): Promise<PlanView> {
-  const library = track(await openLibrary());
-  const plan = track(await openPlan(library.doc, planId, NOW));
-  return readPlan(plan.doc, readLibrary(library.doc));
+/**
+ * 像另一个标签页那样打开这个计划。只开一次，之后每次读的都是它手上最新的内容
+ * （打开时本机存着的 + 之后标签页之间同步过来的）。在 waitFor 里反复读它，不要反复打开。
+ */
+export async function openOtherTab(planId: string): Promise<{ plan: () => PlanView; library: () => LibraryView }> {
+  const libraryHandle = track(await openLibrary());
+  const planHandle = track(await openPlan(libraryHandle.doc, planId, NOW));
+  return {
+    plan: () => readPlan(planHandle.doc, readLibrary(libraryHandle.doc)),
+    library: () => readLibrary(libraryHandle.doc),
+  };
+}
+
+/** 像另一个标签页那样只打开资料库，用法同 openOtherTab。 */
+export async function openOtherLibrary(): Promise<() => LibraryView> {
+  const libraryHandle = track(await openLibrary());
+  return () => readLibrary(libraryHandle.doc);
 }
 
 /** 从 10.1 起、北京时区的连续几天，返回底座 id。 */

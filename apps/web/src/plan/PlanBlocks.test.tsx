@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { addBlock } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, blockTexts, blockTitles, dayRow, daysFromOct1, openStoredPlan, selectedText } from "./test-helpers";
+import { blockRow, blockTexts, blockTitles, dayRow, daysFromOct1, openStoredPlan } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -60,8 +60,8 @@ describe("加一件事", () => {
     for (const title of ["西湖", "灵隐寺"]) {
       const row = await blockRow("10.1", title);
       expect(row.querySelector("[data-block-time]")?.textContent).toBe("整天");
-      expect(selectedText(within(row).getByRole("combobox", { name: "类型" }))).toBe("游玩");
-      expect(selectedText(within(row).getByRole("combobox", { name: "状态" }))).toBe("待定");
+      expect(within(row).getByRole("button", { name: "类型：游玩" })).toBeTruthy();
+      expect(within(row).getByRole("button", { name: "状态：待定" })).toBeTruthy();
     }
     expect(document.activeElement).toBe(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }));
   });
