@@ -114,7 +114,8 @@ export function BlockTable({
   const countStatusUsing = (statusId: string) => countBlocksUsing(plan, { statusId });
 
   return (
-    <div className="-mx-2 overflow-x-auto">
+    // 外层是量宽度的容器：放不下 42rem 的表格时，index.css 把一行换成一张卡
+    <div className="@container -mx-2 overflow-x-auto">
       <table aria-label={`${dayLabel} 的安排`} className="block-table w-full min-w-[42rem]">
         <thead className="sr-only">
           <tr>
@@ -245,9 +246,9 @@ function BlockRow({
         data-block-id={block.id}
         data-pending={block.status.id === "pending"}
         className="block-row"
-        style={{ "--kind-color": color } as CSSProperties}
+        style={{ "--kind-color": color, "--indent": indent } as CSSProperties}
       >
-        <td data-indent={indent} style={{ paddingLeft: `${0.375 + indent * 1.5}rem` }}>
+        <td data-indent={indent}>
           <CommitInput
             label="标题"
             showLabel={false}

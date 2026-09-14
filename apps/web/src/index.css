@@ -196,6 +196,10 @@
   & > td {
     background-color: rgb(255 255 255 / 0.5);
   }
+  /* 标题格：缩进一级往右多留 1.5rem（--indent 在 tr 上） */
+  & > td[data-indent] {
+    padding-left: calc(0.375rem + var(--indent) * 1.5rem);
+  }
   & > td:first-child {
     border-left: 3px solid var(--kind-color);
     border-radius: 0.5rem 0 0 0.5rem;
@@ -217,6 +221,61 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 999px;
+}
+
+/*
+ * 安排表放不下时（外层宽不到 42rem，手机上一天的卡片里就是），一个块画成一张卡：
+ * 第一行是标题，「这件事的操作」用 order 挪到它右边（排在最后时常常一个人占一行）；类型、状态、时间、钱按先后排在下面、放不下就换行；
+ * 底色、圆角、类型色、待定虚线从第一格挪到整张卡，缩进整张卡往右；编辑区这些整行的 tr 满宽。
+ * 写在层外，才盖得过表格的固定列宽和最小宽度。
+ */
+@container (width < 42rem) {
+  .block-table,
+  .block-table > tbody {
+    display: block;
+    min-width: 0;
+  }
+  .block-table > tbody > tr {
+    display: block;
+    margin-block: 0.25rem;
+  }
+  .block-table > tbody > tr > td {
+    display: block;
+  }
+  .block-table > tbody > tr.block-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-left: calc(var(--indent) * 1rem);
+    padding-block: 0.125rem;
+    border-left: 3px solid var(--kind-color);
+    border-radius: 0.5rem;
+    background-color: rgb(255 255 255 / 0.5);
+  }
+  .block-table > tbody > tr.block-row[data-pending="true"] {
+    border-left-style: dashed;
+  }
+  .block-table > tbody > tr.block-row > td {
+    width: auto;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+  }
+  /* 标题格占第一行，右边留 3.5rem 给「这件事的操作」；再往后的格子挤不进这一行，只能换行 */
+  .block-table > tbody > tr.block-row > td:first-child {
+    flex: 1 0 calc(100% - 3.5rem);
+    padding-left: 0.375rem;
+  }
+  .block-table > tbody > tr.block-row > td:last-child {
+    order: 1;
+    align-self: flex-start;
+  }
+  .block-table > tbody > tr.block-row > td:not(:first-child):not(:last-child) {
+    order: 2;
+  }
+  .block-table > tbody > tr.block-row > td:not(:first-child) .input-bare {
+    width: auto;
+  }
 }
 
 /* 时间轴的横条：类型色的淡底和边；待定虚线、底色更淡；接着下一行的那头是平的 */
