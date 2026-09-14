@@ -66,6 +66,8 @@ export { countBlocksUsing } from "./usage";
 export type { StatsFilter } from "./stats/filter";
 export { dayFacts, occupiedMinutes, timeByKind, unscheduledMinutes } from "./stats/time";
 export type { DayFacts, TimeByKindOptions } from "./stats/time";
+export { expenseTotalCents, fillProgress, moneySummary, statusCounts } from "./stats/money";
+export type { FillProgress, MoneySummary } from "./stats/money";
 export { readLibrary, readPlan, reconcilePlanIndex, summarizePlan } from "./read";
 export type {
   BaseView,
