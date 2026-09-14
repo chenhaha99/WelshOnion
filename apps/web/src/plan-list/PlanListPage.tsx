@@ -1,0 +1,72 @@
+import { readLibrary } from "@welshonion/core";
+import { useEffect, useMemo, useState } from "react";
+import { LateNotice } from "../app/Notice";
+import { useLibrary, useNow } from "../app/services";
+import { useDocVersion } from "../app/use-doc-version";
+import { reconcilePlans } from "../storage/plans";
+import { NewPlan } from "./NewPlan";
+import { PlanCard } from "./PlanCard";
+
+export function PlanListPage() {
+  const library = useLibrary();
+  const now = useNow();
+  // 先对账再显示，免得先闪出一张打不开的卡再消失
+  const [reconciled, setReconciled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    reconcilePlans(library, now()).then(
+      () => {
+        if (!cancelled) setReconciled(true);
+      },
+      (error: unknown) => {
+        if (!cancelled) {
+          setReconciled(() => {
+            throw error;
+          });
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [library, now]);
+
+  const version = useDocVersion(library);
+  const plans = useMemo(() => byLastOpened([...readLibrary(library).planIndex.values()]), [library, version]);
+
+  if (!reconciled) return <LateNotice>正在打开…</LateNotice>;
+
+  if (plans.length === 0) {
+    return (
+      <main className="mx-auto flex max-w-xl flex-col items-center gap-5 px-6 py-28 text-center">
+        <h1 className="text-4xl font-medium tracking-wider text-ink">葱葱</h1>
+        <p className="text-ink-muted">把旅行排进时间轴，每天满不满、钱花在哪，一眼看得见。</p>
+        <NewPlan label="新建第一个计划" />
+      </main>
+    );
+  }
+
+  const currentYear = Number(now().slice(0, 4));
+  return (
+    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-12">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-medium text-ink">我的计划</h1>
+        <NewPlan label="新建计划" />
+      </header>
+      <ul className="flex flex-col gap-3">
+        {plans.map((plan) => (
+          <PlanCard key={plan.plan_id} plan={plan} currentYear={currentYear} />
+        ))}
+      </ul>
+    </main>
+  );
+}
+
+/** 最近打开的排最前；打开时间相同的按 plan_id 排，顺序固定。 */
+function byLastOpened<T extends { plan_id: string; last_opened_at: string | null }>(plans: T[]): T[] {
+  const compare = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
+  return plans.sort(
+    (a, b) => compare(b.last_opened_at ?? "", a.last_opened_at ?? "") || compare(a.plan_id, b.plan_id),
+  );
+}
