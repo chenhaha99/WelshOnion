@@ -45,7 +45,7 @@ interface PopoverProps {
 /**
  * 按钮 + 放在页面最外层、按按钮位置摆的面板：不会被会滚动的表格裁掉，也不受背景模糊影响。
  * 面板始终整个在屏幕里：往下放不下就挑空间大的那边，最大高度按剩余空间封顶，内容在面板里滚。
- * Esc、点外面、窗口变大小时关掉；页面滚动时面板跟着按钮走，按钮滚出屏幕才关；Esc 关掉后焦点回到按钮。
+ * Esc、点外面时关掉；页面滚动时面板跟着按钮走，按钮滚出屏幕才关；窗口变大小时只重新摆；Esc 关掉后焦点回到按钮。
  */
 export function Popover({
   label,
@@ -91,22 +91,30 @@ export function Popover({
       }
     };
     // 滚动不关：浏览器的滚动事件是稍后才送到的，刚滚完页面马上点按钮，面板会被这次「迟到的滚动」关掉。
-    // 改成跟着按钮重新摆，按钮整个滚出屏幕才关；每帧最多摆一次
+    // 改成跟着按钮重新摆，按钮整个滚出屏幕才关；每帧最多摆一次。
+    // 只有滚动会让按钮离开屏幕；窗口变大小不挪按钮在页面上的位置，那一刻量到的尺寸还可能是错的
+    // （截整页时浏览器会把窗口高度报成 1），所以窗口变大小只重新摆，不据此关掉
     let frame = 0;
+    let scrolled = false;
     const reposition = () => {
       frame = 0;
+      const byScroll = scrolled;
+      scrolled = false;
       const trigger = button.current;
       if (!trigger) return;
       const rect = trigger.getBoundingClientRect();
-      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      if (byScroll && (rect.bottom < 0 || rect.top > window.innerHeight)) {
         setPosition(null);
         return;
       }
       setPosition(placePanel(trigger, panel, align, estimatedHeight));
     };
     const scheduleReposition = (event: Event) => {
-      // 面板自己里面滚动（选项很多时）不用重摆
-      if (event.type === "scroll" && panel.contains(event.target as Node)) return;
+      if (event.type === "scroll") {
+        // 面板自己里面滚动（选项很多时）不用重摆
+        if (panel.contains(event.target as Node)) return;
+        scrolled = true;
+      }
       if (frame === 0) frame = requestAnimationFrame(reposition);
     };
     document.addEventListener("pointerdown", closeIfOutside);
