@@ -7,7 +7,8 @@ export type OpError =
   | { code: "CROSSING_BLOCKS"; blockIds: string[] }
   | { code: "SAME_TZ" }
   | { code: "INDEX_OUT_OF_RANGE" }
-  | { code: "NOT_UNDATED" };
+  | { code: "NOT_UNDATED" }
+  | { code: "NOT_TIMED" };
 
 /** 操作的结果：失败时文档里什么都没发生。 */
 export type OpResult<T = undefined> = { ok: true; value: T } | { ok: false; error: OpError };

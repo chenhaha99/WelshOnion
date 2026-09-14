@@ -46,6 +46,8 @@ export {
   updateBlock,
 } from "./ops/blocks";
 export type { AddBlockInput, BlockPatch, Placement, SlotChoice } from "./ops/blocks";
+export { duplicateBlock, moveBlock, setBlockLayer, shiftDayFrom } from "./ops/drag";
+export type { DropTarget } from "./ops/drag";
 export { readLibrary, readPlan, reconcilePlanIndex, summarizePlan } from "./read";
 export type {
   BaseView,
