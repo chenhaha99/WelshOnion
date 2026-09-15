@@ -1,9 +1,10 @@
 import { readLibrary } from "@welshonion/core";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LateNotice } from "../app/Notice";
 import { useLibrary, useNow } from "../app/services";
 import { useDocVersion } from "../app/use-doc-version";
 import { reconcilePlans } from "../storage/plans";
+import { AppSettings } from "./AppSettings";
 import { NewPlan } from "./NewPlan";
 import { PlanCard } from "./PlanCard";
 
@@ -12,6 +13,8 @@ export function PlanListPage() {
   const now = useNow();
   // 先对账再显示，免得先闪出一张打不开的卡再消失
   const [reconciled, setReconciled] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,13 +40,33 @@ export function PlanListPage() {
 
   if (!reconciled) return <LateNotice>正在打开…</LateNotice>;
 
+  // 导出、导入放在「设置」里，不直接摆在列表上；列表空着时也要有（换了浏览器恢复备份）
+  const settings = (
+    <button ref={settingsButton} type="button" className="btn btn-ghost" onClick={() => setSettingsOpen(true)}>
+      设置
+    </button>
+  );
+  const settingsPanel = settingsOpen && (
+    <AppSettings
+      plans={plans}
+      onClose={() => {
+        setSettingsOpen(false);
+        settingsButton.current?.focus();
+      }}
+    />
+  );
+
   if (plans.length === 0) {
     return (
-      <main className="mx-auto flex max-w-xl flex-col items-center gap-5 px-6 py-28 text-center">
-        <h1 className="text-4xl font-medium tracking-wider text-ink">葱葱</h1>
-        <p className="text-ink-muted">把旅行排进时间轴，每天满不满、钱花在哪，一眼看得见。</p>
-        <NewPlan label="新建第一个计划" />
-      </main>
+      <div className="relative">
+        <div className="absolute top-6 right-6">{settings}</div>
+        <main className="mx-auto flex max-w-xl flex-col items-center gap-5 px-6 py-28 text-center">
+          <h1 className="text-4xl font-medium tracking-wider text-ink">葱葱</h1>
+          <p className="text-ink-muted">把旅行排进时间轴，每天满不满、钱花在哪，一眼看得见。</p>
+          <NewPlan label="新建第一个计划" />
+        </main>
+        {settingsPanel}
+      </div>
     );
   }
 
@@ -52,13 +75,17 @@ export function PlanListPage() {
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-12">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-medium text-ink">我的计划</h1>
-        <NewPlan label="新建计划" />
+        <div className="flex flex-wrap items-center gap-2">
+          {settings}
+          <NewPlan label="新建计划" />
+        </div>
       </header>
       <ul className="flex flex-col gap-3">
         {plans.map((plan) => (
           <PlanCard key={plan.plan_id} plan={plan} currentYear={currentYear} />
         ))}
       </ul>
+      {settingsPanel}
     </main>
   );
 }

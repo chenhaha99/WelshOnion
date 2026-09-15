@@ -50,6 +50,52 @@ export async function duplicatePlan(
   return { planId, doc: stored.doc, close: stored.close };
 }
 
+export interface PlanFileDownload {
+  /** 计划名，提示「已导出」用 */
+  name: string;
+  fileName: string;
+  text: string;
+}
+
+/** 导出一个计划：打开本机存着的计划文档交给 core 导出，再关掉；本机没有就报错（同复制）。 */
+export async function exportPlanFile(library: Y.Doc, planId: string, now: string): Promise<PlanFileDownload> {
+  const stored = await loadPlan(planId);
+  if (!stored) {
+    await deleteDatabase(planDbName(planId));
+    throw new core.DocumentError("NOT_INITIALIZED", `本机没有计划 ${planId}`);
+  }
+  const text = core.exportPlan(library, stored.doc, now);
+  const name = core.readPlan(stored.doc, core.readLibrary(library)).plan.name;
+  await stored.close();
+  return { name, fileName: planFileName(name), text };
+}
+
+/** 「计划名.welshonion.json」：文件名不能用的字符（按最严的 Windows）换成下划线，空了用「未命名计划」。 */
+export function planFileName(name: string): string {
+  const safe = [...name].map((char) => (char < " " || '\\/:*?"<>|'.includes(char) ? "_" : char)).join("").trim();
+  return `${safe === "" ? "未命名计划" : safe}.welshonion.json`;
+}
+
+export type ImportPlanFileResult =
+  | { ok: true; handle: PlanHandle }
+  | { ok: false; error: "FILE_NOT_PLAN" | "FILE_TOO_NEW" };
+
+/**
+ * 从文件导入一个计划：读不了就返回原因，什么都不建。本机已经存着同一个计划时，用新 id、名字后面加「（导入）」另存一份，
+ * 原来那份不动（按本机存着的数据库判断，索引只是缓存）。新计划和新建一样开着交给调用方。
+ */
+export async function importPlanFile(library: Y.Doc, text: string, now: string): Promise<ImportPlanFileResult> {
+  const parsed = core.parsePlanFile(text);
+  if (!parsed.ok) return { ok: false, error: parsed.error.code === "FILE_TOO_NEW" ? "FILE_TOO_NEW" : "FILE_NOT_PLAN" };
+  const file = parsed.value;
+  const exists = (await storedPlanIds()).includes(file.planId);
+  const planId = exists ? core.newId() : file.planId;
+  const stored = await loadStoredDoc(planDbName(planId));
+  core.importPlan(library, stored.doc, file, { planId, now, ...(exists ? { name: `${file.name}（导入）` } : {}) });
+  stored.startTabSync();
+  return { ok: true, handle: { planId, doc: stored.doc, close: stored.close } };
+}
+
 export async function openPlan(library: Y.Doc, planId: string, now: string): Promise<PlanHandle> {
   const stored = await loadPlan(planId);
   if (!stored) {
