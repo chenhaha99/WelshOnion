@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动画面：米白底（第一版外观的底色）；安卓 12 以上系统会在上面放 app 图标 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#F6F4EF" />
+</shape>

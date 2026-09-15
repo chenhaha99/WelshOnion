@@ -1,7 +1,8 @@
 import type { PlanIndexEntryView } from "@welshonion/core";
 import { useRef, useState, type ChangeEvent } from "react";
+import { saveJsonFile } from "../app/download";
 import { Drawer } from "../app/Drawer";
-import { downloadJson } from "../app/download";
+import { isNativeApp } from "../app/native";
 import { navigate, planHref } from "../app/route";
 import { useLibrary, useNow } from "../app/services";
 import { exportPlanFile, importPlanFile } from "../storage/plans";
@@ -19,25 +20,33 @@ interface AppSettingsProps {
 
 /**
  * 列表页的「设置」：导出一个计划、从文件导入一个计划（入口放在这里，不直接摆在列表上）。
- * 导出后写一句「已导出」（浏览器下载时悄无声息）；导入读不了就写明原因，导好了进入那个计划（同新建、复制）。
+ * 导出后写一句「已导出」（浏览器下载时悄无声息）；app 里分享被取消就不写，写文件出错写「导出失败」。
+ * 导入读不了就写明原因，导好了进入那个计划（同新建、复制）。app 里选文件不限类型：有的文件管理器把 .json 标成别的类型。
  */
 export function AppSettings({ plans, onClose }: AppSettingsProps) {
   const library = useLibrary();
   const now = useNow();
   const fileInput = useRef<HTMLInputElement>(null);
-  const [exported, setExported] = useState<string | null>(null);
+  const [exportStatus, setExportStatus] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
   const exportPlan = async (planId: string) => {
+    setExportStatus("");
+    let file: Awaited<ReturnType<typeof exportPlanFile>>;
     try {
-      const file = await exportPlanFile(library, planId, now());
-      downloadJson(file.fileName, file.text);
-      setExported(file.name);
+      file = await exportPlanFile(library, planId, now());
     } catch (error) {
-      setExported(() => {
+      setExportStatus(() => {
         throw error;
       });
+      return;
+    }
+    try {
+      if (await saveJsonFile(file.fileName, file.text)) setExportStatus(`已导出「${file.name}」`);
+    } catch {
+      // 只有 app 里写文件、弹分享会出错：说一声，页面照常
+      setExportStatus("导出失败");
     }
   };
 
@@ -92,7 +101,7 @@ export function AppSettings({ plans, onClose }: AppSettingsProps) {
           </ul>
         )}
         <p role="status" className="text-sm text-ink">
-          {exported === null ? "" : `已导出「${exported}」`}
+          {exportStatus}
         </p>
       </section>
 
@@ -104,7 +113,7 @@ export function AppSettings({ plans, onClose }: AppSettingsProps) {
         <input
           ref={fileInput}
           type="file"
-          accept=".json,application/json"
+          accept={isNativeApp() ? undefined : ".json,application/json"}
           aria-label="选择计划文件"
           className="hidden"
           onChange={(event) => void importFile(event)}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">葱葱</string>
+    <string name="title_activity_main">葱葱</string>
+    <string name="package_name">io.github.chenhaha99.welshonion</string>
+    <string name="custom_url_scheme">io.github.chenhaha99.welshonion</string>
+</resources>
