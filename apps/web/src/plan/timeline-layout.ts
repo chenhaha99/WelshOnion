@@ -4,6 +4,7 @@ import {
   effectiveLayer,
   kindLayer,
   passesFilter,
+  type BlockView,
   type LibraryView,
   type PlanView,
   type StatsFilter,
@@ -52,42 +53,61 @@ interface Item {
 
 /**
  * 排上时间、通过筛选的块，各画在哪几行、从几分到几分；先按行、再按开始、再按 id 排。
+ * 一个块怎么分段见 blockSegments。
+ */
+export function timelineSegments(plan: PlanView, filter?: StatsFilter): Segment[] {
+  const segments: Segment[] = [];
+  for (const block of plan.blocks.values()) {
+    if (passesFilter(block, filter)) segments.push(...blockSegments(plan, block));
+  }
+  return segments.sort((a, b) => a.row - b.row || a.from - b.from || compareIds(a.blockId, b.blockId));
+}
+
+/**
+ * 一个块画在哪几行、从几分到几分，按行的先后；没排时间的块没有段。
  * 从块开始的那一行往下走，每行只画还没画过、又落在这一天之内的时间（按绝对时刻算，跨时区不会画两遍），
  * 画到最后一行还没完就截在 24 点。夏令时换时的那一天差 1 小时，和 baseStartUtcMs 一样不管。
  */
-export function timelineSegments(plan: PlanView, filter?: StatsFilter): Segment[] {
-  const dayStarts = plan.bases.map((base) => baseStartUtcMs(base.date, base.tz));
-  const rowOf = new Map(plan.bases.map((base, row) => [base.id, row]));
-  const segments: Segment[] = [];
-
-  for (const block of plan.blocks.values()) {
-    if (block.start_minute === null || !passesFilter(block, filter)) continue;
-    const startRow = rowOf.get(block.start_base_id)!;
-    const { start, end } = blockInterval(block, plan.bases[startRow]!)!;
-    if (start === end) {
-      const minute = block.start_minute;
-      segments.push({ blockId: block.id, row: startRow, from: minute, to: minute, continuesBefore: false, continuesAfter: false });
-      continue;
-    }
-
-    let drawnUntil = start;
-    for (let row = startRow; row < plan.bases.length && drawnUntil < end; row++) {
-      const dayStart = dayStarts[row]!;
-      const from = Math.max(drawnUntil, dayStart);
-      const to = Math.min(end, dayStart + MINUTES_PER_DAY * MS_PER_MINUTE);
-      if (from >= to) continue;
-      segments.push({
-        blockId: block.id,
-        row,
-        from: (from - dayStart) / MS_PER_MINUTE,
-        to: (to - dayStart) / MS_PER_MINUTE,
-        continuesBefore: from > start,
-        continuesAfter: to < end,
-      });
-      drawnUntil = to;
-    }
+export function blockSegments(plan: PlanView, block: BlockView): Segment[] {
+  if (block.start_minute === null) return [];
+  const dayStarts = dayStartsOf(plan);
+  const startRow = plan.bases.findIndex((base) => base.id === block.start_base_id);
+  const { start, end } = blockInterval(block, plan.bases[startRow]!)!;
+  if (start === end) {
+    const minute = block.start_minute;
+    return [{ blockId: block.id, row: startRow, from: minute, to: minute, continuesBefore: false, continuesAfter: false }];
   }
-  return segments.sort((a, b) => a.row - b.row || a.from - b.from || compareIds(a.blockId, b.blockId));
+
+  const segments: Segment[] = [];
+  let drawnUntil = start;
+  for (let row = startRow; row < plan.bases.length && drawnUntil < end; row++) {
+    const dayStart = dayStarts[row]!;
+    const from = Math.max(drawnUntil, dayStart);
+    const to = Math.min(end, dayStart + MINUTES_PER_DAY * MS_PER_MINUTE);
+    if (from >= to) continue;
+    segments.push({
+      blockId: block.id,
+      row,
+      from: (from - dayStart) / MS_PER_MINUTE,
+      to: (to - dayStart) / MS_PER_MINUTE,
+      continuesBefore: from > start,
+      continuesAfter: to < end,
+    });
+    drawnUntil = to;
+  }
+  return segments;
+}
+
+const dayStartsCache = new WeakMap<PlanView, number[]>();
+
+/** 每一行这天 0 点的绝对时刻。换算时区不便宜，同一份计划视图只算一次。 */
+function dayStartsOf(plan: PlanView): number[] {
+  let dayStarts = dayStartsCache.get(plan);
+  if (!dayStarts) {
+    dayStarts = plan.bases.map((base) => baseStartUtcMs(base.date, base.tz));
+    dayStartsCache.set(plan, dayStarts);
+  }
+  return dayStarts;
 }
 
 /**

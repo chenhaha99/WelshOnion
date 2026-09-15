@@ -12,6 +12,7 @@ import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { useTimelineDrag, type DragView, type SegmentHandlers } from "./use-timeline-drag";
+import { zoneTimeLabel } from "./zone-time";
 
 /** 竖排每小时多高、背景细条每条多宽（像素）；块和块之间留多少；叠在上面的块每级从左边缩多少 */
 const HOUR_HEIGHT = 48;
@@ -231,7 +232,7 @@ function DaySegment({ plan, item, place, moneyCell, dragView, handlers, shiftLat
     >
       <BlockPopover
         block={block}
-        time={blockTimeLabel(block, date)}
+        time={zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date)}
         // 名字单独一段：竖排里竖条开头滚出框的上边时，名字贴着框的上边（见 index.css）
         trigger={point || item.track === "background" ? null : <span data-bar-title>{block.title}</span>}
         triggerClassName={buttonClass}

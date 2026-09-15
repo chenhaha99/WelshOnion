@@ -49,10 +49,10 @@ export function durationLabel(minutes: number): string {
   return `${Math.round((minutes / 60) * 10) / 10} 小时`;
 }
 
-function addDays(date: string, days: number): string {
+export function addDays(date: string, days: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }
 
-function monthDay(date: string): string {
+export function monthDay(date: string): string {
   return `${Number(date.slice(5, 7))}.${Number(date.slice(8, 10))}`;
 }

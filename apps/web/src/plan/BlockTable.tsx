@@ -32,6 +32,7 @@ import { linkableExpenses } from "./expense-links";
 import { MoneyEditor } from "./MoneyEditor";
 import { moneyCellEmpty, moneyCellLabel, moneyCellNote, type MoneyCell } from "./money-cells";
 import { KindPicker, StatusPicker } from "./pickers";
+import { zoneTimeLabel } from "./zone-time";
 
 /** 新建的块默认「游玩」：第 ③ 步列的多是景点和活动，选错了在下拉里改。 */
 const DEFAULT_KIND_ID = "sight";
@@ -315,7 +316,7 @@ function BlockRow({
             onClick={() => setTimeOpen((value) => !value)}
           >
             <span data-block-time className="tabular-nums">
-              {blockTimeLabel(block, date)}
+              {zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date)}
             </span>
           </button>
         </td>

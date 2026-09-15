@@ -24,6 +24,7 @@ import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { useTimelineDrag, type DragView, type Preview, type SegmentHandlers } from "./use-timeline-drag";
+import { zoneTimeLabel } from "./zone-time";
 
 /** 背景条每条、主轨每道多高；叠在上面的块每级从上面缩多少（像素） */
 const STRIP_HEIGHT = 16;
@@ -373,7 +374,7 @@ function Segment({ plan, item, top, height, moneyCell, dragView, handlers, shift
     >
       <BlockPopover
         block={block}
-        time={blockTimeLabel(block, date)}
+        time={zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date)}
         trigger={point ? null : block.title}
         triggerClassName={buttonClass}
         align="start"
