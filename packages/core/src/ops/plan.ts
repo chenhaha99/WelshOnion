@@ -107,7 +107,8 @@ export function deletePlan(library: Y.Doc, planId: string): OpResult {
   return done();
 }
 
-function writeIndexEntry(library: Y.Doc, planDoc: Y.Doc, lastOpenedAt: string): void {
+/** 按计划文档的当前内容写它的计划索引（导入计划也用）。 */
+export function writeIndexEntry(library: Y.Doc, planDoc: Y.Doc, lastOpenedAt: string): void {
   const view = readPlan(planDoc, readLibrary(library));
   const summary = summarizePlan(view);
   library.transact(() => {

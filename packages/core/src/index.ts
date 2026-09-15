@@ -18,6 +18,8 @@ export { LOCAL_ORIGIN, createPlanUndoManager } from "./ops/origin";
 export type { OpError, OpResult } from "./ops/result";
 export { createPlan, deletePlan, duplicatePlan, renamePlan, setPlanSettings, touchPlan } from "./ops/plan";
 export type { PlanSettingsPatch } from "./ops/plan";
+export { exportPlan, importPlan, parsePlanFile } from "./ops/plan-file";
+export type { FileKind, FilePlace, FileStatus, ImportPlanOptions, PlanFile } from "./ops/plan-file";
 export {
   addDayInTz,
   deleteDay,

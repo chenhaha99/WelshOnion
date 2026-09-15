@@ -9,7 +9,11 @@ export type OpError =
   | { code: "INDEX_OUT_OF_RANGE" }
   | { code: "NOT_UNDATED" }
   | { code: "NOT_TIMED" }
-  | { code: "BUILTIN" };
+  | { code: "BUILTIN" }
+  /** 不是葱葱导出的计划文件，或者文件坏了 */
+  | { code: "FILE_NOT_PLAN" }
+  /** 文件来自更新版本的葱葱 */
+  | { code: "FILE_TOO_NEW" };
 
 /** 操作的结果：失败时文档里什么都没发生。 */
 export type OpResult<T = undefined> = { ok: true; value: T } | { ok: false; error: OpError };
