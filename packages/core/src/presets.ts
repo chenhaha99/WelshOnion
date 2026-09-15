@@ -13,7 +13,7 @@ export interface PresetStatus {
   order: number;
 }
 
-// 颜色是占位，视觉设计定稿后再换。播种不覆盖已有的键，换色不会影响已经存在的资料库。
+// 颜色就是现在用的这组（外观定稿用了第一版）。播种只补缺的键、不覆盖已有的，以后换色也不会改掉已经存在的资料库。
 export const PRESET_KINDS: readonly PresetKind[] = [
   { id: "stay", name: "停留", color: "#8fa9bd", layer: 0, order: 1 },
   { id: "lodging", name: "住宿", color: "#9b8ab2", layer: 1, order: 2 },
