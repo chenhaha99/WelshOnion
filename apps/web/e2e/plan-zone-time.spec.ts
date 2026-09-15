@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 test("跨时区：北京那天加同日期的洛杉矶 → 18:00 起飞 12 小时 → 时间格和详情写两地时刻 → 手机上也一样", async ({ page }) => {
@@ -34,6 +35,7 @@ test("跨时区：北京那天加同日期的洛杉矶 → 18:00 起飞 12 小�
   await expect(flight.locator("[data-block-time]")).toHaveText("北京 18:00 → 洛杉矶 15:00");
 
   // 时间轴上点洛杉矶那一行的横条
+  await showView(page, "时间轴");
   const timeline = page.getByRole("region", { name: "时间轴" });
   await timeline.getByRole("listitem", { name: /洛杉矶/ }).getByRole("button", { name: /^飞洛杉矶 / }).click();
   await expect(page.getByRole("dialog", { name: "飞洛杉矶" })).toContainText("北京 18:00 → 洛杉矶 15:00 · 12 小时");
@@ -41,9 +43,11 @@ test("跨时区：北京那天加同日期的洛杉矶 → 18:00 起飞 12 小�
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "飞洛杉矶" })).toBeHidden();
 
-  // 手机宽度：卡片上的时间格、竖排里点竖条
+  // 手机宽度：列表卡片上的时间格、时间轴竖排里点竖条
   await page.setViewportSize({ width: 390, height: 844 });
+  await showView(page, "列表");
   await expect(flight.locator("[data-block-time]")).toHaveText("北京 18:00 → 洛杉矶 15:00");
+  await showView(page, "时间轴");
   await timeline.getByRole("button", { name: /^飞洛杉矶 / }).first().click();
   await expect(page.getByRole("dialog", { name: "飞洛杉矶" })).toContainText("北京 18:00 → 洛杉矶 15:00 · 12 小时");
   await shot(page, "02-phone");

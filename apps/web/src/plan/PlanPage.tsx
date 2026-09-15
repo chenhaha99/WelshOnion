@@ -121,7 +121,7 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
         {plan.bases.length === 0 ? (
           <AskDays doc={handle.doc} />
         ) : (
-          <DayList doc={handle.doc} library={library} libraryView={libraryView} plan={plan} />
+          <DayList doc={handle.doc} library={library} libraryView={libraryView} plan={plan} planId={handle.planId} />
         )}
 
         {settingsOpen && (

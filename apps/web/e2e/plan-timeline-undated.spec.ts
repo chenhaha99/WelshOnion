@@ -14,6 +14,7 @@ import {
   newPlan,
   schedule,
   segment,
+  showView,
   timelineRow,
   timeOf,
   trayOf,
@@ -38,6 +39,7 @@ test("从栏里拖到时间轴上：没填时长给 1 小时 → 撤销 → 用�
   const day2 = timelineRow(page, "10.2");
   const day3 = timelineRow(page, "10.3");
   const ghost = page.locator("[data-drag-ghost]");
+  await showView(page, "时间轴");
   await expect(trayOf(day1).getByRole("button")).toHaveText([/河坊街/, /灵隐寺/]);
 
   // 没填时长的河坊街拖到 10.2 的 19:00：1 小时

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addBlocks, newPlan, schedule } from "./timeline-helpers";
+import { addBlocks, newPlan, schedule, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 /** 竖排每小时多高（像素），和 DayTimeline 一样 */
@@ -15,7 +15,7 @@ async function shownDay(page: Page): Promise<string> {
 }
 
 // 行程 9.13–9.15，「现在」固定在 9.14 14:20（北京）
-test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第一件事 → 没排时间出现又不见、改块不滚 → 空的一天 → 回到今天 → 宽屏切回横排", async ({
+test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第一件事 → 切到列表加事再切回来还是那天、没排时间出现又不见 → 改块不滚 → 空的一天 → 回到今天 → 宽屏切回横排", async ({
   page,
 }) => {
   const errors = watchErrors(page);
@@ -24,6 +24,7 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   const timeline = page.getByRole("region", { name: "时间轴" });
   const scroller = timeline.locator("[data-day-scroll]");
   const day3Table = page.getByRole("table", { name: /9\.15 周二 的安排/ });
+  await showView(page, "时间轴");
 
   // 打开落在今天，滚到现在往前 1 小时再往前取到整点；横排不在
   await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 2 天 · 9.14 周一");
@@ -37,7 +38,7 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   await timeline.scrollIntoViewIfNeeded();
   await shot(page, "01-today");
 
-  // 在 9.15 排一件 09:00 的事，翻过去：往前 30 分钟再取整点，滚到 08:00；「回到今天」出现
+  // 在 9.15 排一件 09:00 的事（辅助函数切到列表排好再切回来），翻过去：往前 30 分钟再取整点，滚到 08:00；「回到今天」出现
   await addBlocks(page, day3Table, ["西湖"]);
   await schedule(page, day3Table, "西湖", "09:00", "3");
   await timeline.getByRole("button", { name: "后一天" }).click();
@@ -48,19 +49,28 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   await timeline.scrollIntoViewIfNeeded();
   await shot(page, "02-next-day");
 
-  // 手动滚到 12:00 在最上面，再给这天排一件 14:00 的事：框不自己滚
-  // （框高 28rem、一天 1152 像素，最多滚到 14 点多在最上面，所以挑 12:00）
-  await scroller.evaluate((element, hourHeight) => {
-    element.scrollTop = 12 * hourHeight;
-  }, HOUR_HEIGHT);
+  // 切到列表加一件、切回来：还是 9.15；刚加上、还没排时间，框下面出现「没排时间」；排上时间后整块不见
   await addBlocks(page, day3Table, ["灵隐寺"]);
-  // 刚加上、还没排时间：框下面出现「没排时间」；排上时间后整块不见
+  await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 3 天 · 9.15 周二");
   const tray = timeline.getByRole("group", { name: "没排时间" });
   await expect(tray.getByRole("button", { name: "灵隐寺 整天" })).toBeVisible();
   await expect(timeline.getByText("没排时间", { exact: true })).toBeVisible();
   await schedule(page, day3Table, "灵隐寺", "14:00", "2");
   await expect(timeline.getByRole("button", { name: /^灵隐寺 / })).toHaveCount(1);
   await expect(tray).toHaveCount(0);
+
+  // 手动滚到 12:00 在最上面，在竖条详情里把 14:00 的灵隐寺往后推迟 1 小时：框不自己滚
+  // （框高 28rem、一天 1152 像素，最多滚到 14 点多在最上面，所以挑 12:00）
+  await scroller.evaluate((element, hourHeight) => {
+    element.scrollTop = 12 * hourHeight;
+  }, HOUR_HEIGHT);
+  await timeline.getByRole("button", { name: /^灵隐寺 / }).click();
+  await page
+    .getByRole("dialog", { name: "灵隐寺" })
+    .getByRole("group", { name: "这天从这件起往后推迟" })
+    .getByRole("button", { name: "1 小时" })
+    .click();
+  await expect(timeline.getByRole("button", { name: "灵隐寺 15:00–17:00" })).toBeVisible();
   expect(await topMinute(scroller)).toBe(12 * 60);
 
   // 回到今天：又滚到 13:00；再往前翻到空的 9.13：滚到 08:00

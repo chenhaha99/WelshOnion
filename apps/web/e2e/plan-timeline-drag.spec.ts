@@ -41,11 +41,11 @@ test("拖中间：点一下开详情 → 预览 → 挪 → 撤销重做 → 吸
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "西湖" })).toBeHidden();
 
-  // 往右拖 1 小时、先不松手：预览写着松手后的时间，原来的横条变淡，表里还没变
+  // 往右拖 1 小时、先不松手：预览写着松手后的时间，原来的横条变淡、还在 09:00（拖着时切不了视图，不去看表）
   await drag(page, lake, { x: lake.x + hour, y: lake.y }, { release: false });
   await expect(ghost.first()).toHaveText("10:00–13:00");
   await expect(segment(day1, "西湖")).toHaveAttribute("data-dragging", "true");
-  expect(await timeOf(day1Table, "西湖")).toBe("09:00–12:00");
+  await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "540");
   await shot(page, "01-dragging", { dragging: true });
   await page.mouse.up();
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("10:00–13:00");

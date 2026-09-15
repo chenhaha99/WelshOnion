@@ -53,6 +53,9 @@ const LONG_PRESS_SLOP_PX = 10;
 const TOUCH_CLICK_GUARD_MS = 500;
 /** 手指抬起后多久恢复页面选字（毫秒）：iOS 可能在抬起之后才开始选字 */
 const RESTORE_SELECT_MS = 300;
+// 页面只有一个根元素，恢复选字的计时也只留一个、放在所有时间轴外面：切视图卸掉的时间轴留下的计时，
+// 不能在新装上的时间轴按住时把选字恢复了
+let restoreSelectTimer: number | undefined;
 
 /** 指针在一行的横轴上，还是在某一行右边的「没排时间」栏里。 */
 type Zone = { kind: "axis" } | { kind: "tray"; row: number };
@@ -179,7 +182,6 @@ export function useTimelineDrag({
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const longPress = useRef<number | undefined>(undefined);
-  const restoreSelect = useRef<number | undefined>(undefined);
   const update = (next: Drag | null) => {
     const previous = dragRef.current;
     dragRef.current = next;
@@ -189,11 +191,11 @@ export function useTimelineDrag({
     // 手指按住时整个页面暂时不能选字：iOS 长按会选中旁边的字，只给被按的元素设不够；按住结束后过一会儿恢复
     const root = document.documentElement.style;
     if (next?.touch && !previous) {
-      window.clearTimeout(restoreSelect.current);
+      window.clearTimeout(restoreSelectTimer);
       root.setProperty("-webkit-user-select", "none");
       root.setProperty("user-select", "none");
     } else if (!next && previous?.touch) {
-      restoreSelect.current = window.setTimeout(() => {
+      restoreSelectTimer = window.setTimeout(() => {
         root.removeProperty("-webkit-user-select");
         root.removeProperty("user-select");
       }, RESTORE_SELECT_MS);

@@ -11,7 +11,7 @@ interface FilterChipsProps {
   onChange: (next: string[]) => void;
 }
 
-/** 日期列表上面的一排筛选按钮：可以同时按下几个，都不按就是全都看；有按下时末尾一个清空按钮。状态、类型两排共用。 */
+/** 切换视图的按钮上面的一排筛选按钮：可以同时按下几个，都不按就是全都看；有按下时末尾一个清空按钮。状态、类型两排共用。 */
 export function FilterChips({ label, lead, clearLabel, items, selected, onChange }: FilterChipsProps) {
   return (
     <div role="group" aria-label={label} className="flex flex-wrap items-center gap-2 text-sm">

@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { DAY1, addBlocks, newPlan, schedule } from "./timeline-helpers";
+import { DAY1, addBlocks, newPlan, schedule, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 const SHIFT = "这天从这件起往后推迟";
@@ -23,6 +23,7 @@ test("推迟：手机上点开下一件推迟 30 分钟 → 再推 15 分钟 →
   await schedule(page, table, "西湖", "09:00", "3");
   await schedule(page, table, "午饭", "12:00", "1");
   await schedule(page, table, "灵隐寺", "14:00", "2");
+  await showView(page, "时间轴");
 
   // 点开午饭推迟 30 分钟：午饭和灵隐寺往后挪，西湖不动；详情关掉，焦点回到竖条
   const lunch = timeline.getByRole("button", { name: /^午饭 / });

@@ -5,7 +5,7 @@ import { addBlock, deleteDay, setDays, type AddBlockInput } from "@welshonion/co
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openStoredPlan, stubNarrowScreen } from "./test-helpers";
+import { dayLabels, daysFromOct1, openDayMenu, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
 
 // 测试里「现在」是 2026-09-14 18:00（北京），系统时区是北京，见 app/test-render.tsx
 
@@ -29,7 +29,9 @@ function daysFrom(plan: Y.Doc, startDate: string, count: number): string[] {
   return result.value.baseIds;
 }
 
+/** 切到时间轴视图，返回「时间轴」卡片。 */
 async function timeline(): Promise<HTMLElement> {
+  await showView("时间轴");
   return screen.findByRole("region", { name: "时间轴" });
 }
 
@@ -101,6 +103,34 @@ describe("打开时落在哪一天", () => {
       deleteDay(plan, today!);
     });
     await waitFor(async () => expect(await shownDay()).toBe("第 2 天 · 9.15 周二"));
+  });
+
+  it("切到列表再切回来：还是切走前看的那天", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFrom(plan, "2026-09-13", 3));
+    const region = await timeline();
+    await waitFor(async () => expect(await shownDay()).toBe("第 2 天 · 9.14 周一"));
+    await user.click(within(region).getByRole("button", { name: "后一天" }));
+    expect(await shownDay()).toBe("第 3 天 · 9.15 周二");
+
+    await showView("列表");
+    expect(screen.queryByRole("region", { name: "时间轴" })).toBeNull();
+
+    expect(await shownDay()).toBe("第 3 天 · 9.15 周二");
+  });
+
+  it("在列表里删了前面的一天，切回来还是原来那天", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFrom(plan, "2026-09-13", 4));
+    const region = await timeline();
+    await waitFor(async () => expect(await shownDay()).toBe("第 2 天 · 9.14 周一"));
+    await user.click(within(region).getByRole("button", { name: "后一天" }));
+    expect(await shownDay()).toBe("第 3 天 · 9.15 周二");
+
+    await user.click(within(await openDayMenu(user, "9.13")).getByRole("menuitem", { name: "删除这天" }));
+    await waitFor(async () => expect(await dayLabels()).toHaveLength(3));
+
+    expect(await shownDay()).toBe("第 2 天 · 9.15 周二");
   });
 });
 
@@ -200,7 +230,7 @@ describe("空的时候", () => {
     });
 
     const region = await timeline();
-    expect(await within(region).findByText("排上时间的事会画在这里：在下面的安排表里点时间格")).toBeTruthy();
+    expect(await within(region).findByText("排上时间的事会画在这里：在列表里点时间格")).toBeTruthy();
     expect(region.textContent).not.toContain("右边");
   });
 });

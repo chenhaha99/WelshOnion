@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { readLibrary, readPlan, setDays, type LibraryView, type PlanView } from "@welshonion/core";
 import { vi } from "vitest";
@@ -59,15 +59,36 @@ export function stubNarrowScreen(): void {
   }));
 }
 
+/** 切到「时间轴」或「列表」视图；已经是就不动。 */
+export async function showView(name: "时间轴" | "列表"): Promise<void> {
+  // 找日期列表的辅助函数每次都先调它，用 CSS 选择器找，比按读屏名找快
+  const button = await waitFor(() => {
+    const found = [...document.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="视图"] button')].find(
+      (item) => item.textContent === name,
+    );
+    if (!found) throw new Error("计划页上还没有「视图」切换按钮");
+    return found;
+  });
+  if (button.getAttribute("aria-pressed") !== "true") fireEvent.click(button);
+}
+
+/** 「视图」里按下的是哪个：「时间轴」或「列表」。 */
+export function pressedView(): string | null {
+  return document.querySelector('[role="group"][aria-label="视图"] button[aria-pressed="true"]')?.textContent ?? null;
+}
+
+/** 每天的标签。先切到列表。 */
 export async function dayLabels(): Promise<string[]> {
+  await showView("列表");
   const list = await screen.findByRole("list", { name: "日期列表" });
   return within(list)
     .getAllByRole("listitem")
     .map((row) => row.querySelector("[data-day-label]")?.textContent ?? "");
 }
 
-/** 标签里含 text 的那一行（比如「10.2」）。 */
+/** 标签里含 text 的那一行（比如「10.2」）。先切到列表：要断言「切到了列表」的，在调它之前看 pressedView。 */
 export async function dayRow(text: string): Promise<HTMLElement> {
+  await showView("列表");
   const list = await screen.findByRole("list", { name: "日期列表" });
   const row = within(list)
     .getAllByRole("listitem")

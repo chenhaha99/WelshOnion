@@ -68,7 +68,7 @@ describe("按状态筛选", () => {
   it("一件事都没有时没有「只看」那一排；加了第一件事就出现", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    await screen.findByRole("region", { name: "时间轴" });
+    await screen.findByRole("region", { name: "钱的总览" });
     expect(screen.queryByRole("group", { name: "按状态筛选" })).toBeNull();
 
     await user.type(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }), "西湖{Enter}");

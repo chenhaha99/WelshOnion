@@ -82,7 +82,7 @@ function summaryOf(kind: string): string | null {
 }
 
 describe("按天、按类型切换", () => {
-  it("默认按天；点「按类型」换成类型分组，时间轴和钱的总览照旧；点「按天」换回来", async () => {
+  it("默认按天；点「按类型」换成类型分组，钱的总览照旧；点「按天」换回来", async () => {
     const user = userEvent.setup();
     await openStoredPlan(trip);
 
@@ -95,7 +95,6 @@ describe("按天、按类型切换", () => {
     expect(within(toggle).getByRole("button", { name: "按类型" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.queryByRole("list", { name: "日期列表" })).toBeNull();
     expect(screen.getByRole("list", { name: "类型分组" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "时间轴" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "钱的总览" })).toBeTruthy();
 
     await switchTo(user, "按天");

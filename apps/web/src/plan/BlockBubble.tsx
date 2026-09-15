@@ -3,6 +3,7 @@ import { useId, type ReactNode } from "react";
 import { Popover } from "../app/Popover";
 import { distanceKmText } from "./block-details";
 import { durationLabel } from "./block-time";
+import { useEditInList } from "./edit-in-list";
 import { moneyCellEmpty, moneyCellLabel, type MoneyCell } from "./money-cells";
 
 const TRANSPORT_NAMES: Readonly<Record<TransportMode, string>> = { drive: "自驾", transit: "公共交通", walk: "步行" };
@@ -56,9 +57,10 @@ interface BlockBubbleProps {
   onShiftLater: ((deltaMin: number) => void) | undefined;
 }
 
-/** 详情：只读，要改就「在表里改」跳到安排表那一行；排上时间的还能把这天从这件起往后推迟。 */
+/** 详情：只读，要改就「在表里改」切到列表里那一行；排上时间的还能把这天从这件起往后推迟。 */
 function BlockBubble({ block, time, moneyCell, close, onShiftLater }: BlockBubbleProps) {
   const shiftLabelId = useId();
+  const editInList = useEditInList();
   const duration = block.duration_min ?? 0;
   // 没排时间的块，时间格的字里已经带着时长
   const timeLine = block.start_minute === null || duration === 0 ? time : `${time} · ${durationLabel(duration)}`;
@@ -103,7 +105,7 @@ function BlockBubble({ block, time, moneyCell, close, onShiftLater }: BlockBubbl
           className="btn btn-ghost"
           onClick={() => {
             close();
-            focusInTable(block.id);
+            editInList(block.id);
           }}
         >
           在表里改
@@ -111,13 +113,6 @@ function BlockBubble({ block, time, moneyCell, close, onShiftLater }: BlockBubbl
       </div>
     </div>
   );
-}
-
-/** 表和时间轴用同一个筛选：时间轴上看得见的块，表里一定有这一行。 */
-function focusInTable(blockId: string): void {
-  const title = document.querySelector<HTMLElement>(`tr[data-block-id="${blockId}"] input[aria-label="标题"]`)!;
-  title.scrollIntoView({ block: "center" });
-  title.focus();
 }
 
 /** 「自驾 · 132 公里」；没有交通方式、没有距离时各自不写，都没有是 null。 */

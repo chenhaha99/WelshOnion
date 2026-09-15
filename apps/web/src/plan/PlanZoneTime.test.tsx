@@ -5,7 +5,7 @@ import { addBlock, addDayInTz } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockTexts, daysFromOct1, openStoredPlan } from "./test-helpers";
+import { blockTexts, daysFromOct1, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -31,6 +31,7 @@ describe("跨时区的时间写两地的时刻", () => {
     const user = userEvent.setup();
     await openStoredPlan(flyToLosAngeles);
 
+    await showView("时间轴");
     const timeline = await screen.findByRole("region", { name: "时间轴" });
     const row = within(timeline)
       .getAllByRole("listitem")

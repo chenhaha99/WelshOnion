@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-// 时间轴走查共用：建计划、在安排表里加事排时间、在时间轴上量位置、用鼠标拖
+// 时间轴走查共用：建计划、切换时间轴和列表、在安排表里加事排时间、在时间轴上量位置、用鼠标拖
 
 export const DAY1 = /10\.1 周四 的安排/;
 export const DAY2 = /10\.2 周五 的安排/;
@@ -11,7 +11,9 @@ export interface Point {
   y: number;
 }
 
-/** 新建一个计划、定好几天。默认 10.1 出发、在 1280 × 900 的窗口里。 */
+type ViewName = "时间轴" | "列表";
+
+/** 新建一个计划、定好几天。默认 10.1 出发、在 1280 × 900 的窗口里。建好是列表视图。 */
 export async function newPlan(
   page: Page,
   dayCount = 2,
@@ -28,16 +30,46 @@ export async function newPlan(
   await expect(page.getByRole("list", { name: "日期列表" }).getByRole("listitem")).toHaveCount(dayCount);
 }
 
-export async function addBlocks(page: Page, table: Locator, titles: string[]): Promise<void> {
-  await table.getByRole("textbox", { name: "加一件事" }).click();
-  for (const title of titles) {
-    await page.keyboard.type(title);
-    await page.keyboard.press("Enter");
-  }
+async function pressedView(page: Page): Promise<ViewName> {
+  return (await page.getByRole("group", { name: "视图" }).getByRole("button", { pressed: true }).innerText()) as ViewName;
 }
 
-/** 安排表里标题是 title 的那一行。排时间会改变行的先后，所以按标题找到块 id 再定位。 */
+/** 切到「时间轴」或「列表」视图；已经是就不点。点了页面会滚到切换按钮贴在顶上。 */
+export async function showView(page: Page, name: ViewName): Promise<void> {
+  if ((await pressedView(page)) === name) return;
+  const views = page.getByRole("group", { name: "视图" });
+  await views.getByRole("button", { name }).click();
+  await expect(views.getByRole("button", { name, pressed: true })).toBeVisible();
+}
+
+/**
+ * 在列表视图里做 action，做完切回原来的视图。读表、改表的辅助函数都这样：拖拽走查里拖一下、读一下表，测试里不用来回切。
+ * 拖着没松手时不能用：一点切换按钮就松手了。
+ */
+async function inList<T>(page: Page, action: () => Promise<T>): Promise<T> {
+  const before = await pressedView(page);
+  await showView(page, "列表");
+  const result = await action();
+  await showView(page, before);
+  return result;
+}
+
+export async function addBlocks(page: Page, table: Locator, titles: string[]): Promise<void> {
+  await inList(page, async () => {
+    await table.getByRole("textbox", { name: "加一件事" }).click();
+    for (const title of titles) {
+      await page.keyboard.type(title);
+      await page.keyboard.press("Enter");
+    }
+  });
+}
+
+/**
+ * 安排表里标题是 title 的那一行。排时间会改变行的先后，所以按标题找到块 id 再定位。
+ * 只切到列表、不切回：返回的行后面还要点。
+ */
 export async function rowOf(table: Locator, title: string): Promise<Locator> {
+  await showView(table.page(), "列表");
   const id = await table
     .locator("tr[data-block-id]")
     .evaluateAll(
@@ -53,52 +85,60 @@ export async function rowOf(table: Locator, title: string): Promise<Locator> {
 
 /** 安排表里标题是 title 的有几行。 */
 export async function countRows(table: Locator, title: string): Promise<number> {
-  return table
-    .locator("tr[data-block-id]")
-    .evaluateAll(
-      (rows, wanted) =>
-        rows.filter((row) => row.querySelector<HTMLInputElement>('input[aria-label="标题"]')?.value === wanted).length,
-      title,
-    );
+  return inList(table.page(), () =>
+    table
+      .locator("tr[data-block-id]")
+      .evaluateAll(
+        (rows, wanted) =>
+          rows.filter((row) => row.querySelector<HTMLInputElement>('input[aria-label="标题"]')?.value === wanted).length,
+        title,
+      ),
+  );
 }
 
 export async function timeOf(table: Locator, title: string): Promise<string> {
-  return (await rowOf(table, title)).locator("[data-block-time]").innerText();
+  return inList(table.page(), async () => (await rowOf(table, title)).locator("[data-block-time]").innerText());
 }
 
 export async function pickKind(page: Page, table: Locator, title: string, kind: string): Promise<void> {
-  await (await rowOf(table, title)).getByRole("button", { name: /^类型：/ }).click();
-  // 选项旁边有「「住宿」的操作」按钮，按名字找选项要精确匹配
-  await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
+  await inList(page, async () => {
+    await (await rowOf(table, title)).getByRole("button", { name: /^类型：/ }).click();
+    // 选项旁边有「「住宿」的操作」按钮，按名字找选项要精确匹配
+    await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
+  });
 }
 
 export async function schedule(page: Page, table: Locator, title: string, start: string, hours: string, minutes = "0") {
-  await (await rowOf(table, title)).getByRole("button", { name: "时间" }).click();
-  const editor = page.getByRole("group", { name: `${title} 的时间` });
-  await editor.getByLabel("开始").fill(start);
-  await editor.getByRole("spinbutton", { name: "小时" }).fill(hours);
-  await editor.getByRole("spinbutton", { name: "分钟" }).fill(minutes);
-  await editor.getByRole("button", { name: "排上时间" }).click();
-  await expect(editor).toBeHidden();
+  await inList(page, async () => {
+    await (await rowOf(table, title)).getByRole("button", { name: "时间" }).click();
+    const editor = page.getByRole("group", { name: `${title} 的时间` });
+    await editor.getByLabel("开始").fill(start);
+    await editor.getByRole("spinbutton", { name: "小时" }).fill(hours);
+    await editor.getByRole("spinbutton", { name: "分钟" }).fill(minutes);
+    await editor.getByRole("button", { name: "排上时间" }).click();
+    await expect(editor).toBeHidden();
+  });
 }
 
 /** 没排时间的事：放进哪一格（不给就留在整天），只存时长（不给就不填）。 */
 export async function keepUndated(page: Page, table: Locator, title: string, slot?: "上午" | "下午" | "晚上", hours?: string) {
-  if (slot !== undefined) {
-    await (await rowOf(table, title)).getByRole("button", { name: "时间" }).click();
-    const editor = page.getByRole("group", { name: `${title} 的时间` });
-    // 选了格子，编辑区就收起
-    await editor.getByLabel("格子").selectOption({ label: slot });
-    await expect(editor).toBeHidden();
-  }
-  if (hours !== undefined) {
-    await (await rowOf(table, title)).getByRole("button", { name: "时间" }).click();
-    const editor = page.getByRole("group", { name: `${title} 的时间` });
-    await editor.getByRole("spinbutton", { name: "小时" }).fill(hours);
-    await editor.getByRole("spinbutton", { name: "分钟" }).fill("0");
-    await editor.getByRole("button", { name: "只存时长" }).click();
-    await expect(editor).toBeHidden();
-  }
+  await inList(page, async () => {
+    if (slot !== undefined) {
+      await (await rowOf(table, title)).getByRole("button", { name: "时间" }).click();
+      const editor = page.getByRole("group", { name: `${title} 的时间` });
+      // 选了格子，编辑区就收起
+      await editor.getByLabel("格子").selectOption({ label: slot });
+      await expect(editor).toBeHidden();
+    }
+    if (hours !== undefined) {
+      await (await rowOf(table, title)).getByRole("button", { name: "时间" }).click();
+      const editor = page.getByRole("group", { name: `${title} 的时间` });
+      await editor.getByRole("spinbutton", { name: "小时" }).fill(hours);
+      await editor.getByRole("spinbutton", { name: "分钟" }).fill("0");
+      await editor.getByRole("button", { name: "只存时长" }).click();
+      await expect(editor).toBeHidden();
+    }
+  });
 }
 
 /** 在 title 这块上加一笔钱：金额 yuan；给了 note 就填说明，给了 kind 就把这笔钱改成那个类型。加完收起钱的编辑区。 */
@@ -109,23 +149,26 @@ export async function addMoney(
   yuan: string,
   { kind, note }: { kind?: string; note?: string } = {},
 ): Promise<void> {
-  const row = await rowOf(table, title);
-  await row.getByRole("button", { name: "钱" }).click();
-  const editor = page.getByRole("group", { name: `${title} 的钱` });
-  await editor.getByRole("textbox", { name: "新一笔的金额" }).fill(yuan);
-  if (note !== undefined) await editor.getByRole("textbox", { name: "新一笔的说明" }).fill(note);
-  await page.keyboard.press("Enter");
-  const added = editor.locator("[data-expense-id]").last();
-  await expect(added.getByRole("textbox", { name: "金额" })).toHaveValue(yuan);
-  if (kind !== undefined) {
-    await added.getByRole("button", { name: /^类型：/ }).click();
-    await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
-    await expect(added.getByRole("button", { name: `类型：${kind}` })).toBeVisible();
-  }
-  await row.getByRole("button", { name: "钱" }).click();
-  await expect(editor).toBeHidden();
+  await inList(page, async () => {
+    const row = await rowOf(table, title);
+    await row.getByRole("button", { name: "钱" }).click();
+    const editor = page.getByRole("group", { name: `${title} 的钱` });
+    await editor.getByRole("textbox", { name: "新一笔的金额" }).fill(yuan);
+    if (note !== undefined) await editor.getByRole("textbox", { name: "新一笔的说明" }).fill(note);
+    await page.keyboard.press("Enter");
+    const added = editor.locator("[data-expense-id]").last();
+    await expect(added.getByRole("textbox", { name: "金额" })).toHaveValue(yuan);
+    if (kind !== undefined) {
+      await added.getByRole("button", { name: /^类型：/ }).click();
+      await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
+      await expect(added.getByRole("button", { name: `类型：${kind}` })).toBeVisible();
+    }
+    await row.getByRole("button", { name: "钱" }).click();
+    await expect(editor).toBeHidden();
+  });
 }
 
+/** 时间轴上这一天的那一行。不切视图：用之前要在时间轴视图里（box 会切）。 */
 export function timelineRow(page: Page, day: "10.1" | "10.2" | "10.3"): Locator {
   return page.getByRole("region", { name: "时间轴" }).getByRole("listitem", { name: new RegExp(day.replace(".", "\\.")) });
 }
@@ -148,10 +191,11 @@ export function chip(row: Locator, title: string): Locator {
 }
 
 /**
- * 量时间轴里某个元素在屏幕上的位置。先把整张时间轴滚进屏幕：在下面的安排表里点过以后页面会往下滚，
- * 时间轴跑到屏幕上面，量出来的点在屏幕外，鼠标按下去什么都收不到。整张卡片一次滚好，前后量的几个点才对得上。
+ * 量时间轴里某个元素在屏幕上的位置。先切到时间轴视图，再把整张时间轴滚进屏幕：
+ * 量出来的点在屏幕外，鼠标按下去什么都收不到。整张卡片一次滚好，前后量的几个点才对得上。
  */
 export async function box(locator: Locator) {
+  await showView(locator.page(), "时间轴");
   await locator.page().getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
   const found = await locator.boundingBox();
   if (!found) throw new Error("量不到位置");

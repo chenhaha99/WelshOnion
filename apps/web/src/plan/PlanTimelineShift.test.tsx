@@ -5,7 +5,7 @@ import { addBlock, type AddBlockInput } from "@welshonion/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openStoredPlan, stubNarrowScreen } from "./test-helpers";
+import { daysFromOct1, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -37,7 +37,9 @@ function threeThings(plan: Y.Doc, library: Y.Doc, confirmed: readonly string[] =
   }
 }
 
+/** 切到时间轴视图，返回「时间轴」卡片。 */
 async function timeline(): Promise<HTMLElement> {
+  await showView("时间轴");
   return screen.findByRole("region", { name: "时间轴" });
 }
 

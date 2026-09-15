@@ -12,6 +12,11 @@
 }
 
 @layer base {
+  /* 计划页切换视图的按钮贴在屏幕顶上：键盘挪焦点、滚到某个框时，别把框停在它底下 */
+  html {
+    scroll-padding-top: 3.5rem;
+  }
+
   body {
     min-height: 100vh;
     color: var(--color-ink);

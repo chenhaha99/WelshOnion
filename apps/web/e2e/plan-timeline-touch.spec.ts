@@ -15,6 +15,7 @@ import {
   newPlan,
   schedule,
   segment,
+  showView,
   timelineRow,
   timeOf,
 } from "./timeline-helpers";
@@ -69,7 +70,8 @@ test("手机上用手指：长按拿起 → 挪晚 1 小时 → 点一下开详�
   await expect(label).toHaveText("10:00–13:00");
   await expect(ghost).toHaveAttribute("data-from", "600");
   await expect(ghost).toHaveAttribute("data-to", "780");
-  expect(await timeOf(day1Table, "西湖")).toBe("09:00–12:00");
+  // 拖着时切不了视图，不去看表：竖条还在 09:00
+  await expect(segment(timeline, "西湖")).toHaveAttribute("data-from", "540");
   await shot(page, "01-phone-lifted", { dragging: true });
   await fingerUp(page);
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("10:00–13:00");
@@ -169,6 +171,7 @@ test("手机上：拖到框边自己滚、回到中间就停 → 鼠标拖：不
   const label = page.locator("[data-drag-label]");
 
   // 框滚到 08:00 在最上面；长按灵隐寺，挪到框的下边上：框往下滚
+  await showView(page, "时间轴");
   await scroller.evaluate((element, hourHeight) => {
     element.scrollTop = 8 * hourHeight;
   }, HOUR_HEIGHT);
@@ -250,9 +253,11 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   expect(await pageScrollY(page)).toBe(scrollBefore);
   await shot(page, "04-wide-finger", { dragging: true });
   await fingerUp(page);
+  // 先看页面没滚，再去读表：读表要切到列表，切换时页面会滚
+  await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "600");
+  expect(await pageScrollY(page)).toBe(scrollBefore);
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("10:00–13:00");
   await expect(page.getByRole("dialog", { name: "西湖" })).toHaveCount(0);
-  expect(await pageScrollY(page)).toBe(scrollBefore);
 
   // 点一下：打开详情；长按不挪就抬起：不改、不开详情
   const lakeDetails = page.getByRole("dialog", { name: "西湖" });
@@ -275,14 +280,15 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   await fingerUp(page);
   await expect.poll(() => timeOf(day1Table, "灵隐寺")).toBe("14:00–16:00");
 
-  // 没长按就往上滑：滚的是页面，没有预览框。放在最后：从时间轴上快速滑到页面底以后，
-  // Chromium 模拟的手指在一两秒里点不出点击（惯性把那一下吃了），后面再点、再按会不稳
+  // 没长按就往下滑：滚的是页面（往回滚），没有预览框。切换按钮贴顶时时间轴下面没有别的了，往上滑滚不动，所以往下滑。
+  // 放在最后：在时间轴上快速滑过以后，Chromium 模拟的手指在一两秒里点不出点击（惯性把那一下吃了），后面再点、再按会不稳
   const lakeNow = center(await box(segment(day1, "西湖")));
   const beforeSwipe = await pageScrollY(page);
+  expect(beforeSwipe).toBeGreaterThan(200);
   await fingerDown(page, lakeNow);
-  await fingerMove(page, lakeNow, { x: lakeNow.x, y: lakeNow.y - 200 }, 10);
+  await fingerMove(page, lakeNow, { x: lakeNow.x, y: lakeNow.y + 200 }, 10);
   await fingerUp(page);
-  await expect.poll(() => pageScrollY(page)).toBeGreaterThan(beforeSwipe);
+  await expect.poll(() => pageScrollY(page)).toBeLessThan(beforeSwipe);
   await expect(ghost).toHaveCount(0);
   expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
 

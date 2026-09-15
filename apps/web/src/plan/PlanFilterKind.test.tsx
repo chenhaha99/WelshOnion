@@ -5,7 +5,7 @@ import { addBlock, addExpense, setBlockStatus, type AddBlockInput } from "@welsh
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, blockTitles, dayRow, daysFromOct1, openStoredPlan } from "./test-helpers";
+import { blockRow, blockTitles, dayRow, daysFromOct1, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -71,7 +71,7 @@ describe("按类型筛选", () => {
   it("一个块、一笔钱都没有时没有这一排", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
 
-    await screen.findByRole("region", { name: "时间轴" });
+    await screen.findByRole("region", { name: "钱的总览" });
     expect(screen.queryByRole("group", { name: "按类型筛选" })).toBeNull();
   });
 
@@ -114,6 +114,7 @@ describe("按类型筛选", () => {
     expect(within(kindGroup()).getByRole("button", { name: "住宿" }).getAttribute("aria-pressed")).toBe("true");
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿"]));
     expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
+    await showView("时间轴");
     const tray = within(await screen.findByRole("region", { name: "时间轴" })).getByRole("group", { name: "没排时间" });
     expect(within(tray).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["民宿 整天"]);
   });
@@ -240,6 +241,7 @@ describe("按类型筛选时的钱", () => {
     await pressKind(user, "住宿");
 
     await waitFor(async () => expect(await moneyCellOf("10.1", "酒店")).toEqual({ label: "填钱", note: "另有别的类型的钱" }));
+    await showView("时间轴");
     const timeline = await screen.findByRole("region", { name: "时间轴" });
     await user.click(within(timeline).getAllByRole("button", { name: /^酒店 / })[0]!);
     const dialog = screen.getByRole("dialog", { name: "酒店" });

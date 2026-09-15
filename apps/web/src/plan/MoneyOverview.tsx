@@ -20,7 +20,7 @@ interface MoneyOverviewProps {
 }
 
 /**
- * 日期列表上面的钱的总览：总额、人均、已填几笔、还有几个块没挂钱，任何时候都显示（渐进），按筛选算；
+ * 切换视图的按钮上面的钱的总览（时间轴、列表两个视图都有）：总额、人均、已填几笔、还有几个块没挂钱，任何时候都显示（渐进），按筛选算；
  * 旁边「不属于任何一天」点开增删改不挂块的钱（签证、保险）。
  */
 export function MoneyOverview({ doc, library, libraryView, plan, filter }: MoneyOverviewProps) {

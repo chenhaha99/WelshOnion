@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { DAY1, addBlocks, addMoney, newPlan, pickKind, rowOf, schedule } from "./timeline-helpers";
+import { DAY1, addBlocks, addMoney, newPlan, pickKind, rowOf, schedule, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 test("按类型筛选：只看住宿 → 钱格另有别的类型、挂在被筛掉的事上 → 和状态一起 → 全部类型 → 手机", async ({ page }) => {
@@ -29,7 +29,9 @@ test("按类型筛选：只看住宿 → 钱格另有别的类型、挂在被筛
   await expect(inn.locator("[data-money-note]")).toHaveText("另有别的类型的钱");
   await expect(page.getByText("有 ¥300 挂在被筛掉的事上")).toBeVisible();
   await expect(page.getByRole("region", { name: "钱的总览" })).toContainText("总额 ¥780");
+  await showView(page, "时间轴");
   await expect(page.getByRole("region", { name: "时间轴" }).locator("[data-segment]")).toHaveCount(1);
+  await showView(page, "列表");
   await shot(page, "01-lodging-only");
 
   // 和状态一起：民宿还是待定，再按「已确认」，一件都不显示；取消状态

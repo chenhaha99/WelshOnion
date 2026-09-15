@@ -35,20 +35,37 @@ interface DayTimelineProps {
   filter: StatsFilter | undefined;
   /** 详情里「这天从这件起往后推迟」的做法 */
   shiftLater: (block: BlockView, deltaMin: number) => void;
+  /** 看的是哪天（底座 id），记在 DayList 里：切到列表时这里卸掉，切回来接着看这天 */
+  shownDay: { current: string | null };
 }
 
 /**
  * 窄屏上的时间轴：一次看一天，纵向 0–24 点按真实比例，放在能上下滚的框里。
- * 打开时落在今天（没出发是第一天，已结束是最后一天），滚到现在或这天第一件事；只在打开、翻天时滚。
+ * 打开时落在今天（没出发是第一天，已结束是最后一天），切到列表再切回来还是原来那天；滚到现在或这天第一件事，只在打开、翻天时滚。
  * 块画成竖条，同一层重叠的并排成列，停留、住宿这类在左边的细条里；竖条能拖着挪时间（见 use-timeline-drag）。
  * 框下面列出这天没排时间的事（没有就不出现），那里的事不能拖。
  */
-export function DayTimeline({ doc, library, plan, libraryView, rows, labels, moneyCells, filter, shiftLater }: DayTimelineProps) {
+export function DayTimeline({
+  doc,
+  library,
+  plan,
+  libraryView,
+  rows,
+  labels,
+  moneyCells,
+  filter,
+  shiftLater,
+  shownDay,
+}: DayTimelineProps) {
   const now = useNow();
   const timeZone = useTimeZone();
   const today = todayIn(now(), timeZone);
   const todayIndex = initialDayIndex(plan.bases, today);
-  const [chosen, setChosen] = useState(todayIndex);
+  // 切走前看的那天还在就接着看（在列表里删了前面的天也还是那天），不然按今天落
+  const [chosen, setChosen] = useState(() => {
+    const shown = plan.bases.findIndex((item) => item.id === shownDay.current);
+    return shown >= 0 ? shown : todayIndex;
+  });
   // 计划里删了天、行数变少时，夹回最后一行
   const index = Math.min(chosen, plan.bases.length - 1);
   const base = plan.bases[index]!;
@@ -59,6 +76,7 @@ export function DayTimeline({ doc, library, plan, libraryView, rows, labels, mon
   const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter, day: index, scroller });
   // 只在打开、翻天时滚：改块、加块时这一行的 id 不变，不滚
   useLayoutEffect(() => {
+    shownDay.current = base.id;
     // 现在的钟点按这一天底座自己的时区算，出境后改过时区的那天也对
     const nowMinute = (Date.parse(now()) - baseStartUtcMs(base.date, base.tz)) / 60_000;
     scroller.current!.scrollTop = (scrollMinute(layout, base.date === today, nowMinute) / 60) * HOUR_HEIGHT;

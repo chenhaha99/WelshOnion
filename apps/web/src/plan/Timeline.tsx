@@ -43,15 +43,17 @@ interface TimelineProps {
   moneyCells: ReadonlyMap<string, MoneyCell>;
   /** 按状态筛选；没开是 undefined */
   filter?: StatsFilter;
-  /** 一件事都没有时点「加第一件事」：分组回到按天，焦点放到第 1 天的「加一件事」 */
+  /** 一件事都没有时点「加第一件事」：切到列表、分组回到按天，焦点放到第 1 天的「加一件事」 */
   onAddFirst: () => void;
+  /** 竖排看的是哪天（底座 id）：DayList 记着，切到列表再切回来接着看这天 */
+  shownDay: { current: string | null };
 }
 
 /**
  * 时间轴：屏幕够宽时横着铺（一天一行），窄屏上竖着铺、一次一天（见 DayTimeline）；两种都能拖（见 use-timeline-drag）。
  * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。
  */
-export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, onAddFirst }: TimelineProps) {
+export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, onAddFirst, shownDay }: TimelineProps) {
   const labels = dayRowLabels(plan.bases);
   const rows = useMemo(() => {
     const segments = timelineSegments(plan, filter);
@@ -74,7 +76,7 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, 
     <section aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
       <h2 className="text-sm font-medium text-ink">时间轴</h2>
       {plan.blocks.size === 0 ? (
-        // 一件事都没有：右边的栏、下面的表都是空的，「加一件事」又在第一屏外面，直接给个按钮
+        // 一件事都没有：右边的栏是空的，「加一件事」在列表里，直接给个按钮
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <p className="text-sm text-ink-muted">还没有事。加了事、排上时间，就会画在这里</p>
           <button type="button" className="btn btn-primary" onClick={onAddFirst}>
@@ -86,8 +88,8 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, 
         !hasTimed && (
           <p className="text-sm text-ink-muted">
             {wide
-              ? "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者在下面的安排表里点时间格"
-              : "排上时间的事会画在这里：在下面的安排表里点时间格"}
+              ? "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者在列表里点时间格"
+              : "排上时间的事会画在这里：在列表里点时间格"}
           </p>
         )
       )}
@@ -114,6 +116,7 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, 
           moneyCells={moneyCells}
           filter={filter}
           shiftLater={shiftLater}
+          shownDay={shownDay}
         />
       )}
     </section>

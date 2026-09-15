@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 async function pickKind(page: Page, row: Locator, kind: string): Promise<void> {
@@ -42,11 +43,13 @@ test("时间轴：排出一天 → 按时长画 → 看详情、在表里改 →
   await page.getByRole("button", { name: "确定" }).click();
 
   const timeline = page.getByRole("region", { name: "时间轴" });
-  // 刚建好、一件事都没有：提示去加第一件事
+  // 刚建好、一件事都没有：时间轴上提示去加第一件事
   const hint = timeline.getByText("还没有事。加了事、排上时间，就会画在这里");
+  await showView(page, "时间轴");
   await expect(hint).toBeVisible();
 
-  // 用表格排出一天：排时间不改变这几行的先后
+  // 在列表里用表格排出一天：排时间不改变这几行的先后
+  await showView(page, "列表");
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const rows = table.locator("tr[data-block-id]");
   await table.getByRole("textbox", { name: "加一件事" }).click();
@@ -61,6 +64,8 @@ test("时间轴：排出一天 → 按时长画 → 看详情、在表里改 →
   await schedule(page, rows.nth(2), "游船", "10:00", "1");
   await pickKind(page, rows.nth(3), "住宿");
   await schedule(page, rows.nth(3), "民宿", "22:00", "10");
+  await showView(page, "时间轴");
+  await expect(timeline.locator("[data-segment]").first()).toBeVisible();
   await expect(hint).toHaveCount(0);
 
   // 位置对得上时间（误差不到 5 分钟）
@@ -86,7 +91,7 @@ test("时间轴：排出一天 → 按时长画 → 看详情、在表里改 →
   await timeline.scrollIntoViewIfNeeded();
   await shot(page, "01-timeline");
 
-  // 点第二天那段看详情，在表里改：焦点落到 10.1 安排表「民宿」的标题框
+  // 点第二天那段看详情，在表里改：切到列表，焦点落到 10.1 安排表「民宿」的标题框
   await segment(day2, "民宿").getByRole("button").click();
   const bubble = page.getByRole("dialog", { name: "民宿" });
   await expect(bubble).toContainText("住宿 · 待定");
@@ -94,9 +99,11 @@ test("时间轴：排出一天 → 按时长画 → 看详情、在表里改 →
   await shot(page, "02-details");
   await bubble.getByRole("button", { name: "在表里改" }).click();
   await expect(bubble).toBeHidden();
+  await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name: "列表", pressed: true })).toBeVisible();
   await expect(rows.nth(3).getByRole("textbox", { name: "标题" })).toBeFocused();
 
   // 只用键盘：回车打开详情，Esc 关掉，焦点回到横条
+  await showView(page, "时间轴");
   const lakeBar = segment(day1, "西湖").getByRole("button");
   await lakeBar.focus();
   await page.keyboard.press("Enter");
