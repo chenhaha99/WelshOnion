@@ -61,28 +61,6 @@ export function clampLinear(value: number, rowCount: number): number {
   return Math.min(value, rowCount * MINUTES_PER_DAY - 1);
 }
 
-/** 预览框每行一段：开始先夹在计划里，按一行 1440 分钟切，超出最后一行的截掉；时长为 0 是一个点。 */
-export function previewSegments(
-  start: number,
-  duration: number,
-  rowCount: number,
-): Array<{ row: number; from: number; to: number }> {
-  const from = clampLinear(start, rowCount);
-  const first = splitLinear(from);
-  if (duration === 0) return [{ row: first.row, from: first.minute, to: first.minute }];
-
-  const end = from + duration;
-  const segments: Array<{ row: number; from: number; to: number }> = [];
-  for (let row = first.row; row < rowCount && row * MINUTES_PER_DAY < end; row++) {
-    const rowStart = row * MINUTES_PER_DAY;
-    segments.push({
-      row,
-      from: Math.max(from, rowStart) - rowStart,
-      to: Math.min(end, rowStart + MINUTES_PER_DAY) - rowStart,
-    });
-  }
-  return segments;
-}
 
 /**
  * 开始时刻换算成变回没排时间时的格子：06:00–11:59 上午、12:00–17:59 下午、18:00–23:59 晚上；

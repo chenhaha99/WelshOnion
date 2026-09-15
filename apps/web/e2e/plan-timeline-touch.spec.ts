@@ -52,30 +52,28 @@ test("手机上用手指：长按拿起 → 挪晚 1 小时 → 点一下开详�
   await schedule(page, day1Table, "西湖", "09:00", "3");
   const timeline = page.getByRole("region", { name: "时间轴" });
   const scroller = timeline.locator("[data-day-scroll]");
-  const ghost = timeline.locator("[data-drag-ghost]");
+  const lifted = timeline.locator("[data-lifted]");
   const label = page.locator("[data-drag-label]");
   const lakeDetails = page.getByRole("dialog", { name: "西湖" });
 
-  // 按住 0.5 秒拿起来：还没挪就有预览框，手指上方写着现在的时间，表里没变
+  // 按住 0.5 秒拿起来：还没挪就画成拿起来的样子，手指上方写着现在的时间
   const lake = center(await box(segment(timeline, "西湖")));
   await longPress(page, lake);
-  await expect(ghost).toHaveCount(1);
+  await expect(lifted).toHaveCount(1);
   await expect(label).toHaveText("09:00–12:00");
   const labelBox = (await label.boundingBox())!;
   expect(labelBox.y + labelBox.height).toBeLessThan(lake.y - 20);
-  await expect(segment(timeline, "西湖")).toHaveAttribute("data-dragging", "true");
+  await expect(segment(timeline, "西湖")).toHaveAttribute("data-lifted", "true");
 
-  // 往下挪 1 小时：预览框从 10:00 盖到 13:00；抬起才写进计划，不开详情
+  // 往下挪 1 小时：竖条画在 10:00–13:00；抬起才写进计划，不开详情
   await fingerMove(page, lake, { x: lake.x, y: lake.y + HOUR_HEIGHT });
   await expect(label).toHaveText("10:00–13:00");
-  await expect(ghost).toHaveAttribute("data-from", "600");
-  await expect(ghost).toHaveAttribute("data-to", "780");
-  // 拖着时切不了视图，不去看表：竖条还在 09:00
-  await expect(segment(timeline, "西湖")).toHaveAttribute("data-from", "540");
+  await expect(segment(timeline, "西湖")).toHaveAttribute("data-from", "600");
+  await expect(segment(timeline, "西湖")).toHaveAttribute("data-to", "780");
   await shot(page, "01-phone-lifted", { dragging: true });
   await fingerUp(page);
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("10:00–13:00");
-  await expect(ghost).toHaveCount(0);
+  await expect(lifted).toHaveCount(0);
   await expect(label).toHaveCount(0);
   await expect(lakeDetails).toHaveCount(0);
 
@@ -96,7 +94,7 @@ test("手机上用手指：长按拿起 → 挪晚 1 小时 → 点一下开详�
     ),
   ).toBe(true);
   await fingerUp(page);
-  await expect(ghost).toHaveCount(0);
+  await expect(lifted).toHaveCount(0);
   await expect(lakeDetails).toHaveCount(0);
   expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).userSelect)).not.toBe("none");
@@ -108,13 +106,13 @@ test("手机上用手指：长按拿起 → 挪晚 1 小时 → 点一下开详�
   await fingerMove(page, lakeNow, { x: lakeNow.x, y: lakeNow.y - 150 }, 10);
   await fingerUp(page);
   await expect.poll(() => scrollTopOf(scroller)).toBeGreaterThan(scrolledBefore);
-  await expect(ghost).toHaveCount(0);
+  await expect(lifted).toHaveCount(0);
   expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
 
   // 框下面「没排时间」的一件：长按拿不起来；点一下照样开详情
   const tray = timeline.getByRole("group", { name: "没排时间" });
   await longPress(page, center(await box(tray.getByRole("button", { name: "河坊街 整天" }))));
-  await expect(ghost).toHaveCount(0);
+  await expect(lifted).toHaveCount(0);
   await expect(label).toHaveCount(0);
   await fingerUp(page);
   await page.keyboard.press("Escape");
@@ -132,7 +130,7 @@ test("手机上用手指：长按拿起 → 挪晚 1 小时 → 点一下开详�
   await fingerMove(page, lakeAgain, { x: lakeAgain.x, y: lakeAgain.y + HOUR_HEIGHT });
   await expect(label).toHaveText("11:00–14:00");
   await fingerCancel(page);
-  await expect(ghost).toHaveCount(0);
+  await expect(lifted).toHaveCount(0);
   await expect(label).toHaveCount(0);
   expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).userSelect)).not.toBe("none");
@@ -221,10 +219,24 @@ test("手机上：拖到框边自己滚、回到中间就停 → 鼠标拖：不
   const hengdian = await box(segment(timeline, "横店"));
   await drag(page, palace, { x: hengdian.x + hengdian.width / 2, y: palace.y }, { release: false });
   await expect(segment(timeline, "横店")).toHaveAttribute("data-drop-target", "true");
+  await expect(segment(timeline, "明清宫苑")).toHaveAttribute("data-lane", "1");
+  await expect(segment(timeline, "明清宫苑")).toHaveAttribute("data-depth", "1");
   await shot(page, "03-phone-drop-onto", { dragging: true });
   await page.mouse.up();
   await expect(segment(timeline, "明清宫苑")).toHaveAttribute("data-lane", "1");
   await expect(segment(timeline, "明清宫苑")).toHaveAttribute("data-depth", "1");
+
+  // 鼠标，放旁边：把叠上去的明清宫苑横着拖到横店竖条的右边上（从左往右 85%），还没松手就画在第 2 列、不缩；松手后一样
+  const nested = center(await box(segment(timeline, "明清宫苑")));
+  const wholeHengdian = await box(segment(timeline, "横店"));
+  await drag(page, nested, { x: wholeHengdian.x + wholeHengdian.width * 0.85, y: nested.y }, { release: false });
+  await expect(timeline.locator('[data-drop-target="true"]')).toHaveCount(0);
+  await expect(segment(timeline, "明清宫苑")).toHaveAttribute("data-lane", "2");
+  await expect(segment(timeline, "明清宫苑")).toHaveAttribute("data-depth", "0");
+  await shot(page, "04-phone-drop-beside", { dragging: true });
+  await page.mouse.up();
+  await expect(segment(timeline, "明清宫苑")).toHaveAttribute("data-lane", "2");
+  await expect(segment(timeline, "明清宫苑")).toHaveAttribute("data-depth", "0");
   expect(await timeOf(day3Table, "明清宫苑")).toBe("10:00–12:00");
 
   expect(errors).toEqual([]);
@@ -239,15 +251,15 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   await keepUndated(page, day1Table, "灵隐寺", undefined, "2");
   const day1 = timelineRow(page, "10.1");
   const hour = await hourWidth(day1);
-  const ghost = page.locator("[data-drag-ghost]");
+  const lifted = page.locator("[data-lifted]");
   const label = page.locator("[data-drag-label]");
 
-  // 长按拿起：时间写在手指上方，预览框里不写字；斜着挪 1 小时，页面不跟着滚
+  // 长按拿起：画成拿起来的样子，时间写在手指上方；斜着挪 1 小时，页面不跟着滚
   const lake = center(await box(segment(day1, "西湖")));
   const scrollBefore = await pageScrollY(page);
   await longPress(page, lake);
   await expect(label).toHaveText("09:00–12:00");
-  await expect(ghost.first()).toHaveText("");
+  await expect(segment(day1, "西湖")).toHaveAttribute("data-lifted", "true");
   await fingerMove(page, lake, { x: lake.x + hour, y: lake.y - 60 });
   await expect(label).toHaveText("10:00–13:00");
   expect(await pageScrollY(page)).toBe(scrollBefore);
@@ -267,7 +279,7 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   await expect(lakeDetails).toBeHidden();
   await longPress(page, center(await box(segment(day1, "西湖"))));
   await fingerUp(page);
-  await expect(ghost).toHaveCount(0);
+  await expect(lifted).toHaveCount(0);
   await expect(lakeDetails).toHaveCount(0);
   expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
 
@@ -289,7 +301,7 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   await fingerMove(page, lakeNow, { x: lakeNow.x, y: lakeNow.y + 200 }, 10);
   await fingerUp(page);
   await expect.poll(() => pageScrollY(page)).toBeLessThan(beforeSwipe);
-  await expect(ghost).toHaveCount(0);
+  await expect(lifted).toHaveCount(0);
   expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
 
   expect(errors).toEqual([]);

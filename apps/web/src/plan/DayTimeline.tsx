@@ -9,16 +9,11 @@ import { todayIn } from "./day-labels";
 import type { MoneyCell } from "./money-cells";
 import { initialDayIndex, scrollMinute } from "./timeline-day";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
+import { daySegmentStyle, dayStripsWidth, HOUR_HEIGHT, LIFTED_Z_INDEX } from "./timeline-geometry";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { useTimelineDrag, type DragView, type SegmentHandlers } from "./use-timeline-drag";
 import { zoneTimeLabel } from "./zone-time";
-
-/** 竖排每小时多高、背景细条每条多宽（像素）；块和块之间留多少；叠在上面的块每级从左边缩多少 */
-const HOUR_HEIGHT = 48;
-const STRIP_WIDTH = 12;
-const GAP = 2;
-const DEPTH_INSET = 4;
 
 const noop = () => {};
 
@@ -42,7 +37,7 @@ interface DayTimelineProps {
 /**
  * 窄屏上的时间轴：一次看一天，纵向 0–24 点按真实比例，放在能上下滚的框里。
  * 打开时落在今天（没出发是第一天，已结束是最后一天），切到列表再切回来还是原来那天；滚到现在或这天第一件事，只在打开、翻天时滚。
- * 块画成竖条，同一层重叠的并排成列，停留、住宿这类在左边的细条里；竖条能拖着挪时间（见 use-timeline-drag）。
+ * 块画成竖条，同一层重叠的并排成列，停留、住宿这类在左边的细条里；竖条能拖着挪时间，拖动中画成松手后的样子（见 use-timeline-drag）。
  * 框下面列出这天没排时间的事（没有就不出现），那里的事不能拖。
  */
 export function DayTimeline({
@@ -69,7 +64,6 @@ export function DayTimeline({
   // 计划里删了天、行数变少时，夹回最后一行
   const index = Math.min(chosen, plan.bases.length - 1);
   const base = plan.bases[index]!;
-  const layout = rows[index]!;
   const inTrip = today >= plan.bases[0]!.date && today <= plan.bases[plan.bases.length - 1]!.date;
 
   const scroller = useRef<HTMLDivElement>(null);
@@ -79,18 +73,14 @@ export function DayTimeline({
     shownDay.current = base.id;
     // 现在的钟点按这一天底座自己的时区算，出境后改过时区的那天也对
     const nowMinute = (Date.parse(now()) - baseStartUtcMs(base.date, base.tz)) / 60_000;
-    scroller.current!.scrollTop = (scrollMinute(layout, base.date === today, nowMinute) / 60) * HOUR_HEIGHT;
+    scroller.current!.scrollTop = (scrollMinute(rows[index]!, base.date === today, nowMinute) / 60) * HOUR_HEIGHT;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base.id]);
 
-  const stripsWidth = layout.backgroundCount * STRIP_WIDTH;
+  // 拖动中画成松手后的样子；框下面的「没排时间」照原来的计划
+  const shownPlan = drag.dropped?.plan ?? plan;
+  const layout = (drag.dropped?.rows ?? rows)[index]!;
   const undated = undatedBlocks(plan, base, filter);
-  const preview = drag.preview;
-  // 预览框：主轨的块盖住主轨整宽，背景细条的块盖住细条那一栏；上下是松手后落在这一天里的那段
-  const ghostPlace: CSSProperties =
-    preview?.track === "background"
-      ? { left: 0, width: Math.max(stripsWidth, STRIP_WIDTH) - GAP }
-      : { left: stripsWidth === 0 ? 0 : stripsWidth + GAP, right: 0 };
 
   return (
     <div ref={drag.containerRef} data-timeline-dragging={drag.dragView ? true : undefined} className="flex flex-col gap-2">
@@ -144,45 +134,21 @@ export function DayTimeline({
                 key={`wash-${item.blockId}`}
                 aria-hidden
                 className="timeline-wash absolute right-0"
-                style={{ ...vertical(item), left: stripsWidth, ...kindColor(plan, item.blockId) }}
+                style={{ ...vertical(item), left: dayStripsWidth(layout), ...kindColor(shownPlan, item.blockId) }}
               />
             ))}
-            {layout.background.map((item) => (
+            {[...layout.background, ...layout.main].map((item) => (
               <DaySegment
-                key={`background-${item.blockId}`}
-                plan={plan}
+                key={`${item.track}-${item.blockId}`}
+                plan={shownPlan}
                 item={item}
-                place={{ left: (item.lane - 1) * STRIP_WIDTH, width: STRIP_WIDTH - GAP }}
+                place={daySegmentStyle(item, layout)}
                 moneyCell={moneyCells.get(item.blockId)}
                 dragView={drag.dragView}
                 handlers={drag.handlers}
                 shiftLater={shiftLater}
               />
             ))}
-            {layout.main.map((item) => (
-              <DaySegment
-                key={`main-${item.blockId}`}
-                plan={plan}
-                item={item}
-                place={column(item, layout.laneCount, stripsWidth)}
-                moneyCell={moneyCells.get(item.blockId)}
-                dragView={drag.dragView}
-                handlers={drag.handlers}
-                shiftLater={shiftLater}
-              />
-            ))}
-            {preview?.pieces
-              .filter((piece) => piece.row === index)
-              .map((piece) => (
-                <div
-                  key="ghost"
-                  data-drag-ghost
-                  data-from={piece.from}
-                  data-to={piece.to}
-                  className="timeline-ghost"
-                  style={{ ...ghostPlace, top: percent(piece.from), height: percent(piece.to - piece.from), minHeight: 2 }}
-                />
-              ))}
           </div>
         </div>
       </div>
@@ -227,6 +193,7 @@ function DaySegment({ plan, item, place, moneyCell, dragView, handlers, shiftLat
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
   const buttonClass = point ? "timeline-marker-h" : item.track === "background" ? "timeline-strip" : "timeline-bar";
+  const lifted = dragView?.liftedId === item.blockId;
 
   return (
     <div
@@ -240,11 +207,11 @@ function DaySegment({ plan, item, place, moneyCell, dragView, handlers, shiftLat
       data-pending={block.status.id === "pending"}
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
-      data-dragging={dragView?.blockId === item.blockId && !dragView.copying ? true : undefined}
+      data-lifted={lifted ? true : undefined}
       data-follower={dragView?.followers.includes(item.blockId) ? true : undefined}
       data-drop-target={dragView?.ontoId === item.blockId ? true : undefined}
       className="absolute"
-      style={{ ...vertical(item), ...place, zIndex: 1 + item.depth, ...kindColor(plan, item.blockId) }}
+      style={{ ...vertical(item), ...place, zIndex: lifted ? LIFTED_Z_INDEX : 1 + item.depth, ...kindColor(plan, item.blockId) }}
       onPointerDown={(event) => handlers.onPointerDown(event, item)}
       onClickCapture={handlers.onClickCapture}
     >
@@ -264,14 +231,4 @@ function DaySegment({ plan, item, place, moneyCell, dragView, handlers, shiftLat
 
 function vertical(item: PlacedSegment): CSSProperties {
   return { top: percent(item.from), height: percent(item.to - item.from) };
-}
-
-/** 主轨在背景细条右边，按道数平分成列；叠在上面的块从左边缩。 */
-function column(item: PlacedSegment, laneCount: number, stripsWidth: number): CSSProperties {
-  const offset = stripsWidth === 0 ? 0 : stripsWidth + GAP;
-  const inset = item.depth * DEPTH_INSET;
-  return {
-    left: `calc(${offset}px + (100% - ${offset}px) * ${(item.lane - 1) / laneCount} + ${inset}px)`,
-    width: `calc((100% - ${offset}px) / ${laneCount} - ${inset + GAP}px)`,
-  };
 }

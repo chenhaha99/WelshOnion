@@ -5,7 +5,6 @@ import {
   dragLabelPlace,
   dragResult,
   edgeScrollStep,
-  previewSegments,
   slotOfMinute,
   splitLinear,
   undatedStartMinute,
@@ -83,26 +82,6 @@ describe("线性位置", () => {
   });
 });
 
-describe("预览框每行一段", () => {
-  it("跨午夜切成两段", () => {
-    expect(previewSegments(1320, 600, 2)).toEqual([
-      { row: 0, from: 1320, to: 1440 },
-      { row: 1, from: 0, to: 480 },
-    ]);
-  });
-
-  it("超出最后一行的截掉", () => {
-    expect(previewSegments(1380, 300, 1)).toEqual([{ row: 0, from: 1380, to: 1440 }]);
-  });
-
-  it("开始先夹在计划里", () => {
-    expect(previewSegments(-30, 60, 2)).toEqual([{ row: 0, from: 0, to: 60 }]);
-  });
-
-  it("时长为 0 是一个点", () => {
-    expect(previewSegments(720, 0, 1)).toEqual([{ row: 0, from: 720, to: 720 }]);
-  });
-});
 
 describe("开始时刻换算成格子", () => {
   it("00:00–05:59 整天，06:00 起上午，12:00 起下午，18:00 起晚上", () => {

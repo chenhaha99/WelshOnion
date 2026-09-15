@@ -5,10 +5,12 @@ import {
   layerWhenOnto,
   moveBlock,
   passesFilter,
+  previewCopyId,
   resizeBlock,
   resizeBlockStart,
   setBlockTimed,
   setBlockUndated,
+  type BlockView,
   type LibraryView,
   type PlanView,
   type StatsFilter,
@@ -16,6 +18,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -24,24 +27,21 @@ import {
 } from "react";
 import type * as Y from "yjs";
 import { blockTimeLabel, slotLabel } from "./block-time";
+import { edgeScrollStep, slotOfMinute, type DragMode, type PointerSpot } from "./timeline-drag";
 import {
-  clampLinear,
-  clampToDay,
-  dragResult,
-  edgeScrollStep,
-  previewSegments,
-  slotOfMinute,
-  splitLinear,
-  undatedStartMinute,
-  type DragMode,
-  type PointerSpot,
-  type Span,
-} from "./timeline-drag";
+  clampStart,
+  decideOnto,
+  dropAction,
+  droppedPlan,
+  droppedRow,
+  droppedRows,
+  ontoAt,
+  placementOf,
+  type DropInput,
+} from "./timeline-drop";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 
 const MINUTES_PER_DAY = 1440;
-/** 没填时长的事拖上时间轴给多长（分钟），和安排表「排上时间」的默认一样 */
-const DEFAULT_DURATION_MIN = 60;
 /** 按下后移动多少像素才算开始拖（也是「挪过」的门槛）；端点多宽；横条至少多宽才有端点（像素） */
 const DRAG_THRESHOLD_PX = 4;
 const EDGE_PX = 6;
@@ -57,53 +57,42 @@ const RESTORE_SELECT_MS = 300;
 // 不能在新装上的时间轴按住时把选字恢复了
 let restoreSelectTimer: number | undefined;
 
-/** 指针在一行的横轴上，还是在某一行右边的「没排时间」栏里。 */
-type Zone = { kind: "axis" } | { kind: "tray"; row: number };
-
-/** 按住一段横条或栏里一件以后的状态：鼠标过了 4 像素的门槛、手指按满 0.5 秒才算在拖；放弃了的留到松手再清掉。 */
-interface Drag {
-  /** 按住的是横条，还是「没排时间」栏里的一件（只能挪） */
-  source: "segment" | "chip";
-  blockId: string;
-  mode: DragMode;
-  /** 栏里的一件在第几行的栏里；横条是 null */
-  homeRow: number | null;
+/**
+ * 按住一段横条或栏里一件以后的状态：鼠标过了 4 像素的门槛、手指按满 0.5 秒才算在拖；放弃了的留到松手再清掉。
+ * 算松手后做什么要的那几样见 DropInput；moved 在这里是「离按下的点挪过 4 像素，或者框自己滚过」。
+ */
+interface Drag extends DropInput {
   /** 按下的是哪个指针；不是鼠标的（手指、笔）要先长按 */
   pointerId: number;
   touch: boolean;
   downX: number;
   downY: number;
-  down: PointerSpot;
-  /** 横条：按下时块的开始（线性分钟）和时长；栏里的一件：只用时长 */
-  span: Span;
   active: boolean;
   cancelled: boolean;
-  /** 离按下的点挪过 4 像素，或者框自己滚过。没挪过就松手不写：手指拿起来以后抖一两个像素，不在 15 分钟格子上的开始不该被吸附 */
-  moved: boolean;
-  now: PointerSpot;
   /** 最后一次指针在屏幕上的位置：框自己滚时用它重算落点，也用来摆松手后的时间 */
   lastX: number;
   lastY: number;
-  zone: Zone;
-  alt: boolean;
-  /** 松手会叠上去的块；null 是放旁边 */
-  ontoId: string | null;
   followers: readonly string[];
 }
 
 /** 拖动中每段横条要画成什么样。 */
 export interface DragView {
+  /** 被拖的块 */
   blockId: string;
+  /** 按着 Alt 挪：复制，原来的不动 */
   copying: boolean;
+  /** 画在松手后的位置、拿起来的样子的块：挪的是它自己，复制的是复制出来的；指针在栏里时是 null（时间轴不重排） */
+  liftedId: string | null;
+  /** 跟着一起走的块（复制时是复制出来的那些），画在松手后的位置 */
   followers: readonly string[];
+  /** 松手会叠上去的块 */
   ontoId: string | null;
 }
 
-/** 拖动中横轴上的预览框：松手后的时间段，每行一段；框里写开始和结束。 */
-export interface Preview {
-  pieces: Array<{ row: number; from: number; to: number }>;
-  label: string;
-  track: PlacedSegment["track"];
+/** 拖动中画的样子：松手后的计划和摆好的行。 */
+export interface DroppedView {
+  plan: PlanView;
+  rows: RowLayout[];
 }
 
 /** 松手后的时间写在指针上方时：写什么、指针在屏幕上哪。 */
@@ -147,9 +136,10 @@ interface TimelineDragOptions {
 
 export interface TimelineDrag {
   dragView: DragView | null;
-  preview: Preview | null;
+  /** 拖动中、指针在时间轴上时，松手后的计划和行：照它画；别的时候是 null，照原来的画 */
+  dropped: DroppedView | null;
   trayDrop: TrayDrop | null;
-  /** 松手后的时间写在指针上方（手指拖、竖排拖）；鼠标在横排上拖时是 null，时间写在预览框里 */
+  /** 松手后的时间，写在指针上方；没在时间轴上拖是 null */
   pointerLabel: PointerLabel | null;
   handlers: SegmentHandlers;
   chipHandlers: ChipHandlers;
@@ -167,6 +157,7 @@ export interface TimelineDrag {
  * - 横排栏里的一件：拖到横轴上排上时间，拖进另一天的栏换天
  * - 竖排不换天（开始夹在块开始的那天），拖到框边时框自己滚
  * - 鼠标按下挪 4 像素开始拖；手指、笔要先按住 0.5 秒拿起来，拿起来之前挪动是滚动
+ * 拖动中画成松手后的样子（dropped），叠上去还是放旁边照那个样子判定（timeline-drop）。
  * 松手才写进计划，一次拖拽一步撤销。按下后在窗口上听移动、松手、Esc：不做指针捕获，否则松手会被改到外框上，点一下就打不开详情。
  */
 export function useTimelineDrag({
@@ -218,9 +209,9 @@ export function useTimelineDrag({
   /** 最近一次在时间轴里按下的是不是鼠标：手指长按弹出的系统菜单要拦，鼠标右键的不拦 */
   const lastPressByMouse = useRef(true);
   // 窗口上的监听、长按计时、每帧的滚动都经过这里读最新的计划
-  const latest = useRef({ doc, library, plan, libraryView, day });
+  const latest = useRef({ doc, library, plan, libraryView, rows, filter, day });
   useEffect(() => {
-    latest.current = { doc, library, plan, libraryView, day };
+    latest.current = { doc, library, plan, libraryView, rows, filter, day };
   });
 
   /**
@@ -241,7 +232,7 @@ export function useTimelineDrag({
   };
 
   /** 横排：横坐标到了这一行「没排时间」栏的左边界及以右，就是在栏里。竖排没有栏。 */
-  const zoneAt = (clientX: number, row: number): Zone =>
+  const zoneAt = (clientX: number, row: number): Drag["zone"] =>
     latest.current.day === null && clientX >= trayElements.current[row]!.getBoundingClientRect().left
       ? { kind: "tray", row }
       : { kind: "axis" };
@@ -258,6 +249,36 @@ export function useTimelineDrag({
     if (gone) update(null);
   }, [rows, plan, filter]);
 
+  /**
+   * 松手会叠到哪块上：照松手后的样子量指针落在哪块的中间（timeline-drop 的 ontoAt、decideOnto），previous 是现在的判定。
+   * 只量指针所在那一行（竖排是正在看的那一天）：块画在哪按道、缩进、时间算，这一行的横轴在屏幕上的位置读 DOM。
+   */
+  const ontoAfterDrop = (next: Drag, previous: string | null): string | null => {
+    const { plan, libraryView, rows, filter, day } = latest.current;
+    const row = day ?? next.now.row;
+    const axis = axisElements.current[row]!.getBoundingClientRect();
+    const excluded = new Set([next.blockId, ...next.followers]);
+    if (next.alt) for (const id of [...excluded]) excluded.add(previewCopyId(id));
+    const hitWith = (ontoId: string | null) => {
+      const action = dropAction({ ...next, ontoId }, plan, day);
+      const dropped = action && droppedPlan(plan, libraryView, action);
+      if (!dropped) return null;
+      return ontoAt(
+        { x: next.lastX, y: next.lastY },
+        {
+          plan: dropped,
+          library: libraryView,
+          layout: droppedRow(dropped, libraryView, filter, row, day === null ? rows[row]! : null),
+          axis,
+          orientation: day === null ? "wide" : "day",
+          excluded,
+          kindLayer: kindLayer(dropped.blocks.get(next.blockId)!, libraryView),
+        },
+      );
+    };
+    return decideOnto(previous, hitWith);
+  };
+
   /** 指针到了 (clientX, clientY)：重算落点、跟着走的块、会叠上去的块。 */
   const moveTo = (current: Drag, clientX: number, clientY: number, alt: boolean, moved: boolean) => {
     const { plan, libraryView } = latest.current;
@@ -270,7 +291,7 @@ export function useTimelineDrag({
         : current.active
           ? current.followers
           : followersOf(plan, libraryView, current.blockId);
-    update({
+    const next: Drag = {
       ...current,
       active: true,
       moved,
@@ -280,9 +301,9 @@ export function useTimelineDrag({
       lastX: clientX,
       lastY: clientY,
       followers,
-      ontoId:
-        current.mode === "move" && zone.kind === "axis" ? dropTargetAt(clientX, clientY, current.blockId, followers) : null,
-    });
+      ontoId: null,
+    };
+    update(current.mode === "move" && zone.kind === "axis" ? { ...next, ontoId: ontoAfterDrop(next, current.ontoId) } : next);
   };
 
   /** 手指按满 0.5 秒：拿起来，指针还在按下的地方。 */
@@ -425,78 +446,44 @@ export function useTimelineDrag({
     };
   }, []);
 
-  /** 指针下面第一个类型层和被拖块相同的块（不算被拖的块和跟着它走的块）；没有就是放旁边。 */
-  const dropTargetAt = (clientX: number, clientY: number, blockId: string, followers: readonly string[]): string | null => {
-    const { plan, libraryView } = latest.current;
-    const draggedLayer = kindLayer(plan.blocks.get(blockId)!, libraryView);
-    for (const element of document.elementsFromPoint(clientX, clientY)) {
-      const id = element.closest<HTMLElement>("[data-segment]")?.dataset.blockId;
-      if (id === undefined || id === blockId || followers.includes(id)) continue;
-      const target = plan.blocks.get(id);
-      if (target && kindLayer(target, libraryView) === draggedLayer) return id;
-    }
-    return null;
-  };
-
-  /** 松手：按从哪拖到哪调一个操作（一步撤销）；结果和原来一样就不调。 */
+  /** 松手：按 dropAction 调一个操作（一步撤销）；结果和原来一样就不调。 */
   const commit = (done: Drag) => {
     const { doc, library, plan, libraryView, day } = latest.current;
-    // 松手前别的标签页刚把它删了
-    const block = plan.blocks.get(done.blockId);
-    if (!block) return;
-    const placement =
-      done.ontoId === null
-        ? { placement: "beside" as const }
-        : { placement: "onto" as const, ontoBlockId: done.ontoId };
-
-    if (done.zone.kind === "tray") {
-      const baseId = plan.bases[done.zone.row]!.id;
-      if (done.source === "chip") {
-        // 拖回原来那天的栏：什么都不改
-        if (block.start_minute === null && done.zone.row !== done.homeRow) {
-          setBlockUndated(doc, block.id, { baseId, slot: block.slot ?? "day" });
+    const action = dropAction(done, plan, day);
+    if (!action) return;
+    switch (action.kind) {
+      case "undated":
+        setBlockUndated(doc, action.blockId, { baseId: action.baseId, slot: action.slot });
+        return;
+      case "timed":
+        setBlockTimed(doc, library, action.blockId, {
+          baseId: action.baseId,
+          minute: action.minute,
+          duration: action.duration,
+          ...placementOf(action.ontoId),
+        });
+        return;
+      case "resize-end":
+        if (action.duration !== done.span.duration) resizeBlock(doc, action.blockId, action.duration);
+        return;
+      case "resize-start":
+        if (action.minute !== done.span.start) {
+          resizeBlockStart(doc, action.blockId, { baseId: action.baseId, minute: action.minute });
         }
-      } else if (block.start_minute !== null) {
-        setBlockUndated(doc, block.id, { baseId, slot: slotOfMinute(block.start_minute) });
+        return;
+      case "move": {
+        const target = { baseId: action.baseId, minute: action.minute, ...placementOf(action.ontoId) };
+        if (action.copy) {
+          duplicateBlock(doc, library, action.blockId, target);
+          return;
+        }
+        const block = plan.blocks.get(action.blockId)!;
+        const layerAfter = action.ontoId === null ? null : layerWhenOnto(plan, libraryView, block, action.ontoId);
+        const unmoved = action.minute === clampStart(done.span.start, done.span, plan.bases.length, day);
+        if (unmoved && layerAfter === block.layer) return;
+        moveBlock(doc, library, action.blockId, target);
       }
-      return;
     }
-
-    if (done.source === "chip") {
-      if (block.start_minute !== null) return;
-      setBlockTimed(doc, library, block.id, {
-        baseId: plan.bases[done.now.row]!.id,
-        minute: undatedStartMinute(done.now.minute),
-        duration: block.duration_min ?? DEFAULT_DURATION_MIN,
-        ...placement,
-      });
-      return;
-    }
-
-    // 松手前别的标签页刚取消了它的时间
-    if (block.start_minute === null) return;
-    const rowCount = plan.bases.length;
-    const origin = plan.bases[0]!.id;
-    const result = dragResult(done.mode, done.down, done.now, done.span);
-    const start = clampStart(result.start, done, rowCount, day);
-
-    if (done.mode === "end") {
-      if (result.duration !== done.span.duration) resizeBlock(doc, block.id, result.duration);
-      return;
-    }
-    if (done.mode === "start") {
-      if (start !== done.span.start) resizeBlockStart(doc, block.id, { baseId: origin, minute: start });
-      return;
-    }
-
-    const target = { baseId: origin, minute: start, ...placement };
-    if (done.alt) {
-      duplicateBlock(doc, library, block.id, target);
-      return;
-    }
-    const layerAfter = done.ontoId === null ? null : layerWhenOnto(plan, libraryView, block, done.ontoId);
-    if (start === clampStart(done.span.start, done, rowCount, day) && layerAfter === block.layer) return;
-    moveBlock(doc, library, block.id, target);
   };
 
   const suppressClickAfterDrag = (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -571,7 +558,7 @@ export function useTimelineDrag({
         blockId,
         mode: "move",
         homeRow: row,
-        span: { start: 0, duration: block.duration_min ?? DEFAULT_DURATION_MIN },
+        span: { start: 0, duration: block.duration_min ?? 0 },
         zone: { kind: "tray", row },
       });
     },
@@ -580,23 +567,38 @@ export function useTimelineDrag({
 
   const live = drag?.active && !drag.cancelled ? drag : null;
   const onAxis = live?.zone.kind === "axis";
+  const copying = live !== null && live.source === "segment" && live.mode === "move" && live.alt && onAxis;
+  // 松手后的样子：指针挪了但吸附后要做的事没变，就不重算
+  const action = live && onAxis ? dropAction(live, plan, day) : null;
+  const actionKey = action === null ? "" : JSON.stringify(action);
+  const dropped = useMemo<DroppedView | null>(
+    () => {
+      const shownPlan = action && droppedPlan(plan, libraryView, action);
+      return shownPlan ? { plan: shownPlan, rows: droppedRows(shownPlan, libraryView, filter, rows, day === null) } : null;
+    },
+    // action 每次渲染都是新对象，按它的内容缓存
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [actionKey, plan, libraryView, filter, rows, day],
+  );
+  const liftedId = live && dropped ? (copying ? previewCopyId(live.blockId) : live.blockId) : null;
   const dragView: DragView | null = live
     ? {
         blockId: live.blockId,
-        copying: live.source === "segment" && live.mode === "move" && live.alt && onAxis,
-        followers: onAxis ? live.followers : [],
+        copying,
+        liftedId,
+        followers: dropped ? live.followers.map((id) => (copying ? previewCopyId(id) : id)) : [],
         ontoId: live.ontoId,
       }
     : null;
-  const preview = live && onAxis ? previewOf(live, plan, libraryView, rows, day) : null;
+  const lifted = dropped && liftedId !== null ? dropped.plan.blocks.get(liftedId) : undefined;
 
   return {
     dragView,
-    preview,
+    dropped,
     trayDrop: live ? trayDropOf(live, plan) : null,
-    // 手指按着的地方看不见，竖排的预览框可能滚出框外：时间写在指针上方
+    // 块自己挪到了松手后的位置，手指按着的地方也看不见：松手后的时间写在指针上方
     pointerLabel:
-      live && preview && (live.touch || day !== null) ? { text: preview.label, x: live.lastX, y: live.lastY } : null,
+      live && dropped && lifted ? { text: liftedLabel(lifted, dropped.plan, copying), x: live.lastX, y: live.lastY } : null,
     handlers,
     chipHandlers,
     rowRef: (index) => (element) => {
@@ -621,45 +623,11 @@ function edgeAt(rect: DOMRect, clientX: number, item: PlacedSegment): DragMode {
   return "move";
 }
 
-/** 松手后的开始时刻夹在哪：横排夹在计划里，竖排夹在块开始的那天（不换天）。 */
-function clampStart(value: number, drag: Drag, rowCount: number, day: number | null): number {
-  return day === null ? clampLinear(value, rowCount) : clampToDay(value, Math.floor(drag.span.start / MINUTES_PER_DAY));
-}
-
-/** 横轴上的预览框：松手后的时间段，每行一段；框里写开始和结束，复制时前面加「复制 · 」。块已经不在了就没有预览。 */
-function previewOf(
-  drag: Drag,
-  plan: PlanView,
-  libraryView: LibraryView,
-  rows: readonly RowLayout[],
-  day: number | null,
-): Preview | null {
-  const rowCount = plan.bases.length;
-
-  if (drag.source === "chip") {
-    const block = plan.blocks.get(drag.blockId);
-    if (!block) return null;
-    const minute = undatedStartMinute(drag.now.minute);
-    const topKindLayer = Math.max(...[...libraryView.kinds.values()].map((kind) => kind.layer));
-    return {
-      pieces: previewSegments(drag.now.row * MINUTES_PER_DAY + minute, drag.span.duration, rowCount),
-      label: blockTimeLabel({ start_minute: minute, duration_min: drag.span.duration, slot: null }, plan.bases[drag.now.row]!.date),
-      track: kindLayer(block, libraryView) < topKindLayer ? "background" : "main",
-    };
-  }
-
-  const drawn = rows.flatMap((row) => [...row.background, ...row.main]).find((item) => item.blockId === drag.blockId);
-  if (!drawn) return null;
-  // 手指拿起来还没挪：还在原来的时间，不在 15 分钟格子上的开始也不吸附
-  const result = drag.moved ? dragResult(drag.mode, drag.down, drag.now, drag.span) : drag.span;
-  const start = clampStart(result.start, drag, rowCount, day);
-  const first = splitLinear(start);
-  const time = blockTimeLabel({ start_minute: first.minute, duration_min: result.duration, slot: null }, plan.bases[first.row]!.date);
-  return {
-    pieces: previewSegments(start, result.duration, rowCount),
-    label: drag.alt && drag.mode === "move" ? `复制 · ${time}` : time,
-    track: drawn.track,
-  };
+/** 松手后的时间：写法同安排表的时间格，复制时前面加「复制 · 」。 */
+function liftedLabel(block: BlockView, plan: PlanView, copying: boolean): string {
+  const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
+  const time = blockTimeLabel(block, date);
+  return copying ? `复制 · ${time}` : time;
 }
 
 /** 拖进栏里时：那一栏描边、写会进哪一格。栏里的一件拖回原来那天的栏不算。 */

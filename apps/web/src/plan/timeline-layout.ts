@@ -4,6 +4,7 @@ import {
   effectiveLayer,
   kindLayer,
   passesFilter,
+  type BaseView,
   type BlockView,
   type LibraryView,
   type PlanView,
@@ -98,14 +99,17 @@ export function blockSegments(plan: PlanView, block: BlockView): Segment[] {
   return segments;
 }
 
-const dayStartsCache = new WeakMap<PlanView, number[]>();
+const dayStartsCache = new WeakMap<readonly BaseView[], number[]>();
 
-/** 每一行这天 0 点的绝对时刻。换算时区不便宜，同一份计划视图只算一次。 */
+/**
+ * 每一行这天 0 点的绝对时刻。换算时区不便宜，同一份底座只算一次：
+ * 按底座数组存，拖动中每次算出的松手后的计划视图是新的，底座数组还是原来那个。
+ */
 function dayStartsOf(plan: PlanView): number[] {
-  let dayStarts = dayStartsCache.get(plan);
+  let dayStarts = dayStartsCache.get(plan.bases);
   if (!dayStarts) {
     dayStarts = plan.bases.map((base) => baseStartUtcMs(base.date, base.tz));
-    dayStartsCache.set(plan, dayStarts);
+    dayStartsCache.set(plan.bases, dayStarts);
   }
   return dayStarts;
 }

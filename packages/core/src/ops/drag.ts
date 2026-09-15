@@ -132,6 +132,54 @@ export function duplicateBlock(
   return ok({ blockId: copies.get(blockId) as string });
 }
 
+/** 松手前算出来的复制块的 id：原 id 后面加这个（只在内存里，不会和 UUIDv7 撞） */
+const COPY_SUFFIX = ":copy";
+
+/** previewDrop 复制时，复制出来的块在算出来的计划里的 id。 */
+export function previewCopyId(blockId: string): string {
+  return blockId + COPY_SUFFIX;
+}
+
+/**
+ * 松手前算出挪块（copy 为真时是复制块）以后计划里的块是什么样，不改文档：
+ * 每个块的底座、分钟、存的层，和 moveBlock / duplicateBlock 写进去再读出来的一样；复制出来的块 id 是原 id 加「:copy」。
+ * 只算块，不算钱：给时间轴拖动中画松手后的样子用。
+ */
+export function previewDrop(
+  plan: PlanView,
+  library: LibraryView,
+  blockId: string,
+  target: DropTarget,
+  options: { copy: boolean },
+): OpResult<PlanView> {
+  const prepared = dropOn(plan, library, blockId, target);
+  if (!prepared.ok) return prepared;
+  const { rows, destination, delta, followerIds, newLayer, layerDelta } = prepared.value;
+  const idOf = (id: string) => (options.copy ? previewCopyId(id) : id);
+
+  const blocks = new Map(plan.blocks);
+  const block = plan.blocks.get(blockId) as BlockView;
+  blocks.set(idOf(blockId), {
+    ...block,
+    id: idOf(blockId),
+    start_base_id: destination.baseId,
+    start_minute: destination.minute,
+    layer: newLayer,
+  });
+  for (const id of followerIds) {
+    const follower = plan.blocks.get(id) as BlockView;
+    const position = shifted(rows, follower, delta);
+    blocks.set(idOf(id), {
+      ...follower,
+      id: idOf(id),
+      start_base_id: position.baseId,
+      start_minute: position.minute,
+      layer: layerDelta === 0 ? follower.layer : effectiveLayer(follower, library) + layerDelta,
+    });
+  }
+  return ok({ ...plan, blocks });
+}
+
 /** 不改时间：给了目标块就按「叠上去时的层」算，给 null 就拿出来并排；会被带走的块跟着平移层差。 */
 export function setBlockLayer(planDoc: Y.Doc, library: Y.Doc, blockId: string, ontoBlockId: string | null): OpResult {
   const libraryView = readLibrary(library);
@@ -199,11 +247,15 @@ interface PreparedDrop {
   layerDelta: number;
 }
 
-/** 挪块和复制共用：算落点（含出界换算）、平移量、跟着走的块、被拖块的新层和层差。 */
+/** 挪块和复制共用：读出计划，算落点、平移量、跟着走的块、被拖块的新层和层差。 */
 function prepareDrop(planDoc: Y.Doc, library: Y.Doc, blockId: string, target: DropTarget): OpResult<PreparedDrop> {
-  if (!Number.isInteger(target.minute)) return fail({ code: "INVALID_FIELD", field: "start_minute" });
   const libraryView = readLibrary(library);
-  const plan = readPlan(planDoc, libraryView);
+  return dropOn(readPlan(planDoc, libraryView), libraryView, blockId, target);
+}
+
+/** 不读文档，在给定的计划视图上算：落点（含出界换算）、平移量、跟着走的块、被拖块的新层和层差。previewDrop 也用它。 */
+function dropOn(plan: PlanView, libraryView: LibraryView, blockId: string, target: DropTarget): OpResult<PreparedDrop> {
+  if (!Number.isInteger(target.minute)) return fail({ code: "INVALID_FIELD", field: "start_minute" });
   const block = plan.blocks.get(blockId);
   if (!block) return fail({ code: "NOT_FOUND", id: blockId });
   if (block.start_minute === null) return fail({ code: "NOT_TIMED" });

@@ -38,13 +38,15 @@ test("从栏里拖到时间轴上：没填时长给 1 小时 → 撤销 → 用�
   const day1 = timelineRow(page, "10.1");
   const day2 = timelineRow(page, "10.2");
   const day3 = timelineRow(page, "10.3");
-  const ghost = page.locator("[data-drag-ghost]");
+  const label = page.locator("[data-drag-label]");
   await showView(page, "时间轴");
   await expect(trayOf(day1).getByRole("button")).toHaveText([/河坊街/, /灵隐寺/]);
 
-  // 没填时长的河坊街拖到 10.2 的 19:00：1 小时
+  // 没填时长的河坊街拖到 10.2 的 19:00：还没松手就画在 10.2 那一行 19:00–20:00，栏里的它变淡
   await drag(page, center(await box(chip(day1, "河坊街"))), await axisPoint(day2, 19 * 60), { release: false });
-  await expect(ghost.first()).toHaveText("19:00–20:00");
+  await expect(label).toHaveText("19:00–20:00");
+  await expect(segment(day2, "河坊街")).toHaveAttribute("data-from", "1140");
+  await expect(chip(day1, "河坊街")).toHaveAttribute("data-dragging", "true");
   await shot(page, "01-from-tray", { dragging: true });
   await page.mouse.up();
   await expect.poll(() => timeOf(day2Table, "河坊街")).toBe("19:00–20:00");
@@ -57,7 +59,7 @@ test("从栏里拖到时间轴上：没填时长给 1 小时 → 撤销 → 用�
 
   // 填了 2 小时的灵隐寺按着 Alt 拖到 10.1 的 14:00：用填过的时长，也不复制
   await drag(page, center(await box(chip(day1, "灵隐寺"))), await axisPoint(day1, 14 * 60), { alt: true, release: false });
-  await expect(ghost.first()).toHaveText("14:00–16:00");
+  await expect(label).toHaveText("14:00–16:00");
   await page.mouse.up();
   await page.keyboard.up("Alt");
   await expect.poll(() => timeOf(day1Table, "灵隐寺")).toBe("14:00–16:00");
@@ -66,9 +68,10 @@ test("从栏里拖到时间轴上：没填时长给 1 小时 → 撤销 → 用�
 
   // Esc 放弃：河坊街还在栏里，不打开详情
   await drag(page, center(await box(chip(day1, "河坊街"))), await axisPoint(day1, 18 * 60), { release: false });
-  await expect(ghost.first()).toBeVisible();
+  await expect(day1.locator("[data-timeline-axis]").getByRole("button", { name: /^河坊街 / })).toHaveCount(1);
   await page.keyboard.press("Escape");
-  await expect(ghost).toHaveCount(0);
+  await expect(label).toHaveCount(0);
+  await expect(day1.locator("[data-timeline-axis]").getByRole("button", { name: /^河坊街 / })).toHaveCount(0);
   await page.mouse.up();
   await expect(page.getByRole("dialog", { name: "河坊街" })).toHaveCount(0);
   await expect(chip(day1, "河坊街")).toHaveCount(1);
@@ -78,6 +81,8 @@ test("从栏里拖到时间轴上：没填时长给 1 小时 → 撤销 → 用�
   const onto = { x: (await axisPoint(day3, 10 * 60)).x, y: hengdian.y + hengdian.height / 2 };
   await drag(page, center(await box(chip(day3, "明清宫苑"))), onto, { release: false });
   await expect(segment(day3, "横店")).toHaveAttribute("data-drop-target", "true");
+  await expect(segment(day3, "明清宫苑")).toHaveAttribute("data-lane", "1");
+  await expect(segment(day3, "明清宫苑")).toHaveAttribute("data-depth", "1");
   await page.mouse.up();
   await expect.poll(() => timeOf(day3Table, "明清宫苑")).toBe("10:00–11:00");
   await expect(segment(day3, "明清宫苑")).toHaveAttribute("data-depth", "1");

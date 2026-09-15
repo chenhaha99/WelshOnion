@@ -40,6 +40,7 @@ export {
   addBlock,
   deleteBlock,
   moveUndated,
+  previewSetBlockTimed,
   resizeBlock,
   setBlockIndent,
   setBlockStatus,
@@ -48,7 +49,15 @@ export {
   updateBlock,
 } from "./ops/blocks";
 export type { AddBlockInput, BlockPatch, Placement, SlotChoice } from "./ops/blocks";
-export { duplicateBlock, moveBlock, resizeBlockStart, setBlockLayer, shiftDayFrom } from "./ops/drag";
+export {
+  duplicateBlock,
+  moveBlock,
+  previewCopyId,
+  previewDrop,
+  resizeBlockStart,
+  setBlockLayer,
+  shiftDayFrom,
+} from "./ops/drag";
 export type { DropTarget } from "./ops/drag";
 export { addExpense, deleteExpense, linkExpense, unlinkExpense, updateExpense } from "./ops/expenses";
 export type { AddExpenseInput, ExpensePatch } from "./ops/expenses";

@@ -1,9 +1,12 @@
 import * as Y from "yjs";
 import { beforeEach, describe, expect, test } from "vitest";
+import { readLibrary, readPlan, type PlanView } from "../read";
 import { initLibraryDoc, initPlanDoc } from "../schema";
 import { addBase, addBlock as seedBlock, addExpense } from "../testing";
-import { duplicateBlock, moveBlock, resizeBlockStart, setBlockLayer, shiftDayFrom } from "./drag";
+import { previewSetBlockTimed, setBlockTimed } from "./blocks";
+import { duplicateBlock, moveBlock, previewDrop, resizeBlockStart, setBlockLayer, shiftDayFrom } from "./drag";
 import { createPlanUndoManager } from "./origin";
+import type { OpResult } from "./result";
 
 let library: Y.Doc;
 let planDoc: Y.Doc;
@@ -32,6 +35,85 @@ function hengdianDay() {
   seedBlock(planDoc, "photo", { start_base_id: "d1", start_minute: 660, duration_min: 30, kind_id: "sight", layer: 4 });
   seedBlock(planDoc, "lunch", { start_base_id: "d1", start_minute: 720, duration_min: 60, kind_id: "food" });
 }
+
+function view(): PlanView {
+  return readPlan(planDoc, readLibrary(library));
+}
+
+function unwrap<T>(result: OpResult<T>): T {
+  if (!result.ok) throw new Error(JSON.stringify(result.error));
+  return result.value;
+}
+
+/** 每个块坐在哪个底座、第几分钟、多长、存的层 */
+function facts(plan: PlanView, ids: readonly string[]) {
+  return ids.map((id) => {
+    const block = plan.blocks.get(id)!;
+    return [id, block.start_base_id, block.start_minute, block.duration_min, block.layer];
+  });
+}
+
+describe("松手前算出松手后的样子", () => {
+  const dayIds = ["hengdian", "mingqing", "photo", "lunch"];
+
+  test("叠上去：算的时候文档不变，算出来的和真挪完一样", () => {
+    hengdianDay();
+    const before = planDoc.getMap("blocks").toJSON();
+    const target = { baseId: "d1", minute: 720, placement: "onto" as const, ontoBlockId: "hengdian" };
+
+    const preview = unwrap(previewDrop(view(), readLibrary(library), "lunch", target, { copy: false }));
+    expect(planDoc.getMap("blocks").toJSON()).toEqual(before);
+    moveBlock(planDoc, library, "lunch", target);
+
+    expect(facts(preview, dayIds)).toEqual(facts(view(), dayIds));
+    expect(facts(preview, ["lunch"])).toEqual([["lunch", "d1", 720, 60, 3]]);
+  });
+
+  test("带着里面的块过午夜", () => {
+    hengdianDay();
+    const target = { baseId: "d1", minute: 1320, placement: "beside" as const };
+
+    const preview = unwrap(previewDrop(view(), readLibrary(library), "hengdian", target, { copy: false }));
+    moveBlock(planDoc, library, "hengdian", target);
+
+    expect(facts(preview, dayIds)).toEqual(facts(view(), dayIds));
+    expect(facts(preview, ["photo"])).toEqual([["photo", "d2", 0, 30, 4]]);
+  });
+
+  test("复制：多出三个 :copy，和真复制出来的一样；原来的不变", () => {
+    hengdianDay();
+    const target = { baseId: "d2", minute: 540, placement: "beside" as const };
+
+    const preview = unwrap(previewDrop(view(), readLibrary(library), "hengdian", target, { copy: true }));
+    duplicateBlock(planDoc, library, "hengdian", target);
+
+    const after = view();
+    expect(preview.blocks.size).toBe(7);
+    expect(facts(preview, dayIds)).toEqual(facts(after, dayIds));
+    for (const source of ["hengdian", "mingqing", "photo"]) {
+      // 测试里块的标题就是 id：真复制出来的块按标题认
+      const real = [...after.blocks.values()].find((block) => block.title === source && block.id !== source)!;
+      expect(facts(preview, [`${source}:copy`]).map(([, ...rest]) => rest)).toEqual(
+        facts(after, [real.id]).map(([, ...rest]) => rest),
+      );
+    }
+  });
+
+  test("排上时间叠上去：算出来的和真排上一样，不在没排时间的排序里", () => {
+    hengdianDay();
+    seedBlock(planDoc, "u", { start_base_id: "d1", kind_id: "sight" });
+    (planDoc.getMap<Y.Map<unknown>>("bases").get("d1")!.get("undated") as Y.Array<string>).push(["u"]);
+    const options = { baseId: "d1", minute: 600, duration: 60, placement: "onto" as const, ontoBlockId: "hengdian" };
+
+    const preview = unwrap(previewSetBlockTimed(view(), readLibrary(library), "u", options));
+    setBlockTimed(planDoc, library, "u", options);
+
+    expect(facts(preview, ["u"])).toEqual(facts(view(), ["u"]));
+    expect(facts(preview, ["u"])).toEqual([["u", "d1", 600, 60, 3]]);
+    const groups = preview.undated.get("d1")!;
+    expect([...groups.day, ...groups.morning, ...groups.afternoon, ...groups.evening]).not.toContain("u");
+  });
+});
 
 describe("位置怎么换算", () => {
   beforeEach(() => seedBlock(planDoc, "k", { start_base_id: "d1", start_minute: 600, duration_min: 60 }));

@@ -1,7 +1,15 @@
 import * as Y from "yjs";
 import { newId } from "../ids";
 import { followersOf, layerWhenOnto } from "../nesting";
-import { readLibrary, readPlan, type Slot, type TransportMode } from "../read";
+import {
+  readLibrary,
+  readPlan,
+  type LibraryView,
+  type PlanView,
+  type Slot,
+  type TransportMode,
+  type UndatedGroups,
+} from "../read";
 import type { ValidatedField } from "../validate";
 import { attachFuel, hasTransitMoney, qualifiesForFuel } from "./fuel";
 import { LOCAL_ORIGIN } from "./origin";
@@ -17,6 +25,15 @@ export type SlotChoice = Slot | "day";
 
 /** auto：不是拖拽时用，没有可保留的层就放旁边；beside：放旁边；onto：叠到某块上。 */
 export type Placement = "auto" | "beside" | "onto";
+
+/** 排上时间：坐到哪天（不给就是原来那天）、第几分钟、多长，怎么放。 */
+interface TimedOptions {
+  baseId?: string;
+  minute: number;
+  duration: number;
+  placement?: Placement;
+  ontoBlockId?: string;
+}
 
 interface BlockBasics {
   baseId: string;
@@ -213,7 +230,7 @@ export function setBlockTimed(
   planDoc: Y.Doc,
   library: Y.Doc,
   blockId: string,
-  options: { baseId?: string; minute: number; duration: number; placement?: Placement; ontoBlockId?: string },
+  options: TimedOptions,
 ): OpResult {
   const invalid = firstInvalidField([
     ["start_minute", options.minute],
@@ -228,9 +245,7 @@ export function setBlockTimed(
   let layer: number | null = null;
   if (options.placement === "onto" && options.ontoBlockId !== undefined) {
     const libraryView = readLibrary(library);
-    const plan = readPlan(planDoc, libraryView);
-    const dragged = plan.blocks.get(blockId);
-    if (dragged) layer = layerWhenOnto(plan, libraryView, dragged, options.ontoBlockId);
+    layer = timedLayer(readPlan(planDoc, libraryView), libraryView, blockId, options);
   }
 
   planDoc.transact(() => {
@@ -243,6 +258,51 @@ export function setBlockTimed(
     removeFromAllUndated(planDoc, [blockId]);
   }, LOCAL_ORIGIN);
   return done();
+}
+
+/**
+ * 松手前算出排上时间以后这个块是什么样，不改文档：底座、分钟、时长、层和 setBlockTimed 写进去再读出来的一样，
+ * 也不再在没排时间的排序里。给时间轴从「没排时间」栏拖出来时画松手后的样子用。
+ */
+export function previewSetBlockTimed(
+  plan: PlanView,
+  library: LibraryView,
+  blockId: string,
+  options: TimedOptions,
+): OpResult<PlanView> {
+  const invalid = firstInvalidField([
+    ["start_minute", options.minute],
+    ["duration_min", options.duration],
+  ]);
+  if (invalid) return fail(invalid);
+  const block = plan.blocks.get(blockId);
+  if (!block) return fail({ code: "NOT_FOUND", id: blockId });
+  const baseId = options.baseId ?? block.start_base_id;
+  if (!plan.bases.some((base) => base.id === baseId)) return fail({ code: "NOT_FOUND", id: baseId });
+
+  const blocks = new Map(plan.blocks).set(blockId, {
+    ...block,
+    start_base_id: baseId,
+    start_minute: options.minute,
+    duration_min: options.duration,
+    slot: null,
+    indent: null,
+    layer: timedLayer(plan, library, blockId, options),
+  });
+  const undated = new Map([...plan.undated].map(([id, groups]) => [id, withoutBlock(groups, blockId)]));
+  return ok({ ...plan, blocks, undated });
+}
+
+/** 排上时间时存的层：叠上去按「叠上去时的层」算，别的放法不存（不从缩进推嵌套）。 */
+function timedLayer(plan: PlanView, library: LibraryView, blockId: string, options: TimedOptions): number | null {
+  if (options.placement !== "onto" || options.ontoBlockId === undefined) return null;
+  const dragged = plan.blocks.get(blockId);
+  return dragged ? layerWhenOnto(plan, library, dragged, options.ontoBlockId) : null;
+}
+
+function withoutBlock(groups: UndatedGroups, blockId: string): UndatedGroups {
+  const keep = (ids: readonly string[]) => ids.filter((id) => id !== blockId);
+  return { day: keep(groups.day), morning: keep(groups.morning), afternoon: keep(groups.afternoon), evening: keep(groups.evening) };
 }
 
 /** 只对未定时块有效：写上格子，在这天排序里挪到 beforeId 前面（没有就放最后）。 */

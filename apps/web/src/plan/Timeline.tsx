@@ -21,16 +21,12 @@ import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
 import type { MoneyCell } from "./money-cells";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
+import { LIFTED_Z_INDEX, wideAxisHeight, wideSegmentBox, wideStripsHeight } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
-import { useTimelineDrag, type DragView, type Preview, type SegmentHandlers } from "./use-timeline-drag";
+import { useTimelineDrag, type DragView, type SegmentHandlers } from "./use-timeline-drag";
 import { zoneTimeLabel } from "./zone-time";
 
-/** 背景条每条、主轨每道多高；叠在上面的块每级从上面缩多少（像素） */
-const STRIP_HEIGHT = 16;
-const LANE_HEIGHT = 28;
-const GAP = 2;
-const DEPTH_INSET = 4;
 /** 每行三栏：标签、横轴、「没排时间」 */
 const ROW_COLUMNS = "grid grid-cols-[5.5rem_1fr_9rem] gap-x-3";
 
@@ -137,7 +133,8 @@ interface WideTimelineProps {
 
 /**
  * 横排：一天一行，横向 0–24 点按真实比例，右边一栏放这天没排时间的事。
- * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条看详情。拖拽见 use-timeline-drag。
+ * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条看详情。
+ * 拖动中画成松手后的样子，「没排时间」栏照原来的计划（见 use-timeline-drag）。
  */
 function WideTimeline({
   doc,
@@ -151,6 +148,8 @@ function WideTimeline({
   shiftLater,
 }: WideTimelineProps) {
   const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter, day: null });
+  const shownPlan = drag.dropped?.plan ?? plan;
+  const shownRows = drag.dropped?.rows ?? rows;
 
   return (
     // 横轴至少 720 像素（每小时 30 像素），放不下就在卡片里横着滚
@@ -185,16 +184,14 @@ function WideTimeline({
               rowRef={drag.rowRef(index)}
               axisRef={drag.axisRef(index)}
               trayRef={drag.trayRef(index)}
-              plan={plan}
+              plan={shownPlan}
+              trayPlan={plan}
               base={base}
               label={labels[index]!}
-              layout={rows[index]!}
+              layout={shownRows[index]!}
               moneyCells={moneyCells}
               filter={filter}
               dragView={drag.dragView}
-              preview={drag.preview && { ...drag.preview, pieces: drag.preview.pieces.filter((piece) => piece.row === index) }}
-              // 时间写在指针上方时（手指拖），预览框里不写
-              labelHere={drag.preview !== null && drag.pointerLabel === null && drag.preview.pieces[0]?.row === index}
               trayDropLabel={drag.trayDrop?.row === index ? drag.trayDrop.label : null}
               handlers={drag.handlers}
               shiftLater={shiftLater}
@@ -213,17 +210,16 @@ interface TimelineRowProps {
   rowRef: (element: HTMLLIElement | null) => void;
   axisRef: (element: HTMLDivElement | null) => void;
   trayRef: (element: HTMLDivElement | null) => void;
+  /** 画横条用的计划：拖动中是松手后的 */
   plan: PlanView;
+  /** 「没排时间」栏用的计划：拖动中还是原来的，被拖的那一件留在栏里变淡 */
+  trayPlan: PlanView;
   base: BaseView;
   label: string;
   layout: RowLayout;
   moneyCells: ReadonlyMap<string, MoneyCell>;
   filter: StatsFilter | undefined;
   dragView: DragView | null;
-  /** 这一行的预览框；没在拖是 null */
-  preview: Preview | null;
-  /** 预览框的时间写在这一行（第一段所在的行） */
-  labelHere: boolean;
   /** 正拖进这一行的「没排时间」栏时，会进哪一格；没往这里拖是 null */
   trayDropLabel: string | null;
   handlers: SegmentHandlers;
@@ -237,21 +233,19 @@ function TimelineRow({
   axisRef,
   trayRef,
   plan,
+  trayPlan,
   base,
   label,
   layout,
   moneyCells,
   filter,
   dragView,
-  preview,
-  labelHere,
   trayDropLabel,
   handlers,
   shiftLater,
   onChipPointerDown,
   onChipClickCapture,
 }: TimelineRowProps) {
-  const stripsHeight = layout.backgroundCount * STRIP_HEIGHT;
   const [dayNumber, ...rest] = label.split(" · ");
 
   return (
@@ -262,12 +256,7 @@ function TimelineRow({
           <span key={part}>{part}</span>
         ))}
       </div>
-      <div
-        ref={axisRef}
-        data-timeline-axis
-        className="relative"
-        style={{ minHeight: stripsHeight + layout.laneCount * LANE_HEIGHT }}
-      >
+      <div ref={axisRef} data-timeline-axis className="relative" style={{ minHeight: wideAxisHeight(layout) }}>
         {HOUR_LINES.map((hour) => (
           <div
             key={hour}
@@ -281,7 +270,7 @@ function TimelineRow({
             key={`wash-${item.blockId}`}
             aria-hidden
             className="timeline-wash absolute bottom-0"
-            style={{ ...horizontal(item), top: stripsHeight, ...kindColor(plan, item.blockId) }}
+            style={{ ...horizontal(item), top: wideStripsHeight(layout), ...kindColor(plan, item.blockId) }}
           />
         ))}
         {[...layout.background, ...layout.main].map((item) => (
@@ -289,41 +278,18 @@ function TimelineRow({
             key={`${item.track}-${item.blockId}`}
             plan={plan}
             item={item}
-            top={
-              item.track === "background"
-                ? (item.lane - 1) * STRIP_HEIGHT
-                : stripsHeight + (item.lane - 1) * LANE_HEIGHT + GAP + item.depth * DEPTH_INSET
-            }
-            height={
-              item.track === "background" ? STRIP_HEIGHT - GAP : LANE_HEIGHT - 2 * GAP - item.depth * DEPTH_INSET
-            }
+            box={wideSegmentBox(item, layout)}
             moneyCell={moneyCells.get(item.blockId)}
             dragView={dragView}
             handlers={handlers}
             shiftLater={shiftLater}
           />
         ))}
-        {preview?.pieces.map((piece, index) => (
-          <div
-            key={`ghost-${index}`}
-            data-drag-ghost
-            className="timeline-ghost"
-            style={{
-              left: percent(piece.from),
-              width: percent(piece.to - piece.from),
-              ...(preview.track === "background"
-                ? { top: 0, height: Math.max(stripsHeight, STRIP_HEIGHT) - GAP }
-                : { top: stripsHeight, height: layout.laneCount * LANE_HEIGHT }),
-            }}
-          >
-            {labelHere && index === 0 ? preview.label : ""}
-          </div>
-        ))}
       </div>
       <UndatedTray
-        plan={plan}
+        plan={trayPlan}
         base={base}
-        blocks={undatedBlocks(plan, base, filter)}
+        blocks={undatedBlocks(trayPlan, base, filter)}
         moneyCells={moneyCells}
         trayRef={trayRef}
         dropLabel={trayDropLabel}
@@ -338,8 +304,8 @@ function TimelineRow({
 interface SegmentProps {
   plan: PlanView;
   item: PlacedSegment;
-  top: number;
-  height: number;
+  /** 在这一行横轴里的上边和高度（像素） */
+  box: { top: number; height: number };
   moneyCell: MoneyCell | undefined;
   dragView: DragView | null;
   handlers: SegmentHandlers;
@@ -347,11 +313,12 @@ interface SegmentProps {
 }
 
 /** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点开详情。 */
-function Segment({ plan, item, top, height, moneyCell, dragView, handlers, shiftLater }: SegmentProps) {
+function Segment({ plan, item, box, moneyCell, dragView, handlers, shiftLater }: SegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
   const buttonClass = point ? "timeline-marker" : item.track === "background" ? "timeline-strip" : "timeline-bar";
+  const lifted = dragView?.liftedId === item.blockId;
 
   return (
     <div
@@ -365,12 +332,21 @@ function Segment({ plan, item, top, height, moneyCell, dragView, handlers, shift
       data-pending={block.status.id === "pending"}
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
-      data-dragging={dragView?.blockId === item.blockId && !dragView.copying ? true : undefined}
+      data-lifted={lifted ? true : undefined}
+      // 指针在「没排时间」栏里时时间轴不重排：被拖的横条留在原处变淡
+      data-dragging={
+        dragView && dragView.liftedId === null && !dragView.copying && dragView.blockId === item.blockId ? true : undefined
+      }
       data-follower={dragView?.followers.includes(item.blockId) ? true : undefined}
       data-drop-target={dragView?.ontoId === item.blockId ? true : undefined}
       className="absolute"
-      // 缩得越深的画得越靠上：谁压谁不看在页面里的先后
-      style={{ ...horizontal(item), top, height, zIndex: 1 + item.depth, ...kindColor(plan, item.blockId) }}
+      // 缩得越深的画得越靠上：谁压谁不看在页面里的先后；拿起来的块压在最上面
+      style={{
+        ...horizontal(item),
+        ...box,
+        zIndex: lifted ? LIFTED_Z_INDEX : 1 + item.depth,
+        ...kindColor(plan, item.blockId),
+      }}
       onPointerDown={(event) => handlers.onPointerDown(event, item)}
       onPointerMove={(event) => handlers.onPointerMove(event, item)}
       onClickCapture={handlers.onClickCapture}

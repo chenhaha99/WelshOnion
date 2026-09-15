@@ -451,23 +451,8 @@
   }
 }
 
-/* 时间轴拖拽的预览框：松手后的时间段，不挡指针 */
-@utility timeline-ghost {
-  position: absolute;
-  z-index: 10;
-  min-width: 2px;
-  padding: 0.0625rem 0.25rem;
-  border: 2px dashed rgb(47 58 69 / 0.55);
-  border-radius: 0.375rem;
-  background-color: rgb(255 255 255 / 0.55);
-  color: var(--color-ink);
-  font-size: 0.6875rem;
-  line-height: 0.875rem;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-/* 时间轴拖拽的状态：横条能抓；端点上是左右箭头；拖动中原来的横条变淡、跟着走的块虚线描边、会叠上去的块实线描边 */
+/* 时间轴拖拽的状态：横条能抓；端点上是左右箭头；拖动中画成松手后的样子，被拖的块是拿起来的样子（阴影）、
+   跟着走的块虚线描边、会叠上去的块实线描边；指针在「没排时间」栏里时时间轴不重排，被拖的横条留在原处变淡 */
 [data-segment] > button {
   cursor: grab;
 }
@@ -478,6 +463,11 @@
 
 [data-segment][data-dragging="true"] > button {
   opacity: 0.35;
+}
+
+[data-segment][data-lifted="true"] {
+  border-radius: 0.375rem;
+  box-shadow: 0 6px 16px rgb(47 58 69 / 0.3);
 }
 
 [data-segment][data-follower="true"] {
