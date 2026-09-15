@@ -72,7 +72,7 @@ export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDraw
       <div aria-live="polite">
         {backfillIds !== null && (
           <div role="group" aria-label="补油费" className="flex flex-wrap items-center gap-2 text-sm">
-            <p className="text-ink">{`给已有的 ${backfillIds.length} 个自驾块补上油费吗？`}</p>
+            <p className="text-ink">{`有 ${backfillIds.length} 件事是自驾，给它们补上油费吗？`}</p>
             <button
               type="button"
               className="btn btn-primary h-8 px-3"

@@ -34,7 +34,7 @@ export function MoneyOverview({ doc, library, libraryView, plan, filter }: Money
     `总额 ${formatYuan(summary.totalCents)}`,
     `人均 ${formatYuan(summary.perPersonCents)}`,
     `已填 ${progress.filledCount} / 共 ${progress.expenseCount} 笔`,
-    ...(progress.blocksWithoutMoney > 0 ? [`另有 ${progress.blocksWithoutMoney} 个块还没挂钱`] : []),
+    ...(progress.blocksWithoutMoney > 0 ? [`另有 ${progress.blocksWithoutMoney} 件事还没填钱`] : []),
   ].join(" · ");
 
   return (

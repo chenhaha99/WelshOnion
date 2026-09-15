@@ -41,7 +41,7 @@ describe("删除类型", () => {
 
     const picker = await openKindPicker(user, "西湖");
     await user.click(within(await openKindMenu(user, picker, "门票")).getByRole("menuitem", { name: "删除…" }));
-    expect(within(picker).getByText(/这个计划里有 2 个块在用/)).toBeTruthy();
+    expect(within(picker).getByText(/这个计划里有 2 件事在用/)).toBeTruthy();
     await user.click(within(picker).getByRole("button", { name: "删除" }));
 
     await waitFor(async () =>

@@ -50,7 +50,7 @@ describe("状态选择器和状态的管理", () => {
     const picker = screen.getByRole("dialog", { name: "选择状态" });
     await user.click(within(picker).getByRole("button", { name: "「已预订」的操作" }));
     await user.click(within(picker).getByRole("menuitem", { name: "删除…" }));
-    expect(within(picker).getByText(/这个计划里有 1 个块在用/)).toBeTruthy();
+    expect(within(picker).getByText(/这个计划里有 1 件事在用/)).toBeTruthy();
     await user.click(within(picker).getByRole("button", { name: "删除" }));
 
     await waitFor(async () =>

@@ -246,18 +246,18 @@ describe("按类型筛选时的钱", () => {
     expect(within(dialog).queryByText(/^钱：/)).toBeNull();
   });
 
-  it("挂在被筛掉的块上的钱：日期列表上面写一句，钱的总览算上它", async () => {
+  it("挂在被筛掉的事上的钱：日期列表上面写一句，钱的总览算上它", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const { lake } = threeKinds(plan, library);
       money(plan, library, "住宿费", 30000, "lodging", [lake]);
     });
     await screen.findByRole("group", { name: "按类型筛选" });
-    expect(screen.queryByText(/挂在被筛掉的块上/)).toBeNull();
+    expect(screen.queryByText(/挂在被筛掉的事上/)).toBeNull();
 
     await pressKind(user, "住宿");
 
-    const line = await screen.findByText("有 ¥300 挂在被筛掉的块上");
+    const line = await screen.findByText("有 ¥300 挂在被筛掉的事上");
     const list = screen.getByRole("list", { name: "日期列表" });
     expect(line.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await blockTitles("10.1")).toEqual(["民宿"]);
@@ -274,6 +274,6 @@ describe("按类型筛选时的钱", () => {
     await pressKind(user, "住宿");
 
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿"]));
-    expect(screen.queryByText(/挂在被筛掉的块上/)).toBeNull();
+    expect(screen.queryByText(/挂在被筛掉的事上/)).toBeNull();
   });
 });

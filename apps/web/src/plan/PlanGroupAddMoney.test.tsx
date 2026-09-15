@@ -67,14 +67,14 @@ function optionTexts(select: HTMLElement): string[] {
 }
 
 describe("每组末尾加一笔", () => {
-  it("挂到一块：建一笔这个类型的钱挂上；填完清空，挂到回到「不挂块」，焦点还在金额", async () => {
+  it("挂到一块：建一笔这个类型的钱挂上；填完清空，挂到回到「不属于任何一天」，焦点还在金额", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan(twoNights);
     await byKind(user);
 
     const row = addRowOf("住宿");
     expect(optionTexts(within(row).getByRole("combobox", { name: "挂到" }))).toEqual([
-      "不挂块",
+      "不属于任何一天",
       "10.1 周四 民宿",
       "10.2 周五 酒店",
       "10.2 周五 西湖",
@@ -96,7 +96,7 @@ describe("每组末尾加一笔", () => {
     expect(document.activeElement).toBe(within(after).getByRole("textbox", { name: "新一笔的金额" }));
   });
 
-  it("不挂块（默认）：这个类型的钱排在组的最后", async () => {
+  it("不属于任何一天（默认）：这个类型的钱排在组的最后", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan(twoNights);
     await byKind(user);
@@ -122,7 +122,7 @@ describe("每组末尾加一笔", () => {
 
     await waitFor(() =>
       expect(optionTexts(within(addRowOf("住宿")).getByRole("combobox", { name: "挂到" }))).toEqual([
-        "不挂块",
+        "不属于任何一天",
         "10.1 周四 民宿",
       ]),
     );

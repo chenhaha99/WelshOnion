@@ -327,8 +327,8 @@ function DeleteConfirm({
     <div className="flex flex-col gap-2 px-3 pb-2 text-sm" onKeyDown={stayInPicker(onCancel)}>
       <p className="text-ink">
         {usage > 0
-          ? `这个计划里有 ${usage} 个块在用，删了它们会写成「已删除的${label}」。`
-          : "这个计划里没有块在用。"}
+          ? `这个计划里有 ${usage} 件事在用，删了它们会写成「已删除的${label}」。`
+          : "这个计划里没有事在用。"}
       </p>
       <div className="flex justify-end gap-1.5">
         <button type="button" className="btn btn-ghost h-8 px-3" autoFocus onClick={onCancel}>

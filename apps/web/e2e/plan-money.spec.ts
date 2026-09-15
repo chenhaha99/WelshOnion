@@ -60,7 +60,7 @@ test("钱：填第一笔 → 一块多笔 → 不属于任何一天 → 总览 �
   await page.keyboard.press("Enter");
   await expect(overview.getByRole("button", { name: "不属于任何一天：¥600" })).toBeVisible();
   await expect(overview.locator("[data-money-summary]")).toHaveText(
-    "总额 ¥1,058.50 · 人均 ¥1,058.50 · 已填 4 / 共 4 笔 · 另有 1 个块还没挂钱",
+    "总额 ¥1,058.50 · 人均 ¥1,058.50 · 已填 4 / 共 4 笔 · 另有 1 件事还没填钱",
   );
   await shot(page, "03-overview");
 

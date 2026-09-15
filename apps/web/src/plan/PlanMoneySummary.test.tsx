@@ -39,7 +39,7 @@ describe("总额、人均和填写进度", () => {
       addDayBlock(plan, library, oct1!, "灵隐寺");
     });
 
-    expect(await summaryText()).toBe("总额 ¥900 · 人均 ¥300 · 已填 2 / 共 3 笔 · 另有 1 个块还没挂钱");
+    expect(await summaryText()).toBe("总额 ¥900 · 人均 ¥300 · 已填 2 / 共 3 笔 · 另有 1 件事还没填钱");
   });
 });
 

@@ -177,7 +177,7 @@ describe("在块里填钱", () => {
     await waitFor(() => expect(expensesOf(other).map((expense) => expense.title)).toEqual(["面"]));
   });
 
-  it("共用的钱从这块拿掉：钱还在", async () => {
+  it("共用的钱从这件事拿掉：钱还在", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan((plan, library) => {
       const [oct1, oct2] = daysFromOct1(plan, 2);
@@ -189,8 +189,8 @@ describe("在块里填钱", () => {
 
     const editor = await openMoney(user, "10.2", "民宿");
     const shared = expenseRow(editor, "民宿两晚");
-    expect(within(shared).getByText("也挂在别的块上")).toBeTruthy();
-    await user.click(within(shared).getByRole("button", { name: "从这块拿掉" }));
+    expect(within(shared).getByText("也挂在别的事上")).toBeTruthy();
+    await user.click(within(shared).getByRole("button", { name: "从这件事拿掉" }));
 
     await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("填钱"));
     expect(await moneyCellText("10.1", "民宿")).toBe("¥500");

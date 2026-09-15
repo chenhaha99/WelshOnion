@@ -52,7 +52,7 @@ test("类型和状态：新建并用上 → 改色 → 删除确认 → 新建�
   // 删除：先说明在用个数，确认后两块都写「已删除的类型」，选择器还开着
   await kindPicker.getByRole("button", { name: "「门票」的操作" }).click();
   await kindPicker.getByRole("menuitem", { name: "删除…" }).click();
-  await expect(kindPicker.getByText("这个计划里有 2 个块在用", { exact: false })).toBeVisible();
+  await expect(kindPicker.getByText("这个计划里有 2 件事在用", { exact: false })).toBeVisible();
   await shot(page, "03-delete-confirm");
   await kindPicker.getByRole("button", { name: "删除", exact: true }).click();
   await expect(rows.nth(0).getByRole("button", { name: "类型：已删除的类型" })).toBeVisible();

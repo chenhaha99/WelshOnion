@@ -130,7 +130,7 @@ describe("类型组里有什么", () => {
     expect(expenseRowOf(groupOf("住宿"), "住宿费").querySelector("[data-expense-blocks]")?.textContent).toBe(
       "挂在 10.1 周四 横店",
     );
-    expect(expenseRowOf(groupOf("其他"), "签证").querySelector("[data-expense-blocks]")?.textContent).toBe("不挂块");
+    expect(expenseRowOf(groupOf("其他"), "签证").querySelector("[data-expense-blocks]")?.textContent).toBe("不属于任何一天");
   });
 
   it("没填金额的，组头写「还有 N 笔没填」；只有空行的组写「还没有钱」", async () => {
@@ -214,7 +214,7 @@ describe("按类型时的筛选", () => {
 
     await waitFor(() => expect(groups().map((group) => group.getAttribute("aria-label"))).toEqual(["住宿"]));
     expect(rowsOf(groupOf("住宿"))).toEqual(["房费", "住宿费", "订房服务费"]);
-    expect(screen.queryByText(/挂在被筛掉的块上/)).toBeNull();
+    expect(screen.queryByText(/挂在被筛掉的事上/)).toBeNull();
   });
 
   it("按状态筛：钱看挂的块有没有通过，不挂块的照旧；空行看块的状态", async () => {

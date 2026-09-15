@@ -40,7 +40,7 @@ async function setCostAndBackfill(user: User): Promise<HTMLElement> {
   const settings = await openSettings(user);
   await user.type(within(settings).getByLabelText("每公里成本（元）"), "0.8{Enter}");
   const prompt = within(settings).getByRole("group", { name: "补油费" });
-  expect(within(prompt).getByText("给已有的 2 个自驾块补上油费吗？")).toBeTruthy();
+  expect(within(prompt).getByText("有 2 件事是自驾，给它们补上油费吗？")).toBeTruthy();
   await user.click(within(prompt).getByRole("button", { name: "补上" }));
   return settings;
 }

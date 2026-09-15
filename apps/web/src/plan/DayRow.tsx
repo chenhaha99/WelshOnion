@@ -139,7 +139,7 @@ export function DayRow({ doc, library, libraryView, plan, base, label, index, co
             if (event.key === "Escape") backToNormal();
           }}
         >
-          <span className="text-ink">有块跨过这里，它们放在新插入那天的之前还是之后？</span>
+          <span className="text-ink">有事跨过这里，它们放在新插入那天的之前还是之后？</span>
           <button type="button" className="btn btn-ghost" autoFocus onClick={() => insert(mode.direction, "before")}>
             之前
           </button>

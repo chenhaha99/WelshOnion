@@ -131,7 +131,7 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
       {/* 按天、又按类型筛时，钱算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上。按类型分组时钱都在组里 */}
       {grouping === "day" && hiddenCents > 0 && (
         <p data-hidden-money className="text-sm text-ink-muted">
-          {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的块上`}
+          {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的事上`}
         </p>
       )}
       {grouping === "day" ? (

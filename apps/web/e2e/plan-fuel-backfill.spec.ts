@@ -48,7 +48,7 @@ test("事后补油费：先有自驾块 → 设每公里成本 → 问 → 只�
   await cost.fill("0.8");
   await page.keyboard.press("Enter");
   const prompt = settings.getByRole("group", { name: "补油费" });
-  await expect(prompt).toContainText("给已有的 2 个自驾块补上油费吗？");
+  await expect(prompt).toContainText("有 2 件事是自驾，给它们补上油费吗？");
   await expect(cost).toBeFocused();
   await shot(page, "01-prompt");
 

@@ -32,7 +32,7 @@ test("按类型加钱：组末尾加一笔挂到一块 → 不挂块排在最后
   await addRow.getByRole("textbox", { name: "新一笔的金额" }).fill("20");
   await page.keyboard.press("Enter");
   await expect(lodging.locator("[data-group-summary]")).toHaveText("¥800 · 3 笔");
-  await expect(lodging.locator("[data-expense-blocks]").last()).toHaveText("不挂块");
+  await expect(lodging.locator("[data-expense-blocks]").last()).toHaveText("不属于任何一天");
   await shot(page, "01-add-in-group");
 
   // 加一笔别的类型的钱：选购物，购物组出现

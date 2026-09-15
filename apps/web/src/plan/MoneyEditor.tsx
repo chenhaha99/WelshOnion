@@ -88,14 +88,14 @@ interface ExpenseRowProps {
   expense: ExpenseView;
   kinds: KindView[];
   countKindUsing: (kindId: string) => number;
-  /** 在哪块的编辑区里；不挂块的钱、按类型分组时给 null */
+  /** 在哪块的编辑区里；不属于任何一天的钱、按类型分组时给 null */
   blockId: string | null;
-  /** 按类型分组时写「挂在 10.1 周四 民宿」或「不挂块」；按天时不给 */
+  /** 按类型分组时写「挂在 10.1 周四 民宿」或「不属于任何一天」；按天时不给 */
   blocksLabel?: string;
 }
 
 /**
- * 一笔钱一行：类型、金额、人均或总价、说明，共用时能从这块拿掉，删除这笔。按天的编辑区、按类型分组共用。
+ * 一笔钱一行：类型、金额、人均或总价、说明，共用时能从这件事拿掉，删除这笔。按天的编辑区、按类型分组共用。
  * 分两组：类型、金额、人均或总价一组，说明往后一组；放不下时第二组整个换到下一行，不会把「总价」和金额拆开。
  */
 export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId, blocksLabel }: ExpenseRowProps) {
@@ -160,13 +160,13 @@ export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, block
         )}
         {shared && blockId !== null && (
           <>
-            <span className="text-xs text-ink-muted">也挂在别的块上</span>
+            <span className="text-xs text-ink-muted">也挂在别的事上</span>
             <button
               type="button"
               className="btn btn-ghost h-8 px-2"
               onClick={() => unlinkExpense(doc, expense.id, blockId)}
             >
-              从这块拿掉
+              从这件事拿掉
             </button>
           </>
         )}
@@ -204,7 +204,7 @@ interface DraftRowProps {
   autoFocus: boolean;
   /** 前面那一截字：默认「加一笔」；按类型分组的空行写块 */
   lead?: ReactNode;
-  /** 给了就多一个「挂到」下拉：第一项「不挂块」，建出来挂在选的块上（这时不看 blockId） */
+  /** 给了就多一个「挂到」下拉：第一项「不属于任何一天」，建出来挂在选的块上（这时不看 blockId） */
   blockChoices?: ReadonlyArray<{ id: string; label: string }>;
   /** 给了就多一个「类型」下拉，默认选 defaultKindId */
   kindChoices?: ReadonlyArray<{ id: string; name: string }>;
@@ -232,7 +232,7 @@ export function DraftRow({
   const [error, setError] = useState<string | null>(null);
   // 按了 Esc、还没再填字：这时焦点离开不建（编辑区收起时焦点会回到打开它的按钮）
   const discarding = useRef(false);
-  // 筛选变了、选过的块或类型不在选项里了：块回到「不挂块」，类型换成第一个，免得建出来看不见
+  // 筛选变了、选过的块或类型不在选项里了：块回到「不属于任何一天」，类型换成第一个，免得建出来看不见
   const chosenTarget = blockChoices?.some((choice) => choice.id === target) ? target : "";
   const chosenKind =
     kindChoices && !kindChoices.some((kind) => kind.id === kindId) ? (kindChoices[0]?.id ?? defaultKindId) : kindId;
@@ -336,7 +336,7 @@ export function DraftRow({
             value={chosenTarget}
             onChange={(event) => setTarget(event.target.value)}
           >
-            <option value="">不挂块</option>
+            <option value="">不属于任何一天</option>
             {blockChoices.map((choice) => (
               <option key={choice.id} value={choice.id}>
                 {choice.label}

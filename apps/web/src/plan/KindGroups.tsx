@@ -244,7 +244,7 @@ function summaryOf(group: Group, plan: PlanView): string {
   return [`${formatYuan(cents)} · ${money.length} 笔`, ...(unfilled > 0 ? [`还有 ${unfilled} 笔没填`] : [])].join(" · ");
 }
 
-/** 「挂在 10.1 周四 民宿、10.2 周五 民宿」，按行程的先后；一块都不挂写「不挂块」。 */
+/** 「挂在 10.1 周四 民宿、10.2 周五 民宿」，按行程的先后；一块都不挂写「不属于任何一天」。 */
 function attachedLabel(
   expense: ExpenseView,
   plan: PlanView,
@@ -257,7 +257,7 @@ function attachedLabel(
       return block ? [block] : [];
     })
     .sort((a, b) => (tripOrder.get(a.id) ?? 0) - (tripOrder.get(b.id) ?? 0));
-  return blocks.length === 0 ? "不挂块" : `挂在 ${blocks.map(blockLabel).join("、")}`;
+  return blocks.length === 0 ? "不属于任何一天" : `挂在 ${blocks.map(blockLabel).join("、")}`;
 }
 
 /** 一个控件是哪一个：读屏名（没有就用按钮上的字），冒号后面跟着的当前值不算。 */
