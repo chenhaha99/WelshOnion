@@ -227,7 +227,7 @@ test("手机上：拖到框边自己滚、回到中间就停 → 鼠标拖：不
   expect(errors).toEqual([]);
 });
 
-test("宽屏上用手指：长按拖横条、页面不跟着滚 → 没长按就滑是滚页面 → 栏里的一件长按拖到横轴", async ({ page }) => {
+test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、长按不挪 → 栏里的一件长按拖到横轴 → 没长按就滑是滚页面", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page);
   const day1Table = page.getByRole("table", { name: DAY1 });
@@ -254,16 +254,6 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 没长按就
   await expect(page.getByRole("dialog", { name: "西湖" })).toHaveCount(0);
   expect(await pageScrollY(page)).toBe(scrollBefore);
 
-  // 没长按就往上滑：滚的是页面，没有预览框
-  const lakeNow = center(await box(segment(day1, "西湖")));
-  const beforeSwipe = await pageScrollY(page);
-  await fingerDown(page, lakeNow);
-  await fingerMove(page, lakeNow, { x: lakeNow.x, y: lakeNow.y - 200 }, 10);
-  await fingerUp(page);
-  await expect.poll(() => pageScrollY(page)).toBeGreaterThan(beforeSwipe);
-  await expect(ghost).toHaveCount(0);
-  expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
-
   // 点一下：打开详情；长按不挪就抬起：不改、不开详情
   const lakeDetails = page.getByRole("dialog", { name: "西湖" });
   await fingerTap(page, center(await box(segment(day1, "西湖"))));
@@ -284,6 +274,17 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 没长按就
   await expect(label).toHaveText("14:00–16:00");
   await fingerUp(page);
   await expect.poll(() => timeOf(day1Table, "灵隐寺")).toBe("14:00–16:00");
+
+  // 没长按就往上滑：滚的是页面，没有预览框。放在最后：从时间轴上快速滑到页面底以后，
+  // Chromium 模拟的手指在一两秒里点不出点击（惯性把那一下吃了），后面再点、再按会不稳
+  const lakeNow = center(await box(segment(day1, "西湖")));
+  const beforeSwipe = await pageScrollY(page);
+  await fingerDown(page, lakeNow);
+  await fingerMove(page, lakeNow, { x: lakeNow.x, y: lakeNow.y - 200 }, 10);
+  await fingerUp(page);
+  await expect.poll(() => pageScrollY(page)).toBeGreaterThan(beforeSwipe);
+  await expect(ghost).toHaveCount(0);
+  expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
 
   expect(errors).toEqual([]);
 });
