@@ -27,6 +27,7 @@ import { Menu, type MenuItem } from "../app/Menu";
 import { BlockDetails } from "./BlockDetails";
 import { blockTimeLabel, clock } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
+import { useNotifyDeleted } from "./DeletedNotice";
 import { MoneyEditor } from "./MoneyEditor";
 import { moneyCellEmpty, moneyCellLabel, moneyCellNote, type MoneyCell } from "./money-cells";
 import { KindPicker, StatusPicker } from "./pickers";
@@ -80,6 +81,18 @@ export function BlockTable({
   const hiddenCount = dayBlocks.length - blocks.length;
   const tbody = useRef<HTMLTableSectionElement>(null);
   const focusSpot = useRef<FocusSpot | null>(null);
+
+  // 只按下一个类型时，加的事就是这个类型（只看住宿时加「酒店」），加上就看得见
+  const addKindId = filter?.kindIds?.length === 1 ? filter.kindIds[0]! : DEFAULT_KIND_ID;
+  // 这天最近加的那件被筛掉了，「筛掉了 N 件」后面写上它；筛选变了、它显示出来了、它没了，就不再写
+  const filterKey = `${filter?.statusIds?.join(",") ?? ""}|${filter?.kindIds?.join(",") ?? ""}`;
+  const [justAdded, setJustAdded] = useState<{ blockId: string; filterKey: string } | null>(null);
+  const justAddedBlock = justAdded === null ? undefined : dayBlocks.find((block) => block.id === justAdded.blockId);
+  const hiddenJustAdded =
+    justAdded?.filterKey === filterKey && justAddedBlock !== undefined && !blocks.includes(justAddedBlock)
+      ? justAddedBlock
+      : undefined;
+  if (justAdded !== null && hiddenJustAdded === undefined) setJustAdded(null);
 
   // 弹出去的选择器、菜单不在表格里：焦点在那里时不改记录，记的还是打开它的那个按钮
   const rememberFocus = (event: FocusEvent<HTMLTableSectionElement>) => {
@@ -149,12 +162,19 @@ export function BlockTable({
             <tr data-filtered-out>
               <td colSpan={COLUMN_COUNT} className="text-sm text-ink-muted">
                 筛掉了 {hiddenCount} 件
+                {hiddenJustAdded !== undefined && `，包括刚加的「${hiddenJustAdded.title}」`}
               </td>
             </tr>
           )}
           <tr>
             <td colSpan={COLUMN_COUNT}>
-              <AddBlock doc={doc} library={library} baseId={baseId} />
+              <AddBlock
+                doc={doc}
+                library={library}
+                baseId={baseId}
+                kindId={addKindId}
+                onAdded={(blockId) => setJustAdded({ blockId, filterKey })}
+              />
             </td>
           </tr>
         </tbody>
@@ -199,23 +219,35 @@ function BlockRow({
   const [moneyOpen, setMoneyOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const row = useRef<HTMLTableRowElement>(null);
+  const notifyDeleted = useNotifyDeleted();
   const color = block.kind.deleted ? DELETED_COLOR : block.kind.color;
   const indent = block.indent ?? 0;
   const undated = block.start_minute === null;
   const slot: SlotChoice = block.slot ?? "day";
   const position = slotGroup.indexOf(block.id);
 
-  // 删除不再确认，靠撤销；套着块时写明会一起删几个
+  // 删除不再确认，靠撤销：删完在屏幕底部说删了什么、能撤销；套着块时写明会一起删几个
   const deleteItem: MenuItem = {
     label: followerCount > 0 ? `删除（连同里面的 ${followerCount} 个）` : "删除",
     danger: true,
-    onSelect: () => deleteBlock(doc, library, block.id),
+    onSelect: () => {
+      deleteBlock(doc, library, block.id);
+      notifyDeleted({
+        message: followerCount > 0 ? `删掉了「${block.title}」和里面的 ${followerCount} 件` : `删掉了「${block.title}」`,
+        focusAfterUndo: `tr[data-block-id="${block.id}"] button[aria-label="这件事的操作"]`,
+      });
+    },
   };
   const detailsItem: MenuItem = { label: "详情…", onSelect: () => setDetailsOpen(true) };
   // 收起详情后焦点回到这一行的行菜单按钮（按钮一直在）；先挪焦点，没保存的长备注借这次离开存上
   const closeDetails = () => {
     row.current?.querySelector<HTMLElement>("button[aria-label='这件事的操作']")?.focus();
     setDetailsOpen(false);
+  };
+  // 收起钱的编辑区后焦点回到钱格；先挪焦点，空行里填了没回车的借这次离开建上（按 Esc 的在空行里就放弃了）
+  const closeMoney = () => {
+    row.current?.querySelector<HTMLElement>("button[aria-label='钱']")?.focus();
+    setMoneyOpen(false);
   };
   const subtitleLine = [block.subtitle, block.note === null ? null : "有长备注"].filter((part) => part !== null).join(" · ");
   const moneyNote = moneyCellNote(moneyCell);
@@ -336,7 +368,7 @@ function BlockRow({
               label={`${block.title} 的钱`}
               // 块的类型被删了时，新一笔先记成「其他」
               defaultKindId={block.kind.deleted ? "other" : block.kind.id}
-              onDone={() => setMoneyOpen(false)}
+              onDone={closeMoney}
             />
           </td>
         </tr>
@@ -500,8 +532,17 @@ function parseDuration(hours: string, minutes: string): number | null {
   return minuteValue < 60 ? Number(hours) * 60 + minuteValue : null;
 }
 
-/** 填标题回车就建：没排时间、在整天、类型游玩、状态待定；建完清空，焦点留着接着加。 */
-function AddBlock({ doc, library, baseId }: { doc: Y.Doc; library: Y.Doc; baseId: string }) {
+interface AddBlockProps {
+  doc: Y.Doc;
+  library: Y.Doc;
+  baseId: string;
+  /** 建出来的类型 */
+  kindId: string;
+  onAdded: (blockId: string) => void;
+}
+
+/** 填标题回车就建：没排时间、在整天、状态待定，类型用给的；建完清空，焦点留着接着加。 */
+function AddBlock({ doc, library, baseId, kindId, onAdded }: AddBlockProps) {
   const [title, setTitle] = useState("");
   return (
     <input
@@ -514,7 +555,10 @@ function AddBlock({ doc, library, baseId }: { doc: Y.Doc; library: Y.Doc; baseId
         if (event.key === "Enter") {
           event.preventDefault();
           const text = title.trim();
-          if (text !== "") addBlock(doc, library, { baseId, kindId: DEFAULT_KIND_ID, title: text, slot: "day" });
+          if (text !== "") {
+            const added = addBlock(doc, library, { baseId, kindId, title: text, slot: "day" });
+            if (added.ok) onAdded(added.value.blockId);
+          }
           setTitle("");
         } else if (event.key === "Escape") {
           setTitle("");

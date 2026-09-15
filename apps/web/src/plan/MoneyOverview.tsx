@@ -6,7 +6,7 @@ import {
   type PlanView,
   type StatsFilter,
 } from "@welshonion/core";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type * as Y from "yjs";
 import { formatYuan } from "./money";
 import { MoneyEditor } from "./MoneyEditor";
@@ -25,6 +25,7 @@ interface MoneyOverviewProps {
  */
 export function MoneyOverview({ doc, library, libraryView, plan, filter }: MoneyOverviewProps) {
   const [unattachedOpen, setUnattachedOpen] = useState(false);
+  const unattachedButton = useRef<HTMLButtonElement>(null);
   const summary = moneySummary(plan, filter);
   const progress = fillProgress(plan, filter);
   const kinds = [...libraryView.kinds.values()].sort((a, b) => a.order - b.order);
@@ -43,6 +44,7 @@ export function MoneyOverview({ doc, library, libraryView, plan, filter }: Money
           {line}
         </p>
         <button
+          ref={unattachedButton}
           type="button"
           aria-expanded={unattachedOpen}
           className="btn btn-ghost h-8 px-2 text-sm tabular-nums"
@@ -61,7 +63,11 @@ export function MoneyOverview({ doc, library, libraryView, plan, filter }: Money
           block={null}
           label="不属于任何一天的钱"
           defaultKindId="other"
-          onDone={() => setUnattachedOpen(false)}
+          // 收起后焦点回到「不属于任何一天」；先挪焦点，空行里填了没回车的借这次离开建上
+          onDone={() => {
+            unattachedButton.current?.focus();
+            setUnattachedOpen(false);
+          }}
         />
       )}
     </section>

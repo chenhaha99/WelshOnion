@@ -66,7 +66,7 @@ describe("在块里填钱", () => {
     expect(expense?.kind.id).toBe("sight");
   });
 
-  it("空行不填不建", async () => {
+  it("空行不填不建：点「收起」", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -74,12 +74,59 @@ describe("在块里填钱", () => {
     });
     const other = await openOtherTab(planId);
 
-    await openMoney(user, "10.1", "西湖");
-    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "钱" }));
+    const editor = await openMoney(user, "10.1", "西湖");
+    await user.click(within(editor).getByRole("button", { name: "收起" }));
 
     expect(screen.queryByRole("group", { name: "西湖 的钱" })).toBeNull();
     expect(await moneyCellText("10.1", "西湖")).toBe("填钱");
     expect(expensesOf(other)).toHaveLength(0);
+  });
+
+  it("点「收起」、按 Esc、再点一次钱格都能收起，焦点回到钱格", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      addDayBlock(plan, library, oct1!, "西湖");
+    });
+    const cell = within(await blockRow("10.1", "西湖")).getByRole("button", { name: "钱" });
+
+    await user.click(within(await openMoney(user, "10.1", "西湖")).getByRole("button", { name: "收起" }));
+    expect(screen.queryByRole("group", { name: "西湖 的钱" })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(cell));
+
+    // 一笔钱都没有时，打开后空行的金额框就有焦点，在里面按 Esc
+    await openMoney(user, "10.1", "西湖");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("group", { name: "西湖 的钱" })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(cell));
+
+    await openMoney(user, "10.1", "西湖");
+    await user.click(cell);
+    expect(screen.queryByRole("group", { name: "西湖 的钱" })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(cell));
+  });
+
+  it("空行填了没按回车：点「收起」就建上，按 Esc 就不要了", async () => {
+    const user = userEvent.setup();
+    const planId = await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      addDayBlock(plan, library, oct1!, "西湖");
+      addDayBlock(plan, library, oct1!, "灵隐寺");
+    });
+    const other = await openOtherTab(planId);
+
+    const lake = await openMoney(user, "10.1", "西湖");
+    await user.type(within(lake).getByRole("textbox", { name: "新一笔的金额" }), "300");
+    await user.click(within(lake).getByRole("button", { name: "收起" }));
+    await waitFor(async () => expect(await moneyCellText("10.1", "西湖")).toBe("¥300"));
+
+    const temple = await openMoney(user, "10.1", "灵隐寺");
+    await user.type(within(temple).getByRole("textbox", { name: "新一笔的金额" }), "50");
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("group", { name: "灵隐寺 的钱" })).toBeNull();
+    expect(await moneyCellText("10.1", "灵隐寺")).toBe("填钱");
+    await waitFor(() => expect(expensesOf(other).map((expense) => expense.amount_cents)).toEqual([30000]));
   });
 
   it("改金额和人均", async () => {
@@ -150,5 +197,21 @@ describe("在块里填钱", () => {
 
     expect(within(editor).getByText("要填不小于 0 的数，最多两位小数")).toBeTruthy();
     expect(expensesOf(other)).toHaveLength(0);
+  });
+});
+
+describe("不属于任何一天的钱", () => {
+  it("点「收起」收起，焦点回到「不属于任何一天」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFromOct1(plan, 1));
+    const overview = await screen.findByRole("region", { name: "钱的总览" });
+    const toggle = within(overview).getByRole("button", { name: "不属于任何一天：¥0" });
+
+    await user.click(toggle);
+    const editor = screen.getByRole("group", { name: "不属于任何一天的钱" });
+    await user.click(within(editor).getByRole("button", { name: "收起" }));
+
+    expect(screen.queryByRole("group", { name: "不属于任何一天的钱" })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(toggle));
   });
 });

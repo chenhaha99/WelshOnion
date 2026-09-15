@@ -23,6 +23,7 @@ import { BudgetFields } from "./BudgetFields";
 import { budgetParts } from "./day-budget";
 import { dayFactsParts } from "./day-facts";
 import { COMMON_TIME_ZONES, cityName } from "./day-labels";
+import { useNotifyDeleted } from "./DeletedNotice";
 import type { MoneyCell } from "./money-cells";
 
 type Direction = "above" | "below";
@@ -51,6 +52,7 @@ interface DayRowProps {
 export function DayRow({ doc, library, libraryView, plan, base, label, index, count, moneyCells, filter }: DayRowProps) {
   const [mode, setMode] = useState<Mode>({ kind: "normal" });
   const backToNormal = () => setMode({ kind: "normal" });
+  const notifyDeleted = useNotifyDeleted();
   const facts = dayFactsParts(plan, base, moneyCells, filter);
   const budget = dayFacts(plan, base.id).budget;
   const budgetLine = budget === null ? [] : budgetParts(budget);
@@ -72,6 +74,16 @@ export function DayRow({ doc, library, libraryView, plan, base, label, index, co
     else backToNormal();
   };
 
+  // 删天不确认，靠撤销：坐在这天上的块会一起删掉，提示里写明几件
+  const removeDay = () => {
+    const blockCount = [...plan.blocks.values()].filter((block) => block.start_base_id === base.id).length;
+    deleteDay(doc, base.id);
+    notifyDeleted({
+      message: blockCount > 0 ? `删掉了${label}，连同这天的 ${blockCount} 件事` : `删掉了${label}`,
+      focusAfterUndo: `li[data-base-id="${base.id}"] button[aria-label="这天的操作"]`,
+    });
+  };
+
   const flagItem = (flag: DayFlag, name: string): MenuItem =>
     base.day_flag === flag
       ? { label: `取消${name}`, onSelect: () => setDayFlag(doc, base.id, null) }
@@ -87,11 +99,11 @@ export function DayRow({ doc, library, libraryView, plan, base, label, index, co
     { label: "改时区…", onSelect: () => setMode({ kind: "pick-tz", purpose: "change" }) },
     { label: "加一个另一时区的这天…", onSelect: () => setMode({ kind: "pick-tz", purpose: "add" }) },
     { label: "这天的时间预算…", onSelect: () => setMode({ kind: "budget" }) },
-    { label: "删除这天", danger: true, onSelect: () => deleteDay(doc, base.id) },
+    { label: "删除这天", danger: true, onSelect: removeDay },
   ];
 
   return (
-    <li className="glass-card relative flex flex-col gap-2 px-5 py-3 has-[[aria-expanded=true]]:z-10">
+    <li data-base-id={base.id} className="glass-card relative flex flex-col gap-2 px-5 py-3 has-[[aria-expanded=true]]:z-10">
       <div className="flex min-h-9 items-center gap-3">
         <span data-day-label className="text-ink tabular-nums">
           {label}

@@ -6,6 +6,7 @@ import { useDocVersion } from "../app/use-doc-version";
 import { openPlan, type PlanHandle } from "../storage/plans";
 import { AskDays } from "./AskDays";
 import { DayList } from "./DayList";
+import { DeletedNotice } from "./DeletedNotice";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { usePlanUndo } from "./use-plan-undo";
 
@@ -83,49 +84,51 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
   }, [plan, library, handle, now]);
 
   return (
-    // 放宽到 1152 像素：时间轴的 24 小时要放得下（每小时至少 30 像素）
-    <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
-      <div className="flex items-center justify-between gap-4">
-        <BackToList />
-        <div className="flex gap-1">
-          <button type="button" className="btn btn-ghost" disabled={!undo.canUndo} onClick={undo.undo}>
-            撤销
-          </button>
-          <button type="button" className="btn btn-ghost" disabled={!undo.canRedo} onClick={undo.redo}>
-            重做
-          </button>
+    <DeletedNotice undo={undo}>
+      {/* 放宽到 1152 像素：时间轴的 24 小时要放得下（每小时至少 30 像素） */}
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
+        <div className="flex items-center justify-between gap-4">
+          <BackToList />
+          <div className="flex gap-1">
+            <button type="button" className="btn btn-ghost" disabled={!undo.canUndo} onClick={undo.undo}>
+              撤销
+            </button>
+            <button type="button" className="btn btn-ghost" disabled={!undo.canRedo} onClick={undo.redo}>
+              重做
+            </button>
+          </div>
         </div>
-      </div>
 
-      <h1 className="text-2xl font-medium text-ink">
-        <button
-          ref={titleButton}
-          type="button"
-          title="计划设置"
-          className="rounded-lg text-left hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
-          onClick={() => setSettingsOpen(true)}
-        >
-          {plan.plan.name}
-        </button>
-      </h1>
+        <h1 className="text-2xl font-medium text-ink">
+          <button
+            ref={titleButton}
+            type="button"
+            title="计划设置"
+            className="rounded-lg text-left hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
+            onClick={() => setSettingsOpen(true)}
+          >
+            {plan.plan.name}
+          </button>
+        </h1>
 
-      {plan.bases.length === 0 ? (
-        <AskDays doc={handle.doc} />
-      ) : (
-        <DayList doc={handle.doc} library={library} libraryView={libraryView} plan={plan} />
-      )}
+        {plan.bases.length === 0 ? (
+          <AskDays doc={handle.doc} />
+        ) : (
+          <DayList doc={handle.doc} library={library} libraryView={libraryView} plan={plan} />
+        )}
 
-      {settingsOpen && (
-        <SettingsDrawer
-          doc={handle.doc}
-          library={library}
-          settings={plan.plan}
-          onClose={() => {
-            setSettingsOpen(false);
-            titleButton.current?.focus();
-          }}
-        />
-      )}
-    </main>
+        {settingsOpen && (
+          <SettingsDrawer
+            doc={handle.doc}
+            library={library}
+            settings={plan.plan}
+            onClose={() => {
+              setSettingsOpen(false);
+              titleButton.current?.focus();
+            }}
+          />
+        )}
+      </main>
+    </DeletedNotice>
   );
 }

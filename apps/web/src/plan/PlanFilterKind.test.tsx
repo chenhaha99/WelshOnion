@@ -183,6 +183,34 @@ describe("按类型筛选", () => {
     expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
     expect(within(kindGroup()).getByRole("button", { name: "住宿" }).getAttribute("aria-pressed")).toBe("true");
   });
+
+  it("只按下住宿时加一件：建出来是住宿、待定，看得见", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(threeKinds);
+    await pressKind(user, "住宿");
+    await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿"]));
+
+    await user.type(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }), "酒店{Enter}");
+
+    await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿", "酒店"]));
+    const hotel = await blockRow("10.1", "酒店");
+    expect(within(hotel).getByRole("button", { name: /^类型：/ }).getAttribute("aria-label")).toBe("类型：住宿");
+    expect(within(hotel).getByRole("button", { name: /^状态：/ }).getAttribute("aria-label")).toBe("状态：待定");
+    expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
+  });
+
+  it("按下两个类型时加一件：还是游玩，被筛掉，写「包括刚加的」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(threeKinds);
+    await pressKind(user, "住宿");
+    await pressKind(user, "餐饮");
+    await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿", "午饭"]));
+
+    await user.type(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");
+
+    await waitFor(async () => expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件，包括刚加的「河坊街」"));
+    expect(await blockTitles("10.1")).toEqual(["民宿", "午饭"]);
+  });
 });
 
 describe("按类型筛选时的钱", () => {

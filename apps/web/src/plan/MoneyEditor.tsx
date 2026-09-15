@@ -8,10 +8,11 @@ import {
   type KindView,
   type PlanView,
 } from "@welshonion/core";
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
-import { parseYuan } from "./money";
+import { useNotifyDeleted } from "./DeletedNotice";
+import { formatYuan, parseYuan } from "./money";
 import { ExpenseKindPicker } from "./pickers";
 
 const AMOUNT_ERROR = "要填不小于 0 的数，最多两位小数";
@@ -27,10 +28,11 @@ interface MoneyEditorProps {
   label: string;
   /** 新一笔默认的类型 */
   defaultKindId: string;
+  /** 收起：点「收起」、按 Esc 时调用，焦点交回打开它的按钮 */
   onDone: () => void;
 }
 
-/** 钱的编辑区：每笔一行（类型、金额、人均或总价、说明、删除），末尾一行空的，填了才建。 */
+/** 钱的编辑区：每笔一行（类型、金额、人均或总价、说明、删除），末尾一行空的，填了才建；最后是「收起」。 */
 export function MoneyEditor({
   doc,
   library,
@@ -73,6 +75,9 @@ export function MoneyEditor({
         defaultKindId={defaultKindId}
         autoFocus={expenses.length === 0}
       />
+      <button type="button" className="btn btn-ghost h-8 self-start px-2" onClick={onDone}>
+        收起
+      </button>
     </div>
   );
 }
@@ -91,6 +96,7 @@ interface ExpenseRowProps {
 
 /** 一笔钱一行：类型、金额、人均或总价、说明，共用时能从这块拿掉，删除这笔。按天的编辑区、按类型分组共用。 */
 export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId, blocksLabel }: ExpenseRowProps) {
+  const notifyDeleted = useNotifyDeleted();
   const shared = blockId !== null && expense.block_ids.length > 1;
   return (
     <div data-expense-id={expense.id} className="flex flex-wrap items-center gap-2">
@@ -156,12 +162,29 @@ export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, block
           </button>
         </>
       )}
-      {/* 删一笔钱不确认，靠撤销 */}
-      <button type="button" className="btn btn-ghost h-8 px-2 text-danger" onClick={() => deleteExpense(doc, expense.id)}>
+      {/* 删一笔钱不确认，靠撤销：删完在屏幕底部说删了哪笔、能撤销 */}
+      <button
+        type="button"
+        className="btn btn-ghost h-8 px-2 text-danger"
+        onClick={() => {
+          deleteExpense(doc, expense.id);
+          notifyDeleted({
+            message: deletedMessage(expense),
+            focusAfterUndo: `[data-expense-id="${expense.id}"] input[aria-label="金额"]`,
+          });
+        }}
+      >
         删除这笔
       </button>
     </div>
   );
+}
+
+/** 删完的提示怎么说这笔钱：有说明说说明，没说明说金额。 */
+function deletedMessage(expense: ExpenseView): string {
+  if (expense.title !== "") return `删掉了「${expense.title}」这笔钱`;
+  if (expense.amount_cents !== null) return `删掉了 ${formatYuan(expense.amount_cents)} 这笔钱`;
+  return "删掉了一笔钱";
 }
 
 interface DraftRowProps {
@@ -181,6 +204,7 @@ interface DraftRowProps {
 /**
  * 末尾那行空的：金额或说明填了一格、按回车或焦点离开这一行时才建这笔钱。
  * 只在离开整行时提交，免得填完金额跳去填说明时先建出一笔、填完说明又建一笔。
+ * 按 Esc 是不要了：清空，接着焦点离开也不建。
  */
 export function DraftRow({
   doc,
@@ -197,6 +221,8 @@ export function DraftRow({
   const [target, setTarget] = useState("");
   const [kindId, setKindId] = useState(defaultKindId);
   const [error, setError] = useState<string | null>(null);
+  // 按了 Esc、还没再填字：这时焦点离开不建（编辑区收起时焦点会回到打开它的按钮）
+  const discarding = useRef(false);
   // 筛选变了、选过的块或类型不在选项里了：块回到「不挂块」，类型换成第一个，免得建出来看不见
   const chosenTarget = blockChoices?.some((choice) => choice.id === target) ? target : "";
   const chosenKind =
@@ -236,8 +262,20 @@ export function DraftRow({
     <div className="flex flex-col gap-1">
       <div
         className="flex flex-wrap items-center gap-2"
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") return;
+          discarding.current = true;
+          setAmount("");
+          setNote("");
+          setError(null);
+        }}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) submit();
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          if (discarding.current) {
+            discarding.current = false;
+            return;
+          }
+          submit();
         }}
       >
         <span className="w-28 pl-1 text-xs text-ink-muted">{lead ?? "加一笔"}</span>
@@ -263,6 +301,7 @@ export function DraftRow({
           className="input h-8 w-24 tabular-nums"
           value={amount}
           onChange={(event) => {
+            discarding.current = false;
             setAmount(event.target.value);
             setError(null);
           }}
@@ -273,7 +312,10 @@ export function DraftRow({
           placeholder="说明"
           className="input h-8 min-w-32 flex-1"
           value={note}
-          onChange={(event) => setNote(event.target.value)}
+          onChange={(event) => {
+            discarding.current = false;
+            setNote(event.target.value);
+          }}
           onKeyDown={submitOnEnter}
         />
         {blockChoices && (

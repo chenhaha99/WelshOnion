@@ -1,5 +1,5 @@
 import { createPlanUndoManager } from "@welshonion/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type * as Y from "yjs";
 
 export interface UndoControls {
@@ -7,6 +7,8 @@ export interface UndoControls {
   canRedo: boolean;
   undo: () => void;
   redo: () => void;
+  /** 撤销栈到现在变过几次（加了一步、撤了一步、清空都算）；删完的提示靠它知道之后又改过没有 */
+  stackChanges: () => number;
 }
 
 /**
@@ -16,10 +18,15 @@ export interface UndoControls {
 export function usePlanUndo(doc: Y.Doc): UndoControls {
   const [manager, setManager] = useState<Y.UndoManager | null>(null);
   const [, setStackVersion] = useState(0);
+  // 撤销栈的事件在改动结束时同步发出：改动的函数一返回，这里已经数过了
+  const changes = useRef(0);
 
   useEffect(() => {
     const created = createPlanUndoManager(doc);
-    const refresh = () => setStackVersion((version) => version + 1);
+    const refresh = () => {
+      changes.current += 1;
+      setStackVersion(changes.current);
+    };
     created.on("stack-item-added", refresh);
     created.on("stack-item-popped", refresh);
     created.on("stack-cleared", refresh);
@@ -48,6 +55,7 @@ export function usePlanUndo(doc: Y.Doc): UndoControls {
     canRedo: manager?.canRedo() ?? false,
     undo: () => manager?.undo(),
     redo: () => manager?.redo(),
+    stackChanges: () => changes.current,
   };
 }
 

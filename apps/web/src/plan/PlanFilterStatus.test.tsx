@@ -191,7 +191,7 @@ describe("筛选开着时改块", () => {
     );
   });
 
-  it("加的块被筛掉：建好了但不显示，焦点还在「加一件事」", async () => {
+  it("加的块被筛掉：建好了但不显示，写「包括刚加的」，焦点还在「加一件事」", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan(threeThings);
     const other = await openOtherTab(planId);
@@ -203,9 +203,23 @@ describe("筛选开着时改块", () => {
     await waitFor(() =>
       expect([...other.plan().blocks.values()].find((block) => block.title === "河坊街")?.status.id).toBe("pending"),
     );
-    await waitFor(async () => expect(await filteredOutOf("10.1")).toBe("筛掉了 3 件"));
+    await waitFor(async () => expect(await filteredOutOf("10.1")).toBe("筛掉了 3 件，包括刚加的「河坊街」"));
     expect(await blockTitles("10.1")).toEqual(["午饭"]);
     expect(document.activeElement).toBe(add);
+  });
+
+  it("筛选变了就不再写「包括刚加的」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(threeThings);
+    await pressStatus(user, "已确认");
+    await user.type(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");
+    await waitFor(async () => expect(await filteredOutOf("10.1")).toBe("筛掉了 3 件，包括刚加的「河坊街」"));
+
+    await user.click(within(filterGroup()).getByRole("button", { name: "全部显示" }));
+    await waitFor(async () => expect(await filteredOutOf("10.1")).toBeNull());
+    await pressStatus(user, "已确认");
+
+    await waitFor(async () => expect(await filteredOutOf("10.1")).toBe("筛掉了 3 件"));
   });
 });
 
