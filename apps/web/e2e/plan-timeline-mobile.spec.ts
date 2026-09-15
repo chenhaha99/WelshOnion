@@ -29,8 +29,8 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 2 天 · 9.14 周一");
   await expect(timeline.locator("[data-timeline-scroll]")).toHaveCount(0);
   await expect(timeline.getByRole("button", { name: "回到今天" })).toHaveCount(0);
-  // 空的时候那句话不提右边的栏和拖；这天没有没排时间的事，框下面什么都没有
-  await expect(timeline.getByText("排上时间的事会画在这里：在下面的安排表里点时间格", { exact: true })).toBeVisible();
+  // 一件事都没有：提示去加第一件事，不提右边的栏和拖；这天没有没排时间的事，框下面什么都没有
+  await expect(timeline.getByText("还没有事。加了事、排上时间，就会画在这里", { exact: true })).toBeVisible();
   await expect(timeline.getByRole("group", { name: "没排时间" })).toHaveCount(0);
   expect(await topMinute(scroller)).toBe(13 * 60 + 20);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

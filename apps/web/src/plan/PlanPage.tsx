@@ -1,5 +1,5 @@
 import { DocumentError, readLibrary, readPlan, summarizePlan, touchPlan } from "@welshonion/core";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { BackToList, LateNotice, Notice } from "../app/Notice";
 import { useLibrary, useNow } from "../app/services";
 import { useDocVersion } from "../app/use-doc-version";
@@ -66,7 +66,12 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
   const plan = useMemo(() => readPlan(handle.doc, libraryView), [handle.doc, libraryView, planVersion]);
   const undo = usePlanUndo(handle.doc);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const titleButton = useRef<HTMLButtonElement>(null);
+  // 关掉设置后焦点回到打开它的那个按钮：计划名或页顶的「计划设置」
+  const settingsOpener = useRef<HTMLButtonElement | null>(null);
+  const openSettings = (event: MouseEvent<HTMLButtonElement>) => {
+    settingsOpener.current = event.currentTarget;
+    setSettingsOpen(true);
+  };
 
   // 摘要和索引对不上就刷新索引，回到列表（包括别的标签页开着的列表）看到的卡片是新的
   useEffect(() => {
@@ -90,6 +95,9 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
         <div className="flex items-center justify-between gap-4">
           <BackToList />
           <div className="flex gap-1">
+            <button type="button" className="btn btn-ghost" onClick={openSettings}>
+              计划设置
+            </button>
             <button type="button" className="btn btn-ghost" disabled={!undo.canUndo} onClick={undo.undo}>
               撤销
             </button>
@@ -101,11 +109,10 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
 
         <h1 className="text-2xl font-medium text-ink">
           <button
-            ref={titleButton}
             type="button"
             title="计划设置"
             className="rounded-lg text-left hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
-            onClick={() => setSettingsOpen(true)}
+            onClick={openSettings}
           >
             {plan.plan.name}
           </button>
@@ -124,7 +131,7 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
             settings={plan.plan}
             onClose={() => {
               setSettingsOpen(false);
-              titleButton.current?.focus();
+              settingsOpener.current!.focus();
             }}
           />
         )}

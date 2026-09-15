@@ -42,13 +42,15 @@ interface TimelineProps {
   moneyCells: ReadonlyMap<string, MoneyCell>;
   /** 按状态筛选；没开是 undefined */
   filter?: StatsFilter;
+  /** 一件事都没有时点「加第一件事」：分组回到按天，焦点放到第 1 天的「加一件事」 */
+  onAddFirst: () => void;
 }
 
 /**
  * 时间轴：屏幕够宽时横着铺（一天一行），窄屏上竖着铺、一次一天（见 DayTimeline）；两种都能拖（见 use-timeline-drag）。
  * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。
  */
-export function Timeline({ doc, library, plan, libraryView, moneyCells, filter }: TimelineProps) {
+export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, onAddFirst }: TimelineProps) {
   const labels = dayRowLabels(plan.bases);
   const rows = useMemo(() => {
     const segments = timelineSegments(plan, filter);
@@ -70,13 +72,23 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter }
   return (
     <section aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
       <h2 className="text-sm font-medium text-ink">时间轴</h2>
-      {/* 竖排没有右边的栏 */}
-      {!hasTimed && (
-        <p className="text-sm text-ink-muted">
-          {wide
-            ? "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者在下面的安排表里点时间格"
-            : "排上时间的事会画在这里：在下面的安排表里点时间格"}
-        </p>
+      {plan.blocks.size === 0 ? (
+        // 一件事都没有：右边的栏、下面的表都是空的，「加一件事」又在第一屏外面，直接给个按钮
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <p className="text-sm text-ink-muted">还没有事。加了事、排上时间，就会画在这里</p>
+          <button type="button" className="btn btn-primary" onClick={onAddFirst}>
+            加第一件事
+          </button>
+        </div>
+      ) : (
+        // 竖排没有右边的栏
+        !hasTimed && (
+          <p className="text-sm text-ink-muted">
+            {wide
+              ? "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者在下面的安排表里点时间格"
+              : "排上时间的事会画在这里：在下面的安排表里点时间格"}
+          </p>
+        )
       )}
       {wide ? (
         <WideTimeline
@@ -152,7 +164,8 @@ function WideTimeline({
               <span
                 key={hour}
                 data-hour-tick
-                className="absolute -translate-x-1/2 text-[11px] leading-4 text-ink-muted tabular-nums"
+                // 最右的「24」右对齐到 24 点那条线，不伸进「没排时间」那一栏
+                className={`absolute ${hour === 24 ? "-translate-x-full" : "-translate-x-1/2"} text-[11px] leading-4 text-ink-muted tabular-nums`}
                 style={{ left: percent(hour * 60) }}
               >
                 {hour}

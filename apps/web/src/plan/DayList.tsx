@@ -1,5 +1,5 @@
 import { shiftAllDays, type KindView, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { dayRowLabels, daysBetween } from "./day-labels";
 import { DayRow } from "./DayRow";
@@ -38,6 +38,19 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
   // 按天还是按类型分组，也只在这一页
   const [grouping, setGrouping] = useState<"day" | "kind">("day");
   const pressedGrouping = useRef<HTMLButtonElement>(null);
+  const dayList = useRef<HTMLOListElement>(null);
+  // 「加第一件事」：分组回到按天，画完再把第 1 天的「加一件事」滚到中间、给焦点（按类型时每天的表还不在页面上）
+  const [addFirstRequests, setAddFirstRequests] = useState(0);
+  useEffect(() => {
+    if (addFirstRequests === 0) return;
+    const input = dayList.current!.querySelector<HTMLInputElement>('input[aria-label="加一件事"]')!;
+    input.scrollIntoView({ block: "center" });
+    input.focus({ preventScroll: true });
+  }, [addFirstRequests]);
+  const addFirst = () => {
+    setGrouping("day");
+    setAddFirstRequests((count) => count + 1);
+  };
   const statusKey = selectedStatuses.filter((id) => libraryView.statuses.has(id)).join(",");
   const kindKey = selectedKinds.filter((id) => libraryView.kinds.has(id)).join(",");
   const filter = useMemo<StatsFilter | undefined>(() => {
@@ -67,14 +80,17 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
           }}
         />
       </label>
-      <FilterChips
-        label="按状态筛选"
-        lead="只看"
-        clearLabel="全部显示"
-        items={statuses}
-        selected={filter?.statusIds ?? []}
-        onChange={setSelectedStatuses}
-      />
+      {/* 一件事都没有时筛不掉任何东西，不出这一排；按下了就一直留着，不然取消不了 */}
+      {(plan.blocks.size > 0 || (filter?.statusIds?.length ?? 0) > 0) && (
+        <FilterChips
+          label="按状态筛选"
+          lead="只看"
+          clearLabel="全部显示"
+          items={statuses}
+          selected={filter?.statusIds ?? []}
+          onChange={setSelectedStatuses}
+        />
+      )}
       {/* 只有一种类型时按下去什么都筛不掉，不出这一排；按下了就一直留着，不然取消不了 */}
       {(kinds.length >= 2 || (filter?.kindIds?.length ?? 0) > 0) && (
         <FilterChips
@@ -86,7 +102,15 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
           onChange={setSelectedKinds}
         />
       )}
-      <Timeline doc={doc} library={library} plan={plan} libraryView={libraryView} moneyCells={cells} filter={filter} />
+      <Timeline
+        doc={doc}
+        library={library}
+        plan={plan}
+        libraryView={libraryView}
+        moneyCells={cells}
+        filter={filter}
+        onAddFirst={addFirst}
+      />
       <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
       <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
       <div role="group" aria-label="分组" className="flex flex-wrap items-center gap-2 text-sm">
@@ -111,7 +135,7 @@ export function DayList({ doc, library, libraryView, plan }: DayListProps) {
         </p>
       )}
       {grouping === "day" ? (
-        <ol aria-label="日期列表" className="flex flex-col gap-3">
+        <ol ref={dayList} aria-label="日期列表" className="flex flex-col gap-3">
           {bases.map((base, index) => (
             <DayRow
               key={base.id}

@@ -13,7 +13,7 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, daysFromOct1, openStoredPlan } from "./test-helpers";
+import { blockRow, dayRow, daysFromOct1, openStoredPlan } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -70,7 +70,11 @@ const HINT = "排上时间的事会画在这里：把右边没排时间的事拖
 
 describe("时间轴一天一行", () => {
   it("两天的计划：标签和刻度，放在「只看」和钱的总览中间", async () => {
-    await openStoredPlan((plan) => daysFromOct1(plan, 2));
+    // 一件事都没有时不摆「只看」那一排：放一件没排时间的
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 2);
+      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
+    });
 
     const region = await timeline();
     expect(
@@ -218,6 +222,61 @@ describe("没排时间栏", () => {
 });
 
 describe("空的时候", () => {
+  it("一件事都没有：写先加事，点「加第一件事」焦点到第 1 天的「加一件事」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFromOct1(plan, 3));
+
+    const region = await timeline();
+    expect(within(region).getByText("还没有事。加了事、排上时间，就会画在这里")).toBeTruthy();
+    expect(within(region).queryByText(HINT)).toBeNull();
+    await user.click(within(region).getByRole("button", { name: "加第一件事" }));
+
+    const add = within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" });
+    await waitFor(() => expect(document.activeElement).toBe(add));
+  });
+
+  it("分组是按类型时点「加第一件事」：回到按天，焦点到第 1 天的「加一件事」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFromOct1(plan, 1));
+    const grouping = await screen.findByRole("group", { name: "分组" });
+    await user.click(within(grouping).getByRole("button", { name: "按类型" }));
+
+    await user.click(within(await timeline()).getByRole("button", { name: "加第一件事" }));
+
+    expect(within(grouping).getByRole("button", { name: "按天" }).getAttribute("aria-pressed")).toBe("true");
+    const add = within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" });
+    await waitFor(() => expect(document.activeElement).toBe(add));
+  });
+
+  it("加了第一件事：换回怎么排上时间的那句，「加第一件事」不见", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFromOct1(plan, 1));
+    const region = await timeline();
+    await user.click(within(region).getByRole("button", { name: "加第一件事" }));
+    await waitFor(() => expect((document.activeElement as HTMLElement | null)?.getAttribute("aria-label")).toBe("加一件事"));
+
+    await user.keyboard("西湖{Enter}");
+
+    await waitFor(() => expect(within(region).getByText(HINT)).toBeTruthy());
+    expect(within(region).queryByText("还没有事。加了事、排上时间，就会画在这里")).toBeNull();
+    expect(within(region).queryByRole("button", { name: "加第一件事" })).toBeNull();
+  });
+
+  it("事删光了：「加第一件事」又出来", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
+    });
+    const region = await timeline();
+    expect(within(region).queryByRole("button", { name: "加第一件事" })).toBeNull();
+
+    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "这件事的操作" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "删除" }));
+
+    expect(await within(region).findByRole("button", { name: "加第一件事" })).toBeTruthy();
+  });
+
   it("还没排时间：照样有行，写怎么排上时间", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);

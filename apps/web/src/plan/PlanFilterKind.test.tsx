@@ -71,7 +71,7 @@ describe("按类型筛选", () => {
   it("一个块、一笔钱都没有时没有这一排", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
 
-    await screen.findByRole("group", { name: "按状态筛选" });
+    await screen.findByRole("region", { name: "时间轴" });
     expect(screen.queryByRole("group", { name: "按类型筛选" })).toBeNull();
   });
 

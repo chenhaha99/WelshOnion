@@ -42,7 +42,8 @@ test("时间轴：排出一天 → 按时长画 → 看详情、在表里改 →
   await page.getByRole("button", { name: "确定" }).click();
 
   const timeline = page.getByRole("region", { name: "时间轴" });
-  const hint = timeline.getByText("排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者在下面的安排表里点时间格");
+  // 刚建好、一件事都没有：提示去加第一件事
+  const hint = timeline.getByText("还没有事。加了事、排上时间，就会画在这里");
   await expect(hint).toBeVisible();
 
   // 用表格排出一天：排时间不改变这几行的先后

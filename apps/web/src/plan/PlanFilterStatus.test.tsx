@@ -65,6 +65,32 @@ async function filteredOutOf(day: string): Promise<string | null> {
 }
 
 describe("按状态筛选", () => {
+  it("一件事都没有时没有「只看」那一排；加了第一件事就出现", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFromOct1(plan, 1));
+    await screen.findByRole("region", { name: "时间轴" });
+    expect(screen.queryByRole("group", { name: "按状态筛选" })).toBeNull();
+
+    await user.type(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }), "西湖{Enter}");
+
+    expect(await screen.findByRole("group", { name: "按状态筛选" })).toBeTruthy();
+  });
+
+  it("按下了状态、事都删了：这一排还在，按下的还是按下的", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      undated(plan, library, oct1!, "西湖");
+    });
+    await pressStatus(user, "待定");
+
+    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "这件事的操作" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "删除" }));
+
+    await waitFor(async () => expect(await blockTitles("10.1")).toEqual([]));
+    expect(within(filterGroup()).getByRole("button", { name: "待定" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("只看待定的", async () => {
     const user = userEvent.setup();
     await openStoredPlan(threeThings);

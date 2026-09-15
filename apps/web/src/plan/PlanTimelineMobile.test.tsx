@@ -185,6 +185,14 @@ describe("竖条怎么画", () => {
 });
 
 describe("空的时候", () => {
+  it("窄屏上一件事都没有：同样写先加事，有「加第一件事」", async () => {
+    await openStoredPlan((plan) => daysFromOct1(plan, 1));
+
+    const region = await timeline();
+    expect(await within(region).findByText("还没有事。加了事、排上时间，就会画在这里")).toBeTruthy();
+    expect(within(region).getByRole("button", { name: "加第一件事" })).toBeTruthy();
+  });
+
   it("窄屏上那句话不提右边的栏，也不提拖", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);

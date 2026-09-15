@@ -59,6 +59,24 @@ describe("列表卡片跟着改", () => {
 });
 
 describe("计划设置抽屉", () => {
+  it("页顶的「计划设置」也能打开；关掉后焦点回到打开它的那个按钮", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFromOct1(plan, 1));
+
+    const button = await screen.findByRole("button", { name: "计划设置" });
+    await user.click(button);
+    expect(screen.getByRole("dialog", { name: "计划设置" })).toBeTruthy();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "计划设置" })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(button));
+
+    const title = screen.getByRole("button", { name: "测试计划" });
+    await user.click(title);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "计划设置" })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(title));
+  });
+
   it("改名字：标题和列表卡片都变", async () => {
     const user = userEvent.setup();
     await openStoredPlan();
