@@ -276,6 +276,11 @@
   .block-table > tbody > tr.block-row > td:not(:first-child) .input-bare {
     width: auto;
   }
+  /* 钱的编辑区：类型那一格和「加一笔」窄一点，一笔钱的类型、金额、人均或总价放得进一行，上下的金额框还对得齐 */
+  .block-table [data-kind-cell],
+  .block-table [data-draft-lead] {
+    width: 6rem;
+  }
 }
 
 /* 时间轴的横条：类型色的淡底和边；待定虚线、底色更淡；接着下一行的那头是平的 */
@@ -539,10 +544,21 @@
 }
 
 /* 窄屏竖排：竖条的字靠上；接着前一天、后一天的那头（上、下）是平的，横排是左、右 */
+/* 竖排里名字单独一段（data-bar-title）：竖条开头滚出框的上边时，名字贴着框的上边。
+   按钮剪掉溢出但不当滚动容器（clip），名字的 sticky 才以外面的框为准；不认识 clip 的浏览器照旧 hidden */
 [data-day-axis] [data-segment] > .timeline-bar {
   display: flex;
   align-items: flex-start;
   padding-top: 0.125rem;
+  overflow: clip;
+}
+
+[data-day-axis] [data-bar-title] {
+  position: sticky;
+  top: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 [data-day-axis] [data-segment] > .timeline-bar,

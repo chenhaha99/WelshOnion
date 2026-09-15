@@ -38,21 +38,23 @@ function rowWith(segments: PlacedSegment[]): RowLayout {
   return { background, main, backgroundCount: background.length, laneCount: 1 };
 }
 
-describe("打开时滚到哪（最上面是这天第几分钟）", () => {
-  it("看今天：现在的钟点往前 1 小时", () => {
-    expect(scrollMinute(rowWith([placed("西湖", 540, 720)]), true, 14 * 60 + 20)).toBe(13 * 60 + 20);
+describe("打开时滚到哪（最上面是这天第几分钟，取到整点）", () => {
+  it("看今天：现在的钟点往前 1 小时，再往前取到整点", () => {
+    expect(scrollMinute(rowWith([placed("西湖", 540, 720)]), true, 14 * 60 + 20)).toBe(13 * 60);
+    expect(scrollMinute(rowWith([]), true, 14 * 60 + 55)).toBe(13 * 60);
   });
 
   it("看今天、刚过零点：不早于 0 点", () => {
     expect(scrollMinute(rowWith([]), true, 30)).toBe(0);
   });
 
-  it("不是今天：主轨上最早开始的事往前 30 分钟", () => {
-    expect(scrollMinute(rowWith([placed("午饭", 720, 780), placed("西湖", 540, 720)]), false, 0)).toBe(510);
+  it("不是今天：主轨上最早开始的事往前 30 分钟，再往前取到整点", () => {
+    expect(scrollMinute(rowWith([placed("午饭", 720, 780), placed("西湖", 540, 720)]), false, 0)).toBe(8 * 60);
+    expect(scrollMinute(rowWith([placed("游船", 600, 660)]), false, 0)).toBe(9 * 60);
   });
 
   it("背景条不算：停留从 0 点开始也不滚到 0 点", () => {
-    expect(scrollMinute(rowWith([placed("在杭州", 0, 1440, "background"), placed("游船", 600, 660)]), false, 0)).toBe(570);
+    expect(scrollMinute(rowWith([placed("在杭州", 0, 1440, "background"), placed("游船", 600, 660)]), false, 0)).toBe(9 * 60);
   });
 
   it("主轨上没有排上时间的事：08:00", () => {

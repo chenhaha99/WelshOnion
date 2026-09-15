@@ -232,7 +232,8 @@ function DaySegment({ plan, item, place, moneyCell, dragView, handlers, shiftLat
       <BlockPopover
         block={block}
         time={blockTimeLabel(block, date)}
-        trigger={point || item.track === "background" ? null : block.title}
+        // 名字单独一段：竖排里竖条开头滚出框的上边时，名字贴着框的上边（见 index.css）
+        trigger={point || item.track === "background" ? null : <span data-bar-title>{block.title}</span>}
         triggerClassName={buttonClass}
         align="start"
         moneyCell={moneyCell}

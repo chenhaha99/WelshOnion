@@ -129,6 +129,19 @@ describe("在块里填钱", () => {
     await waitFor(() => expect(expensesOf(other).map((expense) => expense.amount_cents)).toEqual([30000]));
   });
 
+  it("说明空着：说明框写淡色的「说明」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      addMoney(plan, library, "", 6000, [addDayBlock(plan, library, oct1!, "西湖")]);
+    });
+
+    const editor = await openMoney(user, "10.1", "西湖");
+    const expense = editor.querySelector<HTMLElement>("[data-expense-id]")!;
+
+    expect(within(expense).getByRole("textbox", { name: "说明" }).getAttribute("placeholder")).toBe("说明");
+  });
+
   it("改金额和人均", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {

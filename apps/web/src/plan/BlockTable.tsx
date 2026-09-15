@@ -430,13 +430,14 @@ function TimeEditor({ doc, library, block, onDone }: TimeEditorProps) {
     <div
       role="group"
       aria-label={`${block.title} 的时间`}
-      className="flex flex-wrap items-center gap-2 py-1 pl-2 text-sm text-ink-muted"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 py-1 pl-2 text-sm text-ink-muted"
       onKeyDown={(event) => {
         if (event.key === "Escape") onDone();
       }}
     >
+      {/* 字和它的框连成一组，放不下时整组换行：不会把「开始」和它的框、「小时」和「分钟」拆到两行 */}
       {undated && (
-        <>
+        <span className="inline-flex items-center gap-2">
           <select
             aria-label="格子"
             className="input"
@@ -453,65 +454,71 @@ function TimeEditor({ doc, library, block, onDone }: TimeEditorProps) {
             ))}
           </select>
           <span>或者排上时间：</span>
-        </>
+        </span>
       )}
-      <span>开始</span>
-      <input
-        type="time"
-        aria-label="开始"
-        className="input tabular-nums"
-        value={start}
-        onChange={(event) => setStart(event.target.value)}
-      />
-      <span>时长</span>
-      <input
-        type="number"
-        min={0}
-        aria-label="小时"
-        className="input w-16 tabular-nums"
-        value={hours}
-        onChange={(event) => setHours(event.target.value)}
-      />
-      <span>小时</span>
-      <input
-        type="number"
-        min={0}
-        max={59}
-        aria-label="分钟"
-        className="input w-16 tabular-nums"
-        value={minutes}
-        onChange={(event) => setMinutes(event.target.value)}
-      />
-      <span>分钟</span>
-      {undated ? (
-        <>
-          <button type="button" className="btn btn-primary" disabled={minute === null || duration === null} onClick={schedule}>
-            排上时间
-          </button>
-          <button type="button" className="btn btn-ghost" disabled={duration === null} onClick={saveDuration}>
-            只存时长
-          </button>
-        </>
-      ) : (
-        <>
-          <button type="button" className="btn btn-primary" disabled={minute === null || duration === null} onClick={save}>
-            保存
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => {
-              setBlockUndated(doc, block.id, { slot: "day" });
-              onDone();
-            }}
-          >
-            取消时间
-          </button>
-        </>
-      )}
-      <button type="button" className="btn btn-ghost" onClick={onDone}>
-        收起
-      </button>
+      <span className="inline-flex items-center gap-2">
+        <span>开始</span>
+        <input
+          type="time"
+          aria-label="开始"
+          className="input tabular-nums"
+          value={start}
+          onChange={(event) => setStart(event.target.value)}
+        />
+      </span>
+      <span className="inline-flex items-center gap-2">
+        <span>时长</span>
+        <input
+          type="number"
+          min={0}
+          aria-label="小时"
+          className="input w-16 tabular-nums"
+          value={hours}
+          onChange={(event) => setHours(event.target.value)}
+        />
+        <span>小时</span>
+        <input
+          type="number"
+          min={0}
+          max={59}
+          aria-label="分钟"
+          className="input w-16 tabular-nums"
+          value={minutes}
+          onChange={(event) => setMinutes(event.target.value)}
+        />
+        <span>分钟</span>
+      </span>
+      <span className="inline-flex flex-wrap items-center gap-2">
+        {undated ? (
+          <>
+            <button type="button" className="btn btn-primary" disabled={minute === null || duration === null} onClick={schedule}>
+              排上时间
+            </button>
+            <button type="button" className="btn btn-ghost" disabled={duration === null} onClick={saveDuration}>
+              只存时长
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="btn btn-primary" disabled={minute === null || duration === null} onClick={save}>
+              保存
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                setBlockUndated(doc, block.id, { slot: "day" });
+                onDone();
+              }}
+            >
+              取消时间
+            </button>
+          </>
+        )}
+        <button type="button" className="btn btn-ghost" onClick={onDone}>
+          收起
+        </button>
+      </span>
     </div>
   );
 }

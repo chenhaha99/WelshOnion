@@ -19,11 +19,15 @@ export function initialDayIndex(bases: ReadonlyArray<{ date: string }>, today: s
 
 /**
  * 打开或翻到这一天时，竖排的框滚到最上面是这天第几分钟：
- * 看今天是现在往前 1 小时；否则是主轨上最早开始的事往前 30 分钟，主轨上没事就是 08:00；都不早于 0 点。
+ * 看今天是现在往前 1 小时；否则是主轨上最早开始的事往前 30 分钟，主轨上没事就是 08:00；再往前取到整点，不早于 0 点。
+ * 取到整点：最上面那个钟点的字以线为中心画，不在整点时会被框切掉一半。
  * 背景条（停留、住宿）不算：停留从 0 点开始，算上的话每天都滚到 0 点。
  */
 export function scrollMinute(row: RowLayout, isToday: boolean, nowMinute: number): number {
-  if (isToday) return Math.max(0, nowMinute - TODAY_LEAD_MIN);
-  if (row.main.length === 0) return DEFAULT_SCROLL_MINUTE;
-  return Math.max(0, Math.min(...row.main.map((item) => item.from)) - FIRST_EVENT_LEAD_MIN);
+  const minute = isToday
+    ? nowMinute - TODAY_LEAD_MIN
+    : row.main.length === 0
+      ? DEFAULT_SCROLL_MINUTE
+      : Math.min(...row.main.map((item) => item.from)) - FIRST_EVENT_LEAD_MIN;
+  return Math.max(0, Math.floor(minute / 60) * 60);
 }

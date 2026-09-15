@@ -94,88 +94,97 @@ interface ExpenseRowProps {
   blocksLabel?: string;
 }
 
-/** 一笔钱一行：类型、金额、人均或总价、说明，共用时能从这块拿掉，删除这笔。按天的编辑区、按类型分组共用。 */
+/**
+ * 一笔钱一行：类型、金额、人均或总价、说明，共用时能从这块拿掉，删除这笔。按天的编辑区、按类型分组共用。
+ * 分两组：类型、金额、人均或总价一组，说明往后一组；放不下时第二组整个换到下一行，不会把「总价」和金额拆开。
+ */
 export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId, blocksLabel }: ExpenseRowProps) {
   const notifyDeleted = useNotifyDeleted();
   const shared = blockId !== null && expense.block_ids.length > 1;
   return (
-    <div data-expense-id={expense.id} className="flex flex-wrap items-center gap-2">
-      <div className="w-28">
-        <ExpenseKindPicker doc={doc} library={library} expense={expense} kinds={kinds} countUsing={countKindUsing} />
+    <div data-expense-id={expense.id} className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+      <div className="flex items-center gap-2">
+        {/* 安排表放不下 42rem 时，index.css 把这一格和空行的「加一笔」一起收窄 */}
+        <div data-kind-cell className="w-28">
+          <ExpenseKindPicker doc={doc} library={library} expense={expense} kinds={kinds} countUsing={countKindUsing} />
+        </div>
+        <div className="w-24">
+          <CommitInput
+            label="金额"
+            showLabel={false}
+            inputMode="decimal"
+            className="input h-8 w-full tabular-nums"
+            value={expense.amount_cents === null ? "" : String(expense.amount_cents / 100)}
+            commit={(text) => {
+              const parsed = parseYuan(text);
+              if (!parsed.ok) return AMOUNT_ERROR;
+              if (parsed.cents !== expense.amount_cents) {
+                updateExpense(doc, library, expense.id, { amount_cents: parsed.cents });
+              }
+              return null;
+            }}
+          />
+        </div>
+        <select
+          aria-label="算法"
+          className="input h-8"
+          value={expense.basis}
+          onChange={(event) =>
+            updateExpense(doc, library, expense.id, {
+              basis: event.target.value === "per_person" ? "per_person" : "total",
+            })
+          }
+        >
+          <option value="total">总价</option>
+          <option value="per_person">人均</option>
+        </select>
       </div>
-      <div className="w-24">
-        <CommitInput
-          label="金额"
-          showLabel={false}
-          inputMode="decimal"
-          className="input h-8 w-full tabular-nums"
-          value={expense.amount_cents === null ? "" : String(expense.amount_cents / 100)}
-          commit={(text) => {
-            const parsed = parseYuan(text);
-            if (!parsed.ok) return AMOUNT_ERROR;
-            if (parsed.cents !== expense.amount_cents) {
-              updateExpense(doc, library, expense.id, { amount_cents: parsed.cents });
-            }
-            return null;
+      <div className="flex min-w-[12rem] flex-1 flex-wrap items-center gap-2">
+        <div className="min-w-32 flex-1">
+          <CommitInput
+            label="说明"
+            showLabel={false}
+            placeholder="说明"
+            className="input h-8 w-full"
+            value={expense.title}
+            commit={(text) => {
+              if (text !== expense.title) updateExpense(doc, library, expense.id, { title: text });
+              return null;
+            }}
+          />
+        </div>
+        {blocksLabel !== undefined && (
+          <span data-expense-blocks className="text-xs text-ink-muted">
+            {blocksLabel}
+          </span>
+        )}
+        {shared && blockId !== null && (
+          <>
+            <span className="text-xs text-ink-muted">也挂在别的块上</span>
+            <button
+              type="button"
+              className="btn btn-ghost h-8 px-2"
+              onClick={() => unlinkExpense(doc, expense.id, blockId)}
+            >
+              从这块拿掉
+            </button>
+          </>
+        )}
+        {/* 删一笔钱不确认，靠撤销：删完在屏幕底部说删了哪笔、能撤销 */}
+        <button
+          type="button"
+          className="btn btn-ghost h-8 px-2 text-danger"
+          onClick={() => {
+            deleteExpense(doc, expense.id);
+            notifyDeleted({
+              message: deletedMessage(expense),
+              focusAfterUndo: `[data-expense-id="${expense.id}"] input[aria-label="金额"]`,
+            });
           }}
-        />
+        >
+          删除这笔
+        </button>
       </div>
-      <select
-        aria-label="算法"
-        className="input h-8"
-        value={expense.basis}
-        onChange={(event) =>
-          updateExpense(doc, library, expense.id, {
-            basis: event.target.value === "per_person" ? "per_person" : "total",
-          })
-        }
-      >
-        <option value="total">总价</option>
-        <option value="per_person">人均</option>
-      </select>
-      <div className="min-w-32 flex-1">
-        <CommitInput
-          label="说明"
-          showLabel={false}
-          className="input h-8 w-full"
-          value={expense.title}
-          commit={(text) => {
-            if (text !== expense.title) updateExpense(doc, library, expense.id, { title: text });
-            return null;
-          }}
-        />
-      </div>
-      {blocksLabel !== undefined && (
-        <span data-expense-blocks className="text-xs text-ink-muted">
-          {blocksLabel}
-        </span>
-      )}
-      {shared && blockId !== null && (
-        <>
-          <span className="text-xs text-ink-muted">也挂在别的块上</span>
-          <button
-            type="button"
-            className="btn btn-ghost h-8 px-2"
-            onClick={() => unlinkExpense(doc, expense.id, blockId)}
-          >
-            从这块拿掉
-          </button>
-        </>
-      )}
-      {/* 删一笔钱不确认，靠撤销：删完在屏幕底部说删了哪笔、能撤销 */}
-      <button
-        type="button"
-        className="btn btn-ghost h-8 px-2 text-danger"
-        onClick={() => {
-          deleteExpense(doc, expense.id);
-          notifyDeleted({
-            message: deletedMessage(expense),
-            focusAfterUndo: `[data-expense-id="${expense.id}"] input[aria-label="金额"]`,
-          });
-        }}
-      >
-        删除这笔
-      </button>
     </div>
   );
 }
@@ -278,7 +287,9 @@ export function DraftRow({
           submit();
         }}
       >
-        <span className="w-28 pl-1 text-xs text-ink-muted">{lead ?? "加一笔"}</span>
+        <span data-draft-lead className="w-28 pl-1 text-xs text-ink-muted">
+          {lead ?? "加一笔"}
+        </span>
         {kindChoices && (
           <select
             aria-label="类型"
