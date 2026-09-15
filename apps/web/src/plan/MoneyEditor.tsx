@@ -1,6 +1,7 @@
 import {
   addExpense,
   deleteExpense,
+  linkExpense,
   unlinkExpense,
   updateExpense,
   type BlockView,
@@ -28,11 +29,16 @@ interface MoneyEditorProps {
   label: string;
   /** 新一笔默认的类型 */
   defaultKindId: string;
+  /** 「挂上已有的一笔」的选项；不给或是空的就不出这个下拉 */
+  linkChoices?: ReadonlyArray<{ id: string; label: string }>;
   /** 收起：点「收起」、按 Esc 时调用，焦点交回打开它的按钮 */
   onDone: () => void;
 }
 
-/** 钱的编辑区：每笔一行（类型、金额、人均或总价、说明、删除），末尾一行空的，填了才建；最后是「收起」。 */
+/**
+ * 钱的编辑区：每笔一行（类型、金额、人均或总价、说明、删除），末尾一行空的，填了才建；
+ * 块的编辑区下面还能「挂上已有的一笔」；最后是「收起」。
+ */
 export function MoneyEditor({
   doc,
   library,
@@ -42,6 +48,7 @@ export function MoneyEditor({
   block,
   label,
   defaultKindId,
+  linkChoices,
   onDone,
 }: MoneyEditorProps) {
   const expenses = [...plan.expenses.values()].filter((expense) =>
@@ -75,7 +82,31 @@ export function MoneyEditor({
         defaultKindId={defaultKindId}
         autoFocus={expenses.length === 0}
       />
-      <button type="button" className="btn btn-ghost h-8 self-start px-2" onClick={onDone}>
+      {block !== null && linkChoices && linkChoices.length > 0 && (
+        // 原生下拉：手机上点开是系统的选择列表。选了就挂上，值一直是空的，所以又回到第一项、焦点留着方便接着挂
+        <select
+          aria-label="挂上已有的一笔"
+          className="input h-8 max-w-full self-start"
+          value=""
+          onChange={(event) => {
+            const expenseId = event.target.value;
+            if (expenseId === "") return;
+            // 挂的是最后一笔：挂完下拉就不见了。先把焦点交给紧挨着的「收起」再挂，免得焦点掉到页面最外面
+            if (linkChoices.length === 1) {
+              event.currentTarget.closest("[role='group']")?.querySelector<HTMLButtonElement>("[data-money-done]")?.focus();
+            }
+            linkExpense(doc, expenseId, block.id);
+          }}
+        >
+          <option value="">挂上已有的一笔…</option>
+          {linkChoices.map((choice) => (
+            <option key={choice.id} value={choice.id}>
+              {choice.label}
+            </option>
+          ))}
+        </select>
+      )}
+      <button data-money-done type="button" className="btn btn-ghost h-8 self-start px-2" onClick={onDone}>
         收起
       </button>
     </div>

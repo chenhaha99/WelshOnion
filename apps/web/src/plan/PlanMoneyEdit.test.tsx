@@ -213,6 +213,151 @@ describe("在块里填钱", () => {
   });
 });
 
+describe("把已有的一笔挂到这件事上", () => {
+  function pickOf(editor: HTMLElement): HTMLSelectElement {
+    return within(editor).getByRole("combobox", { name: "挂上已有的一笔" }) as HTMLSelectElement;
+  }
+
+  /** 下拉里除了第一项「挂上已有的一笔…」以外的选项 */
+  function choiceLabels(select: HTMLSelectElement): string[] {
+    return [...select.options].slice(1).map((option) => option.textContent ?? "");
+  }
+
+  it("两晚共用一笔房费：选了就挂上，第二晚写共用，下拉回到第一项、焦点还在", async () => {
+    const user = userEvent.setup();
+    const planId = await openStoredPlan((plan, library) => {
+      const [oct1, oct2] = daysFromOct1(plan, 2);
+      const firstNight = addDayBlock(plan, library, oct1!, "民宿", "lodging");
+      addDayBlock(plan, library, oct2!, "民宿", "lodging");
+      addMoney(plan, library, "民宿两晚", 80000, [firstNight]);
+      addMoney(plan, library, "签证", 60000, []);
+    });
+    const other = await openOtherTab(planId);
+
+    const editor = await openMoney(user, "10.2", "民宿");
+    const pick = pickOf(editor);
+    expect(pick.options[0]?.textContent).toBe("挂上已有的一笔…");
+    await user.selectOptions(pick, "住宿 ¥800 民宿两晚 · 挂在 10.1 周四 民宿");
+
+    await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("共用"));
+    expect(await moneyCellText("10.1", "民宿")).toBe("¥800");
+    expect(within(expenseRow(editor, "民宿两晚")).getByText("也挂在别的事上")).toBeTruthy();
+    expect(pickOf(editor).value).toBe("");
+    expect(document.activeElement).toBe(pickOf(editor));
+    expect(choiceLabels(pickOf(editor))).toEqual(["其他 ¥600 签证 · 不属于任何一天"]);
+    await waitFor(() =>
+      expect(expensesOf(other).find((expense) => expense.title === "民宿两晚")?.block_ids).toHaveLength(2),
+    );
+  });
+
+  it("选项的先后和写法：按行程先后，不属于任何一天的在最后；这件事已经挂着的不列", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1, oct2] = daysFromOct1(plan, 2);
+      const lake = addDayBlock(plan, library, oct1!, "西湖");
+      const dinner = addDayBlock(plan, library, oct1!, "晚饭", "food");
+      const lodging = addDayBlock(plan, library, oct2!, "民宿", "lodging");
+      addMoney(plan, library, "门票", 30000, [lake]);
+      const perPerson = addExpense(plan, library, { title: "", amountCents: 8000, basis: "per_person", blockIds: [dinner] });
+      if (!perPerson.ok) throw new Error("建钱失败");
+      addMoney(plan, library, "民宿两晚", 80000, [lodging]);
+      addMoney(plan, library, "签证", 60000, []);
+      addMoney(plan, library, "保险", null, []);
+    });
+
+    const editor = await openMoney(user, "10.2", "民宿");
+    expect(choiceLabels(pickOf(editor))).toEqual([
+      "游玩 ¥300 门票 · 挂在 10.1 周四 西湖",
+      "餐饮 人均 ¥80 · 挂在 10.1 周四 晚饭",
+      "其他 ¥600 签证 · 不属于任何一天",
+      "其他 未填 保险 · 不属于任何一天",
+    ]);
+  });
+
+  it("挂完最后一笔：下拉不见了，焦点落到「收起」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1, oct2] = daysFromOct1(plan, 2);
+      const firstNight = addDayBlock(plan, library, oct1!, "民宿", "lodging");
+      addDayBlock(plan, library, oct2!, "民宿", "lodging");
+      addMoney(plan, library, "民宿两晚", 80000, [firstNight]);
+    });
+
+    const editor = await openMoney(user, "10.2", "民宿");
+    await user.selectOptions(pickOf(editor), "住宿 ¥800 民宿两晚 · 挂在 10.1 周四 民宿");
+
+    await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("共用"));
+    expect(within(editor).queryByRole("combobox", { name: "挂上已有的一笔" })).toBeNull();
+    expect(document.activeElement).toBe(within(editor).getByRole("button", { name: "收起" }));
+  });
+
+  it("没有可挂的钱：不出这个下拉", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      const lake = addDayBlock(plan, library, oct1!, "西湖");
+      addMoney(plan, library, "门票", 30000, [lake]);
+    });
+
+    const editor = await openMoney(user, "10.1", "西湖");
+    expect(within(editor).queryByRole("combobox", { name: "挂上已有的一笔" })).toBeNull();
+  });
+
+  it("挂上不属于任何一天的钱：钱格有了，不属于任何一天变成 0", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      addDayBlock(plan, library, oct1!, "西湖");
+      addMoney(plan, library, "签证", 60000, []);
+    });
+
+    const editor = await openMoney(user, "10.1", "西湖");
+    await user.selectOptions(pickOf(editor), "其他 ¥600 签证 · 不属于任何一天");
+
+    await waitFor(async () => expect(await moneyCellText("10.1", "西湖")).toBe("¥600"));
+    expect(screen.getByRole("button", { name: "不属于任何一天：¥0" })).toBeTruthy();
+  });
+
+  it("筛选开着时也列出被筛掉的钱", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1, oct2] = daysFromOct1(plan, 2);
+      addDayBlock(plan, library, oct1!, "西湖");
+      const lodging = addDayBlock(plan, library, oct2!, "民宿", "lodging");
+      addMoney(plan, library, "民宿两晚", 80000, [lodging]);
+    });
+
+    await blockRow("10.1", "西湖");
+    await user.click(within(screen.getByRole("group", { name: "按类型筛选" })).getByRole("button", { name: "游玩" }));
+    const editor = await openMoney(user, "10.1", "西湖");
+    expect(choiceLabels(pickOf(editor))).toEqual(["住宿 ¥800 民宿两晚 · 挂在 10.2 周五 民宿"]);
+  });
+
+  it("撤销和重做：撤销回到挂之前，重做又挂上", async () => {
+    const user = userEvent.setup();
+    let firstNight = "";
+    const planId = await openStoredPlan((plan, library) => {
+      const [oct1, oct2] = daysFromOct1(plan, 2);
+      firstNight = addDayBlock(plan, library, oct1!, "民宿", "lodging");
+      addDayBlock(plan, library, oct2!, "民宿", "lodging");
+      addMoney(plan, library, "民宿两晚", 80000, [firstNight]);
+    });
+    const other = await openOtherTab(planId);
+
+    const editor = await openMoney(user, "10.2", "民宿");
+    await user.selectOptions(pickOf(editor), "住宿 ¥800 民宿两晚 · 挂在 10.1 周四 民宿");
+    await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("共用"));
+
+    await user.click(screen.getByRole("button", { name: "撤销" }));
+    await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("填钱"));
+    await waitFor(() => expect(expensesOf(other)[0]?.block_ids).toEqual([firstNight]));
+
+    await user.click(screen.getByRole("button", { name: "重做" }));
+    await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("共用"));
+    await waitFor(() => expect(expensesOf(other)[0]?.block_ids).toHaveLength(2));
+  });
+});
+
 describe("不属于任何一天的钱", () => {
   it("点「收起」收起，焦点回到「不属于任何一天」", async () => {
     const user = userEvent.setup();

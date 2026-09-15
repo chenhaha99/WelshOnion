@@ -28,6 +28,7 @@ import { BlockDetails } from "./BlockDetails";
 import { blockTimeLabel, clock } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
 import { useNotifyDeleted } from "./DeletedNotice";
+import { linkableExpenses } from "./expense-links";
 import { MoneyEditor } from "./MoneyEditor";
 import { moneyCellEmpty, moneyCellLabel, moneyCellNote, type MoneyCell } from "./money-cells";
 import { KindPicker, StatusPicker } from "./pickers";
@@ -368,6 +369,7 @@ function BlockRow({
               label={`${block.title} 的钱`}
               // 块的类型被删了时，新一笔先记成「其他」
               defaultKindId={block.kind.deleted ? "other" : block.kind.id}
+              linkChoices={linkableExpenses(plan, block.id)}
               onDone={closeMoney}
             />
           </td>
