@@ -5,7 +5,7 @@ import { addBlock, type AddBlockInput } from "@welshonion/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
+import { blockRow, blockTexts, daysFromOct1, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -120,6 +120,9 @@ describe("详情里推迟这天后面的安排", () => {
 
     await waitFor(() => expect(within(oct1Row).queryByRole("button", { name: /^夜游 / })).toBeNull());
     expect(segmentOf(await timelineRow("10.2"), "夜游").dataset).toMatchObject({ from: "30", to: "90" });
+    await waitFor(async () =>
+      expect(document.activeElement).toBe(within(await timelineRow("10.2")).getByRole("button", { name: /^夜游 / })),
+    );
   });
 
   it("横条的详情里有这一组，「没排时间」栏里的事没有", async () => {
@@ -140,6 +143,28 @@ describe("详情里推迟这天后面的安排", () => {
     await user.click(within(within(row).getByRole("group", { name: "没排时间" })).getByRole("button", { name: /^河坊街 / }));
     const street = screen.getByRole("dialog", { name: "河坊街" });
     expect(within(street).queryByRole("group", { name: SHIFT })).toBeNull();
+  });
+
+  it("列表里的「详情…」也能推迟：面板关掉，焦点回到行菜单按钮", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => threeThings(plan, library));
+
+    await user.click(within(await blockRow("10.1", "午饭")).getByRole("button", { name: "这件事的操作" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "详情…" }));
+    const dialog = screen.getByRole("dialog", { name: "午饭" });
+    await user.click(within(within(dialog).getByRole("group", { name: SHIFT })).getByRole("button", { name: "30 分钟" }));
+
+    await waitFor(async () =>
+      expect(await blockTexts("10.1")).toEqual([
+        { title: "西湖", time: "09:00–12:00" },
+        { title: "午饭", time: "12:30–13:30" },
+        { title: "灵隐寺", time: "14:30–16:30" },
+      ]),
+    );
+    expect(screen.queryByRole("dialog", { name: "午饭" })).toBeNull();
+    await waitFor(async () =>
+      expect(document.activeElement).toBe(within(await blockRow("10.1", "午饭")).getByRole("button", { name: "这件事的操作" })),
+    );
   });
 });
 

@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { shot, watchErrors } from "./walkthrough";
 
-/** 把这一行改成交通类，在详情里填自驾和距离，然后收起。 */
+/** 把这一行改成交通类，在详情面板里填自驾和距离，然后关掉面板。 */
 async function makeDrive(page: Page, row: Locator, title: string, km: string): Promise<void> {
   await row.getByRole("button", { name: /^类型：/ }).click();
   await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: "交通", exact: true }).click();
@@ -11,7 +11,7 @@ async function makeDrive(page: Page, row: Locator, title: string, km: string): P
   await details.getByLabel("交通方式").selectOption("drive");
   await details.getByLabel("距离（公里）").fill(km);
   await page.keyboard.press("Enter");
-  await details.getByRole("button", { name: "收起" }).click();
+  await page.getByRole("dialog", { name: title }).getByRole("button", { name: "关闭" }).click();
   await expect(details).toBeHidden();
 }
 

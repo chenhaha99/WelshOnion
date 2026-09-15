@@ -1,25 +1,20 @@
-import {
-  shiftDayFrom,
-  type BaseView,
-  type BlockView,
-  type LibraryView,
-  type PlanView,
-  type StatsFilter,
-} from "@welshonion/core";
+import type { BaseView, LibraryView, PlanView, StatsFilter } from "@welshonion/core";
 import {
   useMemo,
+  useRef,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type * as Y from "yjs";
 import { useWideScreen } from "../app/use-wide-screen";
-import { BlockPopover } from "./BlockBubble";
+import { TimelineAddBlock } from "./AddBlock";
 import { blockTimeLabel } from "./block-time";
+import { useDayMenu } from "./day-menu";
 import { DayTimeline } from "./DayTimeline";
 import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
-import type { MoneyCell } from "./money-cells";
+import { BlockButton } from "./open-block";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
 import { LIFTED_Z_INDEX, wideAxisHeight, wideSegmentBox, wideStripsHeight } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
@@ -35,21 +30,18 @@ interface TimelineProps {
   library: Y.Doc;
   plan: PlanView;
   libraryView: LibraryView;
-  /** 全计划的钱格摘要（已按筛选算过），详情里的钱用它 */
-  moneyCells: ReadonlyMap<string, MoneyCell>;
   /** 按状态筛选；没开是 undefined */
   filter?: StatsFilter;
-  /** 一件事都没有时点「加第一件事」：切到列表、分组回到按天，焦点放到第 1 天的「加一件事」 */
-  onAddFirst: () => void;
   /** 竖排看的是哪天（底座 id）：DayList 记着，切到列表再切回来接着看这天 */
   shownDay: { current: string | null };
 }
 
 /**
  * 时间轴：屏幕够宽时横着铺（一天一行），窄屏上竖着铺、一次一天（见 DayTimeline）；两种都能拖（见 use-timeline-drag）。
- * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。
+ * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。点一件事打开详情面板；每天有「加一件事」和「这天的操作」。
  */
-export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, onAddFirst, shownDay }: TimelineProps) {
+export function Timeline({ doc, library, plan, libraryView, filter, shownDay }: TimelineProps) {
+  const section = useRef<HTMLElement>(null);
   const labels = dayRowLabels(plan.bases);
   const rows = useMemo(() => {
     const segments = timelineSegments(plan, filter);
@@ -63,19 +55,21 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, 
   }, [plan, libraryView, filter]);
   const hasTimed = [...plan.blocks.values()].some((block) => block.start_minute !== null);
   const wide = useWideScreen();
-  // 详情里「这天从这件起往后推迟」：只交给排上时间的横条、竖条
-  const shiftLater = (block: BlockView, deltaMin: number) => {
-    shiftDayFrom(doc, library, block.start_base_id, block.start_minute!, deltaMin);
+  // 「加第一件事」：时间轴上第一个「加一件事」（横排是第 1 天那一行的，竖排是正在看的这天的）滚到中间、给焦点
+  const focusFirstAdd = () => {
+    const input = section.current!.querySelector<HTMLInputElement>('input[aria-label="加一件事"]')!;
+    input.scrollIntoView({ block: "center" });
+    input.focus({ preventScroll: true });
   };
 
   return (
-    <section aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
+    <section ref={section} aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
       <h2 className="text-sm font-medium text-ink">时间轴</h2>
       {plan.blocks.size === 0 ? (
-        // 一件事都没有：右边的栏是空的，「加一件事」在列表里，直接给个按钮
+        // 一件事都没有：栏是空的，栏下面的「加一件事」不显眼，直接给个按钮
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <p className="text-sm text-ink-muted">还没有事。加了事、排上时间，就会画在这里</p>
-          <button type="button" className="btn btn-primary" onClick={onAddFirst}>
+          <button type="button" className="btn btn-primary" onClick={focusFirstAdd}>
             加第一件事
           </button>
         </div>
@@ -84,8 +78,8 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, 
         !hasTimed && (
           <p className="text-sm text-ink-muted">
             {wide
-              ? "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者在列表里点时间格"
-              : "排上时间的事会画在这里：在列表里点时间格"}
+              ? "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者点开它排时间"
+              : "排上时间的事会画在这里：点开下面没排时间的事排时间"}
           </p>
         )
       )}
@@ -97,9 +91,7 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, 
           libraryView={libraryView}
           rows={rows}
           labels={labels}
-          moneyCells={moneyCells}
           filter={filter}
-          shiftLater={shiftLater}
         />
       ) : (
         <DayTimeline
@@ -109,9 +101,7 @@ export function Timeline({ doc, library, plan, libraryView, moneyCells, filter, 
           libraryView={libraryView}
           rows={rows}
           labels={labels}
-          moneyCells={moneyCells}
           filter={filter}
-          shiftLater={shiftLater}
           shownDay={shownDay}
         />
       )}
@@ -126,27 +116,15 @@ interface WideTimelineProps {
   libraryView: LibraryView;
   rows: readonly RowLayout[];
   labels: readonly string[];
-  moneyCells: ReadonlyMap<string, MoneyCell>;
   filter: StatsFilter | undefined;
-  shiftLater: (block: BlockView, deltaMin: number) => void;
 }
 
 /**
- * 横排：一天一行，横向 0–24 点按真实比例，右边一栏放这天没排时间的事。
- * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条看详情。
+ * 横排：一天一行，横向 0–24 点按真实比例，右边一栏放这天没排时间的事、下面「加一件事」。
+ * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条打开详情面板。
  * 拖动中画成松手后的样子，「没排时间」栏照原来的计划（见 use-timeline-drag）。
  */
-function WideTimeline({
-  doc,
-  library,
-  plan,
-  libraryView,
-  rows,
-  labels,
-  moneyCells,
-  filter,
-  shiftLater,
-}: WideTimelineProps) {
+function WideTimeline({ doc, library, plan, libraryView, rows, labels, filter }: WideTimelineProps) {
   const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter, day: null });
   const shownPlan = drag.dropped?.plan ?? plan;
   const shownRows = drag.dropped?.rows ?? rows;
@@ -181,20 +159,21 @@ function WideTimeline({
           {plan.bases.map((base, index) => (
             <TimelineRow
               key={base.id}
+              doc={doc}
+              library={library}
               rowRef={drag.rowRef(index)}
               axisRef={drag.axisRef(index)}
               trayRef={drag.trayRef(index)}
               plan={shownPlan}
-              trayPlan={plan}
+              currentPlan={plan}
               base={base}
               label={labels[index]!}
+              index={index}
               layout={shownRows[index]!}
-              moneyCells={moneyCells}
               filter={filter}
               dragView={drag.dragView}
               trayDropLabel={drag.trayDrop?.row === index ? drag.trayDrop.label : null}
               handlers={drag.handlers}
-              shiftLater={shiftLater}
               onChipPointerDown={(event, blockId) => drag.chipHandlers.onPointerDown(event, blockId, index)}
               onChipClickCapture={drag.chipHandlers.onClickCapture}
             />
@@ -207,53 +186,72 @@ function WideTimeline({
 }
 
 interface TimelineRowProps {
+  doc: Y.Doc;
+  library: Y.Doc;
   rowRef: (element: HTMLLIElement | null) => void;
   axisRef: (element: HTMLDivElement | null) => void;
   trayRef: (element: HTMLDivElement | null) => void;
   /** 画横条用的计划：拖动中是松手后的 */
   plan: PlanView;
-  /** 「没排时间」栏用的计划：拖动中还是原来的，被拖的那一件留在栏里变淡 */
-  trayPlan: PlanView;
+  /** 没拖时的计划：「没排时间」栏、「加一件事」、这天的菜单用它；拖动中被拖的那一件还留在栏里，变淡 */
+  currentPlan: PlanView;
   base: BaseView;
   label: string;
+  index: number;
   layout: RowLayout;
-  moneyCells: ReadonlyMap<string, MoneyCell>;
   filter: StatsFilter | undefined;
   dragView: DragView | null;
   /** 正拖进这一行的「没排时间」栏时，会进哪一格；没往这里拖是 null */
   trayDropLabel: string | null;
   handlers: SegmentHandlers;
-  shiftLater: (block: BlockView, deltaMin: number) => void;
   onChipPointerDown: (event: ReactPointerEvent<HTMLDivElement>, blockId: string) => void;
   onChipClickCapture: (event: ReactMouseEvent<HTMLDivElement>) => void;
 }
 
 function TimelineRow({
+  doc,
+  library,
   rowRef,
   axisRef,
   trayRef,
   plan,
-  trayPlan,
+  currentPlan,
   base,
   label,
+  index,
   layout,
-  moneyCells,
   filter,
   dragView,
   trayDropLabel,
   handlers,
-  shiftLater,
   onChipPointerDown,
   onChipClickCapture,
 }: TimelineRowProps) {
   const [dayNumber, ...rest] = label.split(" · ");
+  // 标签那一栏窄：菜单按钮做小，放在「第 1 天」后面；展开的表单占满整行，在这一行下面
+  const dayMenu = useDayMenu({
+    doc,
+    plan: currentPlan,
+    base,
+    label,
+    index,
+    count: currentPlan.bases.length,
+    triggerClassName: "btn btn-ghost h-6 px-1.5",
+  });
 
   return (
-    <li ref={rowRef} aria-label={label} className={`${ROW_COLUMNS} border-t border-ink/5 py-1.5`}>
-      <div aria-hidden className="flex flex-col text-xs leading-4 text-ink-muted tabular-nums">
-        <span className="text-ink">{dayNumber}</span>
+    <li ref={rowRef} aria-label={label} data-base-id={base.id} className={`${ROW_COLUMNS} border-t border-ink/5 py-1.5`}>
+      <div className="flex flex-col text-xs leading-4 text-ink-muted tabular-nums">
+        <div className="flex items-center gap-0.5">
+          <span aria-hidden className="text-ink">
+            {dayNumber}
+          </span>
+          {dayMenu.menu}
+        </div>
         {rest.map((part) => (
-          <span key={part}>{part}</span>
+          <span key={part} aria-hidden>
+            {part}
+          </span>
         ))}
       </div>
       <div ref={axisRef} data-timeline-axis className="relative" style={{ minHeight: wideAxisHeight(layout) }}>
@@ -279,24 +277,32 @@ function TimelineRow({
             plan={plan}
             item={item}
             box={wideSegmentBox(item, layout)}
-            moneyCell={moneyCells.get(item.blockId)}
             dragView={dragView}
             handlers={handlers}
-            shiftLater={shiftLater}
           />
         ))}
       </div>
       <UndatedTray
-        plan={trayPlan}
+        plan={currentPlan}
         base={base}
-        blocks={undatedBlocks(trayPlan, base, filter)}
-        moneyCells={moneyCells}
+        blocks={undatedBlocks(currentPlan, base, filter)}
         trayRef={trayRef}
         dropLabel={trayDropLabel}
         draggingId={dragView && !dragView.copying ? dragView.blockId : null}
         onChipPointerDown={onChipPointerDown}
         onChipClickCapture={onChipClickCapture}
-      />
+      >
+        {/* 和栏里的一件一样高 */}
+        <TimelineAddBlock
+          doc={doc}
+          library={library}
+          plan={currentPlan}
+          baseId={base.id}
+          filter={filter}
+          className="input-bare h-[1.375rem] px-1.5 text-xs select-text"
+        />
+      </UndatedTray>
+      {dayMenu.form !== null && <div className="col-span-3 py-1.5 select-text">{dayMenu.form}</div>}
     </li>
   );
 }
@@ -306,19 +312,18 @@ interface SegmentProps {
   item: PlacedSegment;
   /** 在这一行横轴里的上边和高度（像素） */
   box: { top: number; height: number };
-  moneyCell: MoneyCell | undefined;
   dragView: DragView | null;
   handlers: SegmentHandlers;
-  shiftLater: (block: BlockView, deltaMin: number) => void;
 }
 
-/** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点开详情。 */
-function Segment({ plan, item, box, moneyCell, dragView, handlers, shiftLater }: SegmentProps) {
+/** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点开详情面板。 */
+function Segment({ plan, item, box, dragView, handlers }: SegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
   const buttonClass = point ? "timeline-marker" : item.track === "background" ? "timeline-strip" : "timeline-bar";
   const lifted = dragView?.liftedId === item.blockId;
+  const time = zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date);
 
   return (
     <div
@@ -351,15 +356,9 @@ function Segment({ plan, item, box, moneyCell, dragView, handlers, shiftLater }:
       onPointerMove={(event) => handlers.onPointerMove(event, item)}
       onClickCapture={handlers.onClickCapture}
     >
-      <BlockPopover
-        block={block}
-        time={zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date)}
-        trigger={point ? null : block.title}
-        triggerClassName={buttonClass}
-        align="start"
-        moneyCell={moneyCell}
-        onShiftLater={(deltaMin) => shiftLater(block, deltaMin)}
-      />
+      <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} className={buttonClass}>
+        {point ? null : block.title}
+      </BlockButton>
     </div>
   );
 }

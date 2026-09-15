@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { addBlock } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { daysFromOct1, openOtherTab, openStoredPlan } from "../plan/test-helpers";
+import { blockRow, daysFromOct1, openOtherTab, openStoredPlan } from "../plan/test-helpers";
 import { releaseAll } from "../storage/test-helpers";
 import { registerBackButton } from "./back-button";
 import { renderApp } from "./test-render";
@@ -74,6 +74,48 @@ describe("返回键", () => {
     expect(window.location.hash).toBe("#/");
     await waitFor(() => expect([...other.plan().blocks.values()].map((block) => block.title)).toEqual(["杭州"]));
     expect(app.exitApp).not.toHaveBeenCalled();
+  });
+
+  it("开着详情面板：先存下没回车的短备注，再关面板，还在计划页", async () => {
+    const user = userEvent.setup();
+    await registerBackButton();
+    const planId = await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      addBlock(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
+    });
+    const other = await openOtherTab(planId);
+
+    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "这件事的操作" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "详情…" }));
+    const panel = screen.getByRole("dialog", { name: "西湖" });
+    await user.type(within(panel).getByLabelText("短备注"), "看落日");
+
+    pressBack();
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "西湖" })).toBeNull());
+    expect(window.location.hash).toBe(`#/plans/${planId}`);
+    await waitFor(() => expect([...other.plan().blocks.values()].map((block) => block.subtitle)).toEqual(["看落日"]));
+    expect(app.exitApp).not.toHaveBeenCalled();
+  });
+
+  it("详情面板里时间的编辑区开着：先收起编辑区，面板还开着", async () => {
+    const user = userEvent.setup();
+    await registerBackButton();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      addBlock(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+    });
+
+    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "这件事的操作" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "详情…" }));
+    const panel = screen.getByRole("dialog", { name: "西湖" });
+    await user.click(within(panel).getByRole("button", { name: "时间" }));
+    await user.click(within(within(panel).getByRole("group", { name: "西湖 的时间" })).getByLabelText("开始"));
+
+    pressBack();
+
+    await waitFor(() => expect(within(panel).queryByRole("group", { name: "西湖 的时间" })).toBeNull());
+    expect(screen.getByRole("dialog", { name: "西湖" })).toBeTruthy();
   });
 
   it("在计划列表、什么都没开：退出 app", async () => {

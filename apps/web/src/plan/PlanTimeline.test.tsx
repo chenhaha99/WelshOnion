@@ -6,6 +6,7 @@ import {
   addExpense,
   addKind,
   deleteKind,
+  setBlockIndent,
   setBlockLayer,
   updateBlock,
   type AddBlockInput,
@@ -73,7 +74,7 @@ function groupingPressed(name: string): string | null {
   return within(screen.getByRole("group", { name: "分组" })).getByRole("button", { name }).getAttribute("aria-pressed");
 }
 
-const HINT = "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者在列表里点时间格";
+const HINT = "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者点开它排时间";
 
 describe("时间轴一天一行", () => {
   it("两天的计划：标签和刻度", async () => {
@@ -203,15 +204,31 @@ describe("没排时间栏", () => {
     await waitFor(async () => expect(chipNames(trayOf(await timelineRow("10.1")))).toEqual(["宋城 下午"]));
   });
 
-  it("点开详情：时间只写一遍", async () => {
+  it("点开详情面板：类型、状态和时间", async () => {
     const user = userEvent.setup();
     await openStoredPlan(listForOct1);
 
     await user.click(within(trayOf(await timelineRow("10.1"))).getByRole("button", { name: "灵隐寺 上午 · 2 小时" }));
 
     const dialog = screen.getByRole("dialog", { name: "灵隐寺" });
-    expect(within(dialog).getByText("游玩 · 待定")).toBeTruthy();
-    expect(within(dialog).getByText("上午 · 2 小时")).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "类型：游玩" })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "状态：待定" })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("上午 · 2 小时");
+  });
+
+  it("缩进了的往右缩 12 像素", async () => {
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      block(plan, library, { baseId: oct1!, kindId: "sight", title: "河坊街", slot: "day" });
+      const temple = block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "day" });
+      setBlockIndent(plan, temple, 1);
+    });
+
+    const tray = trayOf(await timelineRow("10.1"));
+    const chipOf = (title: string) =>
+      within(tray).getByRole("button", { name: new RegExp(`^${title} `) }).closest<HTMLElement>("[data-undated-chip]")!;
+    expect(chipOf("河坊街").style.marginLeft).toBe("");
+    expect(chipOf("灵隐寺").style.marginLeft).toBe("12px");
   });
 
   it("空的一天也有栏", async () => {
@@ -221,7 +238,7 @@ describe("没排时间栏", () => {
 });
 
 describe("空的时候", () => {
-  it("一件事都没有：写先加事；点「加第一件事」切到列表，焦点到第 1 天的「加一件事」", async () => {
+  it("一件事都没有：写先加事；点「加第一件事」不切视图，焦点到时间轴第 1 天那一行的「加一件事」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 3));
 
@@ -230,24 +247,10 @@ describe("空的时候", () => {
     expect(within(region).queryByText(HINT)).toBeNull();
     await user.click(within(region).getByRole("button", { name: "加第一件事" }));
 
-    // 先看是不是自己切到了列表：dayRow 会替测试切过去
-    expect(pressedView()).toBe("列表");
-    expect(screen.queryByRole("region", { name: "时间轴" })).toBeNull();
-    const add = within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" });
-    await waitFor(() => expect(document.activeElement).toBe(add));
-  });
-
-  it("分组是按类型时点「加第一件事」：切到列表、回到按天，焦点到第 1 天的「加一件事」", async () => {
-    const user = userEvent.setup();
-    await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    await user.click(within(await screen.findByRole("group", { name: "分组" })).getByRole("button", { name: "按类型" }));
-
-    await user.click(within(await timeline()).getByRole("button", { name: "加第一件事" }));
-
-    expect(pressedView()).toBe("列表");
-    expect(groupingPressed("按天")).toBe("true");
-    const add = within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" });
-    await waitFor(() => expect(document.activeElement).toBe(add));
+    expect(pressedView()).toBe("时间轴");
+    await waitFor(async () =>
+      expect(document.activeElement).toBe(within(await timelineRow("10.1")).getByRole("textbox", { name: "加一件事" })),
+    );
   });
 
   it("加了第一件事：时间轴换回怎么排上时间的那句，「加第一件事」不见", async () => {
@@ -264,6 +267,7 @@ describe("空的时候", () => {
     expect(within(region).getByText(HINT)).toBeTruthy();
     expect(within(region).queryByText("还没有事。加了事、排上时间，就会画在这里")).toBeNull();
     expect(within(region).queryByRole("button", { name: "加第一件事" })).toBeNull();
+    expect(chipNames(trayOf(await timelineRow("10.1")))).toEqual(["西湖 整天"]);
   });
 
   it("事删光了：「加第一件事」又出来", async () => {
@@ -305,7 +309,7 @@ describe("空的时候", () => {
 });
 
 describe("点块看详情", () => {
-  it("看住一晚的详情：点第二天那段", async () => {
+  it("点跨午夜的第二段：打开详情面板", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 2);
@@ -324,29 +328,11 @@ describe("点块看详情", () => {
     await user.click(within(await timelineRow("10.2")).getByRole("button", { name: /^民宿 / }));
 
     const dialog = screen.getByRole("dialog", { name: "民宿" });
-    for (const text of ["住宿 · 已确认", "22:00–10.2 08:00 · 10 小时", "湖景房", "钱：¥480"]) {
-      expect(within(dialog).getByText(text)).toBeTruthy();
-    }
+    expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("22:00–10.2 08:00 · 10 小时");
+    expect(within(dialog).getByRole("button", { name: "钱" }).textContent).toBe("¥480");
   });
 
-  it("路程和长备注；没挂钱就不写钱", async () => {
-    const user = userEvent.setup();
-    await openStoredPlan((plan, library) => {
-      const [oct1] = daysFromOct1(plan, 1);
-      const drive = block(plan, library, { baseId: oct1!, kindId: "transit", title: "开车去南浔", minute: 540, duration: 180 });
-      updateBlock(plan, library, drive, { transport_mode: "drive", distance_m: 132000, note: "走高速" });
-    });
-
-    await user.click(within(await timelineRow("10.1")).getByRole("button", { name: /^开车去南浔 / }));
-
-    const dialog = screen.getByRole("dialog", { name: "开车去南浔" });
-    for (const text of ["交通 · 待定", "09:00–12:00 · 3 小时", "自驾 · 132 公里", "走高速"]) {
-      expect(within(dialog).getByText(text)).toBeTruthy();
-    }
-    expect(within(dialog).queryByText(/^钱：/)).toBeNull();
-  });
-
-  it("在表里改：关掉详情，切到列表，焦点到安排表这一行的标题框", async () => {
+  it("点横条：打开详情面板，没有「在表里改」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -354,29 +340,10 @@ describe("点块看详情", () => {
     });
 
     await user.click(within(await timelineRow("10.1")).getByRole("button", { name: /^西湖 / }));
-    await user.click(within(screen.getByRole("dialog", { name: "西湖" })).getByRole("button", { name: "在表里改" }));
 
-    expect(screen.queryByRole("dialog", { name: "西湖" })).toBeNull();
-    expect(pressedView()).toBe("列表");
-    const title = within(await blockRow("10.1", "西湖")).getByRole("textbox", { name: "标题" });
-    await waitFor(() => expect(document.activeElement).toBe(title));
-  });
-
-  it("分组是按类型时在表里改：切到列表、回到按天，焦点到这一行的标题框", async () => {
-    const user = userEvent.setup();
-    await openStoredPlan((plan, library) => {
-      const [oct1] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-    });
-    await user.click(within(await screen.findByRole("group", { name: "分组" })).getByRole("button", { name: "按类型" }));
-
-    await user.click(within(await timelineRow("10.1")).getByRole("button", { name: /^西湖 / }));
-    await user.click(within(screen.getByRole("dialog", { name: "西湖" })).getByRole("button", { name: "在表里改" }));
-
-    expect(pressedView()).toBe("列表");
-    expect(groupingPressed("按天")).toBe("true");
-    const title = within(await blockRow("10.1", "西湖")).getByRole("textbox", { name: "标题" });
-    await waitFor(() => expect(document.activeElement).toBe(title));
+    const dialog = screen.getByRole("dialog", { name: "西湖" });
+    expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("09:00–12:00 · 3 小时");
+    expect(screen.queryByRole("button", { name: "在表里改" })).toBeNull();
   });
 
   it("Esc 关掉：焦点回到横条", async () => {

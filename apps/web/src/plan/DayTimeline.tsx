@@ -1,12 +1,13 @@
-import { baseStartUtcMs, type BlockView, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
+import { baseStartUtcMs, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type * as Y from "yjs";
 import { useNow, useTimeZone } from "../app/services";
-import { BlockPopover } from "./BlockBubble";
+import { TimelineAddBlock } from "./AddBlock";
 import { blockTimeLabel } from "./block-time";
+import { useDayMenu } from "./day-menu";
 import { DragLabel } from "./DragLabel";
 import { todayIn } from "./day-labels";
-import type { MoneyCell } from "./money-cells";
+import { BlockButton } from "./open-block";
 import { initialDayIndex, scrollMinute } from "./timeline-day";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
 import { daySegmentStyle, dayStripsWidth, HOUR_HEIGHT, LIFTED_Z_INDEX } from "./timeline-geometry";
@@ -26,10 +27,7 @@ interface DayTimelineProps {
   rows: readonly RowLayout[];
   /** 每一行的标签：「第 1 天 · 10.1 周四」 */
   labels: readonly string[];
-  moneyCells: ReadonlyMap<string, MoneyCell>;
   filter: StatsFilter | undefined;
-  /** 详情里「这天从这件起往后推迟」的做法 */
-  shiftLater: (block: BlockView, deltaMin: number) => void;
   /** 看的是哪天（底座 id），记在 DayList 里：切到列表时这里卸掉，切回来接着看这天 */
   shownDay: { current: string | null };
 }
@@ -38,20 +36,9 @@ interface DayTimelineProps {
  * 窄屏上的时间轴：一次看一天，纵向 0–24 点按真实比例，放在能上下滚的框里。
  * 打开时落在今天（没出发是第一天，已结束是最后一天），切到列表再切回来还是原来那天；滚到现在或这天第一件事，只在打开、翻天时滚。
  * 块画成竖条，同一层重叠的并排成列，停留、住宿这类在左边的细条里；竖条能拖着挪时间，拖动中画成松手后的样子（见 use-timeline-drag）。
- * 框下面列出这天没排时间的事（没有就不出现），那里的事不能拖。
+ * 标签旁边是这天的菜单；框下面列出这天没排时间的事（没有就不出现，那里的事不能拖），再下面一直有「加一件事」。
  */
-export function DayTimeline({
-  doc,
-  library,
-  plan,
-  libraryView,
-  rows,
-  labels,
-  moneyCells,
-  filter,
-  shiftLater,
-  shownDay,
-}: DayTimelineProps) {
+export function DayTimeline({ doc, library, plan, libraryView, rows, labels, filter, shownDay }: DayTimelineProps) {
   const now = useNow();
   const timeZone = useTimeZone();
   const today = todayIn(now(), timeZone);
@@ -65,6 +52,7 @@ export function DayTimeline({
   const index = Math.min(chosen, plan.bases.length - 1);
   const base = plan.bases[index]!;
   const inTrip = today >= plan.bases[0]!.date && today <= plan.bases[plan.bases.length - 1]!.date;
+  const dayMenu = useDayMenu({ doc, plan, base, label: labels[index]!, index, count: plan.bases.length });
 
   const scroller = useRef<HTMLDivElement>(null);
   const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter, day: index, scroller });
@@ -84,21 +72,26 @@ export function DayTimeline({
 
   return (
     <div ref={drag.containerRef} data-timeline-dragging={drag.dragView ? true : undefined} className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <button type="button" className="btn btn-ghost px-2.5" disabled={index === 0} onClick={() => setChosen(index - 1)}>
-          前一天
-        </button>
-        <h3 data-timeline-day className="min-w-0 flex-1 truncate text-center text-sm text-ink tabular-nums">
-          {labels[index]}
-        </h3>
-        <button
-          type="button"
-          className="btn btn-ghost px-2.5"
-          disabled={index === plan.bases.length - 1}
-          onClick={() => setChosen(index + 1)}
-        >
-          后一天
-        </button>
+      {/* 删天撤销后按 data-base-id 找回这天的「这天的操作」 */}
+      <div data-base-id={base.id} className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <button type="button" className="btn btn-ghost px-2.5" disabled={index === 0} onClick={() => setChosen(index - 1)}>
+            前一天
+          </button>
+          <h3 data-timeline-day className="min-w-0 flex-1 truncate text-center text-sm text-ink tabular-nums">
+            {labels[index]}
+          </h3>
+          {dayMenu.menu}
+          <button
+            type="button"
+            className="btn btn-ghost px-2.5"
+            disabled={index === plan.bases.length - 1}
+            onClick={() => setChosen(index + 1)}
+          >
+            后一天
+          </button>
+        </div>
+        {dayMenu.form !== null && <div className="select-text">{dayMenu.form}</div>}
       </div>
       {inTrip && base.date !== today && (
         <button type="button" className="btn btn-ghost self-center" onClick={() => setChosen(todayIndex)}>
@@ -143,10 +136,8 @@ export function DayTimeline({
                 plan={shownPlan}
                 item={item}
                 place={daySegmentStyle(item, layout)}
-                moneyCell={moneyCells.get(item.blockId)}
                 dragView={drag.dragView}
                 handlers={drag.handlers}
-                shiftLater={shiftLater}
               />
             ))}
           </div>
@@ -162,7 +153,6 @@ export function DayTimeline({
             plan={plan}
             base={base}
             blocks={undated}
-            moneyCells={moneyCells}
             trayRef={noop}
             dropLabel={null}
             draggingId={null}
@@ -171,6 +161,7 @@ export function DayTimeline({
           />
         </div>
       )}
+      <TimelineAddBlock doc={doc} library={library} plan={plan} baseId={base.id} filter={filter} className="input-bare select-text" />
       {drag.pointerLabel && <DragLabel label={drag.pointerLabel} />}
     </div>
   );
@@ -181,19 +172,18 @@ interface DaySegmentProps {
   item: PlacedSegment;
   /** 横向的位置：第几列、多宽 */
   place: CSSProperties;
-  moneyCell: MoneyCell | undefined;
   dragView: DragView | null;
   handlers: SegmentHandlers;
-  shiftLater: (block: BlockView, deltaMin: number) => void;
 }
 
-/** 一段竖条：外框放位置、data 属性和拖拽的监听（和横排一样），里面的按钮点开详情。背景细条太窄，不写字。 */
-function DaySegment({ plan, item, place, moneyCell, dragView, handlers, shiftLater }: DaySegmentProps) {
+/** 一段竖条：外框放位置、data 属性和拖拽的监听（和横排一样），里面的按钮点开详情面板。背景细条太窄，不写字。 */
+function DaySegment({ plan, item, place, dragView, handlers }: DaySegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
   const buttonClass = point ? "timeline-marker-h" : item.track === "background" ? "timeline-strip" : "timeline-bar";
   const lifted = dragView?.liftedId === item.blockId;
+  const time = zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date);
 
   return (
     <div
@@ -215,16 +205,10 @@ function DaySegment({ plan, item, place, moneyCell, dragView, handlers, shiftLat
       onPointerDown={(event) => handlers.onPointerDown(event, item)}
       onClickCapture={handlers.onClickCapture}
     >
-      <BlockPopover
-        block={block}
-        time={zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date)}
-        // 名字单独一段：竖排里竖条开头滚出框的上边时，名字贴着框的上边（见 index.css）
-        trigger={point || item.track === "background" ? null : <span data-bar-title>{block.title}</span>}
-        triggerClassName={buttonClass}
-        align="start"
-        moneyCell={moneyCell}
-        onShiftLater={(deltaMin) => shiftLater(block, deltaMin)}
-      />
+      <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} className={buttonClass}>
+        {/* 名字单独一段：竖排里竖条开头滚出框的上边时，名字贴着框的上边（见 index.css） */}
+        {point || item.track === "background" ? null : <span data-bar-title>{block.title}</span>}
+      </BlockButton>
     </div>
   );
 }

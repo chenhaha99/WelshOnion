@@ -127,7 +127,11 @@ export async function blockRow(day: string, title: string): Promise<HTMLElement>
   return row;
 }
 
-/** 下拉当前选中项的文字。 */
+/**
+ * 下拉当前选中项的文字。按 selectedIndex 找：测试用的 happy-dom 里，选了一项、React 又按新的值重新选中以后，
+ * selectedOptions 还停在旧的那项，selectedIndex 和每项的 selected 是对的。
+ */
 export function selectedText(select: HTMLElement): string {
-  return (select as HTMLSelectElement).selectedOptions[0]?.textContent ?? "";
+  const element = select as HTMLSelectElement;
+  return element.options[element.selectedIndex]?.textContent ?? "";
 }

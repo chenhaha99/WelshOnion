@@ -30,7 +30,7 @@ async function measuredMinutes(row: Locator, title: string): Promise<{ from: num
   return { from: (box!.x - axis!.x) / perMinute, to: (box!.x + box!.width - axis!.x) / perMinute };
 }
 
-test("时间轴：排出一天 → 按时长画 → 看详情、在表里改 → 电脑和手机上的宽度", async ({ page }) => {
+test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电脑和手机上的宽度", async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1280, height: 800 });
 
@@ -91,16 +91,20 @@ test("时间轴：排出一天 → 按时长画 → 看详情、在表里改 →
   await timeline.scrollIntoViewIfNeeded();
   await shot(page, "01-timeline");
 
-  // 点第二天那段看详情，在表里改：切到列表，焦点落到 10.1 安排表「民宿」的标题框
+  // 点第二天那段打开详情面板：类型、状态、时间；电脑上在屏幕右边、320 像素宽，还是时间轴视图
   await segment(day2, "民宿").getByRole("button").click();
-  const bubble = page.getByRole("dialog", { name: "民宿" });
-  await expect(bubble).toContainText("住宿 · 待定");
-  await expect(bubble).toContainText("22:00–10.2 08:00 · 10 小时");
+  const panel = page.getByRole("dialog", { name: "民宿" });
+  await expect(panel.getByRole("button", { name: "类型：住宿" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "状态：待定" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "时间" })).toHaveText("22:00–10.2 08:00 · 10 小时");
+  await expect(panel.getByRole("button", { name: "在表里改" })).toHaveCount(0);
+  const panelBox = (await panel.boundingBox())!;
+  expect(Math.round(panelBox.width)).toBe(320);
+  expect(panelBox.x + panelBox.width).toBeGreaterThan(1260);
+  await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
   await shot(page, "02-details");
-  await bubble.getByRole("button", { name: "在表里改" }).click();
-  await expect(bubble).toBeHidden();
-  await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name: "列表", pressed: true })).toBeVisible();
-  await expect(rows.nth(3).getByRole("textbox", { name: "标题" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
 
   // 只用键盘：回车打开详情，Esc 关掉，焦点回到横条
   await showView(page, "时间轴");

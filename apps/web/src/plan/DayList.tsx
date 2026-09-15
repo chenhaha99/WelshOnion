@@ -1,14 +1,16 @@
 import { shiftAllDays, type KindView, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
+import { blockFocusSelector } from "./block-actions";
+import { BlockPanel } from "./BlockPanel";
 import { dayRowLabels, daysBetween } from "./day-labels";
 import { DayRow } from "./DayRow";
-import { EditInListContext } from "./edit-in-list";
 import { FilterChips, chipClass } from "./FilterChips";
 import { KindGroups } from "./KindGroups";
 import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
+import { OpenBlockContext, type OpenBlock, type PanelFocus } from "./open-block";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
 import { SharesCard } from "./SharesCard";
 import { Timeline } from "./Timeline";
@@ -35,14 +37,18 @@ interface DayListProps {
   planId: string;
 }
 
-/** 列表视图里要拿到焦点的框：第 1 天的「加一件事」，或者某件事的标题框 */
-type FocusRequest = { target: "add-first" } | { target: "title"; blockId: string };
+/** 详情面板开着哪件事：谁点开的（关掉后焦点回到它）、打开时焦点放哪 */
+interface OpenedBlock {
+  blockId: string;
+  opener: HTMLElement;
+  focus: PanelFocus;
+}
 
 /**
  * 计划页的主体：出发日期、按状态和类型筛选、钱的总览、占比，下面「时间轴」「列表」两个视图切换着看。
  * 列表视图是每天一个组头和它的安排表（或按类型分组）；出发日期一改，整趟一起平移。计划里至少有一天。
  * 按下了哪些状态、类型、怎么分组只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、钱、占比和每一天；
- * 看的是哪个视图按计划记在这台设备上。
+ * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：两个视图打开的是同一个，切换视图面板留着。
  */
 export function DayList({ doc, library, libraryView, plan, planId }: DayListProps) {
   const bases = plan.bases;
@@ -55,7 +61,6 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   // 按天还是按类型分组，也只在这一页
   const [grouping, setGrouping] = useState<"day" | "kind">("day");
   const pressedGrouping = useRef<HTMLButtonElement>(null);
-  const dayList = useRef<HTMLOListElement>(null);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
   // 竖排看的是哪天（底座 id）：切到列表时时间轴卸掉，切回来接着看这天
@@ -75,23 +80,25 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
     window.scrollBy(0, viewsMarker.current!.getBoundingClientRect().top - VIEWS_STICKY_TOP);
   }, [viewClicks]);
 
-  // 「加第一件事」「在表里改」：切到列表、分组回到按天，画完再把那个框滚到中间、给焦点
-  // （时间轴视图、按类型分组时每天的表不在页面上）
-  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
-  useEffect(() => {
-    if (focusRequest === null) return;
-    const selector =
-      focusRequest.target === "add-first"
-        ? 'input[aria-label="加一件事"]'
-        : `tr[data-block-id="${focusRequest.blockId}"] input[aria-label="标题"]`;
-    const input = dayList.current!.querySelector<HTMLInputElement>(selector)!;
-    input.scrollIntoView({ block: "center" });
-    input.focus({ preventScroll: true });
-  }, [focusRequest]);
-  const focusInList = (request: FocusRequest) => {
-    showView("list");
-    setGrouping("day");
-    setFocusRequest(request);
+  const [opened, setOpened] = useState<OpenedBlock | null>(null);
+  const openBlock = useCallback<OpenBlock>((blockId, opener, focus = "panel") => setOpened({ blockId, opener, focus }), []);
+  const openedBlock = opened === null ? undefined : plan.blocks.get(opened.blockId);
+  // 这件事没了（撤销掉了、别的标签页删了），面板自己关
+  if (opened !== null && openedBlock === undefined) setOpened(null);
+  const closePanel = (deletedFromBaseId?: string) => {
+    const closing = opened!;
+    setOpened(null);
+    if (deletedFromBaseId === undefined && closing.opener.isConnected) closing.opener.focus();
+    // 等改动画出来再看焦点：点开它的按钮没了（换了行、切了视图），放到这件事现在的按钮上；
+    // 删掉了的，列表里安排表自己落到下一行，时间轴上落到那天的「这天的操作」
+    requestAnimationFrame(() => {
+      if (document.activeElement !== null && document.activeElement !== document.body) return;
+      const selector =
+        deletedFromBaseId === undefined
+          ? blockFocusSelector(closing.blockId)
+          : `[data-base-id="${deletedFromBaseId}"] button[aria-label="这天的操作"]`;
+      document.querySelector<HTMLElement>(selector)?.focus();
+    });
   };
 
   const statusKey = selectedStatuses.filter((id) => libraryView.statuses.has(id)).join(",");
@@ -170,75 +177,86 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
           </button>
         ))}
       </div>
-      {/* 至少一屏高（减去切换按钮 42 像素、贴顶的 8、间距 16、页面底边 32）：视图比一屏短时，点切换按钮照样滚得到贴顶 */}
-      <div className="flex min-h-[calc(100dvh-6.125rem)] flex-col gap-4">
-        {view === "timeline" ? (
-          <EditInListContext.Provider value={(blockId) => focusInList({ target: "title", blockId })}>
+      <OpenBlockContext.Provider value={openBlock}>
+        {/* 至少一屏高（减去切换按钮 42 像素、贴顶的 8、间距 16、页面底边 32）：视图比一屏短时，点切换按钮照样滚得到贴顶 */}
+        <div className="flex min-h-[calc(100dvh-6.125rem)] flex-col gap-4">
+          {view === "timeline" ? (
             <Timeline
               doc={doc}
               library={library}
               plan={plan}
               libraryView={libraryView}
-              moneyCells={cells}
               filter={filter}
-              onAddFirst={() => focusInList({ target: "add-first" })}
               shownDay={shownDay}
             />
-          </EditInListContext.Provider>
-        ) : (
-          <>
-            <div role="group" aria-label="分组" className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-ink-muted">分组</span>
-              {GROUPINGS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  ref={grouping === value ? pressedGrouping : undefined}
-                  type="button"
-                  aria-pressed={grouping === value}
-                  className={chipClass(grouping === value)}
-                  onClick={() => setGrouping(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {/* 按天、又按类型筛时，钱算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上。按类型分组时钱都在组里 */}
-            {grouping === "day" && hiddenCents > 0 && (
-              <p data-hidden-money className="text-sm text-ink-muted">
-                {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的事上`}
-              </p>
-            )}
-            {grouping === "day" ? (
-              <ol ref={dayList} aria-label="日期列表" className="flex flex-col gap-3">
-                {bases.map((base, index) => (
-                  <DayRow
-                    key={base.id}
-                    doc={doc}
-                    library={library}
-                    libraryView={libraryView}
-                    plan={plan}
-                    base={base}
-                    label={labels[index]!}
-                    index={index}
-                    count={bases.length}
-                    moneyCells={cells}
-                    filter={filter}
-                  />
+          ) : (
+            <>
+              <div role="group" aria-label="分组" className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-ink-muted">分组</span>
+                {GROUPINGS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    ref={grouping === value ? pressedGrouping : undefined}
+                    type="button"
+                    aria-pressed={grouping === value}
+                    className={chipClass(grouping === value)}
+                    onClick={() => setGrouping(value)}
+                  >
+                    {label}
+                  </button>
                 ))}
-              </ol>
-            ) : (
-              <KindGroups
-                doc={doc}
-                library={library}
-                libraryView={libraryView}
-                plan={plan}
-                filter={filter}
-                onEmptyFocus={() => pressedGrouping.current?.focus()}
-              />
-            )}
-          </>
-        )}
-      </div>
+              </div>
+              {/* 按天、又按类型筛时，钱算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上。按类型分组时钱都在组里 */}
+              {grouping === "day" && hiddenCents > 0 && (
+                <p data-hidden-money className="text-sm text-ink-muted">
+                  {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的事上`}
+                </p>
+              )}
+              {grouping === "day" ? (
+                <ol aria-label="日期列表" className="flex flex-col gap-3">
+                  {bases.map((base, index) => (
+                    <DayRow
+                      key={base.id}
+                      doc={doc}
+                      library={library}
+                      libraryView={libraryView}
+                      plan={plan}
+                      base={base}
+                      label={labels[index]!}
+                      index={index}
+                      count={bases.length}
+                      moneyCells={cells}
+                      filter={filter}
+                    />
+                  ))}
+                </ol>
+              ) : (
+                <KindGroups
+                  doc={doc}
+                  library={library}
+                  libraryView={libraryView}
+                  plan={plan}
+                  filter={filter}
+                  onEmptyFocus={() => pressedGrouping.current?.focus()}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </OpenBlockContext.Provider>
+      {opened !== null && openedBlock !== undefined && (
+        <BlockPanel
+          key={opened.blockId}
+          doc={doc}
+          library={library}
+          libraryView={libraryView}
+          plan={plan}
+          block={openedBlock}
+          moneyCell={cells.get(opened.blockId)}
+          focus={opened.focus}
+          onClose={closePanel}
+        />
+      )}
     </section>
   );
 }

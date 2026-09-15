@@ -10,8 +10,9 @@ export async function registerBackButton(): Promise<void> {
 
 /**
  * 返回键按一下，依次看：
- * 1. 开着弹层、抽屉或菜单：关掉最上面那一个，和按 Esc 一样。焦点在它里面就从焦点发 Esc，否则从它自己发
- *    （弹层听的是整个页面的按键，抽屉听的是自己身上的，这样两种都收得到）
+ * 1. 开着弹层、抽屉、详情面板或菜单：关掉最上面那一个，和按 Esc 一样。焦点在它里面就从焦点发 Esc，否则从它自己发
+ *    （弹层听的是整个页面的按键，抽屉听的是自己身上的，这样两种都收得到；编辑区开着时先收起编辑区）。
+ *    焦点在里面时先让它失去焦点，照「离开时保存」存下：输入框里的 Esc 是「不要这次改的」，不先存，填了没回车的就丢了
  * 2. 在计划页：先让焦点所在的框失去焦点（照「离开时保存」存下），再回到计划列表。
  *    不拿 Esc 去关编辑区：输入框里的 Esc 是「不要这次改的」
  * 3. 在计划列表：退出 app
@@ -22,7 +23,9 @@ function handleBack(): void {
   if (top) {
     const focused = document.activeElement;
     const target = focused instanceof HTMLElement && top.contains(focused) ? focused : top;
-    target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    if (target !== top) target.blur();
+    // 存下的改动画完再发 Esc：那时框已经不在「正在改」，Esc 不会被当成放弃
+    setTimeout(() => target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })), 0);
     return;
   }
   if (parseRoute(window.location.hash).page === "plan") {

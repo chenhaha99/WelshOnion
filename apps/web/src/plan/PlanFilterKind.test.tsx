@@ -230,7 +230,7 @@ describe("按类型筛选时的钱", () => {
     expect(screen.getByRole("region", { name: "钱的总览" }).textContent).toContain("总额 ¥480");
   });
 
-  it("只挂着别的类型的钱：写「填钱」、另写一行，时间轴详情里没有「钱：」", async () => {
+  it("只挂着别的类型的钱：写「填钱」、另写一行；时间轴上点开，面板的「钱」也这么写", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -244,8 +244,9 @@ describe("按类型筛选时的钱", () => {
     await showView("时间轴");
     const timeline = await screen.findByRole("region", { name: "时间轴" });
     await user.click(within(timeline).getAllByRole("button", { name: /^酒店 / })[0]!);
-    const dialog = screen.getByRole("dialog", { name: "酒店" });
-    expect(within(dialog).queryByText(/^钱：/)).toBeNull();
+    const moneyButton = within(screen.getByRole("dialog", { name: "酒店" })).getByRole("button", { name: "钱" });
+    expect(within(moneyButton).getByText("填钱")).toBeTruthy();
+    expect(within(moneyButton).getByText("另有别的类型的钱")).toBeTruthy();
   });
 
   it("挂在被筛掉的事上的钱：日期列表上面写一句，钱的总览算上它", async () => {

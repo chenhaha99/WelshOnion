@@ -61,7 +61,10 @@ export function MoneyEditor({
       aria-label={label}
       className="flex flex-col gap-1.5 py-1 pl-2 text-sm"
       onKeyDown={(event) => {
-        if (event.key === "Escape") onDone();
+        if (event.key !== "Escape") return;
+        // 只收起编辑区、不往外传：在详情面板里按，面板不跟着关
+        event.stopPropagation();
+        onDone();
       }}
     >
       {expenses.map((expense) => (

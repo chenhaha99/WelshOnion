@@ -10,13 +10,21 @@ export interface MenuItem {
 
 const ITEM_HEIGHT_PX = 37;
 
+interface MenuProps {
+  label: string;
+  items: MenuItem[];
+  /** 按钮的样式；不给是普通大小的按钮 */
+  triggerClassName?: string;
+  children: ReactNode;
+}
+
 /** 一个按钮 + 一列选项：打开时焦点落在第一项，上下键移动；选了一项就关掉，焦点回到按钮。 */
-export function Menu({ label, items, children }: { label: string; items: MenuItem[]; children: ReactNode }) {
+export function Menu({ label, items, triggerClassName = "btn btn-ghost px-2.5", children }: MenuProps) {
   return (
     <Popover
       label={label}
       trigger={children}
-      triggerClassName="btn btn-ghost px-2.5"
+      triggerClassName={triggerClassName}
       role="menu"
       panelClassName="menu"
       align="end"

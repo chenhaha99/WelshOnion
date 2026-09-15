@@ -5,7 +5,15 @@ import { addBlock, deleteDay, setDays, type AddBlockInput } from "@welshonion/co
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { dayLabels, daysFromOct1, openDayMenu, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
+import {
+  dayLabels,
+  daysFromOct1,
+  openDayMenu,
+  openStoredPlan,
+  pressedView,
+  showView,
+  stubNarrowScreen,
+} from "./test-helpers";
 
 // 测试里「现在」是 2026-09-14 18:00（北京），系统时区是北京，见 app/test-render.tsx
 
@@ -230,7 +238,18 @@ describe("空的时候", () => {
     });
 
     const region = await timeline();
-    expect(await within(region).findByText("排上时间的事会画在这里：在列表里点时间格")).toBeTruthy();
+    expect(await within(region).findByText("排上时间的事会画在这里：点开下面没排时间的事排时间")).toBeTruthy();
     expect(region.textContent).not.toContain("右边");
+  });
+
+  it("窄屏上点「加第一件事」：焦点到框下面的「加一件事」，不切视图", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFromOct1(plan, 2));
+
+    const region = await timeline();
+    await user.click(await within(region).findByRole("button", { name: "加第一件事" }));
+
+    expect(pressedView()).toBe("时间轴");
+    await waitFor(() => expect(document.activeElement).toBe(within(region).getByRole("textbox", { name: "加一件事" })));
   });
 });

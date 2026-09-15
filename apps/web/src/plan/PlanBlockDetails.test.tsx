@@ -83,14 +83,14 @@ describe("块的详情", () => {
 
     const details = await openDetails(user, "西湖");
     await user.type(within(details).getByLabelText("长备注"), "北山街停车{Enter}傍晚去断桥");
-    await user.click(within(details).getByRole("button", { name: "收起" }));
+    await user.click(within(screen.getByRole("dialog", { name: "西湖" })).getByRole("button", { name: "关闭" }));
 
     await waitFor(() => expect(blockOf(other, "西湖")?.note).toBe("北山街停车\n傍晚去断桥"));
     expect(await subtitleOf("西湖")).toBe("有长备注");
-    expect(screen.queryByRole("group", { name: "西湖 的详情" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "西湖" })).toBeNull();
   });
 
-  it("Esc 收起：焦点回到这一行的行菜单按钮", async () => {
+  it("Esc 关掉详情面板：焦点回到这一行的行菜单按钮", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       undated(plan, library, "西湖");

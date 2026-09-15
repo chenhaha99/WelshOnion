@@ -43,7 +43,7 @@ test("块的详情：键盘打开详情填备注 → 交通块自驾挂油费 �
   await rows.nth(1).getByRole("button", { name: /^类型：/ }).click();
   await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: "交通", exact: true }).click();
 
-  // 西湖：只用键盘打开详情，填短备注和两行长备注，Esc 收起后焦点回到行菜单按钮
+  // 西湖：只用键盘打开详情面板，填短备注和两行长备注，Esc 关掉面板后焦点回到行菜单按钮
   const lakeMenu = rows.nth(0).getByRole("button", { name: "这件事的操作" });
   await lakeMenu.focus();
   await page.keyboard.press("Enter");
@@ -74,7 +74,7 @@ test("块的详情：键盘打开详情填备注 → 交通块自驾挂油费 �
   await routeDetails.getByLabel("距离（公里）").fill("132");
   await page.keyboard.press("Enter");
   await expect(rows.nth(1).locator("[data-money-cell]")).toHaveText("¥105.60");
-  await routeDetails.getByRole("button", { name: "收起" }).click();
+  await page.getByRole("dialog", { name: "去乌镇" }).getByRole("button", { name: "关闭" }).click();
   await expect(routeDetails).toBeHidden();
 
   // 去乌镇排上 08:00 起 2 小时；灵隐寺只存 2 小时时长

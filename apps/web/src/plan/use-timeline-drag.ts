@@ -430,9 +430,12 @@ export function useTimelineDrag({
       swallowTouchEnd.current = false;
       event.preventDefault();
     };
-    // 手指按住时不弹系统的长按菜单；鼠标右键照常
+    // 手指按住横条、竖条、栏里的一件是要拿起来拖，不弹系统的长按菜单；输入框里长按要粘贴，鼠标右键也照常
     const onContextMenu = (event: MouseEvent) => {
-      if (!lastPressByMouse.current) event.preventDefault();
+      if (lastPressByMouse.current) return;
+      if (event.target instanceof Element && event.target.closest("[data-segment], [data-undated-chip]")) {
+        event.preventDefault();
+      }
     };
     element.addEventListener("pointerdown", onPointerDown, true);
     element.addEventListener("touchmove", onTouchMove, { passive: false });

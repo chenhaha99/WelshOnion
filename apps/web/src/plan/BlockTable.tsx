@@ -1,22 +1,12 @@
 import {
-  addBlock,
   countBlocksUsing,
-  deleteBlock,
   followersOf,
-  LOCAL_ORIGIN,
-  moveBlock,
-  moveUndated,
   passesFilter,
-  resizeBlock,
-  setBlockIndent,
-  setBlockTimed,
-  setBlockUndated,
   updateBlock,
   type BlockView,
   type KindView,
   type LibraryView,
   type PlanView,
-  type SlotChoice,
   type StatsFilter,
   type StatusView,
 } from "@welshonion/core";
@@ -24,18 +14,19 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent 
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
 import { Menu, type MenuItem } from "../app/Menu";
-import { BlockDetails } from "./BlockDetails";
-import { blockTimeLabel, clock } from "./block-time";
+import { AddBlock, addKindIdFor, useJustAdded } from "./AddBlock";
+import { deleteBlockWithNotice, deleteLabel, undatedArrangeItems } from "./block-actions";
+import { blockTimeLabel } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
 import { useNotifyDeleted } from "./DeletedNotice";
 import { linkableExpenses } from "./expense-links";
 import { MoneyEditor } from "./MoneyEditor";
 import { moneyCellEmpty, moneyCellLabel, moneyCellNote, type MoneyCell } from "./money-cells";
+import { useOpenBlock } from "./open-block";
 import { KindPicker, StatusPicker } from "./pickers";
+import { TimeEditor } from "./TimeEditor";
 import { zoneTimeLabel } from "./zone-time";
 
-/** 新建的块默认「游玩」：第 ③ 步列的多是景点和活动，选错了在下拉里改。 */
-const DEFAULT_KIND_ID = "sight";
 const DELETED_COLOR = "#9aa3ad";
 const COLUMN_COUNT = 6;
 
@@ -83,18 +74,8 @@ export function BlockTable({
   const hiddenCount = dayBlocks.length - blocks.length;
   const tbody = useRef<HTMLTableSectionElement>(null);
   const focusSpot = useRef<FocusSpot | null>(null);
-
-  // 只按下一个类型时，加的事就是这个类型（只看住宿时加「酒店」），加上就看得见
-  const addKindId = filter?.kindIds?.length === 1 ? filter.kindIds[0]! : DEFAULT_KIND_ID;
-  // 这天最近加的那件被筛掉了，「筛掉了 N 件」后面写上它；筛选变了、它显示出来了、它没了，就不再写
-  const filterKey = `${filter?.statusIds?.join(",") ?? ""}|${filter?.kindIds?.join(",") ?? ""}`;
-  const [justAdded, setJustAdded] = useState<{ blockId: string; filterKey: string } | null>(null);
-  const justAddedBlock = justAdded === null ? undefined : dayBlocks.find((block) => block.id === justAdded.blockId);
-  const hiddenJustAdded =
-    justAdded?.filterKey === filterKey && justAddedBlock !== undefined && !blocks.includes(justAddedBlock)
-      ? justAddedBlock
-      : undefined;
-  if (justAdded !== null && hiddenJustAdded === undefined) setJustAdded(null);
+  // 这天最近加的那件被筛掉了，「筛掉了 N 件」后面写上它
+  const justAdded = useJustAdded(dayBlocks, blocks, filter);
 
   // 弹出去的选择器、菜单不在表格里：焦点在那里时不改记录，记的还是打开它的那个按钮
   const rememberFocus = (event: FocusEvent<HTMLTableSectionElement>) => {
@@ -124,7 +105,6 @@ export function BlockTable({
   }, [visibleIds]);
   const kinds = [...libraryView.kinds.values()].sort(byOrder);
   const statuses = [...libraryView.statuses.values()].sort(byOrder);
-  const undatedGroups = plan.undated.get(baseId);
   const countKindUsing = (kindId: string) => countBlocksUsing(plan, { kindId });
   const countStatusUsing = (statusId: string) => countBlocksUsing(plan, { statusId });
 
@@ -153,7 +133,6 @@ export function BlockTable({
               date={date}
               kinds={kinds}
               statuses={statuses}
-              slotGroup={block.start_minute === null ? (undatedGroups?.[block.slot ?? "day"] ?? []) : []}
               followerCount={followersOf(plan, libraryView, block.id).length}
               countKindUsing={countKindUsing}
               countStatusUsing={countStatusUsing}
@@ -164,7 +143,7 @@ export function BlockTable({
             <tr data-filtered-out>
               <td colSpan={COLUMN_COUNT} className="text-sm text-ink-muted">
                 筛掉了 {hiddenCount} 件
-                {hiddenJustAdded !== undefined && `，包括刚加的「${hiddenJustAdded.title}」`}
+                {justAdded.hidden !== undefined && `，包括刚加的「${justAdded.hidden.title}」`}
               </td>
             </tr>
           )}
@@ -174,8 +153,8 @@ export function BlockTable({
                 doc={doc}
                 library={library}
                 baseId={baseId}
-                kindId={addKindId}
-                onAdded={(blockId) => setJustAdded({ blockId, filterKey })}
+                kindId={addKindIdFor(filter)}
+                onAdded={justAdded.remember}
               />
             </td>
           </tr>
@@ -193,8 +172,6 @@ interface BlockRowProps {
   date: string;
   kinds: KindView[];
   statuses: StatusView[];
-  /** 没排时间的块：同一格里的块 id，按顺序；有时间的给空 */
-  slotGroup: readonly string[];
   /** 删除时会被一起带走的块数 */
   followerCount: number;
   countKindUsing: (kindId: string) => number;
@@ -211,7 +188,6 @@ function BlockRow({
   date,
   kinds,
   statuses,
-  slotGroup,
   followerCount,
   countKindUsing,
   countStatusUsing,
@@ -219,32 +195,33 @@ function BlockRow({
 }: BlockRowProps) {
   const [timeOpen, setTimeOpen] = useState(false);
   const [moneyOpen, setMoneyOpen] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const row = useRef<HTMLTableRowElement>(null);
   const notifyDeleted = useNotifyDeleted();
+  const openBlock = useOpenBlock();
   const color = block.kind.deleted ? DELETED_COLOR : block.kind.color;
   const indent = block.indent ?? 0;
   const undated = block.start_minute === null;
-  const slot: SlotChoice = block.slot ?? "day";
-  const position = slotGroup.indexOf(block.id);
 
   // 删除不再确认，靠撤销：删完在屏幕底部说删了什么、能撤销；套着块时写明会一起删几个
   const deleteItem: MenuItem = {
-    label: followerCount > 0 ? `删除（连同里面的 ${followerCount} 个）` : "删除",
+    label: deleteLabel(followerCount),
     danger: true,
-    onSelect: () => {
-      deleteBlock(doc, library, block.id);
-      notifyDeleted({
-        message: followerCount > 0 ? `删掉了「${block.title}」和里面的 ${followerCount} 件` : `删掉了「${block.title}」`,
-        focusAfterUndo: `tr[data-block-id="${block.id}"] button[aria-label="这件事的操作"]`,
-      });
-    },
+    onSelect: () => notifyDeleted(deleteBlockWithNotice(doc, library, block, followerCount)),
   };
-  const detailsItem: MenuItem = { label: "详情…", onSelect: () => setDetailsOpen(true) };
-  // 收起详情后焦点回到这一行的行菜单按钮（按钮一直在）；先挪焦点，没保存的长备注借这次离开存上
-  const closeDetails = () => {
-    row.current?.querySelector<HTMLElement>("button[aria-label='这件事的操作']")?.focus();
-    setDetailsOpen(false);
+  // 「详情…」打开详情面板（时间轴上点开的也是它），焦点放在短备注；关掉后焦点回到这一行的行菜单按钮
+  const detailsItem: MenuItem = {
+    label: "详情…",
+    onSelect: () =>
+      openBlock(block.id, row.current!.querySelector<HTMLElement>("button[aria-label='这件事的操作']")!, "subtitle"),
+  };
+  // 收起时间的编辑区后焦点回到「时间」按钮；换了天的，这一行画到了那天的表里，等画完再找一次
+  const closeTime = () => {
+    row.current?.querySelector<HTMLElement>("button[aria-label='时间']")?.focus();
+    setTimeOpen(false);
+    requestAnimationFrame(() => {
+      const button = document.querySelector<HTMLElement>(`tr[data-block-id="${block.id}"] button[aria-label="时间"]`);
+      if (button !== document.activeElement) button?.focus();
+    });
   };
   // 收起钱的编辑区后焦点回到钱格；先挪焦点，空行里填了没回车的借这次离开建上（按 Esc 的在空行里就放弃了）
   const closeMoney = () => {
@@ -254,24 +231,7 @@ function BlockRow({
   const subtitleLine = [block.subtitle, block.note === null ? null : "有长备注"].filter((part) => part !== null).join(" · ");
   const moneyNote = moneyCellNote(moneyCell);
   const items: MenuItem[] = undated
-    ? [
-        indent === 0
-          ? { label: "缩进", onSelect: () => setBlockIndent(doc, block.id, 1) }
-          : { label: "取消缩进", onSelect: () => setBlockIndent(doc, block.id, null) },
-        {
-          label: "上移",
-          disabled: position <= 0,
-          onSelect: () => moveUndated(doc, block.id, { slot, beforeId: slotGroup[position - 1] }),
-        },
-        {
-          label: "下移",
-          disabled: position === -1 || position >= slotGroup.length - 1,
-          // 放到下下个前面；后面没有了就放最后
-          onSelect: () => moveUndated(doc, block.id, { slot, beforeId: slotGroup[position + 2] }),
-        },
-        detailsItem,
-        deleteItem,
-      ]
+    ? [...undatedArrangeItems(doc, plan, block), detailsItem, deleteItem]
     : [detailsItem, deleteItem];
 
   return (
@@ -346,14 +306,7 @@ function BlockRow({
       {timeOpen && (
         <tr>
           <td colSpan={COLUMN_COUNT}>
-            <TimeEditor doc={doc} library={library} block={block} onDone={() => setTimeOpen(false)} />
-          </td>
-        </tr>
-      )}
-      {detailsOpen && (
-        <tr>
-          <td colSpan={COLUMN_COUNT}>
-            <BlockDetails doc={doc} library={library} block={block} onDone={closeDetails} />
+            <TimeEditor doc={doc} library={library} plan={plan} block={block} onDone={closeTime} />
           </td>
         </tr>
       )}
@@ -377,204 +330,6 @@ function BlockRow({
         </tr>
       )}
     </>
-  );
-}
-
-const SLOT_CHOICES: ReadonlyArray<[SlotChoice, string]> = [
-  ["day", "整天"],
-  ["morning", "上午"],
-  ["afternoon", "下午"],
-  ["evening", "晚上"],
-];
-
-interface TimeEditorProps {
-  doc: Y.Doc;
-  library: Y.Doc;
-  block: BlockView;
-  onDone: () => void;
-}
-
-/** 时间格点开后在行下面展开：没排时间的换格子或排上时间；有时间的改开始和时长，或取消时间。 */
-function TimeEditor({ doc, library, block, onDone }: TimeEditorProps) {
-  const undated = block.start_minute === null;
-  const initialDuration = block.duration_min ?? 60;
-  const [start, setStart] = useState(block.start_minute === null ? "" : clock(block.start_minute));
-  const [hours, setHours] = useState(String(Math.floor(initialDuration / 60)));
-  const [minutes, setMinutes] = useState(String(initialDuration % 60));
-  const minute = parseClock(start);
-  const duration = parseDuration(hours, minutes);
-
-  const schedule = () => {
-    if (minute === null || duration === null) return;
-    setBlockTimed(doc, library, block.id, { minute, duration });
-    onDone();
-  };
-
-  // 没排时间的块只存时长，不排时间、不动格子
-  const saveDuration = () => {
-    if (duration === null) return;
-    resizeBlock(doc, block.id, duration);
-    onDone();
-  };
-
-  // 开始和时长一起改，算一步撤销
-  const save = () => {
-    if (minute === null || duration === null) return;
-    doc.transact(() => {
-      if (minute !== block.start_minute) {
-        moveBlock(doc, library, block.id, { baseId: block.start_base_id, minute, placement: "auto" });
-      }
-      if (duration !== block.duration_min) resizeBlock(doc, block.id, duration);
-    }, LOCAL_ORIGIN);
-    onDone();
-  };
-
-  return (
-    <div
-      role="group"
-      aria-label={`${block.title} 的时间`}
-      className="flex flex-wrap items-center gap-x-4 gap-y-2 py-1 pl-2 text-sm text-ink-muted"
-      onKeyDown={(event) => {
-        if (event.key === "Escape") onDone();
-      }}
-    >
-      {/* 字和它的框连成一组，放不下时整组换行：不会把「开始」和它的框、「小时」和「分钟」拆到两行 */}
-      {undated && (
-        <span className="inline-flex items-center gap-2">
-          <select
-            aria-label="格子"
-            className="input"
-            value={block.slot ?? "day"}
-            onChange={(event) => {
-              moveUndated(doc, block.id, { slot: event.target.value as SlotChoice });
-              onDone();
-            }}
-          >
-            {SLOT_CHOICES.map(([value, name]) => (
-              <option key={value} value={value}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <span>或者排上时间：</span>
-        </span>
-      )}
-      <span className="inline-flex items-center gap-2">
-        <span>开始</span>
-        <input
-          type="time"
-          aria-label="开始"
-          className="input tabular-nums"
-          value={start}
-          onChange={(event) => setStart(event.target.value)}
-        />
-      </span>
-      <span className="inline-flex items-center gap-2">
-        <span>时长</span>
-        <input
-          type="number"
-          min={0}
-          aria-label="小时"
-          className="input w-16 tabular-nums"
-          value={hours}
-          onChange={(event) => setHours(event.target.value)}
-        />
-        <span>小时</span>
-        <input
-          type="number"
-          min={0}
-          max={59}
-          aria-label="分钟"
-          className="input w-16 tabular-nums"
-          value={minutes}
-          onChange={(event) => setMinutes(event.target.value)}
-        />
-        <span>分钟</span>
-      </span>
-      <span className="inline-flex flex-wrap items-center gap-2">
-        {undated ? (
-          <>
-            <button type="button" className="btn btn-primary" disabled={minute === null || duration === null} onClick={schedule}>
-              排上时间
-            </button>
-            <button type="button" className="btn btn-ghost" disabled={duration === null} onClick={saveDuration}>
-              只存时长
-            </button>
-          </>
-        ) : (
-          <>
-            <button type="button" className="btn btn-primary" disabled={minute === null || duration === null} onClick={save}>
-              保存
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                setBlockUndated(doc, block.id, { slot: "day" });
-                onDone();
-              }}
-            >
-              取消时间
-            </button>
-          </>
-        )}
-        <button type="button" className="btn btn-ghost" onClick={onDone}>
-          收起
-        </button>
-      </span>
-    </div>
-  );
-}
-
-/** 「09:00」→ 540；不是有效时刻给 null。 */
-function parseClock(text: string): number | null {
-  const match = /^(\d{2}):(\d{2})$/.exec(text);
-  if (!match) return null;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  return hour < 24 && minute < 60 ? hour * 60 + minute : null;
-}
-
-/** 小时、分钟两个框合成分钟数；不是不小于 0 的整数、分钟不小于 60 时给 null。 */
-function parseDuration(hours: string, minutes: string): number | null {
-  if (!/^\d+$/.test(hours) || !/^\d+$/.test(minutes)) return null;
-  const minuteValue = Number(minutes);
-  return minuteValue < 60 ? Number(hours) * 60 + minuteValue : null;
-}
-
-interface AddBlockProps {
-  doc: Y.Doc;
-  library: Y.Doc;
-  baseId: string;
-  /** 建出来的类型 */
-  kindId: string;
-  onAdded: (blockId: string) => void;
-}
-
-/** 填标题回车就建：没排时间、在整天、状态待定，类型用给的；建完清空，焦点留着接着加。 */
-function AddBlock({ doc, library, baseId, kindId, onAdded }: AddBlockProps) {
-  const [title, setTitle] = useState("");
-  return (
-    <input
-      aria-label="加一件事"
-      placeholder="加一件事"
-      className="input-bare"
-      value={title}
-      onChange={(event) => setTitle(event.target.value)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          const text = title.trim();
-          if (text !== "") {
-            const added = addBlock(doc, library, { baseId, kindId, title: text, slot: "day" });
-            if (added.ok) onAdded(added.value.blockId);
-          }
-          setTitle("");
-        } else if (event.key === "Escape") {
-          setTitle("");
-        }
-      }}
-    />
   );
 }
 

@@ -30,9 +30,10 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 2 天 · 9.14 周一");
   await expect(timeline.locator("[data-timeline-scroll]")).toHaveCount(0);
   await expect(timeline.getByRole("button", { name: "回到今天" })).toHaveCount(0);
-  // 一件事都没有：提示去加第一件事，不提右边的栏和拖；这天没有没排时间的事，框下面什么都没有
+  // 一件事都没有：提示去加第一件事，不提右边的栏和拖；这天没有没排时间的事，框下面只有「加一件事」
   await expect(timeline.getByText("还没有事。加了事、排上时间，就会画在这里", { exact: true })).toBeVisible();
   await expect(timeline.getByRole("group", { name: "没排时间" })).toHaveCount(0);
+  await expect(timeline.getByRole("textbox", { name: "加一件事" })).toBeVisible();
   expect(await topMinute(scroller)).toBe(13 * 60);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await timeline.scrollIntoViewIfNeeded();
@@ -59,7 +60,7 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   await expect(timeline.getByRole("button", { name: /^灵隐寺 / })).toHaveCount(1);
   await expect(tray).toHaveCount(0);
 
-  // 手动滚到 12:00 在最上面，在竖条详情里把 14:00 的灵隐寺往后推迟 1 小时：框不自己滚
+  // 手动滚到 12:00 在最上面，在竖条的详情面板里把 14:00 的灵隐寺往后推迟 1 小时：框不自己滚
   // （框高 28rem、一天 1152 像素，最多滚到 14 点多在最上面，所以挑 12:00）
   await scroller.evaluate((element, hourHeight) => {
     element.scrollTop = 12 * hourHeight;
