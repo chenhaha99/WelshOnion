@@ -18,6 +18,32 @@ async function waitForOfflineCache(page: Page): Promise<void> {
     .toBe("activated");
 }
 
+/** 在页面里读一张图：宽、高，四个角的透明度（0 是全透明，255 是不透明）。 */
+async function imageInfo(page: Page, url: string): Promise<{ size: string; cornerAlpha: number[] }> {
+  return page.evaluate(async (src) => {
+    const image = new Image();
+    image.src = src;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d")!;
+    context.drawImage(image, 0, 0);
+    const right = canvas.width - 1;
+    const bottom = canvas.height - 1;
+    const corners = [
+      [0, 0],
+      [right, 0],
+      [0, bottom],
+      [right, bottom],
+    ];
+    return {
+      size: `${image.naturalWidth}x${image.naturalHeight}`,
+      cornerAlpha: corners.map(([x, y]) => context.getImageData(x!, y!, 1, 1).data[3]!),
+    };
+  }, url);
+}
+
 test("清单和图标", async ({ page }) => {
   await page.goto("/");
   const link = page.locator('link[rel="manifest"]');
@@ -29,16 +55,47 @@ test("清单和图标", async ({ page }) => {
   expect(manifestResponse.ok()).toBe(true);
   const manifest = (await manifestResponse.json()) as { name: string; display: string; start_url: string; icons: ManifestIcon[] };
   expect(manifest).toMatchObject({ name: "葱葱", display: "standalone", start_url: "/" });
-  expect(manifest.icons).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({ sizes: "192x192", type: "image/png" }),
-      expect.objectContaining({ sizes: "512x512", type: "image/png" }),
-      expect.objectContaining({ purpose: "maskable" }),
-    ]),
-  );
+  expect(manifest.icons).toEqual([
+    { src: "icon-192.png", sizes: "192x192", type: "image/png" },
+    { src: "icon-512.png", sizes: "512x512", type: "image/png" },
+    { src: "icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+  ]);
   for (const icon of manifest.icons) {
-    expect((await page.request.get(new URL(icon.src, page.url()).toString())).ok()).toBe(true);
+    const url = new URL(icon.src, page.url()).toString();
+    expect((await page.request.get(url)).ok(), `${icon.src} 取得到`).toBe(true);
+    expect((await imageInfo(page, url)).size, `${icon.src} 的大小`).toBe(icon.sizes);
   }
+  // 192、512 是 logo 原图缩小：圆角外面透明，装到电脑桌面上看到的是 logo 本身的圆角方形
+  for (const src of ["icon-192.png", "icon-512.png"]) {
+    const info = await imageInfo(page, new URL(src, page.url()).toString());
+    expect(info.cornerAlpha, `${src} 四角透明`).toEqual([0, 0, 0, 0]);
+  }
+  // 手机系统裁 maskable 时四周要有东西，不能是透明的
+  const maskable = await imageInfo(page, new URL("icon-maskable-512.png", page.url()).toString());
+  expect(maskable.cornerAlpha, "maskable 四角不透明").toEqual([255, 255, 255, 255]);
+});
+
+test("网页小图标和苹果桌面图标", async ({ page }) => {
+  await page.goto("/");
+  const icons = await page
+    .locator('link[rel="icon"]')
+    .evaluateAll((links) =>
+      links.map((link) => ({ href: (link as HTMLLinkElement).href, sizes: link.getAttribute("sizes"), type: link.getAttribute("type") })),
+    );
+  expect(icons.map(({ sizes, type }) => ({ sizes, type }))).toEqual([
+    { sizes: "32x32", type: "image/png" },
+    { sizes: "16x16", type: "image/png" },
+  ]);
+  for (const icon of icons) {
+    expect((await imageInfo(page, icon.href)).size, `${icon.href} 的大小`).toBe(icon.sizes);
+  }
+
+  // 苹果主屏不认透明，透明的地方会填成黑色：四角要不透明
+  const apple = await page.locator('link[rel="apple-touch-icon"]').getAttribute("href");
+  expect(apple).not.toBeNull();
+  const appleInfo = await imageInfo(page, new URL(apple!, page.url()).toString());
+  expect(appleInfo.size).toBe("180x180");
+  expect(appleInfo.cornerAlpha, "苹果桌面图标四角不透明").toEqual([255, 255, 255, 255]);
 });
 
 test("断网刷新：列表和计划页照常，能加一件事", async ({ page, context }) => {
