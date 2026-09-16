@@ -18,6 +18,8 @@ interface BlockMoneyProps {
   moneyCell: MoneyCell | undefined;
   /** 快捷条上的「¥」，还是块上写着开销的那一行 */
   variant: "bar" | "line";
+  /** 块上只写开销、不写标题：这一行就是块的正文，占满块、字竖直居中 */
+  solo?: boolean;
 }
 
 /**
@@ -25,7 +27,7 @@ interface BlockMoneyProps {
  * 一笔都没挂、或只挂着一笔自己的开销时，点了弹个只填金额的小框；
  * 挂着多笔、有共用的、按类型筛掉了一部分时，小框写不下，改为打开详情面板、展开开销的编辑区。
  */
-export function BlockMoney({ doc, library, plan, block, moneyCell, variant }: BlockMoneyProps) {
+export function BlockMoney({ doc, library, plan, block, moneyCell, variant, solo = false }: BlockMoneyProps) {
   const openBlock = useOpenBlock();
   const selection = useBlockSelection();
   const text = moneyCellLabel(moneyCell);
@@ -67,7 +69,11 @@ export function BlockMoney({ doc, library, plan, block, moneyCell, variant }: Bl
 
   // 块上那一行：点它同时选中这件事（拖它还是拖整块，按下照样传给外面的横条）
   return line ? (
-    <span data-bar-money className="timeline-money-slot" onPointerDown={() => selection.select(block.id, null)}>
+    <span
+      data-bar-money
+      className={solo ? "timeline-money-slot timeline-money-solo" : "timeline-money-slot"}
+      onPointerDown={() => selection.select(block.id, null)}
+    >
       {button}
     </span>
   ) : (

@@ -138,9 +138,13 @@ test("手机上只在时间轴里：框下面加事 → 点开占满屏幕、排
   await expect(lake).toHaveAttribute("data-from", "540");
   await expect(tray).toHaveCount(0);
 
-  // 排完时间它还选中着（点开详情前点的那一下）：从屏幕底部的快捷条推迟 30 分钟，竖条挪到 09:30
-  await quickBar(page, "西湖").getByRole("button", { name: "这天从这件起往后推迟" }).click();
-  await page.getByRole("dialog", { name: "推迟多久" }).getByRole("button", { name: "30 分钟" }).click();
+  // 从详情面板推迟 30 分钟，竖条挪到 09:30
+  await openDetails(timeline.getByRole("button", { name: /^西湖 / }));
+  await page
+    .getByRole("dialog", { name: "西湖" })
+    .getByRole("group", { name: "这天从这件起往后推迟" })
+    .getByRole("button", { name: "30 分钟" })
+    .click();
   await expect(lake).toHaveAttribute("data-from", "570");
 
   // 这天的菜单：在下面插一天，往后翻两天是第 3 天

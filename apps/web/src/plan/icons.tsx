@@ -44,17 +44,6 @@ export function CopyIcon() {
 }
 
 /** 推迟：钟面加一圈箭头 */
-export function ShiftIcon() {
-  return (
-    <Icon>
-      <circle cx="8" cy="8.5" r="5" />
-      <path d="M8 6v2.5l1.75 1" />
-      <path d="M8 3.5V1.5M6.5 2.5 8 1.5l1.5 1" />
-    </Icon>
-  );
-}
-
-/** 计划设置：齿轮 */
 export function GearIcon() {
   return (
     <Icon>

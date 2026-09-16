@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addBlocks, newPlan, quickBar, schedule, showView } from "./timeline-helpers";
+import { addBlocks, newPlan, openDetails, quickBar, schedule, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 /** 竖排每小时多高（像素），和 DayTimeline 一样 */
@@ -65,9 +65,12 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   await scroller.evaluate((element, hourHeight) => {
     element.scrollTop = 12 * hourHeight;
   }, HOUR_HEIGHT);
-  await timeline.getByRole("button", { name: /^灵隐寺 / }).click();
-  await quickBar(page, "灵隐寺").getByRole("button", { name: "这天从这件起往后推迟" }).click();
-  await page.getByRole("dialog", { name: "推迟多久" }).getByRole("button", { name: "1 小时" }).click();
+  await openDetails(timeline.getByRole("button", { name: /^灵隐寺 / }));
+  await page
+    .getByRole("dialog", { name: "灵隐寺" })
+    .getByRole("group", { name: "这天从这件起往后推迟" })
+    .getByRole("button", { name: "1 小时" })
+    .click();
   await expect(timeline.getByRole("button", { name: "灵隐寺 15:00–17:00" })).toBeVisible();
   expect(await topMinute(scroller)).toBe(12 * 60);
 

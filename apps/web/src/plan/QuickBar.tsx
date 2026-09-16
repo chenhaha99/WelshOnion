@@ -2,7 +2,6 @@ import {
   countBlocksUsing,
   duplicateBlock,
   followersOf,
-  shiftDayFrom,
   type BlockView,
   type LibraryView,
   type PlanView,
@@ -12,16 +11,14 @@ import type * as Y from "yjs";
 import { Popover } from "../app/Popover";
 import { blockFocusSelector, deleteBlockWithNotice, deleteLabel } from "./block-actions";
 import { BlockMoney } from "./block-money";
-import { SHIFT_CHOICES } from "./block-shift";
 import { useNotifyDeleted } from "./DeletedNotice";
-import { CopyIcon, DetailsIcon, ShiftIcon, TrashIcon } from "./icons";
+import { CopyIcon, DetailsIcon, TrashIcon } from "./icons";
 import type { MoneyCell } from "./money-cells";
 import { useOpenBlock } from "./open-block";
 import { KindPicker, StatusPicker } from "./pickers";
 import { useBlockSelection } from "./select-block";
 import type { CopyHandlers } from "./use-timeline-drag";
 
-const SHIFT_LABEL = "这天从这件起往后推迟";
 
 interface QuickBarProps {
   doc: Y.Doc;
@@ -37,8 +34,9 @@ interface QuickBarProps {
 }
 
 /**
- * 选中一件事后浮出的快捷条：详情、类型、状态、开销、复制、推迟、删除。
- * 常改的几样在这里一两下就改完，不用开详情面板；没排时间的事没有「复制」「推迟」。
+ * 选中一件事后浮出的快捷条：详情、类型、状态、开销、复制、删除。
+ * 常改的几样在这里一两下就改完，不用开详情面板；没排时间的事没有「复制」。
+ * 「这天从这件起往后推迟」只在详情面板里（你说快捷条上那个「似乎没什么用」）。
  * 摆在哪由外面决定：横排贴着这件事的右下角，竖排固定在屏幕底部。
  */
 export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, copyHandlers }: QuickBarProps) {
@@ -145,46 +143,11 @@ export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, co
           <CopyIcon />
         </button>
       )}
-      {timed && (
-        <Popover
-          label={SHIFT_LABEL}
-          triggerTitle={SHIFT_LABEL}
-          trigger={<ShiftIcon />}
-          triggerClassName="quick-button"
-          role="dialog"
-          panelLabel="推迟多久"
-          panelClassName="menu flex gap-1.5 p-1.5"
-          align="end"
-          estimatedHeight={52}
-        >
-          {(close) =>
-            SHIFT_CHOICES.map((choice) => (
-              <button
-                key={choice.minutes}
-                type="button"
-                className="btn btn-ghost h-8 px-3 tabular-nums"
-                onClick={() => {
-                  shiftDayFrom(doc, library, block.start_base_id, block.start_minute!, choice.minutes);
-                  // 推完这件事还选中着，焦点回到「推迟」；推过 24 点换了一行时这条快捷条是新画的，再找一次
-                  close(true);
-                  requestAnimationFrame(() => {
-                    if (document.activeElement !== null && document.activeElement !== document.body) return;
-                    const shift = `[data-quick-bar][data-block-id="${block.id}"] button[aria-label="${SHIFT_LABEL}"]`;
-                    document.querySelector<HTMLElement>(shift)?.focus();
-                  });
-                }}
-              >
-                {choice.label}
-              </button>
-            ))
-          }
-        </Popover>
-      )}
       <button
         type="button"
         aria-label={deleteText}
         title={deleteText}
-        // 和「推迟」隔开一点：删除不确认，别点岔了
+        // 和「复制」隔开一点：删除不确认，别点岔了
         className="quick-button ml-1 text-danger"
         onClick={() => {
           const baseId = block.start_base_id;

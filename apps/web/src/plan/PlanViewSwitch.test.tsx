@@ -52,6 +52,22 @@ describe("时间轴和列表切换着看", () => {
     expect(screen.getByRole("region", { name: "占比" })).toBeTruthy();
   });
 
+  it("「标题」「开销」和放大条在切换按钮那一行，只有看时间轴时才有", async () => {
+    await openStoredPlan(lakeOnOct1);
+
+    const views = await viewSwitch();
+    const row = views.parentElement!;
+    expect(within(row).getByRole("group", { name: "块上写" })).toBeTruthy();
+    expect(within(row).getByRole("slider", { name: "横向放大" })).toBeTruthy();
+
+    await showView("列表");
+    expect(screen.queryByRole("group", { name: "块上写" })).toBeNull();
+    expect(screen.queryByRole("slider", { name: "横向放大" })).toBeNull();
+
+    await showView("总览");
+    expect(screen.queryByRole("group", { name: "块上写" })).toBeNull();
+  });
+
   it("切到列表：只有日期列表和分组；筛选、开销的总览、占比还在", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeOnOct1);

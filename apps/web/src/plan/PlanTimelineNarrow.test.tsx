@@ -37,29 +37,29 @@ function zoomSlider(): HTMLInputElement {
   return screen.getByRole("slider", { name: "横向放大" }) as HTMLInputElement;
 }
 
-describe("标题写不下时借右边的空白", () => {
-  it("右边空着借到下一件；右边没有下一件借到 24 点", async () => {
+describe("标题写不下就截断，不写到块外面", () => {
+  it("标题那一段没有伸出去用的 max-width", async () => {
     await openStoredPlan((plan, library) => {
       const [day] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: day!, kindId: "sight", title: "西湖", minute: 540, duration: 60 });
+      block(plan, library, { baseId: day!, kindId: "sight", title: "西湖漫步", minute: 540, duration: 60 });
       block(plan, library, { baseId: day!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
     });
     await showView("时间轴");
 
-    // 西湖 60 分钟 + 借 120 分钟 = 自己的 3 倍；午饭 60 分钟 + 借到 24 点的 660 分钟 = 12 倍
-    expect((await titleOf("西湖"))?.style.maxWidth).toBe("300%");
-    expect((await titleOf("午饭"))?.style.maxWidth).toBe("1200%");
+    expect((await titleOf("西湖漫步"))?.style.maxWidth).toBe("");
+    expect((await titleOf("午饭"))?.style.maxWidth).toBe("");
   });
 
-  it("右边紧挨着下一件就借不到", async () => {
+  it("鼠标停在块上有提示，写「标题 时间」", async () => {
     await openStoredPlan((plan, library) => {
       const [day] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: day!, kindId: "sight", title: "西湖", minute: 540, duration: 60 });
-      block(plan, library, { baseId: day!, kindId: "sight", title: "灵隐寺", minute: 600, duration: 60 });
+      block(plan, library, { baseId: day!, kindId: "sight", title: "西湖漫步", minute: 540, duration: 60 });
     });
     await showView("时间轴");
 
-    expect((await titleOf("西湖"))?.style.maxWidth).toBe("100%");
+    const timeline = await screen.findByRole("region", { name: "时间轴" });
+    const bar = within(timeline).getByRole("button", { name: /^西湖漫步 / });
+    expect(bar.getAttribute("title")).toBe("西湖漫步 09:00–10:00");
   });
 
   it("时长为 0 的竖线不写标题", async () => {

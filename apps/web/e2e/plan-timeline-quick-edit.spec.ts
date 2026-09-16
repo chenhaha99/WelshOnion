@@ -107,7 +107,7 @@ test("电脑上：点一下复制就地多一份；块上写开销，点金额�
 
   // 块上写开销：横条上多一行，点了就地改
   await showView(page, "时间轴");
-  await page.getByRole("group", { name: "块上写" }).getByRole("button", { name: "标题 + 开销" }).click();
+  await page.getByRole("group", { name: "块上写" }).getByRole("button", { name: "开销" }).click();
   const money = segment(day1, "西湖").locator("[data-bar-money] button");
   await expect(money).toHaveText("¥300");
   // 开销那一行画在块里面，不许漏到块外面
@@ -150,13 +150,12 @@ test("手机上：竖条选中后，快捷条固定在屏幕底部", async ({ pa
   await page.getByRole("dialog", { name: "选择状态" }).getByRole("button", { name: "已确认", exact: true }).click();
   await expect(bar.getByRole("button", { name: "状态：已确认" })).toBeVisible();
 
-  // 栏里没排时间的那一件：快捷条上没有「复制」「推迟」
+  // 栏里没排时间的那一件：快捷条上没有「复制」
   await addBlocks(page, table, ["河坊街"]);
   await showView(page, "时间轴");
   await timeline.getByRole("button", { name: /^河坊街 / }).click();
   const streetBar = quickBar(page, "河坊街");
   await expect(streetBar.getByRole("button", { name: "复制" })).toBeHidden();
-  await expect(streetBar.getByRole("button", { name: "这天从这件起往后推迟" })).toBeHidden();
   await expect(streetBar.getByRole("button", { name: "详情…" })).toBeVisible();
 
   expect(errors).toEqual([]);

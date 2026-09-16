@@ -55,11 +55,12 @@ function segmentOf(container: HTMLElement, title: string): HTMLElement {
   return within(container).getByRole("button", { name: new RegExp(`^${title} `) }).closest<HTMLElement>("[data-segment]")!;
 }
 
-/** 点一下 title 选中它，再从快捷条推迟 choice。 */
+/** 点一下 title 选中它，从快捷条的「详情…」开面板，再在面板里推迟 choice。 */
 async function shiftFrom(user: User, container: HTMLElement, title: string, choice: string): Promise<void> {
   await user.click(await within(container).findByRole("button", { name: new RegExp(`^${title} `) }));
-  await user.click(screen.getByRole("button", { name: SHIFT }));
-  await user.click(within(screen.getByRole("dialog", { name: "推迟多久" })).getByRole("button", { name: choice }));
+  await user.click(screen.getByRole("button", { name: "详情…" }));
+  const panel = await screen.findByRole("dialog", { name: title });
+  await user.click(within(within(panel).getByRole("group", { name: SHIFT })).getByRole("button", { name: choice }));
 }
 
 async function pressFilter(user: User, name: string): Promise<void> {
@@ -67,7 +68,7 @@ async function pressFilter(user: User, name: string): Promise<void> {
 }
 
 describe("推迟这天后面的安排", () => {
-  it("从快捷条推迟 30 分钟：这件和后面的挪了，前面的不动；焦点回到「推迟」", async () => {
+  it("从详情面板推迟 30 分钟：这件和后面的挪了，前面的不动；面板关掉", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => threeThings(plan, library));
     const row = await timelineRow("10.1");
@@ -77,8 +78,7 @@ describe("推迟这天后面的安排", () => {
     await waitFor(() => expect(segmentOf(row, "午饭").dataset).toMatchObject({ from: "750", to: "810" }));
     expect(segmentOf(row, "灵隐寺").dataset).toMatchObject({ from: "870", to: "990" });
     expect(segmentOf(row, "西湖").dataset).toMatchObject({ from: "540", to: "720" });
-    expect(within(row).getByRole("button", { name: /^午饭 / }).getAttribute("aria-pressed")).toBe("true");
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: SHIFT }));
+    expect(screen.queryByRole("dialog", { name: "午饭" })).toBeNull();
   });
 
   it("一步撤销：推迟的全回来", async () => {
@@ -120,14 +120,10 @@ describe("推迟这天后面的安排", () => {
 
     await waitFor(() => expect(within(oct1Row).queryByRole("button", { name: /^夜游 / })).toBeNull());
     expect(segmentOf(await timelineRow("10.2"), "夜游").dataset).toMatchObject({ from: "30", to: "90" });
-    // 换了一行，快捷条跟着画到 10.2 那一行，焦点还在「推迟」上
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: SHIFT })));
-    expect(within(await timelineRow("10.2")).getByRole("button", { name: /^夜游 / }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
+    expect(screen.queryByRole("dialog", { name: "夜游" })).toBeNull();
   });
 
-  it("横条的快捷条上有「推迟」，「没排时间」栏里的事没有", async () => {
+  it("快捷条上没有推迟；面板里排上时间的有、没排时间的没有", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -137,15 +133,17 @@ describe("推迟这天后面的安排", () => {
     const row = await timelineRow("10.1");
 
     await user.click(within(row).getByRole("button", { name: /^西湖 / }));
-    await user.click(screen.getByRole("button", { name: SHIFT }));
-    const choices = within(screen.getByRole("dialog", { name: "推迟多久" })).getAllByRole("button");
-    expect(choices.map((choice) => choice.textContent)).toEqual(["15 分钟", "30 分钟", "1 小时"]);
+    expect(within(screen.getByRole("toolbar", { name: "「西湖」的操作" })).queryByRole("button", { name: SHIFT })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "详情…" }));
+    const choices = within(within(screen.getByRole("dialog", { name: "西湖" })).getByRole("group", { name: SHIFT }))
+      .getAllByRole("button")
+      .map((choice) => choice.textContent);
+    expect(choices).toEqual(["15 分钟", "30 分钟", "1 小时"]);
     await user.keyboard("{Escape}");
 
     await user.click(within(within(row).getByRole("group", { name: "没排时间" })).getByRole("button", { name: /^河坊街 / }));
     const bar = screen.getByRole("toolbar", { name: "「河坊街」的操作" });
     expect(within(bar).queryByRole("button", { name: SHIFT })).toBeNull();
-    // 面板里也没有
     await user.click(within(bar).getByRole("button", { name: "详情…" }));
     expect(within(screen.getByRole("dialog", { name: "河坊街" })).queryByRole("group", { name: SHIFT })).toBeNull();
   });
@@ -176,7 +174,7 @@ describe("推迟这天后面的安排", () => {
 describe("窄屏", () => {
   beforeEach(() => stubNarrowScreen());
 
-  it("竖条选中后从屏幕底部的快捷条推迟", async () => {
+  it("竖条选中后从屏幕底部快捷条的「详情…」进面板推迟", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => threeThings(plan, library));
     const region = await timeline();

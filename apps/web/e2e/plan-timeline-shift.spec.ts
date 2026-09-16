@@ -13,7 +13,7 @@ async function span(timeline: Locator, title: string): Promise<[number, number]>
 }
 
 // 「现在」固定在 9.14，行程 10.1 还没出发：手机上打开是第一天
-test("推迟：手机上选中下一件、从快捷条推迟 30 分钟 → 再推 15 分钟 → 前面的不动 → 撤销一次 → 电脑上的详情", async ({ page }) => {
+test("推迟：手机上从详情面板推迟 30 分钟 → 再推 15 分钟 → 前面的不动 → 撤销一次 → 电脑上也在面板里", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(new Date("2026-09-14T06:20:00Z"));
   await newPlan(page, 1, { width: 390, height: 844 });
@@ -25,23 +25,23 @@ test("推迟：手机上选中下一件、从快捷条推迟 30 分钟 → 再�
   await schedule(page, table, "灵隐寺", "14:00", "2");
   await showView(page, "时间轴");
 
-  // 选中午饭、从快捷条推迟 30 分钟：午饭和灵隐寺往后挪，西湖不动；还选中着，焦点回到「推迟」
+  // 选中午饭、从快捷条的「详情…」开面板、在面板里推迟 30 分钟：午饭和灵隐寺往后挪，西湖不动
   const lunch = timeline.getByRole("button", { name: /^午饭 / });
-  const shiftButton = quickBar(page, "午饭").getByRole("button", { name: SHIFT });
-  const choices = page.getByRole("dialog", { name: "推迟多久" });
+  // 快捷条上没有推迟（你说「似乎没什么用」）：能力留在详情面板里
   await lunch.click();
-  await shiftButton.click();
-  await expect(choices).toBeVisible();
-  await shot(page, "01-phone-quick-bar");
-  await choices.getByRole("button", { name: "30 分钟" }).click();
+  await expect(quickBar(page, "午饭").getByRole("button", { name: SHIFT })).toHaveCount(0);
+  const shiftIn = (title: string) => page.getByRole("dialog", { name: title }).getByRole("group", { name: SHIFT });
+  await openDetails(lunch);
+  await expect(shiftIn("午饭")).toBeVisible();
+  await shot(page, "01-phone-panel");
+  await shiftIn("午饭").getByRole("button", { name: "30 分钟" }).click();
   await expect.poll(() => span(timeline, "午饭")).toEqual([750, 810]);
   expect(await span(timeline, "灵隐寺")).toEqual([870, 990]);
   expect(await span(timeline, "西湖")).toEqual([540, 720]);
-  await expect(shiftButton).toBeFocused();
 
   // 再推 15 分钟
-  await shiftButton.click();
-  await choices.getByRole("button", { name: "15 分钟" }).click();
+  await openDetails(timeline.getByRole("button", { name: /^午饭 / }));
+  await shiftIn("午饭").getByRole("button", { name: "15 分钟" }).click();
   await expect.poll(() => span(timeline, "午饭")).toEqual([765, 825]);
   expect(await span(timeline, "灵隐寺")).toEqual([885, 1005]);
   expect(await span(timeline, "西湖")).toEqual([540, 720]);

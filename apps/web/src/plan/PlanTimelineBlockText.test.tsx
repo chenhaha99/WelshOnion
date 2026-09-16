@@ -44,31 +44,81 @@ function moneyLine(segment: HTMLElement): HTMLElement | null {
   return segment.querySelector<HTMLElement>("[data-bar-money] button, [data-bar-money-text]");
 }
 
-async function pressBlockText(user: ReturnType<typeof userEvent.setup>, label: string): Promise<void> {
+/** 这一段上写着标题的那一小段（没写是 null）。 */
+function titleText(segment: HTMLElement): HTMLElement | null {
+  return segment.querySelector<HTMLElement>("[data-bar-title]");
+}
+
+/** 横轴那一层的最小高度：背景细条 16 + 主轨每道 28（或写开销时 40）。 */
+function axisHeight(): string {
+  return document.querySelector<HTMLElement>("[data-timeline-axis]")!.style.minHeight;
+}
+
+/** 点一下视图那一行右边的「标题」或「开销」开关。 */
+async function toggle(user: ReturnType<typeof userEvent.setup>, label: "标题" | "开销"): Promise<void> {
   await user.click(within(screen.getByRole("group", { name: "块上写" })).getByRole("button", { name: label }));
 }
 
-describe("块上写标题，还是标题加开销", () => {
-  it("默认只写标题；开了以后横条上多写一行开销，这一行的道变高", async () => {
+function pressed(label: "标题" | "开销"): string | null {
+  return within(screen.getByRole("group", { name: "块上写" }))
+    .getByRole("button", { name: label })
+    .getAttribute("aria-pressed");
+}
+
+describe("块上写标题、开销：两个开关各开各关", () => {
+  it("默认只开标题：块上只有标题，主轨一道 28 像素", async () => {
+    await dayWithMoney();
+
+    expect(pressed("标题")).toBe("true");
+    expect(pressed("开销")).toBe("false");
+    expect(titleText(await segmentOf("西湖"))?.textContent).toBe("西湖");
+    expect(moneyLine(await segmentOf("西湖"))).toBeNull();
+    expect(axisHeight()).toBe("44px"); // 背景细条 16 + 一道 28
+  });
+
+  it("两个都开：上标题下开销，一道变 40 像素", async () => {
     const user = userEvent.setup();
     await dayWithMoney();
 
-    expect(moneyLine(await segmentOf("西湖"))).toBeNull();
-    const axis = document.querySelector<HTMLElement>("[data-timeline-axis]")!;
-    expect(axis.style.minHeight).toBe("44px"); // 背景细条 16 + 一道 28
-
-    await pressBlockText(user, "标题 + 开销");
+    await toggle(user, "开销");
 
     await waitFor(async () => expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥300"));
-    expect(axis.style.minHeight).toBe("56px"); // 背景细条 16 + 一道 40
+    expect(titleText(await segmentOf("西湖"))?.textContent).toBe("西湖");
+    expect(axisHeight()).toBe("56px"); // 背景细条 16 + 一道 40
     expect((await segmentOf("西湖")).style.height).toBe("36px");
+  });
+
+  it("只开开销：块上只有金额，一道回到 28 像素", async () => {
+    const user = userEvent.setup();
+    await dayWithMoney();
+
+    await toggle(user, "开销");
+    await toggle(user, "标题");
+
+    await waitFor(async () => expect(titleText(await segmentOf("西湖"))).toBeNull());
+    expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥300");
+    expect(axisHeight()).toBe("44px");
+  });
+
+  it("两个都关：块上不写字，块还在", async () => {
+    const user = userEvent.setup();
+    await dayWithMoney();
+
+    await toggle(user, "标题");
+
+    await waitFor(async () => expect(titleText(await segmentOf("西湖"))).toBeNull());
+    expect(moneyLine(await segmentOf("西湖"))).toBeNull();
+    expect(pressed("标题")).toBe("false");
+    expect(pressed("开销")).toBe("false");
+    expect(axisHeight()).toBe("44px");
+    expect((await segmentOf("西湖")).dataset).toMatchObject({ from: "540", to: "720" });
   });
 
   it("没挂开销的写淡色的「填开销」；垫在下面的细条不写开销", async () => {
     const user = userEvent.setup();
     await dayWithMoney();
 
-    await pressBlockText(user, "标题 + 开销");
+    await toggle(user, "开销");
 
     const empty = await waitFor(async () => moneyLine(await segmentOf("灵隐寺"))!);
     expect(empty.textContent).toBe("填开销");
@@ -86,7 +136,7 @@ describe("块上写标题，还是标题加开销", () => {
     });
     await showView("时间轴");
 
-    await pressBlockText(user, "标题 + 开销");
+    await toggle(user, "开销");
 
     await waitFor(async () => expect(moneyLine(await segmentOf("午饭"))?.textContent).toBe("¥158.50 · 2 笔"));
   });
@@ -94,7 +144,7 @@ describe("块上写标题，还是标题加开销", () => {
   it("点块上的开销：选中这件事，就地改金额", async () => {
     const user = userEvent.setup();
     await dayWithMoney();
-    await pressBlockText(user, "标题 + 开销");
+    await toggle(user, "开销");
 
     await user.click(await waitFor(async () => moneyLine(await segmentOf("西湖"))!));
 
@@ -107,22 +157,24 @@ describe("块上写标题，还是标题加开销", () => {
     expect((await moneyOverview()).textContent).toContain("总额 ¥280");
   });
 
-  it("选的记在这台设备上：切走再回来还是它，另一个计划还是只写标题", async () => {
+  it("记在这台设备上：切走再回来还是那两个开关，另一个计划回到默认", async () => {
     const user = userEvent.setup();
     await dayWithMoney();
 
-    await pressBlockText(user, "标题 + 开销");
+    await toggle(user, "开销");
+    await toggle(user, "标题");
     await showView("列表");
     await showView("时间轴");
 
-    await waitFor(async () => expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥300"));
-    const group = screen.getByRole("group", { name: "块上写" });
-    expect(within(group).getByRole("button", { name: "标题 + 开销" }).getAttribute("aria-pressed")).toBe("true");
+    await waitFor(() => expect(pressed("开销")).toBe("true"));
+    expect(pressed("标题")).toBe("false");
+    expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥300");
 
-    // 另一个计划：还是只写标题
+    // 另一个计划：还是只开标题
     cleanup();
     await dayWithMoney();
-    expect(moneyLine(await segmentOf("西湖"))).toBeNull();
+    expect(pressed("标题")).toBe("true");
+    expect(pressed("开销")).toBe("false");
   });
 
   it("手机上竖条里标题下面写开销", async () => {
@@ -130,8 +182,9 @@ describe("块上写标题，还是标题加开销", () => {
     const user = userEvent.setup();
     await dayWithMoney();
 
-    await pressBlockText(user, "标题 + 开销");
+    await toggle(user, "开销");
 
     await waitFor(async () => expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥300"));
+    expect(titleText(await segmentOf("西湖"))?.textContent).toContain("西湖");
   });
 });

@@ -225,9 +225,9 @@ export async function openPlanSettings(
   return settings;
 }
 
-/** 时间轴上打开一件事的详情面板：点一下选中它，再点快捷条的「详情…」。 */
+/** 时间轴上打开一件事的详情面板：没选中就先点一下选中（点已选中的是取消选中），再点快捷条的「详情…」。 */
 export async function openDetails(thing: Locator): Promise<void> {
-  await thing.click();
+  if ((await thing.getAttribute("aria-pressed")) !== "true") await thing.click();
   await thing.page().getByRole("button", { name: "详情…" }).click();
 }
 

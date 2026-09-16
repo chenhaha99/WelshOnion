@@ -19,7 +19,6 @@ import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
 import { BlockMoney } from "./block-money";
 import type { MoneyCell } from "./money-cells";
-import { ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
 import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
@@ -44,11 +43,6 @@ const ROW_COLUMNS = "grid grid-cols-[5.5rem_1fr_9rem] gap-x-3";
 const MINUTES_PER_DAY = 1440;
 
 /** 「块上写」的两个选项 */
-const BLOCK_TEXTS = [
-  { value: "title", label: "标题" },
-  { value: "money", label: "标题 + 开销" },
-] as const satisfies ReadonlyArray<{ value: BlockText; label: string }>;
-
 interface TimelineProps {
   doc: Y.Doc;
   library: Y.Doc;
@@ -58,12 +52,10 @@ interface TimelineProps {
   filter?: StatsFilter;
   /** 每件事的开销格摘要（按筛选算过）：快捷条上的「开销」、块上写的开销用 */
   moneyCells: Map<string, MoneyCell>;
-  /** 块上写标题，还是标题加开销 */
+  /** 块上写标题、开销（各开各关） */
   blockText: BlockText;
-  onBlockText: (next: BlockText) => void;
   /** 横向放到百分之几（横排才有） */
   zoom: number;
-  onZoom: (next: number) => void;
   /** 竖排看的是哪天（底座 id）：DayList 记着，切到列表再切回来接着看这天 */
   shownDay: { current: string | null };
 }
@@ -80,9 +72,7 @@ export function Timeline({
   filter,
   moneyCells,
   blockText,
-  onBlockText,
   zoom,
-  onZoom,
   shownDay,
 }: TimelineProps) {
   const section = useRef<HTMLElement>(null);
@@ -108,45 +98,7 @@ export function Timeline({
 
   return (
     <section ref={section} aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-ink">时间轴</h2>
-        <div className="flex items-center gap-2">
-        {/* 块上写标题，还是标题下面再写一行开销（记在这台设备上） */}
-        <div role="group" aria-label="块上写" className="flex rounded-full border border-ink/10 bg-white/70 p-0.5">
-          {BLOCK_TEXTS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={blockText === value}
-              className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
-                blockText === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
-              }`}
-              onClick={() => onBlockText(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {/* 横向放大：像剪辑软件那样拖着放大（只有横排有） */}
-        {wide && (
-          <div className="flex items-center gap-2 text-xs text-ink-muted">
-            <input
-              type="range"
-              aria-label="横向放大"
-              aria-valuetext={`${zoom}%`}
-              title={`横向放大 ${zoom}%`}
-              className="timeline-zoom"
-              min={ZOOM_MIN}
-              max={ZOOM_MAX}
-              step={10}
-              value={zoom}
-              onChange={(event) => onZoom(Number(event.target.value))}
-            />
-            <span className="w-10 text-right tabular-nums">{`${zoom}%`}</span>
-          </div>
-        )}
-        </div>
-      </div>
+      {/* 卡片名不写出来：上面「时间轴」那个 tab 按着呢，读屏名在 section 的 aria-label 上 */}
       {plan.blocks.size === 0 ? (
         // 一件事都没有：栏是空的，栏下面的「加一件事」不显眼，直接给个按钮
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -439,7 +391,8 @@ function TimelineRow({
             plan={plan}
             item={item}
             box={wideSegmentBox(item, layout, laneHeight)}
-            showMoney={blockText === "money" && item.track === "main"}
+            showTitle={blockText.title}
+            showMoney={blockText.money && item.track === "main"}
             money={moneyCells.get(item.blockId)}
             dragView={dragView}
             handlers={handlers}
@@ -482,6 +435,8 @@ interface SegmentProps {
   library: Y.Doc;
   plan: PlanView;
   item: PlacedSegment;
+  /** 块上要不要写标题 */
+  showTitle: boolean;
   /** 块上要不要写开销那一行 */
   showMoney: boolean;
   /** 这件事的开销格摘要 */
@@ -493,7 +448,7 @@ interface SegmentProps {
 }
 
 /** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点一下选中；块上写开销时下面还有写着开销的那一行。 */
-function Segment({ doc, library, plan, item, box, showMoney, money, dragView, handlers }: SegmentProps) {
+function Segment({ doc, library, plan, item, box, showTitle, showMoney, money, dragView, handlers }: SegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
@@ -514,6 +469,8 @@ function Segment({ doc, library, plan, item, box, showMoney, money, dragView, ha
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
       data-lifted={lifted ? true : undefined}
+      // 标题和开销都写：标题贴上边，下面留给开销那一行（见 index.css）
+      data-two-rows={showTitle && showMoney && !point ? true : undefined}
       // 指针在「没排时间」栏里时时间轴不重排：被拖的横条留在原处变淡
       data-dragging={
         dragView && dragView.liftedId === null && !dragView.copying && dragView.blockId === item.blockId ? true : undefined
@@ -533,15 +490,19 @@ function Segment({ doc, library, plan, item, box, showMoney, money, dragView, ha
       onClickCapture={handlers.onClickCapture}
     >
       <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} className={buttonClass}>
-        {/* 写不下时借右边的空白：最宽是自己这一段的几倍，横轴多宽都对 */}
-        {point ? null : (
-          <span data-bar-title style={{ maxWidth: titleRoom(item) }}>
-            {block.title}
-          </span>
-        )}
+        {/* 写不下就截断加「…」，不写到块外面去（鼠标停上去的提示里有全名） */}
+        {point || !showTitle ? null : <span data-bar-title>{block.title}</span>}
       </BlockButton>
       {showMoney && !point && (
-        <BlockMoney variant="line" doc={doc} library={library} plan={plan} block={block} moneyCell={money} />
+        <BlockMoney
+          variant="line"
+          solo={!showTitle}
+          doc={doc}
+          library={library}
+          plan={plan}
+          block={block}
+          moneyCell={money}
+        />
       )}
     </div>
   );
@@ -549,12 +510,6 @@ function Segment({ doc, library, plan, item, box, showMoney, money, dragView, ha
 
 function horizontal(item: PlacedSegment): CSSProperties {
   return { left: percent(item.from), width: percent(item.to - item.from) };
-}
-
-/** 标题最宽多少：自己这一段加上右边借来的空白，写成自己宽度的百分比。 */
-function titleRoom(item: PlacedSegment): string {
-  const own = item.to - item.from;
-  return own === 0 ? "100%" : `${((item.roomTo - item.from) / own) * 100}%`;
 }
 
 /** 快捷条画在哪一行：排上时间的贴点的那一段（跨午夜的点哪一段贴哪一段），点的那一行不在了就找第一段；没排时间的在它那天。 */

@@ -8,12 +8,18 @@ export const STRIP_HEIGHT = 16;
 export const LANE_HEIGHT = 28;
 export const LANE_HEIGHT_WITH_MONEY = 40;
 
-/** 块上写什么：只写标题，还是标题下面再写一行开销。按计划记在这台设备上（plan-block-text-memory）。 */
-export type BlockText = "title" | "money";
+/** 块上写什么：标题、开销两个开关，各自能开能关。按计划记在这台设备上（plan-block-text-memory）。 */
+export interface BlockText {
+  title: boolean;
+  money: boolean;
+}
 
-/** 这种写法下主轨每道多高（像素）。 */
+/** 没选过就是只写标题。 */
+export const BLOCK_TEXT_DEFAULT: BlockText = { title: true, money: false };
+
+/** 这种写法下主轨每道多高（像素）：两样都写才要两行。 */
 export function laneHeight(blockText: BlockText): number {
-  return blockText === "money" ? LANE_HEIGHT_WITH_MONEY : LANE_HEIGHT;
+  return blockText.title && blockText.money ? LANE_HEIGHT_WITH_MONEY : LANE_HEIGHT;
 }
 /** 块和块之间留多少、叠在上面的块每级缩多少（像素），横排竖排一样 */
 export const GAP = 2;

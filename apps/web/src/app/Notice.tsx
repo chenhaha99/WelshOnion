@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import { LIST_HREF } from "./route";
+import { useWideScreen } from "./use-wide-screen";
 
 export function BackToList() {
+  const wide = useWideScreen();
   return (
-    <a href={LIST_HREF} className="text-sm text-ink-muted hover:text-ink">
-      ← 我的计划
+    <a href={LIST_HREF} aria-label="我的计划" className="text-sm text-ink-muted hover:text-ink">
+      {/* 手机上「← 我的计划」和计划名、三个图标挤在一行放不下：只留箭头 */}
+      {wide ? "← 我的计划" : "←"}
     </a>
   );
 }

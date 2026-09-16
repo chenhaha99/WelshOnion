@@ -93,10 +93,23 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
     <DeletedNotice undo={undo}>
       {/* 放宽到 1152 像素：时间轴的 24 小时要放得下（每小时至少 30 像素） */}
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
-        <div className="flex items-center justify-between gap-4">
-          <BackToList />
+        {/* 三列，计划名在正中间（你提的）：用 grid，两边宽度不等也不会把名字推偏 */}
+        <div data-top-row className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <div className="justify-self-start">
+            <BackToList />
+          </div>
+          <h1 className="justify-self-center text-lg font-medium text-ink">
+            <button
+              type="button"
+              title="计划设置"
+              className="max-w-[60vw] truncate rounded-lg hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
+              onClick={openSettings}
+            >
+              {plan.plan.name}
+            </button>
+          </h1>
           {/* 三个图标按钮：名字只在读屏名和鼠标提示里（你提的：右上角都换成图标） */}
-          <div className="flex gap-1">
+          <div className="flex justify-self-end gap-1">
             <button type="button" aria-label="计划设置" title="计划设置" className="btn btn-ghost px-2.5" onClick={openSettings}>
               <GearIcon />
             </button>
@@ -122,17 +135,6 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
             </button>
           </div>
         </div>
-
-        <h1 className="text-2xl font-medium text-ink">
-          <button
-            type="button"
-            title="计划设置"
-            className="rounded-lg text-left hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
-            onClick={openSettings}
-          >
-            {plan.plan.name}
-          </button>
-        </h1>
 
         {plan.bases.length === 0 ? (
           <AskDays doc={handle.doc} />

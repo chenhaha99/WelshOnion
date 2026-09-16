@@ -81,11 +81,6 @@ function layoutOf(view: { plan: PlanView; library: LibraryView }, row: number) {
   return layoutRow(segments, view.plan, view.library);
 }
 
-/** 放好的段写成「标题 能写到第几分钟」。 */
-function roomTexts(view: { plan: PlanView }, placed: readonly PlacedSegment[]): string[] {
-  return placed.map((item) => `${view.plan.blocks.get(item.blockId)!.title} ${item.roomTo}`);
-}
-
 /** 放好的段写成「标题 第几道 缩几级 从–到」。 */
 function placedTexts(view: { plan: PlanView }, placed: readonly PlacedSegment[]): string[] {
   return placed.map(
@@ -292,58 +287,5 @@ describe("一行里怎么摆", () => {
     expect(row.background).toEqual([]);
     expect(row.backgroundCount).toBe(0);
     expect(row.main.map((item) => item.track)).toEqual(["main"]);
-  });
-});
-
-describe("标题能借右边的空白写到第几分钟", () => {
-  it("右边空着就借到下一段的开头，没有下一段就借到 24 点", () => {
-    const view = build(1, (built) => {
-      timed(built, "西湖", 540, 60);
-      timed(built, "午饭", 720, 60);
-    });
-
-    expect(roomTexts(view, layoutOf(view, 0).main)).toEqual(["西湖 720", "午饭 1440"]);
-  });
-
-  it("右边紧挨着下一段就借不到", () => {
-    const view = build(1, (built) => {
-      timed(built, "西湖", 540, 60);
-      timed(built, "灵隐寺", 600, 60);
-    });
-
-    expect(roomTexts(view, layoutOf(view, 0).main)).toEqual(["西湖 600", "灵隐寺 1440"]);
-  });
-
-  it("并排的两道各算各的", () => {
-    const view = build(1, (built) => {
-      timed(built, "西湖", 540, 180);
-      timed(built, "游船", 600, 60);
-    });
-    const layout = layoutOf(view, 0);
-
-    // 「游船」在第 2 道，那一道右边空着，借到 24 点
-    expect(roomTexts(view, layout.main)).toEqual(["西湖 1440", "游船 1440"]);
-  });
-
-  it("叠在里面的不许写出外层块", () => {
-    const view = build(1, (built) => {
-      const outer = timed(built, "横店", 480, 720);
-      const inner = timed(built, "明清宫苑", 600, 120);
-      onto(built, inner, outer);
-    });
-
-    // 「横店」自己到 20:00，右边空着借到 24 点；「明清宫苑」最多写到「横店」结束
-    expect(roomTexts(view, layoutOf(view, 0).main)).toEqual(["横店 1440", "明清宫苑 1200"]);
-  });
-
-  it("跨午夜的段各算各的", () => {
-    const view = build(2, (built) => {
-      timed(built, "民宿", 1320, 600, { kindId: "lodging" });
-      timed(built, "早饭", 540, 60, { day: 1, kindId: "food" });
-    });
-
-    // 第 1 天那一段占到 24 点，借不到；第 2 天那一段借到「早饭」开始
-    expect(roomTexts(view, layoutOf(view, 0).background)).toEqual(["民宿 1440"]);
-    expect(roomTexts(view, layoutOf(view, 1).background)).toEqual(["民宿 1440"]);
   });
 });

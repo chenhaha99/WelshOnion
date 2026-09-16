@@ -12,8 +12,9 @@ import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
 import { OpenBlockContext, type OpenBlock, type PanelFocus } from "./open-block";
 import { readBlockText, saveBlockText } from "./plan-block-text-memory";
-import { readTimelineZoom, saveTimelineZoom } from "./plan-timeline-zoom-memory";
+import { readTimelineZoom, saveTimelineZoom, ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
+import { useWideScreen } from "../app/use-wide-screen";
 import { SelectBlockContext, type BlockSelection } from "./select-block";
 import type { BlockText } from "./timeline-geometry";
 import { SharesCard } from "./SharesCard";
@@ -23,6 +24,12 @@ const VIEWS = [
   { value: "timeline", label: "时间轴" },
   { value: "list", label: "列表" },
   { value: "overview", label: "总览" },
+] as const;
+
+/** 块上写什么：两个开关，各开各关 */
+const BLOCK_TEXT_PARTS = [
+  { value: "title", label: "标题" },
+  { value: "money", label: "开销" },
 ] as const;
 
 const GROUPINGS = [
@@ -68,18 +75,20 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   const pressedGrouping = useRef<HTMLButtonElement>(null);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
-  // 时间轴的块上写什么（标题，还是标题加开销）：也按计划记在这台设备上
+  // 时间轴的块上写标题、开销（各开各关）：也按计划记在这台设备上
   const [blockText, setBlockText] = useState<BlockText>(() => readBlockText(planId));
-  const showBlockText = (next: BlockText) => {
+  const toggleBlockText = (part: "title" | "money") => {
+    const next = { ...blockText, [part]: !blockText[part] };
     setBlockText(next);
     saveBlockText(planId, next);
   };
   // 时间轴横向放到百分之几：也按计划记在这台设备上
   const [zoom, setZoom] = useState(() => readTimelineZoom(planId));
-  const showZoom = (next: number) => {
+  const setShownZoom = (next: number) => {
     setZoom(next);
     saveTimelineZoom(planId, next);
   };
+  const wide = useWideScreen();
   // 竖排看的是哪天（底座 id）：切到列表时时间轴卸掉，切回来接着看这天
   const shownDay = useRef<string | null>(null);
   // 零高度的标记放在切换按钮本来的位置：按钮贴在顶上时，靠它量出按钮不贴顶该在哪
@@ -212,26 +221,72 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
       )}
       {/* -mb-4 抵掉标记后面那道间距，切换按钮还在原来的位置 */}
       <div ref={viewsMarker} aria-hidden className="-mb-4" />
-      {/* 往下滚时贴在屏幕顶上：列表多长都不用滚回来切换 */}
+      {/* 往下滚时贴在屏幕顶上：列表多长都不用滚回来切换。右边是只在时间轴上有意义的两样（你提的：放到这一行，居右） */}
       <div
-        role="group"
-        aria-label="视图"
-        className="sticky z-20 flex self-start rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
+        className="sticky z-20 flex flex-wrap items-center justify-between gap-2"
         style={{ top: VIEWS_STICKY_TOP }}
       >
-        {VIEWS.map(({ value, label }) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={view === value}
-            className={`inline-flex h-8 items-center rounded-full px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
-              view === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
-            }`}
-            onClick={() => showView(value)}
-          >
-            {label}
-          </button>
-        ))}
+        <div
+          role="group"
+          aria-label="视图"
+          className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
+        >
+          {VIEWS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={view === value}
+              className={`inline-flex h-8 items-center rounded-full px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+                view === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
+              }`}
+              onClick={() => showView(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {view === "timeline" && (
+          <div className="flex items-center gap-2">
+            {/* 块上写标题、开销：两个开关各开各关（记在这台设备上） */}
+            <div
+              role="group"
+              aria-label="块上写"
+              className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
+            >
+              {BLOCK_TEXT_PARTS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={blockText[value]}
+                  className={`inline-flex h-8 items-center rounded-full px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+                    blockText[value] ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
+                  }`}
+                  onClick={() => toggleBlockText(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {/* 横向放大：像剪辑软件那样拖着放大（只有横排有） */}
+            {wide && (
+              <div className="flex items-center gap-2 text-xs text-ink-muted">
+                <input
+                  type="range"
+                  aria-label="横向放大"
+                  aria-valuetext={`${zoom}%`}
+                  title={`横向放大 ${zoom}%`}
+                  className="timeline-zoom"
+                  min={ZOOM_MIN}
+                  max={ZOOM_MAX}
+                  step={10}
+                  value={zoom}
+                  onChange={(event) => setShownZoom(Number(event.target.value))}
+                />
+                <span className="w-10 text-right tabular-nums">{`${zoom}%`}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <OpenBlockContext.Provider value={openBlock}>
         <SelectBlockContext.Provider value={selection}>
@@ -251,9 +306,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
                 filter={filter}
                 moneyCells={cells}
                 blockText={blockText}
-                onBlockText={showBlockText}
                 zoom={zoom}
-                onZoom={showZoom}
                 shownDay={shownDay}
               />
             ) : (

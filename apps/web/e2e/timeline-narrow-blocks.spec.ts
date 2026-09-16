@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { DAY1, addBlocks, box, newPlan, schedule, segment, showView, timelineRow } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("窄块：一小时的事标题借右边的空白写全 → 右边挨着下一件就截断 → 拖动条放大到 200% 一小时宽一倍", async ({ page }) => {
+test("窄块：一小时的事标题截断不外溢 → 鼠标提示写全名 → 拖动条放大到 200% 一小时宽一倍", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
@@ -13,24 +13,23 @@ test("窄块：一小时的事标题借右边的空白写全 → 右边挨着下
   const lake = segment(day1, "西湖漫步");
   const title = lake.locator("[data-bar-title]");
 
-  // 右边空着：标题伸出块外，整个写得出来
+  // 一小时的块写不下四个字：截断加「…」，标题不伸出块外（右边空着也不伸）
   const lakeBox = await box(lake);
   const titleBox = await box(title);
-  expect(titleBox.width, "标题比块宽（借到了右边的空白）").toBeGreaterThan(lakeBox.width);
-  expect(await title.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), "没截断").toBe(true);
-  await shot(page, "01-title-overflow");
+  expect(titleBox.x + titleBox.width, "标题不伸出块外").toBeLessThanOrEqual(lakeBox.x + lakeBox.width + 1);
+  expect(
+    await title.evaluate((element) => element.scrollWidth > element.clientWidth),
+    "写不下，截断",
+  ).toBe(true);
+  // 看全名：鼠标停上去的提示
+  await expect(lake.getByRole("button", { name: /^西湖漫步 / })).toHaveAttribute("title", "西湖漫步 09:00–10:00");
+  await shot(page, "01-title-clipped");
 
-  // 右边紧挨着下一件：只能写自己这一段那么宽，截断
+  // 右边紧挨着下一件也一样：不占别人的地方
   await schedule(page, table, "灵隐寺", "10:00", "1");
   await showView(page, "时间轴");
   const tight = await box(segment(day1, "西湖漫步").locator("[data-bar-title]"));
-  expect(tight.width, "借不到地方了").toBeLessThanOrEqual(lakeBox.width + 1);
-  expect(
-    await segment(day1, "西湖漫步")
-      .locator("[data-bar-title]")
-      .evaluate((element) => element.scrollWidth > element.clientWidth),
-    "写不下，截断",
-  ).toBe(true);
+  expect(tight.width, "还是自己那么宽").toBeLessThanOrEqual(lakeBox.width + 1);
 
   // 拖动条往右拖：倍数跟着变
   const before = (await box(segment(day1, "西湖漫步"))).width;
