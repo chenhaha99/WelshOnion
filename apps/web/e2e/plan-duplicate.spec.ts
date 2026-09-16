@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("复制计划：有块有开销有请假的计划 → 列表里复制到明年 → 进新计划 → 键盘取消 → 手机", async ({ page }) => {
+test("复制计划：有块有开销的计划 → 列表里复制到明年 → 进新计划 → 键盘取消 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -15,7 +15,7 @@ test("复制计划：有块有开销有请假的计划 → 列表里复制到明
   // 打开是时间轴：这份走查从安排表开始，先切到列表
   await showView(page, "列表");
 
-  // 源计划：10.1「西湖」已确认、挂 300 元；10.3 标请假
+  // 源计划：10.1「西湖」已确认、挂 300 元
   const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const lake = table.locator("tr[data-block-id]").first();
@@ -28,9 +28,6 @@ test("复制计划：有块有开销有请假的计划 → 列表里复制到明
   await page.keyboard.press("Enter");
   await page.keyboard.press("Escape");
   await expect(lake.locator("[data-money-cell]")).toHaveText("¥300");
-  await days.nth(2).getByRole("button", { name: "这天的操作" }).click();
-  await page.getByRole("menuitem", { name: "标成请假" }).click();
-  await expect(days.nth(2).getByText("请假")).toBeVisible();
 
   // 回列表，在卡片上复制到 2027-04-29
   await page.getByRole("link", { name: /我的计划/ }).click();
@@ -42,7 +39,7 @@ test("复制计划：有块有开销有请假的计划 → 列表里复制到明
   await shot(page, "01-duplicate-form");
   await sourceCard.getByRole("button", { name: "复制" }).click();
 
-  // 进了新计划：日期平移，状态回到待定，开销还在，请假去掉
+  // 进了新计划：日期平移，状态回到待定，开销还在
   await expect(page.getByRole("button", { name: "关西 10 天 副本" })).toBeVisible();
   // 复制出来的计划没看过，打开是时间轴
   await showView(page, "列表");
@@ -53,7 +50,6 @@ test("复制计划：有块有开销有请假的计划 → 列表里复制到明
   await expect(copiedLake.getByRole("textbox", { name: "标题" })).toHaveValue("西湖");
   await expect(copiedLake.getByRole("button", { name: "状态：待定" })).toBeVisible();
   await expect(copiedLake.locator("[data-money-cell]")).toHaveText("¥300");
-  await expect(page.getByText("请假")).toHaveCount(0);
   await shot(page, "02-copied-plan");
 
   // 回列表两张卡；在原计划卡上只用键盘打开复制再 Esc：焦点回到「复制」

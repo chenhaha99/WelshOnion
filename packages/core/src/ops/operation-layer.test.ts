@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { readLibrary } from "../read";
 import { initLibraryDoc } from "../schema";
 import { addBase } from "../testing";
-import { insertDayBelow, setDayFlag, setDayTz } from "./days";
+import { insertDayBelow, setDayTz } from "./days";
 import { createPlanUndoManager } from "./origin";
-import { createPlan, touchPlan } from "./plan";
+import { createPlan, setPlanSettings, touchPlan } from "./plan";
 
 let library: Y.Doc;
 let planDoc: Y.Doc;
@@ -40,21 +40,21 @@ describe("一个操作是一步撤销", () => {
 
   test("连做两个操作只撤后一个", () => {
     setDayTz(planDoc, "b", "Asia/Tokyo");
-    setDayFlag(planDoc, "b", "leave");
+    setPlanSettings(planDoc, { traveler_count: 3 });
     undo.undo();
 
-    expect(base("b")?.has("day_flag")).toBe(false);
+    expect(planDoc.getMap("plan").get("traveler_count")).toBe(1);
     expect(base("b")?.get("tz")).toBe("Asia/Tokyo");
   });
 });
 
 describe("只撤自己做过的", () => {
   test("同步过来的改动不被撤销", () => {
-    setDayFlag(planDoc, "b", "leave");
+    setPlanSettings(planDoc, { traveler_count: 3 });
     planDoc.transact(() => base("b")?.set("tz", "Asia/Tokyo"), "another-peer");
     undo.undo();
 
-    expect(base("b")?.has("day_flag")).toBe(false);
+    expect(planDoc.getMap("plan").get("traveler_count")).toBe(1);
     expect(base("b")?.get("tz")).toBe("Asia/Tokyo");
   });
 });
@@ -79,7 +79,7 @@ describe("失败时返回错误，不写任何东西", () => {
   });
 
   test("要改的底座不存在", () => {
-    expect(setDayFlag(planDoc, "gone", "leave")).toEqual({
+    expect(setDayTz(planDoc, "gone", "Asia/Tokyo")).toEqual({
       ok: false,
       error: { code: "NOT_FOUND", id: "gone" },
     });
@@ -87,10 +87,10 @@ describe("失败时返回错误，不写任何东西", () => {
 });
 
 describe("写 null 就是删掉这个键", () => {
-  test("取消请假标记", () => {
-    setDayFlag(planDoc, "b", "leave");
-    setDayFlag(planDoc, "b", null);
+  test("清掉每公里成本", () => {
+    setPlanSettings(planDoc, { cost_per_km_cents: 80 });
+    setPlanSettings(planDoc, { cost_per_km_cents: null });
 
-    expect(base("b")?.has("day_flag")).toBe(false);
+    expect(planDoc.getMap("plan").has("cost_per_km_cents")).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import * as Y from "yjs";
 import { readLibrary, readPlan, summarizePlan } from "../read";
 import { initPlanDoc } from "../schema";
-import type { DayBudget, ValidatedField } from "../validate";
+import type { ValidatedField } from "../validate";
 import { addDays } from "./dates";
 import { LOCAL_ORIGIN } from "./origin";
 import { done, fail, firstInvalidField, type OpResult } from "./result";
@@ -10,7 +10,6 @@ import { setOrDelete } from "./write";
 export interface PlanSettingsPatch {
   traveler_count?: number;
   base_currency?: string;
-  default_day_budget?: DayBudget | null;
   cost_per_km_cents?: number | null;
 }
 
@@ -61,7 +60,6 @@ export function duplicatePlan(library: Y.Doc, source: Y.Doc, target: Y.Doc, opti
       const deltaDays = Math.round((Date.parse(`${options.startDate}T00:00:00Z`) - Date.parse(`${firstDate}T00:00:00Z`)) / 86_400_000);
       for (const base of bases) base.set("date", addDays(base.get("date") as string, deltaDays));
     }
-    for (const base of bases) base.delete("day_flag");
     for (const block of target.getMap<Y.Map<unknown>>("blocks").values()) block.set("status_id", "pending");
   });
   writeIndexEntry(library, target, options.now);
@@ -80,7 +78,6 @@ export function setPlanSettings(planDoc: Y.Doc, patch: PlanSettingsPatch): OpRes
   const checks: Array<readonly [ValidatedField, unknown]> = [];
   if (patch.traveler_count !== undefined) checks.push(["traveler_count", patch.traveler_count]);
   if (patch.cost_per_km_cents !== undefined) checks.push(["cost_per_km_cents", patch.cost_per_km_cents]);
-  if (patch.default_day_budget !== undefined) checks.push(["day_budget", patch.default_day_budget]);
   const error = firstInvalidField(checks);
   if (error) return fail(error);
 

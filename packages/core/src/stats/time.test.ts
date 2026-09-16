@@ -198,18 +198,4 @@ describe("这天的实际情况", () => {
     expect(dayFacts(plan, "d1")).toMatchObject({ firstStartMinute: 540, lastEndMinute: 960 });
   });
 
-  test("这天的时间预算", () => {
-    planDoc.getMap("plan").set("default_day_budget", { start: "08:00", end: "22:00" });
-    planDoc.getMap<Y.Map<unknown>>("bases").get("d1")?.set("day_budget", { max_drive_km: 300 });
-    const { plan } = views();
-
-    expect(dayFacts(plan, "d1").budget).toEqual({ start: "08:00", end: "22:00", max_drive_km: 300 });
-    expect(dayFacts(plan, "d2").budget).toEqual({ start: "08:00", end: "22:00" });
-  });
-
-  test("没设任何预算", () => {
-    const { plan } = views();
-
-    expect(dayFacts(plan, "d1").budget).toBeNull();
-  });
 });

@@ -58,7 +58,6 @@ describe("计划文档初始化", () => {
     expect(plan.get("traveler_count")).toBe(1);
     expect(plan.get("base_currency")).toBe("CNY");
     expect(plan.has("cost_per_km_cents")).toBe(false);
-    expect(plan.has("default_day_budget")).toBe(false);
   });
 });
 

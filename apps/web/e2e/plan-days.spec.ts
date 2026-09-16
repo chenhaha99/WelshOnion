@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("几天：新建 → 定 3 天 → 键盘插天 → 撤销重做 → 时区和请假 → 设置 → 回列表", async ({ page }) => {
+test("几天：新建 → 定 3 天 → 键盘插天 → 撤销重做 → 改时区 → 设置 → 回列表", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -39,17 +39,14 @@ test("几天：新建 → 定 3 天 → 键盘插天 → 撤销重做 → 时区
   await page.getByRole("button", { name: "重做" }).click();
   await expect(rows).toHaveCount(4);
 
-  // 最后一天改到东京；第二天标请假
+  // 最后一天改到东京
   const lastRow = rows.last();
   await lastRow.getByRole("button", { name: "这天的操作" }).click();
   await page.getByRole("menuitem", { name: "改时区…" }).click();
   await lastRow.getByRole("combobox", { name: "时区" }).selectOption("Asia/Tokyo");
   await expect(lastRow.locator("[data-day-label]")).toHaveText("第 4 天 · 10.4 周日 · 东京 +1h");
   await expect(rows.first().locator("[data-day-label]")).toHaveText("第 1 天 · 10.1 周四 · 北京");
-  await rows.nth(1).getByRole("button", { name: "这天的操作" }).click();
-  await page.getByRole("menuitem", { name: "标成请假" }).click();
-  await expect(rows.nth(1).getByText("请假")).toBeVisible();
-  await shot(page, "04-tz-and-leave");
+  await shot(page, "04-timezone");
 
   // 设置抽屉：打开时焦点在名字；人数填错有说明；Esc 关掉后焦点回到标题
   await page.getByRole("button", { name: "国庆华东" }).click();

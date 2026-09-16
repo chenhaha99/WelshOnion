@@ -15,23 +15,13 @@ export type ValidatedField =
   | "traveler_count"
   | "transport_mode"
   | "basis"
-  | "day_flag"
   | "date"
   | "tz"
-  | "day_budget"
   | "color"
   | "lat"
   | "lng";
 
 export type ValidationResult = { ok: true } | { ok: false; field: ValidatedField };
-
-/** 每日时间预算：每一项都可以不填。 */
-export interface DayBudget {
-  start?: string;
-  end?: string;
-  max_drive_min?: number;
-  max_drive_km?: number;
-}
 
 type Check = (value: unknown) => boolean;
 
@@ -57,10 +47,8 @@ const CHECKS: Record<ValidatedField, Check> = {
   traveler_count: (v) => isInteger(v) && v >= 1,
   transport_mode: orNull(oneOf("drive", "transit", "walk")),
   basis: oneOf("per_person", "total"),
-  day_flag: orNull(oneOf("leave", "makeup")),
   date: isRealDate,
   tz: isKnownTimeZone,
-  day_budget: orNull(isDayBudget),
   color: (v) => typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v),
   lat: (v) => typeof v === "number" && Number.isFinite(v) && v >= -90 && v <= 90,
   lng: (v) => typeof v === "number" && Number.isFinite(v) && v >= -180 && v <= 180,
@@ -70,22 +58,6 @@ export function validateField(field: ValidatedField, value: unknown): Validation
   return CHECKS[field](value) ? { ok: true } : { ok: false, field };
 }
 
-const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-const DAY_BUDGET_CHECKS: Readonly<Record<string, Check>> = {
-  start: (v) => typeof v === "string" && TIME_OF_DAY.test(v),
-  end: (v) => typeof v === "string" && TIME_OF_DAY.test(v),
-  max_drive_min: (v) => isInteger(v) && v >= 0,
-  max_drive_km: (v) => isInteger(v) && v >= 0,
-};
-
-function isDayBudget(value: unknown): boolean {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  return Object.entries(value).every(([key, item]) => {
-    const check = DAY_BUDGET_CHECKS[key];
-    return check !== undefined && check(item);
-  });
-}
 
 function isRealDate(value: unknown): boolean {
   if (typeof value !== "string") return false;

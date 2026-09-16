@@ -4,7 +4,6 @@
 import { effectiveLayer, kindLayer } from "../nesting";
 import type { BlockView, LibraryView, PlainObject, PlanView } from "../read";
 import { blockInterval } from "../time";
-import type { DayBudget } from "../validate";
 import { filteredBlocks, type StatsFilter } from "./filter";
 
 const MS_PER_MINUTE = 60_000;
@@ -25,8 +24,6 @@ export interface DayFacts {
   driveDistanceM: number;
   firstStartMinute: number | null;
   lastEndMinute: number | null;
-  /** 这天自己的预算逐项覆盖计划的默认值；两个都没有是 null */
-  budget: DayBudget | null;
 }
 
 /**
@@ -108,17 +105,11 @@ export function dayFacts(plan: PlanView, baseId: string, filter?: StatsFilter): 
     lastEndMinute = lastEndMinute === null ? end : Math.max(lastEndMinute, end);
   }
 
-  const dayBudget = plan.bases.find((base) => base.id === baseId)?.day_budget ?? null;
   return {
     driveMinutes,
     driveDistanceM,
     firstStartMinute,
     lastEndMinute,
-    budget: mergeBudget(plan.plan.default_day_budget, dayBudget),
   };
 }
 
-function mergeBudget(planDefault: PlainObject | null, day: PlainObject | null): DayBudget | null {
-  if (planDefault === null && day === null) return null;
-  return { ...planDefault, ...day } as DayBudget;
-}

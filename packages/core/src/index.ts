@@ -12,7 +12,7 @@ export { PRESET_KINDS, PRESET_STATUSES } from "./presets";
 export type { PresetKind, PresetStatus } from "./presets";
 export { newId } from "./ids";
 export { validateField } from "./validate";
-export type { DayBudget, ValidatedField, ValidationResult } from "./validate";
+export type { ValidatedField, ValidationResult } from "./validate";
 export { compareBases } from "./order";
 export { LOCAL_ORIGIN, createPlanUndoManager } from "./ops/origin";
 export type { OpError, OpResult } from "./ops/result";
@@ -26,8 +26,6 @@ export {
   insertDayAbove,
   insertDayBelow,
   moveDay,
-  setDayBudget,
-  setDayFlag,
   setDays,
   setDayTz,
   shiftAllDays,
@@ -85,7 +83,6 @@ export type {
   BaseView,
   Basis,
   BlockView,
-  DayFlag,
   ExpenseView,
   KindRef,
   KindView,

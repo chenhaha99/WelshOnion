@@ -5,7 +5,6 @@ import {
   renamePlan,
   setPlanSettings,
   shiftAllDays,
-  type DayBudget,
   type LibraryView,
   type PlanSettingsView,
   type PlanView,
@@ -14,7 +13,6 @@ import { useState } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
 import { Window } from "../app/Window";
-import { BudgetFields } from "./BudgetFields";
 import { daysBetween } from "./day-labels";
 import { LibraryManager } from "./LibraryManager";
 import { parseYuan } from "./money";
@@ -24,7 +22,6 @@ import { kindLibraryActions, statusLibraryActions } from "./pickers";
 const SECTIONS = [
   { value: "basic", label: "基本" },
   { value: "library", label: "类型和状态" },
-  { value: "budget", label: "时间预算" },
 ] as const;
 
 type SectionName = (typeof SECTIONS)[number]["value"];
@@ -39,8 +36,8 @@ interface SettingsWindowProps {
 }
 
 /**
- * 计划设置窗口：左边一列分块（基本、类型和状态、时间预算），右边是那一块的内容，每一栏回车或离开时保存。
- * 不常改的都收在这里（名字、人数、出发日期、每公里成本、资料库、时间预算），主版面只留筛选、切换和视图本身。
+ * 计划设置窗口：左边一列分块（基本、类型和状态），右边是那一块的内容，每一栏回车或离开时保存。
+ * 不常改的都收在这里（名字、人数、出发日期、每公里成本、资料库），主版面只留筛选、切换和视图本身。
  * 窗口的样子（电脑上居中、手机上占满屏幕）见 Window。
  */
 export function SettingsWindow({ doc, library, libraryView, plan, settings, onClose }: SettingsWindowProps) {
@@ -167,16 +164,6 @@ export function SettingsWindow({ doc, library, libraryView, plan, settings, onCl
                 label="状态"
                 options={[...libraryView.statuses.values()].sort(byOrder)}
                 actions={statusLibraryActions(library, (statusId) => countBlocksUsing(plan, { statusId }))}
-              />
-            </section>
-          )}
-
-          {section === "budget" && (
-            <section aria-label="每天的时间预算" className="flex flex-col gap-4">
-              <p className="text-xs text-ink-muted">空着就不设；每天还能在这天的菜单里单独改</p>
-              <BudgetFields
-                budget={settings.default_day_budget as DayBudget | null}
-                save={(next) => setPlanSettings(doc, { default_day_budget: next })}
               />
             </section>
           )}

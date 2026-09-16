@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { DAY1, addBlocks, newPlan } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("计划设置是居中的窗口：页顶三个图标 → 左边三块分开 → 点暗底关掉 → 在设置里改类型 → 手机上占满屏幕", async ({ page }) => {
+test("计划设置是居中的窗口：页顶三个图标 → 左边两块分开 → 点暗底关掉 → 在设置里改类型 → 手机上占满屏幕", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 2);
   await addBlocks(page, page.getByRole("table", { name: DAY1 }), ["西湖"]);
@@ -22,9 +22,9 @@ test("计划设置是居中的窗口：页顶三个图标 → 左边三块分开
   expect(box.y).toBeGreaterThan(0);
   await shot(page, "01-settings-window");
 
-  // 左边竖着三块，打开停在「基本」：出发日期这类不常改的在这儿，主版面上没有
+  // 左边竖着两块，打开停在「基本」：出发日期这类不常改的在这儿，主版面上没有
   const sections = settings.getByRole("tablist", { name: "设置分块" });
-  await expect(sections.getByRole("tab")).toHaveText(["基本", "类型和状态", "时间预算"]);
+  await expect(sections.getByRole("tab")).toHaveText(["基本", "类型和状态"]);
   await expect(sections.getByRole("tab", { name: "基本", selected: true })).toBeVisible();
   await expect(settings.getByLabel("出发日期")).toHaveValue("2026-10-01");
   await expect(settings.getByRole("group", { name: "类型的管理" })).toHaveCount(0);

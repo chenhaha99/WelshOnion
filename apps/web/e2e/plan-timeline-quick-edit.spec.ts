@@ -32,7 +32,14 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状�
   const day2 = timelineRow(page, "10.2");
 
   // 点一下选中：不开详情面板，块描了边，快捷条贴着块的右下角
+  // 先量一下块本身：选中前后大小一点不变（描边画在块里面；描在外面会和挨着的块叠在一起，你提的）
+  const barBefore = await box(segment(day1, "西湖").getByRole("button", { name: /^西湖 / }));
   await segment(day1, "西湖").getByRole("button", { name: /^西湖 / }).click();
+  const barAfter = await box(segment(day1, "西湖").getByRole("button", { name: /^西湖 / }));
+  expect(Math.round(barAfter.width)).toBe(Math.round(barBefore.width));
+  expect(Math.round(barAfter.height)).toBe(Math.round(barBefore.height));
+  expect(Math.round(barAfter.x)).toBe(Math.round(barBefore.x));
+  expect(Math.round(barAfter.y)).toBe(Math.round(barBefore.y));
   await expect(page.getByRole("dialog")).toBeHidden();
   await expect(segment(day1, "西湖").getByRole("button", { name: /^西湖 /, pressed: true })).toBeVisible();
   const bar = quickBar(page, "西湖");

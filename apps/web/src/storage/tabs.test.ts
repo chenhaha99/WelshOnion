@@ -2,7 +2,6 @@ import {
   createPlanUndoManager,
   readLibrary,
   readPlan,
-  setDayFlag,
   setDays,
   setDayTz,
   setPlanSettings,
@@ -50,12 +49,12 @@ describe("标签页之间实时同步", () => {
     const b = await openTab(planId);
     const undo = createPlanUndoManager(a.doc);
 
-    setDayFlag(a.doc, dayId, "leave");
+    setPlanSettings(a.doc, { traveler_count: 5 });
     setDayTz(b.doc, dayId, "Asia/Tokyo");
     await vi.waitFor(() => expect(a.read().bases[0]?.tz).toBe("Asia/Tokyo"));
 
     undo.undo();
-    expect(a.read().bases[0]?.day_flag).toBeNull();
+    expect(a.read().plan.traveler_count).toBe(1);
     expect(a.read().bases[0]?.tz).toBe("Asia/Tokyo");
   });
 });

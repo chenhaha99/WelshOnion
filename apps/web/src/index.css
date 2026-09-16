@@ -681,20 +681,23 @@
   padding-top: 0.125rem;
 }
 
-/* 选中的那件：描边（跨午夜的块每一段都描，它们是同一个 blockId） */
-.timeline-bar[aria-pressed="true"],
-.timeline-strip[aria-pressed="true"],
 /* 时间轴上面那条里的一件：按字宽（竖排那一栏里是占满一行），太长就截断 */
 [data-timeline-tray="strip"] [data-undated-chip] > .timeline-chip {
   width: auto;
   max-width: 11rem;
 }
 
+/*
+ * 选中的那件：在块**里面**描一圈，块的大小和位置一点不变（跨午夜的块每一段都描，它们是同一个 blockId）。
+ * 描在外面（outline-offset 为正）会让块看着变大：块和块只隔 2 像素，两条描边会叠在一起（你提的）。
+ */
+.timeline-bar[aria-pressed="true"],
+.timeline-strip[aria-pressed="true"],
 .timeline-chip[aria-pressed="true"],
 .timeline-marker[aria-pressed="true"],
 .timeline-marker-h[aria-pressed="true"] {
   outline: 2px solid var(--color-sage);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
 [data-day-axis] [data-segment] > .timeline-bar {

@@ -10,8 +10,6 @@ import {
   insertDayAbove,
   insertDayBelow,
   moveDay,
-  setDayBudget,
-  setDayFlag,
   setDays,
   setDayTz,
   shiftAllDays,
@@ -248,52 +246,5 @@ describe("同一天再加一个时区", () => {
     addBase(planDoc, "a", "2026-10-01", "Asia/Shanghai");
 
     expect(addDayInTz(planDoc, "a", "Asia/Shanghai")).toEqual({ ok: false, error: { code: "SAME_TZ" } });
-  });
-});
-
-describe("标请假或补班", () => {
-  test("标请假", () => {
-    threeDays();
-
-    expect(setDayFlag(planDoc, "b", "leave").ok).toBe(true);
-
-    expect(base("b")?.get("day_flag")).toBe("leave");
-  });
-
-  test("不认识的标记", () => {
-    threeDays();
-
-    expect(setDayFlag(planDoc, "b", "holiday" as never)).toEqual({
-      ok: false,
-      error: { code: "INVALID_FIELD", field: "day_flag" },
-    });
-  });
-});
-
-describe("单独设这一天的时间预算", () => {
-  test("只设最多开多远", () => {
-    threeDays();
-
-    expect(setDayBudget(planDoc, "b", { max_drive_km: 300 }).ok).toBe(true);
-
-    expect(base("b")?.get("day_budget")).toEqual({ max_drive_km: 300 });
-  });
-
-  test("时间写错", () => {
-    threeDays();
-
-    expect(setDayBudget(planDoc, "b", { start: "25:00" })).toEqual({
-      ok: false,
-      error: { code: "INVALID_FIELD", field: "day_budget" },
-    });
-  });
-
-  test("改回用默认值", () => {
-    threeDays();
-    setDayBudget(planDoc, "b", { max_drive_km: 300 });
-
-    setDayBudget(planDoc, "b", null);
-
-    expect(base("b")?.has("day_budget")).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
-import type { Parsed } from "./day-budget";
+/** 解析一栏：ok 时 value 是 null 表示空着（不填这一项）。 */
+export type Parsed<T> = { ok: true; value: T | null } | { ok: false };
 
 /** 距离按公里填，不小于 0、最多一位小数，存成米：「32.5」→ 32500；空着就是不写。 */
 export function parseDistanceKm(text: string): Parsed<number> {

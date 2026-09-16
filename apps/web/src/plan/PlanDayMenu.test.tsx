@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { addBlock, readLibrary, readPlan, setDayFlag } from "@welshonion/core";
+import { addBlock, readLibrary, readPlan } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { NOW } from "../app/test-render";
 import { openLibrary } from "../storage/library";
@@ -17,10 +17,7 @@ afterEach(async () => {
 describe("每天的菜单", () => {
   it("在下面插一天：后面的天往后顺延", async () => {
     const user = userEvent.setup();
-    await openStoredPlan((plan) => {
-      const [, oct2] = daysFromOct1(plan, 3);
-      setDayFlag(plan, oct2!, "leave");
-    });
+    await openStoredPlan((plan) => daysFromOct1(plan, 3));
 
     await user.click(within(await openDayMenu(user, "10.1")).getByRole("menuitem", { name: "在下面插一天" }));
     await waitFor(async () => expect(await dayLabels()).toHaveLength(4));
@@ -30,9 +27,6 @@ describe("每天的菜单", () => {
       "第 3 天 · 10.3 周六",
       "第 4 天 · 10.4 周日",
     ]);
-    // 原来标了请假的 10.2 现在是 10.3
-    expect(within(await dayRow("10.3")).getByText("请假")).toBeTruthy();
-    expect(within(await dayRow("10.2")).queryByText("请假")).toBeNull();
   });
 
   it("删除这天：其他天的日期不变", async () => {
@@ -43,27 +37,16 @@ describe("每天的菜单", () => {
     await waitFor(async () => expect(await dayLabels()).toEqual(["第 1 天 · 10.1 周四", "第 2 天 · 10.3 周六"]));
   });
 
-  it("下移：请假标记跟着那天走", async () => {
+  it("下移：这天的事跟着那天走", async () => {
     const user = userEvent.setup();
-    await openStoredPlan((plan) => {
+    await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 3);
-      setDayFlag(plan, oct1!, "leave");
+      addBlock(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 60 });
     });
 
     await user.click(within(await openDayMenu(user, "10.1")).getByRole("menuitem", { name: "下移" }));
-    await waitFor(async () => expect(within(await dayRow("10.2")).queryByText("请假")).toBeTruthy());
-    expect(within(await dayRow("10.1")).queryByText("请假")).toBeNull();
-  });
-
-  it("标请假，再点一次取消", async () => {
-    const user = userEvent.setup();
-    await openStoredPlan((plan) => daysFromOct1(plan, 3));
-
-    await user.click(within(await openDayMenu(user, "10.2")).getByRole("menuitem", { name: "标成请假" }));
-    await waitFor(async () => expect(within(await dayRow("10.2")).queryByText("请假")).toBeTruthy());
-
-    await user.click(within(await openDayMenu(user, "10.2")).getByRole("menuitem", { name: "取消请假" }));
-    await waitFor(async () => expect(within(await dayRow("10.2")).queryByText("请假")).toBeNull());
+    await waitFor(async () => expect(within(await dayRow("10.2")).queryByDisplayValue("西湖")).toBeTruthy());
+    expect(within(await dayRow("10.1")).queryByDisplayValue("西湖")).toBeNull();
   });
 
   it("改这天的时区", async () => {

@@ -1,8 +1,6 @@
 import * as Y from "yjs";
 import { newId } from "../ids";
 import { compareBases, compareStrings } from "../order";
-import type { DayFlag } from "../read";
-import type { DayBudget } from "../validate";
 import { addDays } from "./dates";
 import { LOCAL_ORIGIN } from "./origin";
 import { done, fail, firstInvalidField, ok, type OpResult } from "./result";
@@ -135,24 +133,6 @@ export function addDayInTz(planDoc: Y.Doc, baseId: string, tz: string): OpResult
     added = createBase(planDoc, dateOf(base), tz);
   }, LOCAL_ORIGIN);
   return ok({ baseId: added });
-}
-
-export function setDayFlag(planDoc: Y.Doc, baseId: string, flag: DayFlag | null): OpResult {
-  return setBaseField(planDoc, baseId, "day_flag", flag);
-}
-
-/** null = 删掉这天单独的预算，改用计划的默认值。 */
-export function setDayBudget(planDoc: Y.Doc, baseId: string, budget: DayBudget | null): OpResult {
-  return setBaseField(planDoc, baseId, "day_budget", budget);
-}
-
-function setBaseField(planDoc: Y.Doc, baseId: string, field: "day_flag" | "day_budget", value: unknown): OpResult {
-  const error = firstInvalidField([[field, value]]);
-  if (error) return fail(error);
-  const base = basesOf(planDoc).get(baseId);
-  if (!base) return fail({ code: "NOT_FOUND", id: baseId });
-  planDoc.transact(() => setOrDelete(base, field, value), LOCAL_ORIGIN);
-  return done();
 }
 
 function insertDay(

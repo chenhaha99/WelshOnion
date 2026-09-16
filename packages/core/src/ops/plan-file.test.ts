@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc } from "../schema";
 import { addBlock, setBlockStatus, updateBlock, type AddBlockInput } from "./blocks";
-import { setDayFlag, setDays } from "./days";
+import { setDays } from "./days";
 import { setBlockLayer } from "./drag";
 import { addExpense } from "./expenses";
 import { updateKind } from "./library";
@@ -177,7 +177,7 @@ describe("读文件", () => {
 });
 
 describe("导入到新的计划文档", () => {
-  /** 10.2：已确认的「西湖」备注「带伞」挂 30000 分门票，「明清宫苑」叠在「横店」上；10.1 上午两件没排时间的事；10.3 请假。 */
+  /** 10.2：已确认的「西湖」备注「带伞」挂 30000 分门票，「明清宫苑」叠在「横店」上；10.1 上午两件没排时间的事。 */
   function kansai() {
     const library = newLibrary();
     const { planDoc, baseIds } = newPlan(library);
@@ -191,7 +191,6 @@ describe("导入到新的计划文档", () => {
     setBlockLayer(planDoc, library, palace, hengdian);
     block(planDoc, library, { baseId: oct1!, kindId: "food", title: "早茶", slot: "morning" });
     block(planDoc, library, { baseId: oct1!, kindId: "sight", title: "河坊街", slot: "morning" });
-    setDayFlag(planDoc, oct3!, "leave");
     return { library, planDoc };
   }
 

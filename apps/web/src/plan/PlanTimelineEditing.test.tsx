@@ -207,20 +207,4 @@ describe("时间轴上每天的菜单", () => {
     );
   });
 
-  it("竖排：这天的时间预算在标签下面展开，收起后焦点回到「这天的操作」", async () => {
-    stubNarrowScreen();
-    const user = userEvent.setup();
-    const planId = await openStoredPlan((plan) => daysFromOct1(plan, 2));
-    const other = await openOtherTab(planId);
-
-    const region = await timeline();
-    await chooseDayMenu(user, region, "这天的时间预算…");
-    const budget = within(region).getByRole("group", { name: "第 1 天 · 10.1 周四 的时间预算" });
-    await user.type(within(budget).getByLabelText("最多开多远（公里）"), "300{Enter}");
-    await user.click(within(budget).getByRole("button", { name: "收起" }));
-
-    await waitFor(() => expect(other.plan().bases[0]!.day_budget).toEqual({ max_drive_km: 300 }));
-    expect(within(region).queryByRole("group", { name: "第 1 天 · 10.1 周四 的时间预算" })).toBeNull();
-    await waitFor(() => expect(document.activeElement).toBe(within(region).getByRole("button", { name: "这天的操作" })));
-  });
 });

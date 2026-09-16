@@ -11,7 +11,6 @@ import { compareBases, compareStrings } from "./order";
 export type Slot = "morning" | "afternoon" | "evening";
 export type TransportMode = "drive" | "transit" | "walk";
 export type Basis = "per_person" | "total";
-export type DayFlag = "leave" | "makeup";
 export type PlainObject = Readonly<Record<string, unknown>>;
 
 export interface KindView {
@@ -65,7 +64,6 @@ export interface PlanSettingsView {
   name: string;
   traveler_count: number;
   base_currency: string;
-  default_day_budget: PlainObject | null;
   cost_per_km_cents: number | null;
 }
 
@@ -73,8 +71,6 @@ export interface BaseView {
   id: string;
   date: string;
   tz: string;
-  day_flag: DayFlag | null;
-  day_budget: PlainObject | null;
 }
 
 export interface BlockView {
@@ -195,7 +191,6 @@ export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
     name: required(planMap, "name"),
     traveler_count: required(planMap, "traveler_count"),
     base_currency: required(planMap, "base_currency"),
-    default_day_budget: optional(planMap, "default_day_budget"),
     cost_per_km_cents: optional(planMap, "cost_per_km_cents"),
   };
 
@@ -205,8 +200,6 @@ export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
       id,
       date: required<string>(map, "date"),
       tz: required<string>(map, "tz"),
-      day_flag: optional<DayFlag>(map, "day_flag"),
-      day_budget: optional<PlainObject>(map, "day_budget"),
     }))
     .sort(compareBases);
 

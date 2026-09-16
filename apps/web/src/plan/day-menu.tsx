@@ -4,29 +4,24 @@ import {
   insertDayAbove,
   insertDayBelow,
   moveDay,
-  setDayBudget,
-  setDayFlag,
   setDayTz,
   type BaseView,
-  type DayBudget,
-  type DayFlag,
   type PlanView,
 } from "@welshonion/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type * as Y from "yjs";
 import { Menu, type MenuItem } from "../app/Menu";
-import { BudgetFields } from "./BudgetFields";
 import { COMMON_TIME_ZONES, cityName } from "./day-labels";
 import { useNotifyDeleted } from "./DeletedNotice";
 
 type Direction = "above" | "below";
 
-// 平时只显示菜单按钮；选了「改时区」「加一个另一时区的这天」「这天的时间预算」或插天被块跨过时，原地展开
+// 平时只显示菜单按钮；选了「改时区」「加一个另一时区的这天」或插天被块跨过时，原地展开
 type Mode =
   | { kind: "normal" }
   | { kind: "pick-tz"; purpose: "change" | "add" }
   | { kind: "crossing"; direction: Direction }
-  | { kind: "budget" };
+;
 
 const NORMAL: Mode = { kind: "normal" };
 
@@ -52,7 +47,7 @@ export interface DayMenu {
 }
 
 /**
- * 每天的菜单：插天（被块跨过先问放哪边）、上移下移、请假补班、改时区、加一个另一时区的这天、这天的时间预算、删天。
+ * 每天的菜单：插天（被块跨过先问放哪边）、上移下移、改时区、加一个另一时区的这天、删天。
  * 列表的组头、时间轴的横排行、竖排共用：按钮和展开的表单由用它的地方各自摆。
  * 展开时焦点放进表单，收起后回到菜单按钮；竖排翻到别的天时，展开的收起，焦点不动。
  */
@@ -66,12 +61,10 @@ export function useDayMenu({ doc, plan, base, label, index, count, triggerClassN
 
   // 展开时焦点放进展开的东西里；收起后菜单按钮重新出现，焦点放回它（这几样只能用按钮或 Esc 收起，不会抢走点到别处的焦点）
   const menuSlot = useRef<HTMLSpanElement>(null);
-  const budgetGroup = useRef<HTMLDivElement>(null);
   // 展开着的是哪天：翻到别的天、表单不见了，不算收起，不抢焦点
   const expandedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (mode.kind === "budget") budgetGroup.current?.querySelector("input")?.focus();
-    else if (mode.kind === "normal" && expandedFor.current === base.id) menuSlot.current?.querySelector("button")?.focus();
+    if (mode.kind === "normal" && expandedFor.current === base.id) menuSlot.current?.querySelector("button")?.focus();
     expandedFor.current = mode.kind === "normal" ? null : base.id;
   }, [mode.kind, base.id]);
 
@@ -92,21 +85,13 @@ export function useDayMenu({ doc, plan, base, label, index, count, triggerClassN
     });
   };
 
-  const flagItem = (flag: DayFlag, name: string): MenuItem =>
-    base.day_flag === flag
-      ? { label: `取消${name}`, onSelect: () => setDayFlag(doc, base.id, null) }
-      : { label: `标成${name}`, onSelect: () => setDayFlag(doc, base.id, flag) };
-
   const items: MenuItem[] = [
     { label: "在上面插一天", onSelect: () => insert("above") },
     { label: "在下面插一天", onSelect: () => insert("below") },
     { label: "上移", disabled: index === 0, onSelect: () => moveDay(doc, base.id, index - 1) },
     { label: "下移", disabled: index === count - 1, onSelect: () => moveDay(doc, base.id, index + 1) },
-    flagItem("leave", "请假"),
-    flagItem("makeup", "补班"),
     { label: "改时区…", onSelect: () => setMode({ kind: "pick-tz", purpose: "change" }) },
     { label: "加一个另一时区的这天…", onSelect: () => setMode({ kind: "pick-tz", purpose: "add" }) },
-    { label: "这天的时间预算…", onSelect: () => setMode({ kind: "budget" }) },
     { label: "删除这天", danger: true, onSelect: removeDay },
   ];
 
@@ -150,28 +135,6 @@ export function useDayMenu({ doc, plan, base, label, index, count, triggerClassN
         </button>
         <button type="button" className="btn btn-ghost" onClick={backToNormal}>
           取消
-        </button>
-      </div>
-    );
-  } else if (mode.kind === "budget") {
-    form = (
-      <div
-        ref={budgetGroup}
-        role="group"
-        aria-label={`${label} 的时间预算`}
-        className="flex flex-wrap items-end gap-3 text-sm"
-        onKeyDown={(event) => {
-          if (event.key === "Escape") backToNormal();
-        }}
-      >
-        <BudgetFields
-          budget={base.day_budget as DayBudget | null}
-          inherited={plan.plan.default_day_budget as DayBudget | null}
-          save={(next) => setDayBudget(doc, base.id, next)}
-          fieldClassName="w-36"
-        />
-        <button type="button" className="btn btn-ghost" onClick={backToNormal}>
-          收起
         </button>
       </div>
     );
