@@ -42,7 +42,8 @@ import { zoneTimeLabel } from "./zone-time";
 /** 每行两栏：钉住的第一列（日期、这天的菜单、加一件事）和 0–24 点的横轴 */
 const ROW_COLUMNS = "grid grid-cols-[6.5rem_1fr] gap-x-3";
 /** 第一列：横向滚动时钉在左边，底色盖住从下面滚过去的横条 */
-const FIRST_COLUMN = "sticky left-0 z-10 bg-white/85 backdrop-blur-[2px]";
+// 钉住的第一列：往左盖住卡片那 8 像素的内边距（横向滚的块会画到那儿），自己再用 pl-2 把字推回原位
+const FIRST_COLUMN = "sticky -left-2 z-10 -ml-2 bg-white/85 pl-2 backdrop-blur-[2px]";
 
 const MINUTES_PER_DAY = 1440;
 
@@ -373,7 +374,7 @@ function TimelineRow({
 
   return (
     <li ref={rowRef} aria-label={label} data-base-id={base.id} className={`${ROW_COLUMNS} border-t border-ink/5 py-1.5`}>
-      <div className={`${FIRST_COLUMN} flex flex-col text-xs leading-4 text-ink-muted tabular-nums`}>
+      <div data-day-column className={`${FIRST_COLUMN} flex flex-col text-xs leading-4 text-ink-muted tabular-nums`}>
         {/* 「第 1 天」和这天的两个按钮挤一行、日期单独一行：一道的块才 28 像素高，这一列不能比它高太多 */}
         <div className="flex items-center gap-0.5">
           <span aria-hidden className="text-ink">

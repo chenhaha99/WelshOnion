@@ -57,10 +57,11 @@ test("窄块：一小时的事标题截断不外溢 → 鼠标提示写全名 �
   await scroller.evaluate((element) => {
     element.scrollLeft = element.scrollWidth * 0.75;
   });
-  const first = (await day1.getByText("10.1 周四").boundingBox())!;
+  const first = (await day1.locator("[data-day-column]").boundingBox())!;
   const scrollerBox = (await scroller.boundingBox())!;
   expect(first.x, "第一列还在屏幕里").toBeGreaterThanOrEqual(0);
-  expect(first.x - scrollerBox.x, "第一列钉在卡片左边").toBeLessThanOrEqual(12);
+  expect(Math.abs(first.x - scrollerBox.x), "第一列钉在卡片左边").toBeLessThanOrEqual(1);
+  await expect(day1.getByText("10.1 周四")).toBeInViewport();
   await expect(day1.getByRole("button", { name: "加一件事" })).toBeInViewport();
   await shot(page, "03-sticky-first-column");
   await scroller.evaluate((element) => {
