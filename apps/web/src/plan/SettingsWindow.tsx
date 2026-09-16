@@ -52,14 +52,14 @@ export function SettingsWindow({ doc, library, libraryView, plan, settings, onCl
   return (
     <Window title="计划设置" onClose={onClose}>
       <div className="flex gap-4">
-        <div role="tablist" aria-orientation="vertical" aria-label="设置分块" className="flex w-20 shrink-0 flex-col gap-1">
+        <div role="tablist" aria-orientation="vertical" aria-label="设置分块" className="flex w-24 shrink-0 flex-col gap-1">
           {SECTIONS.map(({ value, label }) => (
             <button
               key={value}
               type="button"
               role="tab"
               aria-selected={section === value}
-              className={`rounded-lg px-2.5 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+              className={`rounded-lg px-2.5 py-2 text-left text-sm whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
                 section === value ? "bg-sage/12 font-medium text-ink" : "text-ink-muted hover:text-ink"
               }`}
               onClick={() => setSection(value)}

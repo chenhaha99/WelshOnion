@@ -238,11 +238,11 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
           {/* 至少一屏高（减去切换按钮 42 像素、贴顶的 8、间距 16、页面底边 32）：视图比一屏短时，点切换按钮照样滚得到贴顶 */}
           <div className="flex min-h-[calc(100dvh-6.125rem)] flex-col gap-4">
             {view === "overview" ? (
-            <>
-              <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
-              <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
-            </>
-          ) : view === "timeline" ? (
+              <>
+                <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
+                <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
+              </>
+            ) : view === "timeline" ? (
               <Timeline
                 doc={doc}
                 library={library}
