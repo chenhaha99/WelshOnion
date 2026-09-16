@@ -105,6 +105,10 @@ test("电脑上：点一下复制就地多一份；块上写钱，点金额就�
   await page.getByRole("group", { name: "块上写" }).getByRole("button", { name: "标题 + 钱" }).click();
   const money = segment(day1, "西湖").locator("[data-bar-money] button");
   await expect(money).toHaveText("¥300");
+  // 钱那一行画在块里面，不许漏到块外面
+  const moneyBox = (await money.boundingBox())!;
+  const lakeBox = (await segment(day1, "西湖").boundingBox())!;
+  expect(moneyBox.y + moneyBox.height).toBeLessThanOrEqual(lakeBox.y + lakeBox.height + 1);
   await shot(page, "04-money-on-blocks");
   await money.click();
   const amount = page.getByRole("dialog", { name: "改钱" }).getByRole("textbox", { name: "金额" });

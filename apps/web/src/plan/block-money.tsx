@@ -34,9 +34,9 @@ export function BlockMoney({ doc, library, plan, block, moneyCell, variant }: Bl
   const only = attached.length === 1 && attached[0]!.block_ids.length === 1 ? attached[0]! : null;
   const simple = !moneyCell?.otherKinds && (attached.length === 0 || only !== null);
   const line = variant === "line";
-  const triggerClassName = line
-    ? `timeline-money${moneyCellEmpty(moneyCell) ? " timeline-money-empty" : ""}`
-    : "quick-button tabular-nums";
+  // 类名写成完整的一段：Tailwind 扫源码找类名，`timeline-money${...}` 这样插值粘在后面它认不出来
+  const emptyClass = moneyCellEmpty(moneyCell) ? " timeline-money-empty" : "";
+  const triggerClassName = line ? "timeline-money" + emptyClass : "quick-button tabular-nums";
   const trigger = line ? <span className="truncate">{text}</span> : <span aria-hidden>¥</span>;
 
   const button = simple ? (
