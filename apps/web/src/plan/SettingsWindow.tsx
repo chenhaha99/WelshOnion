@@ -1,32 +1,39 @@
 import {
   backfillFuel,
+  countBlocksUsing,
   findFuelBackfill,
   renamePlan,
   setPlanSettings,
   type DayBudget,
+  type LibraryView,
   type PlanSettingsView,
+  type PlanView,
 } from "@welshonion/core";
 import { useState } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
-import { Drawer } from "../app/Drawer";
+import { Window } from "../app/Window";
 import { BudgetFields } from "./BudgetFields";
+import { LibraryManager } from "./LibraryManager";
 import { parseYuan } from "./money";
+import { kindLibraryActions, statusLibraryActions } from "./pickers";
 
-interface SettingsDrawerProps {
+interface SettingsWindowProps {
   doc: Y.Doc;
   library: Y.Doc;
+  libraryView: LibraryView;
+  plan: PlanView;
   settings: PlanSettingsView;
   onClose: () => void;
 }
 
-/** 计划设置：名字、人数、每公里成本、每天的时间预算，每一栏回车或离开时保存。抽屉的样子见 Drawer。 */
-export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDrawerProps) {
+/** 计划设置：名字、人数、每公里成本、每天的时间预算、类型和状态，每一栏回车或离开时保存。窗口的样子见 Window。 */
+export function SettingsWindow({ doc, library, libraryView, plan, settings, onClose }: SettingsWindowProps) {
   // 事后才设每公里成本：问一次要不要给已有的自驾块补上油费，问的时候记下找到的块；不猜，不静默补
   const [backfillIds, setBackfillIds] = useState<string[] | null>(null);
 
   return (
-    <Drawer title="计划设置" onClose={onClose}>
+    <Window title="计划设置" onClose={onClose}>
       <CommitInput
         label="名字"
         value={settings.name}
@@ -90,6 +97,24 @@ export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDraw
         )}
       </div>
 
+      <section aria-label="类型和状态" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-medium text-ink">类型和状态</h3>
+          {/* 只有一套资料库：不写清楚会以为是这个计划自己的 */}
+          <p className="text-xs text-ink-muted">所有计划共用；改了名字和颜色，别的计划里也跟着变</p>
+        </div>
+        <LibraryManager
+          label="类型"
+          options={[...libraryView.kinds.values()].sort(byOrder)}
+          actions={kindLibraryActions(library, (kindId) => countBlocksUsing(plan, { kindId }))}
+        />
+        <LibraryManager
+          label="状态"
+          options={[...libraryView.statuses.values()].sort(byOrder)}
+          actions={statusLibraryActions(library, (statusId) => countBlocksUsing(plan, { statusId }))}
+        />
+      </section>
+
       <section aria-label="每天的时间预算" className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-medium text-ink">每天的时间预算</h3>
@@ -100,6 +125,10 @@ export function SettingsDrawer({ doc, library, settings, onClose }: SettingsDraw
           save={(next) => setPlanSettings(doc, { default_day_budget: next })}
         />
       </section>
-    </Drawer>
+    </Window>
   );
+}
+
+function byOrder(a: { order: number }, b: { order: number }): number {
+  return a.order - b.order;
 }

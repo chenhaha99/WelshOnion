@@ -1,11 +1,12 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { useInitialFocus, type InitialFocus } from "./use-initial-focus";
 
 interface DrawerProps {
   /** 标题，也是读屏名 */
   title: string;
   onClose: () => void;
   /** 打开时焦点放哪；不给（或找不到）就放第一个输入框，没有输入框就放在面板上 */
-  initialFocus?: (panel: HTMLElement) => HTMLElement | null;
+  initialFocus?: InitialFocus;
   children: ReactNode;
 }
 
@@ -15,12 +16,7 @@ interface DrawerProps {
  */
 export function Drawer({ title, onClose, initialFocus, children }: DrawerProps) {
   const panel = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const element = panel.current!;
-    (initialFocus?.(element) ?? element.querySelector<HTMLElement>('input:not([type="file"])') ?? element).focus();
-    // 只在打开时放一次；initialFocus 每次渲染都是新函数，不能放进依赖
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useInitialFocus(panel, initialFocus);
 
   return (
     <aside

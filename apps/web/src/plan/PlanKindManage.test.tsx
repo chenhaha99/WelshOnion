@@ -27,9 +27,11 @@ async function openKindPicker(user: User, title: string): Promise<HTMLElement> {
   return screen.getByRole("dialog", { name: "选择类型" });
 }
 
-async function chooseKindAction(user: User, picker: HTMLElement, kindName: string, action: string): Promise<void> {
-  await user.click(within(picker).getByRole("button", { name: `「${kindName}」的操作` }));
-  await user.click(within(picker).getByRole("menuitem", { name: action }));
+/** 打开计划设置里的「类型的管理」。 */
+async function openKindManager(user: User): Promise<HTMLElement> {
+  await user.click(await screen.findByRole("button", { name: "计划设置" }));
+  const settings = await screen.findByRole("dialog", { name: "计划设置" });
+  return within(settings).getByRole("group", { name: "类型的管理" });
 }
 
 function kindNamed(library: LibraryView, name: string) {
@@ -69,15 +71,16 @@ describe("新建类型", () => {
 });
 
 describe("改名、改颜色、改层", () => {
-  it("改名：所有这个类型的块都变", async () => {
+  it("在设置里改名：所有这个类型的块都变", async () => {
     const user = userEvent.setup();
     await openStoredPlan(oneDayWith(["西湖", "sight"], ["灵隐寺", "sight"]));
 
-    const picker = await openKindPicker(user, "西湖");
-    await chooseKindAction(user, picker, "游玩", "改名…");
-    const name = within(picker).getByRole("textbox", { name: "新名字" });
+    const manager = await openKindManager(user);
+    await user.click(within(manager).getByRole("button", { name: "改名：游玩" }));
+    const name = within(manager).getByRole("textbox", { name: "新名字" });
     await user.clear(name);
     await user.type(name, "玩{Enter}");
+    await user.keyboard("{Escape}");
 
     await waitFor(async () =>
       expect(within(await blockRow("10.1", "灵隐寺")).getByRole("button", { name: "类型：玩" })).toBeTruthy(),
@@ -85,20 +88,36 @@ describe("改名、改颜色、改层", () => {
     expect(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "类型：玩" })).toBeTruthy();
   });
 
-  it("改颜色：块左边的颜色条跟着变", async () => {
+  it("设置里写着每个类型这个计划用了几件，顶上说明所有计划共用", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(oneDayWith(["西湖", "sight"], ["灵隐寺", "sight"], ["午饭", "food"]));
+
+    const manager = await openKindManager(user);
+    const rows = within(manager)
+      .getAllByRole("button", { name: /^改名：/ })
+      .map((button) => button.getAttribute("aria-label")!.replace("改名：", ""));
+    expect(rows).toContain("游玩");
+    expect(rows).toContain("住宿");
+    expect(manager.textContent).toContain("这个计划里 2 件在用");
+    expect(manager.textContent).toContain("没有在用的");
+    expect(screen.getByRole("dialog", { name: "计划设置" }).textContent).toContain("所有计划共用");
+  });
+
+  it("在设置里改颜色：块左边的颜色条跟着变", async () => {
     const user = userEvent.setup();
     await openStoredPlan(oneDayWith(["午饭", "food"]));
     const otherLibrary = await openOtherLibrary();
 
-    const picker = await openKindPicker(user, "午饭");
-    await chooseKindAction(user, picker, "餐饮", "改颜色…");
-    await user.click(within(picker).getByRole("button", { name: "颜色 #6b8fb0" }));
+    const manager = await openKindManager(user);
+    await user.click(within(manager).getByRole("button", { name: "改颜色：餐饮" }));
+    await user.click(within(manager).getByRole("button", { name: "颜色 #6b8fb0" }));
+    await user.keyboard("{Escape}");
 
     await waitFor(() => expect(kindNamed(otherLibrary(), "餐饮")?.color).toBe("#6b8fb0"));
     expect((await blockRow("10.1", "午饭")).style.getPropertyValue("--kind-color")).toBe("#6b8fb0");
   });
 
-  it("改层：自建的门票改到停留那一层", async () => {
+  it("在设置里改层：自建的门票改到停留那一层", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const ticket = addKind(library, { name: "门票", color: "#6b8fb0" });
@@ -107,9 +126,9 @@ describe("改名、改颜色、改层", () => {
     });
     const otherLibrary = await openOtherLibrary();
 
-    const picker = await openKindPicker(user, "西湖");
-    await chooseKindAction(user, picker, "门票", "改层…");
-    await user.click(within(picker).getByRole("button", { name: /^第 0 层/ }));
+    const manager = await openKindManager(user);
+    await user.click(within(manager).getByRole("button", { name: "改层：门票" }));
+    await user.click(within(manager).getByRole("button", { name: /^第 0 层/ }));
 
     await waitFor(() => expect(kindNamed(otherLibrary(), "门票")?.layer).toBe(0));
   });

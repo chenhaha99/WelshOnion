@@ -7,7 +7,8 @@ import { openPlan, type PlanHandle } from "../storage/plans";
 import { AskDays } from "./AskDays";
 import { DayList } from "./DayList";
 import { DeletedNotice } from "./DeletedNotice";
-import { SettingsDrawer } from "./SettingsDrawer";
+import { GearIcon, RedoIcon, UndoIcon } from "./icons";
+import { SettingsWindow } from "./SettingsWindow";
 import { usePlanUndo } from "./use-plan-undo";
 
 type PlanState = { status: "opening" } | { status: "open"; handle: PlanHandle } | { status: "missing" };
@@ -94,15 +95,30 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
         <div className="flex items-center justify-between gap-4">
           <BackToList />
+          {/* 三个图标按钮：名字只在读屏名和鼠标提示里（你提的：右上角都换成图标） */}
           <div className="flex gap-1">
-            <button type="button" className="btn btn-ghost" onClick={openSettings}>
-              计划设置
+            <button type="button" aria-label="计划设置" title="计划设置" className="btn btn-ghost px-2.5" onClick={openSettings}>
+              <GearIcon />
             </button>
-            <button type="button" className="btn btn-ghost" disabled={!undo.canUndo} onClick={undo.undo}>
-              撤销
+            <button
+              type="button"
+              aria-label="撤销"
+              title="撤销"
+              className="btn btn-ghost px-2.5"
+              disabled={!undo.canUndo}
+              onClick={undo.undo}
+            >
+              <UndoIcon />
             </button>
-            <button type="button" className="btn btn-ghost" disabled={!undo.canRedo} onClick={undo.redo}>
-              重做
+            <button
+              type="button"
+              aria-label="重做"
+              title="重做"
+              className="btn btn-ghost px-2.5"
+              disabled={!undo.canRedo}
+              onClick={undo.redo}
+            >
+              <RedoIcon />
             </button>
           </div>
         </div>
@@ -125,9 +141,11 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
         )}
 
         {settingsOpen && (
-          <SettingsDrawer
+          <SettingsWindow
             doc={handle.doc}
             library={library}
+            libraryView={libraryView}
+            plan={plan}
             settings={plan.plan}
             onClose={() => {
               setSettingsOpen(false);

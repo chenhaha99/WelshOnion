@@ -46,12 +46,14 @@ describe("状态选择器和状态的管理", () => {
       });
     });
 
-    await user.click(within(await blockRow("10.1", "酒店")).getByRole("button", { name: "状态：已预订" }));
-    const picker = screen.getByRole("dialog", { name: "选择状态" });
-    await user.click(within(picker).getByRole("button", { name: "「已预订」的操作" }));
-    await user.click(within(picker).getByRole("menuitem", { name: "删除…" }));
-    expect(within(picker).getByText(/这个计划里有 1 件事在用/)).toBeTruthy();
-    await user.click(within(picker).getByRole("button", { name: "删除" }));
+    // 删除搬到了计划设置里
+    await user.click(await screen.findByRole("button", { name: "计划设置" }));
+    const settings = await screen.findByRole("dialog", { name: "计划设置" });
+    const manager = within(settings).getByRole("group", { name: "状态的管理" });
+    await user.click(within(manager).getByRole("button", { name: "删除：已预订" }));
+    expect(within(manager).getByText(/这个计划里有 1 件事在用/)).toBeTruthy();
+    await user.click(within(manager).getByRole("button", { name: "删除" }));
+    await user.keyboard("{Escape}");
 
     await waitFor(async () =>
       expect(within(await blockRow("10.1", "酒店")).getByRole("button", { name: "状态：已删除的状态" })).toBeTruthy(),

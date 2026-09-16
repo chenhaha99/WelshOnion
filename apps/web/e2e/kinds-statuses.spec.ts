@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-// 每个选项旁边都有「「名字」的操作」按钮，按名字找选项时一律精确匹配
-test("类型和状态：新建并用上 → 改色 → 删除确认 → 新建状态 → 键盘 → 手机", async ({ page }) => {
+// 选项和「改名」这类按钮的名字会互相包含，按名字找一律精确匹配
+test("类型和状态：选择器里新建并用上 → 设置里改色、删除 → 新建状态 → 键盘 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -44,27 +44,35 @@ test("类型和状态：新建并用上 → 改色 → 删除确认 → 新建�
   await kindPicker.getByRole("button", { name: "门票", exact: true }).click();
   await expect(rows.nth(1).getByRole("button", { name: "类型：门票" })).toBeVisible();
 
-  // 改颜色：选完回到列表，选择器还开着
+  // 选择器里只有选和新建，改名改色删除在设置里（面板底部写着）
   await rows.nth(0).getByRole("button", { name: /^类型：/ }).click();
-  await kindPicker.getByRole("button", { name: "「门票」的操作" }).click();
-  await kindPicker.getByRole("menuitem", { name: "改颜色…" }).click();
-  await kindPicker.getByRole("button", { name: "颜色 #c08d68" }).click();
-  await expect(rows.nth(0)).toHaveAttribute("style", /#c08d68/);
-  await expect(kindPicker).toBeVisible();
+  await expect(kindPicker.getByText("改名、改颜色、删除在计划设置里")).toBeVisible();
+  await expect(kindPicker.getByRole("button", { name: "「门票」的操作" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
 
-  // 删除：先说明在用个数，确认后两块都写「已删除的类型」，选择器还开着
-  await kindPicker.getByRole("button", { name: "「门票」的操作" }).click();
-  await kindPicker.getByRole("menuitem", { name: "删除…" }).click();
-  await expect(kindPicker.getByText("这个计划里有 2 件事在用", { exact: false })).toBeVisible();
-  await shot(page, "03-delete-confirm");
-  await kindPicker.getByRole("button", { name: "删除", exact: true }).click();
+  // 到设置里改颜色：设置里写着这个计划用了几件
+  const settingsButton = page.getByRole("button", { name: "计划设置", exact: true });
+  await settingsButton.click();
+  const settings = page.getByRole("dialog", { name: "计划设置" });
+  const kindManager = settings.getByRole("group", { name: "类型的管理" });
+  await expect(settings.getByText("所有计划共用", { exact: false })).toBeVisible();
+  await expect(kindManager.getByText("这个计划里 2 件在用").first()).toBeVisible();
+  await shot(page, "03-settings-library");
+  await kindManager.getByRole("button", { name: "改颜色：门票" }).click();
+  await kindManager.getByRole("button", { name: "颜色 #c08d68" }).click();
+
+  // 接着删掉它：先说明在用个数，确认后两块都写「已删除的类型」
+  await kindManager.getByRole("button", { name: "删除：门票" }).click();
+  await expect(kindManager.getByText("这个计划里有 2 件事在用", { exact: false })).toBeVisible();
+  await shot(page, "04-delete-confirm");
+  await kindManager.getByRole("button", { name: "删除", exact: true }).click();
+  await expect(kindManager.getByRole("button", { name: "改名：门票" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(settings).toBeHidden();
+  await expect(settingsButton).toBeFocused();
   await expect(rows.nth(0).getByRole("button", { name: "类型：已删除的类型" })).toBeVisible();
   await expect(rows.nth(1).getByRole("button", { name: "类型：已删除的类型" })).toBeVisible();
-  await expect(kindPicker.getByRole("button", { name: "门票", exact: true })).toHaveCount(0);
-  await shot(page, "04-after-delete");
-  await page.keyboard.press("Escape");
-  await expect(kindPicker).toBeHidden();
-  await expect(rows.nth(0).getByRole("button", { name: "类型：已删除的类型" })).toBeFocused();
+  await shot(page, "05-after-delete");
 
   // 新建状态「已预订」并用上
   await rows.nth(0).getByRole("button", { name: "状态：待定" }).click();
@@ -83,14 +91,14 @@ test("类型和状态：新建并用上 → 改色 → 删除确认 → 新建�
   await page.keyboard.press("Escape");
   await expect(kindPicker).toBeHidden();
   await expect(secondKind).toBeFocused();
-  await shot(page, "05-desktop-done");
+  await shot(page, "06-desktop-done");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await rows.nth(1).getByRole("button", { name: /^类型：/ }).click();
   await expect(kindPicker).toBeVisible();
   const box = await kindPicker.boundingBox();
   expect(box !== null && box.x >= 0 && box.x + box.width <= 390).toBe(true);
-  await shot(page, "06-mobile-picker");
+  await shot(page, "07-mobile-picker");
 
   expect(errors).toEqual([]);
 });

@@ -60,9 +60,10 @@ test("时间预算：设默认 → 每天两行 → 填错 → 这天单独设 �
   await km.fill("2.5");
   await page.keyboard.press("Enter");
   await expect(settings.getByText("要填不小于 0 的整数")).toBeVisible();
-  // 电脑上还是右边 320 像素宽的抽屉，左边的计划页看得见
+  // 电脑上是居中的窗口，最宽 560 像素
   const wideBox = (await settings.boundingBox())!;
-  expect([wideBox.x + wideBox.width, wideBox.width]).toEqual([page.viewportSize()!.width, 320]);
+  expect(wideBox.width).toBeLessThanOrEqual(560);
+  expect(Math.abs(wideBox.x + wideBox.width / 2 - page.viewportSize()!.width / 2)).toBeLessThan(2);
   await shot(page, "01-settings");
   await km.fill("");
   await page.keyboard.press("Enter");

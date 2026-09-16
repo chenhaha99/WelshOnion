@@ -47,7 +47,7 @@ test("按状态筛选：只看待定 → 只用键盘挨个确认 → 全部显�
   for (const remaining of [1, 0]) {
     await page.keyboard.press("Enter");
     await expect(picker.getByRole("button", { name: "待定", exact: true })).toBeFocused();
-    await page.keyboard.press("Tab");
+    // 选择器里每一项只有一个按钮了（管理搬进了设置），Tab 一下就到下一项
     await page.keyboard.press("Tab");
     await expect(picker.getByRole("button", { name: "已确认", exact: true })).toBeFocused();
     await page.keyboard.press("Enter");

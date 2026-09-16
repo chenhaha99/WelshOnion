@@ -16,8 +16,8 @@ import {
 import type * as Y from "yjs";
 import { LibraryPicker } from "./LibraryPicker";
 
-/** 类型选择器里写资料库的那一半（新建、改名、改色、改层、删除），块和钱共用；不进撤销。 */
-function kindLibraryActions(library: Y.Doc, countUsing: (kindId: string) => number) {
+/** 类型这一半：新建、改名、改色、改层、删除。选择器、计划设置里的管理共用；不进撤销。 */
+export function kindLibraryActions(library: Y.Doc, countUsing: (kindId: string) => number) {
   return {
     onCreate: ({ name, color }: { name: string; color: string }) => {
       // 新类型的层一律是现有最上层：addKind 不给层就这么定
@@ -89,6 +89,20 @@ interface StatusPickerProps {
   compact?: "fill" | "ring";
 }
 
+/** 状态这一半：和类型一样，只是没有层。 */
+export function statusLibraryActions(library: Y.Doc, countUsing: (statusId: string) => number) {
+  return {
+    onCreate: ({ name, color }: { name: string; color: string }) => {
+      const result = addStatus(library, { name, color });
+      return result.ok ? result.value.statusId : null;
+    },
+    onRename: (statusId: string, name: string) => updateStatus(library, statusId, { name }),
+    onRecolor: (statusId: string, color: string) => updateStatus(library, statusId, { color }),
+    onDelete: (statusId: string) => deleteStatus(library, statusId),
+    countUsing,
+  };
+}
+
 /** 块的状态选择器：和类型一样，只是没有层。 */
 export function StatusPicker({ doc, library, block, statuses, countUsing, compact }: StatusPickerProps) {
   return (
@@ -98,14 +112,7 @@ export function StatusPicker({ doc, library, block, statuses, countUsing, compac
       options={statuses}
       compact={compact}
       onChoose={(statusId) => setBlockStatus(doc, library, [block.id], statusId)}
-      onCreate={({ name, color }) => {
-        const result = addStatus(library, { name, color });
-        return result.ok ? result.value.statusId : null;
-      }}
-      onRename={(statusId, name) => updateStatus(library, statusId, { name })}
-      onRecolor={(statusId, color) => updateStatus(library, statusId, { color })}
-      onDelete={(statusId) => deleteStatus(library, statusId)}
-      countUsing={countUsing}
+      {...statusLibraryActions(library, countUsing)}
     />
   );
 }

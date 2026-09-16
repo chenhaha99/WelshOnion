@@ -54,6 +54,37 @@ export function ShiftIcon() {
   );
 }
 
+/** 计划设置：齿轮 */
+export function GearIcon() {
+  return (
+    <Icon>
+      <circle cx="8" cy="8" r="2.25" />
+      <path d="M8 1.75v1.4M8 12.85v1.4M14.25 8h-1.4M3.15 8h-1.4" />
+      <path d="m12.42 3.58-1 1M4.58 11.42l-1 1M12.42 12.42l-1-1M4.58 4.58l-1-1" />
+    </Icon>
+  );
+}
+
+/** 撤销：往左拐回去的箭头 */
+export function UndoIcon() {
+  return (
+    <Icon>
+      <path d="M3.25 7.5h7a3.25 3.25 0 1 1 0 6.5H6.5" />
+      <path d="m6 4.5-2.75 3L6 10.5" />
+    </Icon>
+  );
+}
+
+/** 重做：往右拐回去的箭头 */
+export function RedoIcon() {
+  return (
+    <Icon>
+      <path d="M12.75 7.5h-7a3.25 3.25 0 1 0 0 6.5H9.5" />
+      <path d="m10 4.5 2.75 3L10 10.5" />
+    </Icon>
+  );
+}
+
 /** 删除：垃圾桶 */
 export function TrashIcon() {
   return (

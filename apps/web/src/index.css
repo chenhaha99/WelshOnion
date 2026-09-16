@@ -180,6 +180,12 @@
 }
 
 /* 设置抽屉：从右边滑出，不盖住后面的内容（改完要立刻看见数字变） */
+@utility window {
+  background-color: rgb(255 255 255 / 0.96);
+  box-shadow: 0 24px 64px rgb(47 58 69 / 0.22);
+  backdrop-filter: blur(24px) saturate(1.2);
+}
+
 @utility drawer {
   border-left: 1px solid rgb(255 255 255 / 0.8);
   background-color: rgb(255 255 255 / 0.8);
