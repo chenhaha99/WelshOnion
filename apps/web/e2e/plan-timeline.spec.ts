@@ -41,6 +41,8 @@ test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
+  // 打开是时间轴：这份走查从安排表开始，先切到列表
+  await showView(page, "列表");
 
   const timeline = page.getByRole("region", { name: "时间轴" });
   // 刚建好、一件事都没有：时间轴上提示去加第一件事

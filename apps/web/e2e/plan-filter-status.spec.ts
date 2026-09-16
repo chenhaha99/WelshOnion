@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 test("按状态筛选：只看待定 → 只用键盘挨个确认 → 全部显示 → 手机", async ({ page }) => {
@@ -11,6 +12,8 @@ test("按状态筛选：只看待定 → 只用键盘挨个确认 → 全部显�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
+  // 打开是时间轴：这份走查从安排表开始，先切到列表
+  await showView(page, "列表");
 
   const day1 = page.getByRole("list", { name: "日期列表" }).getByRole("listitem").nth(0);
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });

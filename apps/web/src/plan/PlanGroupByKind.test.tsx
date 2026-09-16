@@ -5,7 +5,7 @@ import { addBlock, addExpense, setBlockStatus } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openOtherTab, openStoredPlan } from "./test-helpers";
+import { daysFromOct1, openOtherTab, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -47,6 +47,7 @@ function trip(plan: Y.Doc, library: Y.Doc): void {
 }
 
 async function switchTo(user: User, name: "按天" | "按类型"): Promise<void> {
+  await showView("列表");
   await user.click(within(await screen.findByRole("group", { name: "分组" })).getByRole("button", { name }));
 }
 
@@ -86,6 +87,7 @@ describe("按天、按类型切换", () => {
     const user = userEvent.setup();
     await openStoredPlan(trip);
 
+    await showView("列表");
     const toggle = await screen.findByRole("group", { name: "分组" });
     expect(within(toggle).getByRole("button", { name: "按天" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("list", { name: "日期列表" })).toBeTruthy();

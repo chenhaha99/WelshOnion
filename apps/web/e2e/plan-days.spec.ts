@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 test("几天：新建 → 定 3 天 → 键盘插天 → 撤销重做 → 时区和请假 → 设置 → 回列表", async ({ page }) => {
@@ -14,6 +15,8 @@ test("几天：新建 → 定 3 天 → 键盘插天 → 撤销重做 → 时区
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("3");
   await page.getByRole("button", { name: "确定" }).click();
+  // 打开是时间轴：这份走查从安排表开始，先切到列表
+  await showView(page, "列表");
   const list = page.getByRole("list", { name: "日期列表" });
   const rows = list.getByRole("listitem");
   await expect(rows).toHaveCount(3);

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 test("两晚共用一笔房费：第二晚挂上第一晚那笔 → 共用 → 删掉第一晚房费还在 → 撤销 → 手机上拿掉再挂上", async ({ page }) => {
@@ -11,6 +12,8 @@ test("两晚共用一笔房费：第二晚挂上第一晚那笔 → 共用 → �
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
+  // 打开是时间轴：这份走查从安排表开始，先切到列表
+  await showView(page, "列表");
 
   const firstDay = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const secondDay = page.getByRole("table", { name: /10\.2 周五 的安排/ });

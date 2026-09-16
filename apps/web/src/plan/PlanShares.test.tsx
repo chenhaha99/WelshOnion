@@ -5,7 +5,7 @@ import { addBlock, addExpense, addStatus, setBlockStatus, updateKind } from "@we
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openStoredPlan } from "./test-helpers";
+import { daysFromOct1, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -59,6 +59,7 @@ describe("占比卡片", () => {
     });
     const card = await screen.findByRole("region", { name: "占比" });
     const overview = screen.getByRole("region", { name: "钱的总览" });
+    await showView("列表");
     const days = screen.getByRole("list", { name: "日期列表" });
     expect(overview.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(card.compareDocumentPosition(days) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

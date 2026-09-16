@@ -6,9 +6,9 @@ function keyOf(planId: string): string {
   return `welshonion.plan-view.${planId}`;
 }
 
-/** 这个计划上次看的视图；没存过是列表。 */
+/** 这个计划上次看的视图；没存过是时间轴（主页面是时间轴，然后才是列表）。 */
 export function readPlanView(planId: string): PlanViewName {
-  return localStorage.getItem(keyOf(planId)) === "timeline" ? "timeline" : "list";
+  return localStorage.getItem(keyOf(planId)) === "list" ? "list" : "timeline";
 }
 
 export function savePlanView(planId: string, view: PlanViewName): void {

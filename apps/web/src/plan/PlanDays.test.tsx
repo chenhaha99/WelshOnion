@@ -8,6 +8,7 @@ import { NOW, renderApp } from "../app/test-render";
 import { openLibrary } from "../storage/library";
 import { createPlan, openPlan } from "../storage/plans";
 import { releaseAll, track } from "../storage/test-helpers";
+import { showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -34,6 +35,7 @@ function threeDaysFromOct1(doc: Y.Doc): string[] {
 }
 
 async function dayLabels(): Promise<string[]> {
+  await showView("列表");
   const list = await screen.findByRole("list", { name: "日期列表" });
   return within(list)
     .getAllByRole("listitem")

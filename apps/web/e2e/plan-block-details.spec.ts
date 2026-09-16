@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 async function schedule(page: Page, row: Locator, title: string, start: string, hours: string): Promise<void> {
@@ -22,6 +23,8 @@ test("块的详情：键盘打开详情填备注 → 交通块自驾挂油费 �
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
+  // 打开是时间轴：这份走查从安排表开始，先切到列表
+  await showView(page, "列表");
 
   // 先设每公里成本，自驾填齐时才会挂油费
   await page.getByRole("button", { name: "国庆杭州" }).click();

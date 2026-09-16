@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 test("安排表：连着加几件事 → 改类型状态 → 排时间 → 缩进 → 删除再撤销", async ({ page }) => {
@@ -11,6 +12,8 @@ test("安排表：连着加几件事 → 改类型状态 → 排时间 → 缩�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
+  // 打开是时间轴：这份走查从安排表开始，先切到列表
+  await showView(page, "列表");
 
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const rows = table.locator("tr[data-block-id]");

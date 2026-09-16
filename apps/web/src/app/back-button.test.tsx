@@ -3,7 +3,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { addBlock } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { blockRow, daysFromOct1, openOtherTab, openStoredPlan } from "../plan/test-helpers";
+import { blockRow, daysFromOct1, openOtherTab, openStoredPlan, showView } from "../plan/test-helpers";
 import { releaseAll } from "../storage/test-helpers";
 import { registerBackButton } from "./back-button";
 import { renderApp } from "./test-render";
@@ -64,6 +64,7 @@ describe("返回键", () => {
     });
     const other = await openOtherTab(planId);
 
+    await showView("列表");
     const title = await screen.findByDisplayValue("西湖");
     await user.clear(title);
     await user.type(title, "杭州");

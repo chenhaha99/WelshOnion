@@ -29,35 +29,35 @@ function follows(first: Element, second: Element): boolean {
 }
 
 describe("时间轴和列表切换着看", () => {
-  it("第一次打开是列表：有日期列表和分组，没有时间轴；筛选、钱的总览、占比都在", async () => {
+  it("第一次打开是时间轴：只有时间轴卡片，没有日期列表和分组；筛选、钱的总览、占比都在", async () => {
     await openStoredPlan(lakeOnOct1);
 
     const views = await viewSwitch();
     expect(within(views).getAllByRole("button").map((button) => button.textContent)).toEqual(["时间轴", "列表"]);
-    expect(pressedView()).toBe("列表");
-    expect(screen.getByRole("list", { name: "日期列表" })).toBeTruthy();
-    expect(screen.getByRole("group", { name: "分组" })).toBeTruthy();
-    expect(screen.queryByRole("region", { name: "时间轴" })).toBeNull();
-    expect(screen.getByRole("group", { name: "按状态筛选" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "钱的总览" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "占比" })).toBeTruthy();
-  });
-
-  it("切到时间轴：只有时间轴卡片；筛选、钱的总览、占比还在，切换按钮在占比和时间轴中间", async () => {
-    const user = userEvent.setup();
-    await openStoredPlan(lakeOnOct1);
-
-    await user.click(within(await viewSwitch()).getByRole("button", { name: "时间轴" }));
-
     expect(pressedView()).toBe("时间轴");
     const timeline = screen.getByRole("region", { name: "时间轴" });
     expect(screen.queryByRole("list", { name: "日期列表" })).toBeNull();
     expect(screen.queryByRole("group", { name: "分组" })).toBeNull();
     expect(screen.getByRole("group", { name: "按状态筛选" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "钱的总览" })).toBeTruthy();
-    const views = screen.getByRole("group", { name: "视图" });
+    expect(screen.getByRole("region", { name: "占比" })).toBeTruthy();
+    // 切换按钮在占比和视图中间
     expect(follows(screen.getByRole("region", { name: "占比" }), views)).toBe(true);
     expect(follows(views, timeline)).toBe(true);
+  });
+
+  it("切到列表：只有日期列表和分组；筛选、钱的总览、占比还在", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(lakeOnOct1);
+
+    await user.click(within(await viewSwitch()).getByRole("button", { name: "列表" }));
+
+    expect(pressedView()).toBe("列表");
+    expect(screen.getByRole("list", { name: "日期列表" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "分组" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "时间轴" })).toBeNull();
+    expect(screen.getByRole("group", { name: "按状态筛选" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "钱的总览" })).toBeTruthy();
     // 切视图不改计划：撤销还是灰的
     expect(screen.getByRole("button", { name: "撤销" })).toHaveProperty("disabled", true);
   });
@@ -66,6 +66,7 @@ describe("时间轴和列表切换着看", () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeOnOct1);
     await user.click(within(await screen.findByRole("group", { name: "按状态筛选" })).getByRole("button", { name: "已确认" }));
+    await user.click(within(await viewSwitch()).getByRole("button", { name: "列表" }));
     await user.click(within(screen.getByRole("group", { name: "分组" })).getByRole("button", { name: "按类型" }));
 
     await user.click(within(await viewSwitch()).getByRole("button", { name: "时间轴" }));

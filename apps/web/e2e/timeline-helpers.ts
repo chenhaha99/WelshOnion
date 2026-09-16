@@ -13,11 +13,17 @@ export interface Point {
 
 type ViewName = "时间轴" | "列表";
 
-/** 新建一个计划、定好几天。默认 10.1 出发、在 1280 × 900 的窗口里。建好是列表视图。 */
-export async function newPlan(
+interface NewPlanOptions {
+  startDate?: string;
+  width?: number;
+  height?: number;
+}
+
+/** 新建一个计划、定好几天，停在打开时的视图（现在是时间轴）。默认 10.1 出发、在 1280 × 900 的窗口里。 */
+export async function newPlanKeepingView(
   page: Page,
   dayCount = 2,
-  { startDate = "2026-10-01", width = 1280, height = 900 }: { startDate?: string; width?: number; height?: number } = {},
+  { startDate = "2026-10-01", width = 1280, height = 900 }: NewPlanOptions = {},
 ): Promise<void> {
   await page.setViewportSize({ width, height });
   await page.goto("/");
@@ -27,6 +33,16 @@ export async function newPlan(
   await page.getByLabel("出发日期").fill(startDate);
   await page.getByLabel("天数").fill(String(dayCount));
   await page.getByRole("button", { name: "确定" }).click();
+  await expect(page.getByRole("group", { name: "视图" })).toBeVisible();
+}
+
+/**
+ * 新建一个计划、定好几天，再切到列表：多数走查从安排表开始。
+ * 打开一个计划本来落在时间轴（`newPlanKeepingView` 停在那儿），要验「打开是哪个视图」的用那一个。
+ */
+export async function newPlan(page: Page, dayCount = 2, options: NewPlanOptions = {}): Promise<void> {
+  await newPlanKeepingView(page, dayCount, options);
+  await showView(page, "列表");
   await expect(page.getByRole("list", { name: "日期列表" }).getByRole("listitem")).toHaveCount(dayCount);
 }
 

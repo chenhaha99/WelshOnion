@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 async function pickKind(page: Page, row: Locator, kind: string): Promise<void> {
@@ -28,6 +29,8 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
+  // 打开是时间轴：这份走查从安排表开始，先切到列表
+  await showView(page, "列表");
 
   const card = page.getByRole("region", { name: "占比" });
   const moneyPart = card.getByRole("group", { name: "钱的占比" });

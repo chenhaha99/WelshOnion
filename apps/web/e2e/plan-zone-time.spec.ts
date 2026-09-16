@@ -12,6 +12,8 @@ test("跨时区：北京那天加同日期的洛杉矶 → 18:00 起飞 12 小�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("1");
   await page.getByRole("button", { name: "确定" }).click();
+  // 打开是时间轴：这份走查从安排表开始，先切到列表
+  await showView(page, "列表");
 
   // 北京那天下面加一个同日期、洛杉矶时区的天
   const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");

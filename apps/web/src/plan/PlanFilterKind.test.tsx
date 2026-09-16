@@ -260,6 +260,7 @@ describe("按类型筛选时的钱", () => {
 
     await pressKind(user, "住宿");
 
+    await showView("列表");
     const line = await screen.findByText("有 ¥300 挂在被筛掉的事上");
     const list = screen.getByRole("list", { name: "日期列表" });
     expect(line.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
