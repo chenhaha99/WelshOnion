@@ -20,31 +20,42 @@ interface BlockDetailsProps {
 }
 
 /**
- * 块的详情，在详情面板里直接摊开：短备注、路程（交通方式、距离）、长备注，回车或离开就保存。
+ * 块的详情，在详情面板里：短备注、路程（交通方式、距离）、长备注，回车或离开就保存。
+ * 两个备注都空着时收成一个「加备注」按钮（新建的事一上来不摆三个空框）；有内容的照旧摊开。
  * 交通块、已经填过路程的块直接有路程两栏，别的块点「加路程」才出现。
  */
 export function BlockDetails({ doc, library, block }: BlockDetailsProps) {
   const transportSelect = useRef<HTMLSelectElement>(null);
+  const subtitleInput = useRef<HTMLDivElement>(null);
   const [routeAdded, setRouteAdded] = useState(false);
+  const [notesAdded, setNotesAdded] = useState(false);
   const showRoute =
     routeAdded || block.kind.id === TRANSIT_KIND_ID || block.transport_mode !== null || block.distance_m !== null;
+  const showNotes = notesAdded || (block.subtitle ?? "") !== "" || (block.note ?? "") !== "";
 
   useEffect(() => {
     if (routeAdded) transportSelect.current?.focus();
   }, [routeAdded]);
+  useEffect(() => {
+    if (notesAdded) subtitleInput.current?.querySelector("input")?.focus();
+  }, [notesAdded]);
 
   return (
     <div role="group" aria-label={`${block.title} 的详情`} className="flex flex-col gap-3 text-sm">
-      <CommitInput
-        label="短备注"
-        value={block.subtitle ?? ""}
-        className="input w-full"
-        commit={(text) => {
-          const next = text === "" ? null : text;
-          if (next !== block.subtitle) updateBlock(doc, library, block.id, { subtitle: next });
-          return null;
-        }}
-      />
+      {showNotes && (
+        <div ref={subtitleInput}>
+          <CommitInput
+            label="短备注"
+            value={block.subtitle ?? ""}
+            className="input w-full"
+            commit={(text) => {
+              const next = text === "" ? null : text;
+              if (next !== block.subtitle) updateBlock(doc, library, block.id, { subtitle: next });
+              return null;
+            }}
+          />
+        </div>
+      )}
       {showRoute ? (
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
@@ -86,7 +97,13 @@ export function BlockDetails({ doc, library, block }: BlockDetailsProps) {
           加路程
         </button>
       )}
-      <CommitInput
+      {!showNotes && (
+        <button data-add-notes type="button" className="btn btn-ghost self-start" onClick={() => setNotesAdded(true)}>
+          加备注
+        </button>
+      )}
+      {showNotes && (
+        <CommitInput
         label="长备注"
         multiline
         value={block.note ?? ""}
@@ -96,7 +113,8 @@ export function BlockDetails({ doc, library, block }: BlockDetailsProps) {
           if (next !== block.note) updateBlock(doc, library, block.id, { note: next });
           return null;
         }}
-      />
+        />
+      )}
     </div>
   );
 }

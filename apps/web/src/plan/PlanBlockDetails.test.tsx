@@ -33,7 +33,11 @@ function driveToLake(plan: Y.Doc, library: Y.Doc, meters?: number): void {
 async function openDetails(user: User, title: string): Promise<HTMLElement> {
   await user.click(within(await blockRow("10.1", title)).getByRole("button", { name: "这件事的操作" }));
   await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "详情…" }));
-  return screen.getByRole("group", { name: `${title} 的详情` });
+  const details = screen.getByRole("group", { name: `${title} 的详情` });
+  // 两个备注都空着时收起着，点开才有框（点完焦点就在短备注上）
+  const add = within(details).queryByRole("button", { name: "加备注" });
+  if (add) await user.click(add);
+  return details;
 }
 
 async function subtitleOf(title: string): Promise<string | null> {
@@ -59,6 +63,33 @@ describe("块的详情", () => {
 
     await waitFor(async () => expect(await subtitleOf("西湖")).toBe("看落日"));
     await waitFor(() => expect(blockOf(other, "西湖")?.subtitle).toBe("看落日"));
+  });
+
+  it("两个备注都空着就收起来，点「加备注」才摊开；有内容的直接摊开", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      undated(plan, library, "西湖");
+    });
+
+    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "这件事的操作" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "详情…" }));
+    const details = screen.getByRole("group", { name: "西湖 的详情" });
+    const add = within(details).getByRole("button", { name: "加备注" });
+    expect(within(details).queryByLabelText("短备注")).toBeNull();
+    expect(within(details).queryByLabelText("长备注")).toBeNull();
+    expect(document.activeElement).toBe(add);
+
+    await user.click(add);
+    expect(document.activeElement).toBe(within(details).getByLabelText("短备注"));
+    await user.type(within(details).getByLabelText("短备注"), "看落日{Enter}");
+    await user.click(within(screen.getByRole("dialog", { name: "西湖" })).getByRole("button", { name: "关闭" }));
+
+    // 有内容了：再打开就直接摊开
+    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "这件事的操作" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "详情…" }));
+    const again = screen.getByRole("group", { name: "西湖 的详情" });
+    expect(within(again).queryByRole("button", { name: "加备注" })).toBeNull();
+    expect(document.activeElement).toBe(within(again).getByLabelText("短备注"));
   });
 
   it("清空短备注：标题下面没有小字", async () => {

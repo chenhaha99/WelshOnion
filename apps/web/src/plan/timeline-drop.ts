@@ -42,6 +42,8 @@ export interface DropInput {
   blockId: string;
   mode: DragMode;
   alt: boolean;
+  /** 这一次是从快捷条的「复制」按住拖出来的：拖的是复制出来的那一份，进「没排时间」栏也是复制 */
+  forceCopy: boolean;
   /** 指针在横轴上，还是在某一行的「没排时间」栏里 */
   zone: { kind: "axis" } | { kind: "tray"; row: number };
   /** 栏里的一件在第几行的栏里；横条是 null */
@@ -62,7 +64,7 @@ export type DropAction =
   | { kind: "timed"; blockId: string; baseId: string; minute: number; duration: number; ontoId: string | null }
   | { kind: "resize-start"; blockId: string; baseId: string; minute: number; duration: number }
   | { kind: "resize-end"; blockId: string; duration: number }
-  | { kind: "undated"; blockId: string; baseId: string; slot: SlotChoice };
+  | { kind: "undated"; blockId: string; copy: boolean; baseId: string; slot: SlotChoice };
 
 /** 叠上去还是放旁边，写成操作的放法。 */
 export function placementOf(ontoId: string | null): { placement: Placement; ontoBlockId?: string } {
@@ -82,10 +84,13 @@ export function dropAction(input: DropInput, plan: PlanView, day: number | null)
     const baseId = plan.bases[input.zone.row]!.id;
     if (input.source === "chip") {
       return block.start_minute === null && input.zone.row !== input.homeRow
-        ? { kind: "undated", blockId, baseId, slot: block.slot ?? "day" }
+        ? { kind: "undated", blockId, copy: false, baseId, slot: block.slot ?? "day" }
         : null;
     }
-    return block.start_minute === null ? null : { kind: "undated", blockId, baseId, slot: slotOfMinute(block.start_minute) };
+    // 拖进栏里都是挪（按着 Alt 也是）；只有从快捷条的「复制」拖出来的，进栏的是复制出来的那一份
+    return block.start_minute === null
+      ? null
+      : { kind: "undated", blockId, copy: input.forceCopy, baseId, slot: slotOfMinute(block.start_minute) };
   }
 
   if (input.source === "chip") {
@@ -224,6 +229,8 @@ export interface HitContext {
   /** 这一行的横轴在屏幕上的位置 */
   axis: AxisRect;
   orientation: "wide" | "day";
+  /** 横排主轨每道多高（像素）：块上写不写钱不一样 */
+  laneHeight: number;
   /** 不算的块：被拖的块、跟着它走的块，复制时还有复制出来的 */
   excluded: ReadonlySet<string>;
   /** 被拖块的类型层：只看类型层一样的块 */
@@ -235,9 +242,9 @@ export interface HitContext {
  * 几块叠着时从画在最上面的看起（缩得深的在上，一样深的后画的在上），类型层不一样的跳过、接着往下看。
  */
 export function ontoAt(point: Point, context: HitContext): string | null {
-  const { plan, library, layout, axis, orientation, excluded } = context;
+  const { plan, library, layout, axis, orientation, excluded, laneHeight } = context;
   const under = [...layout.background, ...layout.main]
-    .map((item, order) => ({ item, order, rect: segmentRect(item, layout, axis, orientation) }))
+    .map((item, order) => ({ item, order, rect: segmentRect(item, layout, axis, orientation, laneHeight) }))
     .filter(({ item, rect }) => !excluded.has(item.blockId) && inside(point, rect))
     .sort((a, b) => b.item.depth - a.item.depth || b.order - a.order);
   for (const { item, rect } of under) {
@@ -249,13 +256,19 @@ export function ontoAt(point: Point, context: HitContext): string | null {
 }
 
 /** 一段在屏幕上占的矩形，和 Timeline、DayTimeline 画的一样（timeline-geometry）；时长为 0 的沿时间方向放宽到 12 像素。 */
-function segmentRect(item: PlacedSegment, layout: RowLayout, axis: AxisRect, orientation: "wide" | "day"): AxisRect {
+function segmentRect(
+  item: PlacedSegment,
+  layout: RowLayout,
+  axis: AxisRect,
+  orientation: "wide" | "day",
+  laneHeight: number,
+): AxisRect {
   const along = orientation === "wide" ? axis.width : axis.height;
   const start = (item.from / MINUTES_PER_DAY) * along;
   const length = ((item.to - item.from) / MINUTES_PER_DAY) * along;
   const [from, size] = length === 0 ? [start - MARKER_HIT / 2, MARKER_HIT] : [start, length];
   if (orientation === "wide") {
-    const { top, height } = wideSegmentBox(item, layout);
+    const { top, height } = wideSegmentBox(item, layout, laneHeight);
     return { left: axis.left + from, width: size, top: axis.top + top, height };
   }
   const { left, width } = daySegmentPixels(item, layout, axis.width);

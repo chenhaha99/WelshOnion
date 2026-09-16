@@ -42,7 +42,8 @@ function quickBar(title: string): HTMLElement {
 
 /** 时间轴上选中的是哪几件（读屏名的头一段就是标题）。 */
 function selectedTitles(): string[] {
-  return [...document.querySelectorAll('section[aria-label="时间轴"] button[aria-pressed="true"]')].map(
+  const blocks = 'section[aria-label="时间轴"] [data-block-id] > button[aria-pressed="true"]';
+  return [...document.querySelectorAll(blocks)].map(
     (button) => button.getAttribute("aria-label")?.split(" ")[0] ?? "",
   );
 }

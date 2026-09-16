@@ -20,6 +20,7 @@ import {
   type DropInput,
   type HitContext,
 } from "./timeline-drop";
+import { LANE_HEIGHT } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type RowLayout } from "./timeline-layout";
 
 interface Built {
@@ -86,6 +87,7 @@ function wideContext(built: Built, excluded: string[], kindLayer = 2): HitContex
     layout: built.rows[0]!,
     axis: WIDE_AXIS,
     orientation: "wide",
+    laneHeight: LANE_HEIGHT,
     excluded: new Set(excluded),
     kindLayer,
   };
@@ -182,6 +184,7 @@ function chipDrag(built: Built, title: string, fields: Partial<DropInput>): Drop
     blockId: built.ids[title]!,
     mode: "move",
     alt: false,
+    forceCopy: false,
     zone: { kind: "axis" },
     homeRow: 0,
     down: { row: 0, minute: 0 },
@@ -203,6 +206,7 @@ function segmentDrag(built: Built, title: string, fields: Partial<DropInput>): D
     blockId: block.id,
     mode: "move",
     alt: false,
+    forceCopy: false,
     zone: { kind: "axis" },
     homeRow: null,
     down: { row, minute: block.start_minute! },

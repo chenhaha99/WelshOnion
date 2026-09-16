@@ -99,8 +99,12 @@ export function BlockPanel({ doc, library, libraryView, plan, block, moneyCell, 
       onClose={() => onClose()}
       initialFocus={(panel) => {
         if (focus === "panel") return panel;
-        const group = focus === "money" ? " 的钱" : " 的详情";
-        return panel.querySelector<HTMLElement>(`[role="group"][aria-label$="${group}"] input`);
+        if (focus === "money") return panel.querySelector<HTMLElement>('[role="group"][aria-label$=" 的钱"] input');
+        // 备注收起着时焦点放在「加备注」上，摊开着时放在短备注（它是这一组里第一个框）
+        return (
+          panel.querySelector<HTMLElement>("[data-add-notes]") ??
+          panel.querySelector<HTMLElement>('[role="group"][aria-label$=" 的详情"] input')
+        );
       }}
     >
       <CommitInput

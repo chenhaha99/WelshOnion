@@ -11,8 +11,10 @@ import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
 import { OpenBlockContext, type OpenBlock, type PanelFocus } from "./open-block";
+import { readBlockText, saveBlockText } from "./plan-block-text-memory";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
 import { SelectBlockContext, type BlockSelection } from "./select-block";
+import type { BlockText } from "./timeline-geometry";
 import { SharesCard } from "./SharesCard";
 import { Timeline } from "./Timeline";
 
@@ -65,6 +67,12 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   const pressedGrouping = useRef<HTMLButtonElement>(null);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
+  // 时间轴的块上写什么（标题，还是标题加钱）：也按计划记在这台设备上
+  const [blockText, setBlockText] = useState<BlockText>(() => readBlockText(planId));
+  const showBlockText = (next: BlockText) => {
+    setBlockText(next);
+    saveBlockText(planId, next);
+  };
   // 竖排看的是哪天（底座 id）：切到列表时时间轴卸掉，切回来接着看这天
   const shownDay = useRef<string | null>(null);
   // 零高度的标记放在切换按钮本来的位置：按钮贴在顶上时，靠它量出按钮不贴顶该在哪
@@ -238,6 +246,8 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
                 libraryView={libraryView}
                 filter={filter}
                 moneyCells={cells}
+                blockText={blockText}
+                onBlockText={showBlockText}
                 shownDay={shownDay}
               />
             ) : (

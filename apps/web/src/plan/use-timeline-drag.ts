@@ -75,6 +75,12 @@ interface Drag extends DropInput {
   followers: readonly string[];
 }
 
+/** 快捷条上的「复制」：按住拖出来的那一份（点一下不拖是原地复制，由快捷条自己做）。 */
+export interface CopyHandlers {
+  onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>, blockId: string) => void;
+  onClickCapture: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+}
+
 /** 拖动中每段横条要画成什么样。 */
 export interface DragView {
   /** 被拖的块 */
@@ -130,8 +136,12 @@ interface TimelineDragOptions {
   filter: StatsFilter | undefined;
   /** 竖排正在看第几行；横排是 null */
   day: number | null;
+  /** 横排主轨每道多高（像素）：块上写不写钱不一样，量指针落在哪块上要用 */
+  laneHeight: number;
   /** 竖排能上下滚的框：拖到框边时它自己滚；横排不给 */
   scroller?: RefObject<HTMLDivElement | null>;
+  /** 松手写进计划以后：拖的那一件（复制的是复制出来的那一份）；外面用它接着选中 */
+  onDropped?: (blockId: string) => void;
 }
 
 export interface TimelineDrag {
@@ -143,6 +153,7 @@ export interface TimelineDrag {
   pointerLabel: PointerLabel | null;
   handlers: SegmentHandlers;
   chipHandlers: ChipHandlers;
+  copyHandlers: CopyHandlers;
   /** 第 index 行的整行元素、横轴元素、「没排时间」栏：换算指针位置用 */
   rowRef: (index: number) => (element: HTMLLIElement | null) => void;
   axisRef: (index: number) => (element: HTMLDivElement | null) => void;
@@ -168,7 +179,9 @@ export function useTimelineDrag({
   rows,
   filter,
   day,
+  laneHeight,
   scroller,
+  onDropped,
 }: TimelineDragOptions): TimelineDrag {
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
@@ -209,9 +222,9 @@ export function useTimelineDrag({
   /** 最近一次在时间轴里按下的是不是鼠标：手指长按弹出的系统菜单要拦，鼠标右键的不拦 */
   const lastPressByMouse = useRef(true);
   // 窗口上的监听、长按计时、每帧的滚动都经过这里读最新的计划
-  const latest = useRef({ doc, library, plan, libraryView, rows, filter, day });
+  const latest = useRef({ doc, library, plan, libraryView, rows, filter, day, laneHeight });
   useEffect(() => {
-    latest.current = { doc, library, plan, libraryView, rows, filter, day };
+    latest.current = { doc, library, plan, libraryView, rows, filter, day, laneHeight };
   });
 
   /**
@@ -254,7 +267,7 @@ export function useTimelineDrag({
    * 只量指针所在那一行（竖排是正在看的那一天）：块画在哪按道、缩进、时间算，这一行的横轴在屏幕上的位置读 DOM。
    */
   const ontoAfterDrop = (next: Drag, previous: string | null): string | null => {
-    const { plan, libraryView, rows, filter, day } = latest.current;
+    const { plan, libraryView, rows, filter, day, laneHeight } = latest.current;
     const row = day ?? next.now.row;
     const axis = axisElements.current[row]!.getBoundingClientRect();
     const excluded = new Set([next.blockId, ...next.followers]);
@@ -271,6 +284,7 @@ export function useTimelineDrag({
           layout: droppedRow(dropped, libraryView, filter, row, day === null ? rows[row]! : null),
           axis,
           orientation: day === null ? "wide" : "day",
+          laneHeight,
           excluded,
           kindLayer: kindLayer(dropped.blocks.get(next.blockId)!, libraryView),
         },
@@ -310,7 +324,7 @@ export function useTimelineDrag({
   const lift = () => {
     const current = dragRef.current;
     if (!current || current.active) return;
-    moveTo(current, current.downX, current.downY, false, false);
+    moveTo(current, current.downX, current.downY, current.forceCopy, false);
   };
 
   const pressed = drag !== null;
@@ -329,7 +343,8 @@ export function useTimelineDrag({
         }
         if (distance < DRAG_THRESHOLD_PX) return;
       }
-      moveTo(current, event.clientX, event.clientY, event.altKey, current.moved || distance >= DRAG_THRESHOLD_PX);
+      const copying = current.forceCopy || event.altKey;
+      moveTo(current, event.clientX, event.clientY, copying, current.moved || distance >= DRAG_THRESHOLD_PX);
     };
 
     const onUp = (event: PointerEvent) => {
@@ -346,7 +361,8 @@ export function useTimelineDrag({
         current.touch ? TOUCH_CLICK_GUARD_MS : 0,
       );
       if (current.touch) swallowTouchEnd.current = true;
-      if (!current.cancelled && current.moved) commit({ ...current, alt: event.altKey });
+      draggedLastPress.current = current.moved;
+      if (!current.cancelled && current.moved) commit({ ...current, alt: current.forceCopy || event.altKey });
     };
 
     const onKey = (event: KeyboardEvent) => {
@@ -355,7 +371,7 @@ export function useTimelineDrag({
       if (event.key === "Escape") {
         event.preventDefault();
         update({ ...current, cancelled: true });
-      } else if (event.key === "Alt") {
+      } else if (event.key === "Alt" && !current.forceCopy) {
         event.preventDefault();
         update({ ...current, alt: event.type === "keydown" });
       }
@@ -455,9 +471,26 @@ export function useTimelineDrag({
     const action = dropAction(done, plan, day);
     if (!action) return;
     switch (action.kind) {
-      case "undated":
-        setBlockUndated(doc, action.blockId, { baseId: action.baseId, slot: action.slot });
+      case "undated": {
+        if (!action.copy) {
+          setBlockUndated(doc, action.blockId, { baseId: action.baseId, slot: action.slot });
+          onDropped?.(action.blockId);
+          return;
+        }
+        // 复制着拖进栏里：先在原处复制一份，再把这一份放进那一天那一格（同一个事务，一步撤销）
+        const block = plan.blocks.get(action.blockId)!;
+        doc.transact(() => {
+          const copy = duplicateBlock(doc, library, action.blockId, {
+            baseId: block.start_base_id,
+            minute: block.start_minute!,
+            placement: "beside",
+          });
+          if (!copy.ok) return;
+          setBlockUndated(doc, copy.value.blockId, { baseId: action.baseId, slot: action.slot });
+          onDropped?.(copy.value.blockId);
+        });
         return;
+      }
       case "timed":
         setBlockTimed(doc, library, action.blockId, {
           baseId: action.baseId,
@@ -465,19 +498,23 @@ export function useTimelineDrag({
           duration: action.duration,
           ...placementOf(action.ontoId),
         });
+        onDropped?.(action.blockId);
         return;
       case "resize-end":
         if (action.duration !== done.span.duration) resizeBlock(doc, action.blockId, action.duration);
+        onDropped?.(action.blockId);
         return;
       case "resize-start":
         if (action.minute !== done.span.start) {
           resizeBlockStart(doc, action.blockId, { baseId: action.baseId, minute: action.minute });
         }
+        onDropped?.(action.blockId);
         return;
       case "move": {
         const target = { baseId: action.baseId, minute: action.minute, ...placementOf(action.ontoId) };
         if (action.copy) {
-          duplicateBlock(doc, library, action.blockId, target);
+          const copy = duplicateBlock(doc, library, action.blockId, target);
+          if (copy.ok) onDropped?.(copy.value.blockId);
           return;
         }
         const block = plan.blocks.get(action.blockId)!;
@@ -485,20 +522,23 @@ export function useTimelineDrag({
         const unmoved = action.minute === clampStart(done.span.start, done.span, plan.bases.length, day);
         if (unmoved && layerAfter === block.layer) return;
         moveBlock(doc, library, action.blockId, target);
+        onDropped?.(action.blockId);
       }
     }
   };
 
-  const suppressClickAfterDrag = (event: ReactMouseEvent<HTMLDivElement>) => {
+  const suppressClickAfterDrag = (event: ReactMouseEvent<HTMLElement>) => {
     if (!suppressClick.current) return;
     event.stopPropagation();
     event.preventDefault();
   };
+  /** 上一次按住的过程中挪过没有：「复制」按钮拖过才拦点击，长按没挪就抬起还算点一下 */
+  const draggedLastPress = useRef(false);
 
   /** 按下：记下按在哪；鼠标挪 4 像素才开始拖，手指、笔开始长按计时。 */
   const startPress = (
-    event: ReactPointerEvent<HTMLDivElement>,
-    fields: Pick<Drag, "source" | "blockId" | "mode" | "homeRow" | "span" | "zone">,
+    event: ReactPointerEvent<HTMLElement>,
+    fields: Pick<Drag, "source" | "blockId" | "mode" | "homeRow" | "span" | "zone"> & { forceCopy?: boolean },
   ) => {
     const touch = event.pointerType !== "mouse";
     const down = spotAt(event.clientX, event.clientY);
@@ -515,7 +555,9 @@ export function useTimelineDrag({
       now: down,
       lastX: event.clientX,
       lastY: event.clientY,
-      alt: event.altKey,
+      forceCopy: fields.forceCopy ?? false,
+      // 从「复制」按住拖出来的一直算复制，不看 Alt
+      alt: (fields.forceCopy ?? false) || event.altKey,
       ontoId: null,
       followers: [],
     });
@@ -550,6 +592,28 @@ export function useTimelineDrag({
       else frame.dataset.edge = edge;
     },
     onClickCapture: suppressClickAfterDrag,
+  };
+
+  const copyHandlers: CopyHandlers = {
+    onPointerDown: (event, blockId) => {
+      if (dragRef.current || (event.pointerType === "mouse" && event.button !== 0)) return;
+      const block = plan.blocks.get(blockId);
+      if (!block || block.start_minute === null) return;
+      const startRow = plan.bases.findIndex((base) => base.id === block.start_base_id);
+      startPress(event, {
+        source: "segment",
+        blockId,
+        mode: "move",
+        homeRow: null,
+        span: { start: startRow * MINUTES_PER_DAY + block.start_minute, duration: block.duration_min ?? 0 },
+        zone: { kind: "axis" },
+        forceCopy: true,
+      });
+    },
+    onClickCapture: (event) => {
+      if (!draggedLastPress.current) return;
+      suppressClickAfterDrag(event);
+    },
   };
 
   const chipHandlers: ChipHandlers = {
@@ -604,6 +668,7 @@ export function useTimelineDrag({
       live && dropped && lifted ? { text: liftedLabel(lifted, dropped.plan, copying), x: live.lastX, y: live.lastY } : null,
     handlers,
     chipHandlers,
+    copyHandlers,
     rowRef: (index) => (element) => {
       rowElements.current[index] = element;
     },
@@ -633,7 +698,7 @@ function liftedLabel(block: BlockView, plan: PlanView, copying: boolean): string
   return copying ? `复制 · ${time}` : time;
 }
 
-/** 拖进栏里时：那一栏描边、写会进哪一格。栏里的一件拖回原来那天的栏不算。 */
+/** 拖进栏里时：那一栏描边、写会进哪一格（复制着拖的写明「复制 · 」）。栏里的一件拖回原来那天的栏不算。 */
 function trayDropOf(drag: Drag, plan: PlanView): TrayDrop | null {
   if (drag.zone.kind !== "tray") return null;
   const block = plan.blocks.get(drag.blockId);
@@ -643,5 +708,6 @@ function trayDropOf(drag: Drag, plan: PlanView): TrayDrop | null {
   }
   if (block.start_minute === null) return null;
   const slot = slotOfMinute(block.start_minute);
-  return { row: drag.zone.row, label: slotLabel(slot === "day" ? null : slot) };
+  const label = slotLabel(slot === "day" ? null : slot);
+  return { row: drag.zone.row, label: drag.forceCopy ? `复制 · ${label}` : label };
 }

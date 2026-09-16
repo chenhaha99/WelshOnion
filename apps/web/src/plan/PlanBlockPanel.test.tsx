@@ -95,13 +95,15 @@ describe("打开和关掉详情面板", () => {
     expect(document.activeElement).toBe(panel);
   });
 
-  it("从列表的「详情…」打开：焦点在短备注", async () => {
+  it("从列表的「详情…」打开：焦点在备注（都空着时在「加备注」上）", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeAtNine);
 
     const panel = await openInList(user, "10.1", "西湖");
 
-    await waitFor(() => expect(document.activeElement).toBe(within(panel).getByLabelText("短备注")));
+    await waitFor(() => expect(document.activeElement).toBe(buttonIn(panel, "加备注")));
+    await user.click(buttonIn(panel, "加备注"));
+    expect(document.activeElement).toBe(within(panel).getByLabelText("短备注"));
   });
 
   it("开着时点另一件：换成那件的面板", async () => {
@@ -282,6 +284,7 @@ describe("面板里有什么", () => {
     await openStoredPlan(lakeAtNine);
 
     const panel = await openInTimeline(user, "10.1", "西湖");
+    await user.click(buttonIn(panel, "加备注"));
     await user.type(within(panel).getByLabelText("短备注"), "看落日");
     await user.click(buttonIn(panel, "关闭"));
 

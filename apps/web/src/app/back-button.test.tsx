@@ -88,6 +88,7 @@ describe("返回键", () => {
     await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "这件事的操作" }));
     await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "详情…" }));
     const panel = screen.getByRole("dialog", { name: "西湖" });
+    await user.click(within(panel).getByRole("button", { name: "加备注" }));
     await user.type(within(panel).getByLabelText("短备注"), "看落日");
 
     pressBack();

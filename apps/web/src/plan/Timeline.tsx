@@ -17,20 +17,36 @@ import { useDayMenu } from "./day-menu";
 import { DayTimeline } from "./DayTimeline";
 import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
+import { BlockMoney } from "./block-money";
 import type { MoneyCell } from "./money-cells";
 import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
-import { GAP, LIFTED_Z_INDEX, QUICK_BAR_ROW_PX, wideAxisHeight, wideSegmentBox, wideStripsHeight } from "./timeline-geometry";
+import {
+  GAP,
+  laneHeight,
+  LIFTED_Z_INDEX,
+  QUICK_BAR_ROW_PX,
+  wideAxisHeight,
+  wideSegmentBox,
+  wideStripsHeight,
+  type BlockText,
+} from "./timeline-geometry";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
-import { useTimelineDrag, type DragView, type SegmentHandlers } from "./use-timeline-drag";
+import { useTimelineDrag, type CopyHandlers, type DragView, type SegmentHandlers } from "./use-timeline-drag";
 import { zoneTimeLabel } from "./zone-time";
 
 /** 每行三栏：标签、横轴、「没排时间」 */
 const ROW_COLUMNS = "grid grid-cols-[5.5rem_1fr_9rem] gap-x-3";
 
 const MINUTES_PER_DAY = 1440;
+
+/** 「块上写」的两个选项 */
+const BLOCK_TEXTS = [
+  { value: "title", label: "标题" },
+  { value: "money", label: "标题 + 钱" },
+] as const satisfies ReadonlyArray<{ value: BlockText; label: string }>;
 
 interface TimelineProps {
   doc: Y.Doc;
@@ -39,8 +55,11 @@ interface TimelineProps {
   libraryView: LibraryView;
   /** 按状态筛选；没开是 undefined */
   filter?: StatsFilter;
-  /** 每件事的钱格摘要（按筛选算过）：快捷条上的「钱」用 */
+  /** 每件事的钱格摘要（按筛选算过）：快捷条上的「钱」、块上写的钱用 */
   moneyCells: Map<string, MoneyCell>;
+  /** 块上写标题，还是标题加钱 */
+  blockText: BlockText;
+  onBlockText: (next: BlockText) => void;
   /** 竖排看的是哪天（底座 id）：DayList 记着，切到列表再切回来接着看这天 */
   shownDay: { current: string | null };
 }
@@ -49,7 +68,17 @@ interface TimelineProps {
  * 时间轴：屏幕够宽时横着铺（一天一行），窄屏上竖着铺、一次一天（见 DayTimeline）；两种都能拖（见 use-timeline-drag）。
  * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。点一件事选中它、旁边出快捷条；每天有「加一件事」和「这天的操作」。
  */
-export function Timeline({ doc, library, plan, libraryView, filter, moneyCells, shownDay }: TimelineProps) {
+export function Timeline({
+  doc,
+  library,
+  plan,
+  libraryView,
+  filter,
+  moneyCells,
+  blockText,
+  onBlockText,
+  shownDay,
+}: TimelineProps) {
   const section = useRef<HTMLElement>(null);
   const labels = dayRowLabels(plan.bases);
   const rows = useMemo(() => {
@@ -73,7 +102,25 @@ export function Timeline({ doc, library, plan, libraryView, filter, moneyCells, 
 
   return (
     <section ref={section} aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
-      <h2 className="text-sm font-medium text-ink">时间轴</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-medium text-ink">时间轴</h2>
+        {/* 块上写标题，还是标题下面再写一行钱（记在这台设备上） */}
+        <div role="group" aria-label="块上写" className="flex rounded-full border border-ink/10 bg-white/70 p-0.5">
+          {BLOCK_TEXTS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={blockText === value}
+              className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+                blockText === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
+              }`}
+              onClick={() => onBlockText(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       {plan.blocks.size === 0 ? (
         // 一件事都没有：栏是空的，栏下面的「加一件事」不显眼，直接给个按钮
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -102,12 +149,14 @@ export function Timeline({ doc, library, plan, libraryView, filter, moneyCells, 
           labels={labels}
           filter={filter}
           moneyCells={moneyCells}
+          blockText={blockText}
         />
       ) : (
         <DayTimeline
           doc={doc}
           library={library}
           moneyCells={moneyCells}
+          blockText={blockText}
           plan={plan}
           libraryView={libraryView}
           rows={rows}
@@ -129,6 +178,7 @@ interface WideTimelineProps {
   labels: readonly string[];
   filter: StatsFilter | undefined;
   moneyCells: Map<string, MoneyCell>;
+  blockText: BlockText;
 }
 
 /**
@@ -136,12 +186,34 @@ interface WideTimelineProps {
  * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条选中它。
  * 拖动中画成松手后的样子，「没排时间」栏照原来的计划（见 use-timeline-drag）。
  */
-function WideTimeline({ doc, library, plan, libraryView, rows, labels, filter, moneyCells }: WideTimelineProps) {
-  const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter, day: null });
+function WideTimeline({
+  doc,
+  library,
+  plan,
+  libraryView,
+  rows,
+  labels,
+  filter,
+  moneyCells,
+  blockText,
+}: WideTimelineProps) {
+  const selection = useBlockSelection();
+  const lane = laneHeight(blockText);
+  // 拖完选中拖的那一件（复制着拖的是复制出来的那一份）
+  const drag = useTimelineDrag({
+    doc,
+    library,
+    plan,
+    libraryView,
+    rows,
+    filter,
+    day: null,
+    laneHeight: lane,
+    onDropped: (blockId) => selection.select(blockId, null),
+  });
   const shownPlan = drag.dropped?.plan ?? plan;
   const shownRows = drag.dropped?.rows ?? rows;
   // 选中的那件旁边出快捷条；拖动中不画
-  const selection = useBlockSelection();
   const selectedBlock = drag.dragView || selection.selectedId === null ? undefined : plan.blocks.get(selection.selectedId);
   const barRow = selectedBlock === undefined ? -1 : quickBarRow(selectedBlock, rows, plan, selection.anchorBaseId);
 
@@ -194,7 +266,10 @@ function WideTimeline({ doc, library, plan, libraryView, rows, labels, filter, m
               onChipClickCapture={drag.chipHandlers.onClickCapture}
               libraryView={libraryView}
               moneyCells={moneyCells}
+              blockText={blockText}
+              laneHeight={lane}
               quickBarBlock={index === barRow ? selectedBlock! : null}
+              copyHandlers={drag.copyHandlers}
             />
           ))}
         </ol>
@@ -227,8 +302,12 @@ interface TimelineRowProps {
   onChipClickCapture: (event: ReactMouseEvent<HTMLDivElement>) => void;
   libraryView: LibraryView;
   moneyCells: Map<string, MoneyCell>;
+  blockText: BlockText;
+  /** 主轨每道多高（像素） */
+  laneHeight: number;
   /** 快捷条画在这一行时，是哪一件事；不画是 null */
   quickBarBlock: BlockView | null;
+  copyHandlers: CopyHandlers;
 }
 
 function TimelineRow({
@@ -251,7 +330,10 @@ function TimelineRow({
   onChipClickCapture,
   libraryView,
   moneyCells,
+  blockText,
+  laneHeight,
   quickBarBlock,
+  copyHandlers,
 }: TimelineRowProps) {
   const [dayNumber, ...rest] = label.split(" · ");
   // 排上时间的：快捷条贴着这一行里它那一段的右下角；没排时间的：画在栏里它自己下面
@@ -267,6 +349,7 @@ function TimelineRow({
       plan={currentPlan}
       block={quickBarBlock}
       moneyCell={moneyCells.get(quickBarBlock.id)}
+      copyHandlers={copyHandlers}
     />
   );
   // 标签那一栏窄：菜单按钮做小，放在「第 1 天」后面；展开的表单占满整行，在这一行下面
@@ -300,7 +383,7 @@ function TimelineRow({
         data-timeline-axis
         className="relative"
         // 快捷条在这一行时，这一行多空出它那一截：条画在道的下面，不盖住别的事
-        style={{ minHeight: wideAxisHeight(layout) + (barSegment ? QUICK_BAR_ROW_PX : 0) }}
+        style={{ minHeight: wideAxisHeight(layout, laneHeight) + (barSegment ? QUICK_BAR_ROW_PX : 0) }}
       >
         {HOUR_LINES.map((hour) => (
           <div
@@ -321,15 +404,19 @@ function TimelineRow({
         {[...layout.background, ...layout.main].map((item) => (
           <Segment
             key={`${item.track}-${item.blockId}`}
+            doc={doc}
+            library={library}
             plan={plan}
             item={item}
-            box={wideSegmentBox(item, layout)}
+            box={wideSegmentBox(item, layout, laneHeight)}
+            showMoney={blockText === "money" && item.track === "main"}
+            money={moneyCells.get(item.blockId)}
             dragView={dragView}
             handlers={handlers}
           />
         ))}
         {barSegment && (
-          <QuickBarAnchor key={barSegment.blockId} to={barSegment.to} top={wideAxisHeight(layout) + GAP}>
+          <QuickBarAnchor key={barSegment.blockId} to={barSegment.to} top={wideAxisHeight(layout, laneHeight) + GAP}>
             {quickBar}
           </QuickBarAnchor>
         )}
@@ -361,16 +448,22 @@ function TimelineRow({
 }
 
 interface SegmentProps {
+  doc: Y.Doc;
+  library: Y.Doc;
   plan: PlanView;
   item: PlacedSegment;
+  /** 块上要不要写钱那一行 */
+  showMoney: boolean;
+  /** 这件事的钱格摘要 */
+  money: MoneyCell | undefined;
   /** 在这一行横轴里的上边和高度（像素） */
   box: { top: number; height: number };
   dragView: DragView | null;
   handlers: SegmentHandlers;
 }
 
-/** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点开详情面板。 */
-function Segment({ plan, item, box, dragView, handlers }: SegmentProps) {
+/** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点一下选中；块上写钱时下面还有写着钱的那一行。 */
+function Segment({ doc, library, plan, item, box, showMoney, money, dragView, handlers }: SegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
@@ -412,6 +505,9 @@ function Segment({ plan, item, box, dragView, handlers }: SegmentProps) {
       <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} className={buttonClass}>
         {point ? null : block.title}
       </BlockButton>
+      {showMoney && !point && (
+        <BlockMoney variant="line" doc={doc} library={library} plan={plan} block={block} moneyCell={money} />
+      )}
     </div>
   );
 }

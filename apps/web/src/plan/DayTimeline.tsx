@@ -7,12 +7,12 @@ import { blockTimeLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
 import { DragLabel } from "./DragLabel";
 import { todayIn } from "./day-labels";
-import type { MoneyCell } from "./money-cells";
+import { moneyCellLabel, type MoneyCell } from "./money-cells";
 import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
 import { initialDayIndex, scrollMinute } from "./timeline-day";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
-import { daySegmentStyle, dayStripsWidth, HOUR_HEIGHT, LIFTED_Z_INDEX } from "./timeline-geometry";
+import { daySegmentStyle, dayStripsWidth, HOUR_HEIGHT, laneHeight, LIFTED_Z_INDEX, type BlockText } from "./timeline-geometry";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { useTimelineDrag, type DragView, type SegmentHandlers } from "./use-timeline-drag";
@@ -30,8 +30,10 @@ interface DayTimelineProps {
   /** 每一行的标签：「第 1 天 · 10.1 周四」 */
   labels: readonly string[];
   filter: StatsFilter | undefined;
-  /** 每件事的钱格摘要（按筛选算过）：快捷条上的「钱」用 */
+  /** 每件事的钱格摘要（按筛选算过）：快捷条上的「钱」、竖条上写的钱用 */
   moneyCells: Map<string, MoneyCell>;
+  /** 块上写标题，还是标题加钱 */
+  blockText: BlockText;
   /** 看的是哪天（底座 id），记在 DayList 里：切到列表时这里卸掉，切回来接着看这天 */
   shownDay: { current: string | null };
 }
@@ -43,7 +45,18 @@ interface DayTimelineProps {
  * 标签旁边是这天的菜单；框下面列出这天没排时间的事（没有就不出现，那里的事不能拖），再下面一直有「加一件事」。
  * 点一件事选中它，快捷条固定在屏幕底部（手指够得着，也不会被块挤到屏幕外）。
  */
-export function DayTimeline({ doc, library, plan, libraryView, rows, labels, filter, moneyCells, shownDay }: DayTimelineProps) {
+export function DayTimeline({
+  doc,
+  library,
+  plan,
+  libraryView,
+  rows,
+  labels,
+  filter,
+  moneyCells,
+  blockText,
+  shownDay,
+}: DayTimelineProps) {
   const now = useNow();
   const timeZone = useTimeZone();
   const today = todayIn(now(), timeZone);
@@ -60,7 +73,20 @@ export function DayTimeline({ doc, library, plan, libraryView, rows, labels, fil
   const dayMenu = useDayMenu({ doc, plan, base, label: labels[index]!, index, count: plan.bases.length });
 
   const scroller = useRef<HTMLDivElement>(null);
-  const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter, day: index, scroller });
+  const selection = useBlockSelection();
+  const drag = useTimelineDrag({
+    doc,
+    library,
+    plan,
+    libraryView,
+    rows,
+    filter,
+    day: index,
+    laneHeight: laneHeight(blockText),
+    scroller,
+    // 拖完选中拖的那一件（复制着拖的是复制出来的那一份）
+    onDropped: (blockId) => selection.select(blockId, null),
+  });
   // 只在打开、翻天时滚：改块、加块时这一行的 id 不变，不滚
   useLayoutEffect(() => {
     shownDay.current = base.id;
@@ -75,7 +101,6 @@ export function DayTimeline({ doc, library, plan, libraryView, rows, labels, fil
   const layout = (drag.dropped?.rows ?? rows)[index]!;
   const undated = undatedBlocks(plan, base, filter);
   // 选中的那件的快捷条；拖动中不画
-  const selection = useBlockSelection();
   const selectedBlock = drag.dragView || selection.selectedId === null ? undefined : plan.blocks.get(selection.selectedId);
 
   return (
@@ -144,6 +169,7 @@ export function DayTimeline({ doc, library, plan, libraryView, rows, labels, fil
                 plan={shownPlan}
                 item={item}
                 place={daySegmentStyle(item, layout)}
+                money={blockText === "money" && item.track === "main" ? moneyCells.get(item.blockId) : undefined}
                 dragView={drag.dragView}
                 handlers={drag.handlers}
               />
@@ -180,6 +206,7 @@ export function DayTimeline({ doc, library, plan, libraryView, rows, labels, fil
             plan={plan}
             block={selectedBlock}
             moneyCell={moneyCells.get(selectedBlock.id)}
+            copyHandlers={drag.copyHandlers}
           />
         </div>
       )}
@@ -193,12 +220,14 @@ interface DaySegmentProps {
   item: PlacedSegment;
   /** 横向的位置：第几列、多宽 */
   place: CSSProperties;
+  /** 块上写钱时这件事的钱格摘要；只写标题时是 undefined */
+  money: MoneyCell | undefined;
   dragView: DragView | null;
   handlers: SegmentHandlers;
 }
 
-/** 一段竖条：外框放位置、data 属性和拖拽的监听（和横排一样），里面的按钮点开详情面板。背景细条太窄，不写字。 */
-function DaySegment({ plan, item, place, dragView, handlers }: DaySegmentProps) {
+/** 一段竖条：外框放位置、data 属性和拖拽的监听（和横排一样），里面的按钮点一下选中。背景细条太窄，不写字。 */
+function DaySegment({ plan, item, place, money, dragView, handlers }: DaySegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
@@ -228,7 +257,13 @@ function DaySegment({ plan, item, place, dragView, handlers }: DaySegmentProps) 
     >
       <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} className={buttonClass}>
         {/* 名字单独一段：竖排里竖条开头滚出框的上边时，名字贴着框的上边（见 index.css） */}
-        {point || item.track === "background" ? null : <span data-bar-title>{block.title}</span>}
+        {point || item.track === "background" ? null : (
+          <span data-bar-title>
+            <span className="truncate">{block.title}</span>
+            {/* 块上写钱时标题下面再写一行；竖条不够高时被框裁掉 */}
+            {money !== undefined && <span data-bar-money-text>{moneyCellLabel(money)}</span>}
+          </span>
+        )}
       </BlockButton>
     </div>
   );

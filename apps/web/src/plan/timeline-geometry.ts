@@ -3,9 +3,18 @@ import type { PlacedSegment, RowLayout } from "./timeline-layout";
 
 // 横条、竖条画在哪：画（Timeline、DayTimeline）和拖动中量指针落在哪块上（timeline-drop）共用这一份
 
-/** 横排：背景条每条、主轨每道多高（像素） */
+/** 横排：背景条每条多高；主轨每道多高——块上只写标题时 28，标题下面还写钱时 40（像素） */
 export const STRIP_HEIGHT = 16;
 export const LANE_HEIGHT = 28;
+export const LANE_HEIGHT_WITH_MONEY = 40;
+
+/** 块上写什么：只写标题，还是标题下面再写一行钱。按计划记在这台设备上（plan-block-text-memory）。 */
+export type BlockText = "title" | "money";
+
+/** 这种写法下主轨每道多高（像素）。 */
+export function laneHeight(blockText: BlockText): number {
+  return blockText === "money" ? LANE_HEIGHT_WITH_MONEY : LANE_HEIGHT;
+}
 /** 块和块之间留多少、叠在上面的块每级缩多少（像素），横排竖排一样 */
 export const GAP = 2;
 export const DEPTH_INSET = 4;
@@ -25,16 +34,16 @@ export function wideStripsHeight(layout: RowLayout): number {
 }
 
 /** 横排一行的横轴至少多高：背景细条加主轨的道。 */
-export function wideAxisHeight(layout: RowLayout): number {
-  return wideStripsHeight(layout) + layout.laneCount * LANE_HEIGHT;
+export function wideAxisHeight(layout: RowLayout, lane: number): number {
+  return wideStripsHeight(layout) + layout.laneCount * lane;
 }
 
 /** 横排一段在这一行横轴里的上边和高度（像素）：背景块在上方的细条里；主轨在细条下面分道，叠在上面的从上面往下缩。 */
-export function wideSegmentBox(item: PlacedSegment, layout: RowLayout): { top: number; height: number } {
+export function wideSegmentBox(item: PlacedSegment, layout: RowLayout, lane: number): { top: number; height: number } {
   if (item.track === "background") return { top: (item.lane - 1) * STRIP_HEIGHT, height: STRIP_HEIGHT - GAP };
   return {
-    top: wideStripsHeight(layout) + (item.lane - 1) * LANE_HEIGHT + GAP + item.depth * DEPTH_INSET,
-    height: LANE_HEIGHT - 2 * GAP - item.depth * DEPTH_INSET,
+    top: wideStripsHeight(layout) + (item.lane - 1) * lane + GAP + item.depth * DEPTH_INSET,
+    height: lane - 2 * GAP - item.depth * DEPTH_INSET,
   };
 }
 
