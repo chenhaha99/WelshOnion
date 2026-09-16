@@ -39,15 +39,18 @@ interface KindPickerProps {
   kinds: KindView[];
   /** 当前计划里有几个块在用这个类型 */
   countUsing: (kindId: string) => number;
+  /** 快捷条上只画一个点，不写名字 */
+  compact?: "fill" | "ring";
 }
 
 /** 块的类型选择器：选类型改块（进撤销）。 */
-export function KindPicker({ doc, library, block, kinds, countUsing }: KindPickerProps) {
+export function KindPicker({ doc, library, block, kinds, countUsing, compact }: KindPickerProps) {
   return (
     <LibraryPicker
       label="类型"
       current={block.kind}
       options={kinds}
+      compact={compact}
       onChoose={(kindId) => updateBlock(doc, library, block.id, { kind_id: kindId })}
       {...kindLibraryActions(library, countUsing)}
     />
@@ -82,15 +85,18 @@ interface StatusPickerProps {
   statuses: StatusView[];
   /** 当前计划里有几个块在用这个状态 */
   countUsing: (statusId: string) => number;
+  /** 快捷条上只画一个圈，不写名字 */
+  compact?: "fill" | "ring";
 }
 
 /** 块的状态选择器：和类型一样，只是没有层。 */
-export function StatusPicker({ doc, library, block, statuses, countUsing }: StatusPickerProps) {
+export function StatusPicker({ doc, library, block, statuses, countUsing, compact }: StatusPickerProps) {
   return (
     <LibraryPicker
       label="状态"
       current={block.status}
       options={statuses}
+      compact={compact}
       onChoose={(statusId) => setBlockStatus(doc, library, [block.id], statusId)}
       onCreate={({ name, color }) => {
         const result = addStatus(library, { name, color });

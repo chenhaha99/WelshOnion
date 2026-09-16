@@ -52,9 +52,9 @@ async function timelineRow(day: string): Promise<HTMLElement> {
 
 /** container 里「没排时间」那一串每件的读屏名，按顺序。 */
 function chipNames(container: HTMLElement): string[] {
-  return within(within(container).getByRole("group", { name: "没排时间" }))
-    .queryAllByRole("button")
-    .map((button) => button.getAttribute("aria-label") ?? "");
+  return [
+    ...within(container).getByRole("group", { name: "没排时间" }).querySelectorAll("[data-undated-chip] > button"),
+  ].map((button) => button.getAttribute("aria-label") ?? "");
 }
 
 async function pressFilter(user: User, name: string): Promise<void> {

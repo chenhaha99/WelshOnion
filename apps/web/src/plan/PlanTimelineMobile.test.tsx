@@ -9,6 +9,7 @@ import {
   dayLabels,
   daysFromOct1,
   openDayMenu,
+  openDetails,
   openStoredPlan,
   pressedView,
   showView,
@@ -158,7 +159,7 @@ describe("竖条怎么画", () => {
     expect(lake.style.height).toBe("12.5%");
     expect(segmentOf(region, "游船").dataset.lane).toBe("2");
 
-    await user.click(within(lake).getByRole("button"));
+    await openDetails(user, within(lake).getByRole("button", { name: /^西湖 / }));
     const dialog = screen.getByRole("dialog", { name: "西湖" });
     expect(within(dialog).getByText("09:00–12:00 · 3 小时")).toBeTruthy();
   });

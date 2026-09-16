@@ -1,5 +1,5 @@
-import { shiftAllDays, type KindView, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { passesFilter, shiftAllDays, type KindView, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { blockFocusSelector } from "./block-actions";
 import { BlockPanel } from "./BlockPanel";
@@ -12,6 +12,7 @@ import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
 import { OpenBlockContext, type OpenBlock, type PanelFocus } from "./open-block";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
+import { SelectBlockContext, type BlockSelection } from "./select-block";
 import { SharesCard } from "./SharesCard";
 import { Timeline } from "./Timeline";
 
@@ -40,7 +41,8 @@ interface DayListProps {
 /** 详情面板开着哪件事：谁点开的（关掉后焦点回到它）、打开时焦点放哪 */
 interface OpenedBlock {
   blockId: string;
-  opener: HTMLElement;
+  /** 点开它的按钮；面板跟着选中换到别件时没有这个按钮，是 null（关掉时按这件事现在的按钮找焦点） */
+  opener: HTMLElement | null;
   focus: PanelFocus;
 }
 
@@ -80,15 +82,23 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
     window.scrollBy(0, viewsMarker.current!.getBoundingClientRect().top - VIEWS_STICKY_TOP);
   }, [viewClicks]);
 
+  // 时间轴上选中的是哪一件、点的是哪一行（跨午夜的块点哪一段，快捷条就贴哪一段）
+  const [selected, setSelected] = useState<{ blockId: string; baseId: string | null } | null>(null);
+  const selectedBlock = selected === null ? undefined : plan.blocks.get(selected.blockId);
+
   const [opened, setOpened] = useState<OpenedBlock | null>(null);
   const openBlock = useCallback<OpenBlock>((blockId, opener, focus = "panel") => setOpened({ blockId, opener, focus }), []);
+  // 面板开着时选中另一件：面板跟着换过去（点开它的那个「详情…」按钮跟着没了，关掉时按这件事现在的按钮找焦点）
+  const followPanel = useCallback((blockId: string) => {
+    setOpened((current) => (current === null || current.blockId === blockId ? current : { blockId, opener: null, focus: "panel" }));
+  }, []);
   const openedBlock = opened === null ? undefined : plan.blocks.get(opened.blockId);
   // 这件事没了（撤销掉了、别的标签页删了），面板自己关
   if (opened !== null && openedBlock === undefined) setOpened(null);
   const closePanel = (deletedFromBaseId?: string) => {
     const closing = opened!;
     setOpened(null);
-    if (deletedFromBaseId === undefined && closing.opener.isConnected) closing.opener.focus();
+    if (deletedFromBaseId === undefined && closing.opener?.isConnected) closing.opener.focus();
     // 等改动画出来再看焦点：点开它的按钮没了（换了行、切了视图），放到这件事现在的按钮上；
     // 删掉了的，列表里安排表自己落到下一行，时间轴上落到那天的「这天的操作」
     requestAnimationFrame(() => {
@@ -113,6 +123,45 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   // 钱格的摘要整份算一次：共用的钱要看全计划才知道显示在哪块
   const cells = useMemo(() => moneyCells(plan, filter), [plan, filter]);
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
+
+  // 选中的那件没了（删了、撤销掉了）、被筛掉了、切到了列表：取消选中
+  if (selected !== null && (view !== "timeline" || selectedBlock === undefined || !passesFilter(selectedBlock, filter))) {
+    setSelected(null);
+  }
+  const selection = useMemo<BlockSelection>(
+    () => ({
+      selectedId: selected?.blockId ?? null,
+      anchorBaseId: selected?.baseId ?? null,
+      toggle: (blockId, baseId) => {
+        setSelected((current) => (current?.blockId === blockId ? null : { blockId, baseId }));
+        followPanel(blockId);
+      },
+      select: (blockId, baseId) => {
+        setSelected({ blockId, baseId });
+        followPanel(blockId);
+      },
+      clear: (options) => {
+        setSelected(null);
+        // 取消选中时块还在，焦点直接放回去
+        if (options?.focusBlock && selected !== null) {
+          document.querySelector<HTMLElement>(blockFocusSelector(selected.blockId))?.focus();
+        }
+      },
+    }),
+    [selected],
+  );
+  // 点时间轴的空白处、页面别处就取消选中；点另一件事、快捷条、弹层里的不算（各自有事要做）
+  useEffect(() => {
+    if (selected === null) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      const keep = "[data-block-id], [data-quick-bar], [role='dialog'], [role='menu']";
+      if (target instanceof Element && target.closest(keep)) return;
+      setSelected(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [selected]);
   const statuses = [...libraryView.statuses.values()].sort((a, b) => a.order - b.order);
   const kinds = usedKinds(plan, libraryView, filter?.kindIds ?? []);
 
@@ -178,71 +227,74 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
         ))}
       </div>
       <OpenBlockContext.Provider value={openBlock}>
-        {/* 至少一屏高（减去切换按钮 42 像素、贴顶的 8、间距 16、页面底边 32）：视图比一屏短时，点切换按钮照样滚得到贴顶 */}
-        <div className="flex min-h-[calc(100dvh-6.125rem)] flex-col gap-4">
-          {view === "timeline" ? (
-            <Timeline
-              doc={doc}
-              library={library}
-              plan={plan}
-              libraryView={libraryView}
-              filter={filter}
-              shownDay={shownDay}
-            />
-          ) : (
-            <>
-              <div role="group" aria-label="分组" className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-ink-muted">分组</span>
-                {GROUPINGS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    ref={grouping === value ? pressedGrouping : undefined}
-                    type="button"
-                    aria-pressed={grouping === value}
-                    className={chipClass(grouping === value)}
-                    onClick={() => setGrouping(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {/* 按天、又按类型筛时，钱算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上。按类型分组时钱都在组里 */}
-              {grouping === "day" && hiddenCents > 0 && (
-                <p data-hidden-money className="text-sm text-ink-muted">
-                  {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的事上`}
-                </p>
-              )}
-              {grouping === "day" ? (
-                <ol aria-label="日期列表" className="flex flex-col gap-3">
-                  {bases.map((base, index) => (
-                    <DayRow
-                      key={base.id}
-                      doc={doc}
-                      library={library}
-                      libraryView={libraryView}
-                      plan={plan}
-                      base={base}
-                      label={labels[index]!}
-                      index={index}
-                      count={bases.length}
-                      moneyCells={cells}
-                      filter={filter}
-                    />
+        <SelectBlockContext.Provider value={selection}>
+          {/* 至少一屏高（减去切换按钮 42 像素、贴顶的 8、间距 16、页面底边 32）：视图比一屏短时，点切换按钮照样滚得到贴顶 */}
+          <div className="flex min-h-[calc(100dvh-6.125rem)] flex-col gap-4">
+            {view === "timeline" ? (
+              <Timeline
+                doc={doc}
+                library={library}
+                plan={plan}
+                libraryView={libraryView}
+                filter={filter}
+                moneyCells={cells}
+                shownDay={shownDay}
+              />
+            ) : (
+              <>
+                <div role="group" aria-label="分组" className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-ink-muted">分组</span>
+                  {GROUPINGS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      ref={grouping === value ? pressedGrouping : undefined}
+                      type="button"
+                      aria-pressed={grouping === value}
+                      className={chipClass(grouping === value)}
+                      onClick={() => setGrouping(value)}
+                    >
+                      {label}
+                    </button>
                   ))}
-                </ol>
-              ) : (
-                <KindGroups
-                  doc={doc}
-                  library={library}
-                  libraryView={libraryView}
-                  plan={plan}
-                  filter={filter}
-                  onEmptyFocus={() => pressedGrouping.current?.focus()}
-                />
-              )}
-            </>
-          )}
-        </div>
+                </div>
+                {/* 按天、又按类型筛时，钱算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上。按类型分组时钱都在组里 */}
+                {grouping === "day" && hiddenCents > 0 && (
+                  <p data-hidden-money className="text-sm text-ink-muted">
+                    {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的事上`}
+                  </p>
+                )}
+                {grouping === "day" ? (
+                  <ol aria-label="日期列表" className="flex flex-col gap-3">
+                    {bases.map((base, index) => (
+                      <DayRow
+                        key={base.id}
+                        doc={doc}
+                        library={library}
+                        libraryView={libraryView}
+                        plan={plan}
+                        base={base}
+                        label={labels[index]!}
+                        index={index}
+                        count={bases.length}
+                        moneyCells={cells}
+                        filter={filter}
+                      />
+                    ))}
+                  </ol>
+                ) : (
+                  <KindGroups
+                    doc={doc}
+                    library={library}
+                    libraryView={libraryView}
+                    plan={plan}
+                    filter={filter}
+                    onEmptyFocus={() => pressedGrouping.current?.focus()}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </SelectBlockContext.Provider>
       </OpenBlockContext.Provider>
       {opened !== null && openedBlock !== undefined && (
         <BlockPanel

@@ -1,7 +1,10 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext } from "react";
 
-/** 打开详情面板时焦点放哪：时间轴上点开的放在面板上（手机上不弹键盘），列表「详情…」打开的放在短备注 */
-export type PanelFocus = "panel" | "subtitle";
+/**
+ * 打开详情面板时焦点放哪：从快捷条的「详情…」打开的放在面板上（手机上不弹键盘），
+ * 列表「详情…」打开的放在短备注（备注收起着时放在「加备注」），快捷条的「钱」写不下时展开钱的编辑区。
+ */
+export type PanelFocus = "panel" | "subtitle" | "money";
 
 /** 打开一件事的详情面板；opener 是点的那个按钮，关掉面板后焦点回到它。 */
 export type OpenBlock = (blockId: string, opener: HTMLElement, focus?: PanelFocus) => void;
@@ -13,29 +16,4 @@ export function useOpenBlock(): OpenBlock {
   const openBlock = useContext(OpenBlockContext);
   if (!openBlock) throw new Error("详情面板只能在 DayList 里面打开");
   return openBlock;
-}
-
-interface BlockButtonProps {
-  blockId: string;
-  /** 读屏名，也是鼠标停上去的提示：「西湖 09:00–12:00」 */
-  name: string;
-  className: string;
-  children: ReactNode;
-}
-
-/** 时间轴上的一件事（横条、竖条、「没排时间」栏里的一件）：点了打开它的详情面板。 */
-export function BlockButton({ blockId, name, className, children }: BlockButtonProps) {
-  const openBlock = useOpenBlock();
-  return (
-    <button
-      type="button"
-      aria-label={name}
-      title={name}
-      aria-haspopup="dialog"
-      className={className}
-      onClick={(event) => openBlock(blockId, event.currentTarget)}
-    >
-      {children}
-    </button>
-  );
 }

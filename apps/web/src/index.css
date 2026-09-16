@@ -220,6 +220,48 @@
   }
 }
 
+@utility status-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0.625rem;
+  height: 0.625rem;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+}
+
+@utility quick-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.1875rem;
+  border: 1px solid rgb(38 50 56 / 0.1);
+  border-radius: 0.625rem;
+  background-color: rgb(255 255 255 / 0.96);
+  box-shadow: 0 6px 18px rgb(38 50 56 / 0.16);
+  white-space: nowrap;
+}
+
+@utility quick-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+  line-height: 1;
+  cursor: pointer;
+  &:hover {
+    background-color: rgb(38 50 56 / 0.06);
+    color: var(--color-ink);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 1px;
+  }
+}
+
 @utility kind-dot {
   display: inline-block;
   flex-shrink: 0;
@@ -541,6 +583,16 @@
 /* 窄屏竖排：竖条的字靠上；接着前一天、后一天的那头（上、下）是平的，横排是左、右 */
 /* 竖排里名字单独一段（data-bar-title）：竖条开头滚出框的上边时，名字贴着框的上边。
    按钮剪掉溢出但不当滚动容器（clip），名字的 sticky 才以外面的框为准；不认识 clip 的浏览器照旧 hidden */
+/* 选中的那件：描边（跨午夜的块每一段都描，它们是同一个 blockId） */
+.timeline-bar[aria-pressed="true"],
+.timeline-strip[aria-pressed="true"],
+.timeline-chip[aria-pressed="true"],
+.timeline-marker[aria-pressed="true"],
+.timeline-marker-h[aria-pressed="true"] {
+  outline: 2px solid var(--color-sage);
+  outline-offset: 1px;
+}
+
 [data-day-axis] [data-segment] > .timeline-bar {
   display: flex;
   align-items: flex-start;

@@ -1,10 +1,13 @@
-import type { BaseView, LibraryView, PlanView, StatsFilter } from "@welshonion/core";
+import type { BaseView, BlockView, LibraryView, PlanView, StatsFilter } from "@welshonion/core";
 import {
+  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import type * as Y from "yjs";
 import { useWideScreen } from "../app/use-wide-screen";
@@ -14,9 +17,11 @@ import { useDayMenu } from "./day-menu";
 import { DayTimeline } from "./DayTimeline";
 import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
-import { BlockButton } from "./open-block";
+import type { MoneyCell } from "./money-cells";
+import { QuickBar } from "./QuickBar";
+import { BlockButton, useBlockSelection } from "./select-block";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
-import { LIFTED_Z_INDEX, wideAxisHeight, wideSegmentBox, wideStripsHeight } from "./timeline-geometry";
+import { GAP, LIFTED_Z_INDEX, QUICK_BAR_ROW_PX, wideAxisHeight, wideSegmentBox, wideStripsHeight } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { useTimelineDrag, type DragView, type SegmentHandlers } from "./use-timeline-drag";
@@ -25,6 +30,8 @@ import { zoneTimeLabel } from "./zone-time";
 /** 每行三栏：标签、横轴、「没排时间」 */
 const ROW_COLUMNS = "grid grid-cols-[5.5rem_1fr_9rem] gap-x-3";
 
+const MINUTES_PER_DAY = 1440;
+
 interface TimelineProps {
   doc: Y.Doc;
   library: Y.Doc;
@@ -32,15 +39,17 @@ interface TimelineProps {
   libraryView: LibraryView;
   /** 按状态筛选；没开是 undefined */
   filter?: StatsFilter;
+  /** 每件事的钱格摘要（按筛选算过）：快捷条上的「钱」用 */
+  moneyCells: Map<string, MoneyCell>;
   /** 竖排看的是哪天（底座 id）：DayList 记着，切到列表再切回来接着看这天 */
   shownDay: { current: string | null };
 }
 
 /**
  * 时间轴：屏幕够宽时横着铺（一天一行），窄屏上竖着铺、一次一天（见 DayTimeline）；两种都能拖（见 use-timeline-drag）。
- * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。点一件事打开详情面板；每天有「加一件事」和「这天的操作」。
+ * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。点一件事选中它、旁边出快捷条；每天有「加一件事」和「这天的操作」。
  */
-export function Timeline({ doc, library, plan, libraryView, filter, shownDay }: TimelineProps) {
+export function Timeline({ doc, library, plan, libraryView, filter, moneyCells, shownDay }: TimelineProps) {
   const section = useRef<HTMLElement>(null);
   const labels = dayRowLabels(plan.bases);
   const rows = useMemo(() => {
@@ -92,11 +101,13 @@ export function Timeline({ doc, library, plan, libraryView, filter, shownDay }: 
           rows={rows}
           labels={labels}
           filter={filter}
+          moneyCells={moneyCells}
         />
       ) : (
         <DayTimeline
           doc={doc}
           library={library}
+          moneyCells={moneyCells}
           plan={plan}
           libraryView={libraryView}
           rows={rows}
@@ -117,17 +128,22 @@ interface WideTimelineProps {
   rows: readonly RowLayout[];
   labels: readonly string[];
   filter: StatsFilter | undefined;
+  moneyCells: Map<string, MoneyCell>;
 }
 
 /**
  * 横排：一天一行，横向 0–24 点按真实比例，右边一栏放这天没排时间的事、下面「加一件事」。
- * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条打开详情面板。
+ * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条选中它。
  * 拖动中画成松手后的样子，「没排时间」栏照原来的计划（见 use-timeline-drag）。
  */
-function WideTimeline({ doc, library, plan, libraryView, rows, labels, filter }: WideTimelineProps) {
+function WideTimeline({ doc, library, plan, libraryView, rows, labels, filter, moneyCells }: WideTimelineProps) {
   const drag = useTimelineDrag({ doc, library, plan, libraryView, rows, filter, day: null });
   const shownPlan = drag.dropped?.plan ?? plan;
   const shownRows = drag.dropped?.rows ?? rows;
+  // 选中的那件旁边出快捷条；拖动中不画
+  const selection = useBlockSelection();
+  const selectedBlock = drag.dragView || selection.selectedId === null ? undefined : plan.blocks.get(selection.selectedId);
+  const barRow = selectedBlock === undefined ? -1 : quickBarRow(selectedBlock, rows, plan, selection.anchorBaseId);
 
   return (
     // 横轴至少 720 像素（每小时 30 像素），放不下就在卡片里横着滚
@@ -176,6 +192,9 @@ function WideTimeline({ doc, library, plan, libraryView, rows, labels, filter }:
               handlers={drag.handlers}
               onChipPointerDown={(event, blockId) => drag.chipHandlers.onPointerDown(event, blockId, index)}
               onChipClickCapture={drag.chipHandlers.onClickCapture}
+              libraryView={libraryView}
+              moneyCells={moneyCells}
+              quickBarBlock={index === barRow ? selectedBlock! : null}
             />
           ))}
         </ol>
@@ -206,6 +225,10 @@ interface TimelineRowProps {
   handlers: SegmentHandlers;
   onChipPointerDown: (event: ReactPointerEvent<HTMLDivElement>, blockId: string) => void;
   onChipClickCapture: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  libraryView: LibraryView;
+  moneyCells: Map<string, MoneyCell>;
+  /** 快捷条画在这一行时，是哪一件事；不画是 null */
+  quickBarBlock: BlockView | null;
 }
 
 function TimelineRow({
@@ -226,8 +249,26 @@ function TimelineRow({
   handlers,
   onChipPointerDown,
   onChipClickCapture,
+  libraryView,
+  moneyCells,
+  quickBarBlock,
 }: TimelineRowProps) {
   const [dayNumber, ...rest] = label.split(" · ");
+  // 排上时间的：快捷条贴着这一行里它那一段的右下角；没排时间的：画在栏里它自己下面
+  const barSegment =
+    quickBarBlock === null || quickBarBlock.start_minute === null
+      ? undefined
+      : [...layout.main, ...layout.background].find((item) => item.blockId === quickBarBlock.id);
+  const quickBar = quickBarBlock && (
+    <QuickBar
+      doc={doc}
+      library={library}
+      libraryView={libraryView}
+      plan={currentPlan}
+      block={quickBarBlock}
+      moneyCell={moneyCells.get(quickBarBlock.id)}
+    />
+  );
   // 标签那一栏窄：菜单按钮做小，放在「第 1 天」后面；展开的表单占满整行，在这一行下面
   const dayMenu = useDayMenu({
     doc,
@@ -254,7 +295,13 @@ function TimelineRow({
           </span>
         ))}
       </div>
-      <div ref={axisRef} data-timeline-axis className="relative" style={{ minHeight: wideAxisHeight(layout) }}>
+      <div
+        ref={axisRef}
+        data-timeline-axis
+        className="relative"
+        // 快捷条在这一行时，这一行多空出它那一截：条画在道的下面，不盖住别的事
+        style={{ minHeight: wideAxisHeight(layout) + (barSegment ? QUICK_BAR_ROW_PX : 0) }}
+      >
         {HOUR_LINES.map((hour) => (
           <div
             key={hour}
@@ -281,6 +328,11 @@ function TimelineRow({
             handlers={handlers}
           />
         ))}
+        {barSegment && (
+          <QuickBarAnchor key={barSegment.blockId} to={barSegment.to} top={wideAxisHeight(layout) + GAP}>
+            {quickBar}
+          </QuickBarAnchor>
+        )}
       </div>
       <UndatedTray
         plan={currentPlan}
@@ -291,6 +343,7 @@ function TimelineRow({
         draggingId={dragView && !dragView.copying ? dragView.blockId : null}
         onChipPointerDown={onChipPointerDown}
         onChipClickCapture={onChipClickCapture}
+        quickBar={quickBarBlock && barSegment === undefined ? { blockId: quickBarBlock.id, node: quickBar } : undefined}
       >
         {/* 和栏里的一件一样高 */}
         <TimelineAddBlock
@@ -365,4 +418,41 @@ function Segment({ plan, item, box, dragView, handlers }: SegmentProps) {
 
 function horizontal(item: PlacedSegment): CSSProperties {
   return { left: percent(item.from), width: percent(item.to - item.from) };
+}
+
+/** 快捷条画在哪一行：排上时间的贴点的那一段（跨午夜的点哪一段贴哪一段），点的那一行不在了就找第一段；没排时间的在它那天。 */
+function quickBarRow(block: BlockView, rows: readonly RowLayout[], plan: PlanView, anchorBaseId: string | null): number {
+  if (block.start_minute === null) return plan.bases.findIndex((base) => base.id === block.start_base_id);
+  const drawn = (row: number) => [...rows[row]!.background, ...rows[row]!.main].some((item) => item.blockId === block.id);
+  const anchor = plan.bases.findIndex((base) => base.id === anchorBaseId);
+  if (anchor >= 0 && drawn(anchor)) return anchor;
+  return rows.findIndex((_, row) => drawn(row));
+}
+
+interface QuickBarAnchorProps {
+  /** 贴着这一段的结束分钟（右边对齐它） */
+  to: number;
+  /** 在横轴里的上边（像素） */
+  top: number;
+  children: ReactNode;
+}
+
+/** 把快捷条摆在这一段的右下角：右边对齐这一段，伸出横轴左右边时贴着边放（横轴的宽度按 DOM 量）。 */
+function QuickBarAnchor({ to, top, children }: QuickBarAnchorProps) {
+  const box = useRef<HTMLDivElement>(null);
+  const [left, setLeft] = useState(0);
+  useLayoutEffect(() => {
+    const element = box.current;
+    const axis = element?.parentElement;
+    if (!element || !axis) return;
+    const axisWidth = axis.getBoundingClientRect().width;
+    const width = element.getBoundingClientRect().width;
+    const right = (to / MINUTES_PER_DAY) * axisWidth;
+    setLeft(Math.max(0, Math.min(right - width, axisWidth - width)));
+  }, [to]);
+  return (
+    <div ref={box} className="absolute z-20" style={{ top, left }}>
+      {children}
+    </div>
+  );
 }

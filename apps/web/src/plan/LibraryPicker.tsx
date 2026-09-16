@@ -31,6 +31,8 @@ interface LibraryPickerProps extends PickerActions {
   /** 块现在用的；指不到时 deleted 为 true */
   current: { id: string; deleted: boolean; name?: string; color?: string };
   options: PickerOption[];
+  /** 快捷条上的样子：只画一个实心点（类型）或空心圈（状态），名字只在读屏名和提示里 */
+  compact?: "fill" | "ring";
 }
 
 /** 一排低饱和色块：新建和改颜色都从这里选，新建默认第一个。 */
@@ -54,23 +56,32 @@ const OPTION_HEIGHT_PX = 36;
  * 类型、状态的选择器：按钮写着现在的值；点开是资料库里的全部选项，点一项就选上并关掉。
  * 每项右边一个小菜单（改名、改颜色、改层、删除）；最后一项「+ 新建」。这些都在面板里原地展开。
  */
-export function LibraryPicker({ label, current, options, ...actions }: LibraryPickerProps) {
+export function LibraryPicker({ label, current, options, compact, ...actions }: LibraryPickerProps) {
   const currentName = current.deleted ? `已删除的${label}` : (current.name ?? "");
   const currentColor = current.deleted ? DELETED_COLOR : (current.color ?? DELETED_COLOR);
 
   return (
     <Popover
       label={`${label}：${currentName}`}
+      triggerTitle={compact ? `${label}：${currentName}` : undefined}
       trigger={
-        <>
-          <span className="kind-dot" aria-hidden style={{ backgroundColor: currentColor }} />
-          <span className={current.deleted ? "truncate text-ink-muted" : "truncate"}>{currentName}</span>
-          <span aria-hidden className="text-xs text-ink-muted">
-            ▾
-          </span>
-        </>
+        compact ? (
+          <span
+            className={compact === "ring" ? "status-dot" : "kind-dot"}
+            aria-hidden
+            style={compact === "ring" ? { color: currentColor } : { backgroundColor: currentColor }}
+          />
+        ) : (
+          <>
+            <span className="kind-dot" aria-hidden style={{ backgroundColor: currentColor }} />
+            <span className={current.deleted ? "truncate text-ink-muted" : "truncate"}>{currentName}</span>
+            <span aria-hidden className="text-xs text-ink-muted">
+              ▾
+            </span>
+          </>
+        )
       }
-      triggerClassName="input-bare flex items-center gap-1.5 text-left"
+      triggerClassName={compact ? "quick-button" : "input-bare flex items-center gap-1.5 text-left"}
       role="dialog"
       panelLabel={`选择${label}`}
       panelClassName="menu w-64"

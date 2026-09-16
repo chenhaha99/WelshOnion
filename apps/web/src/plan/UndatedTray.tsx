@@ -1,8 +1,9 @@
 import { passesFilter, type BaseView, type BlockView, type PlanView, type StatsFilter } from "@welshonion/core";
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { Fragment, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { blockTimeLabel } from "./block-time";
-import { BlockButton } from "./open-block";
+import { BlockButton } from "./select-block";
 import { kindColor } from "./timeline-draw";
+import { QUICK_BAR_ROW_PX } from "./timeline-geometry";
 
 /** 缩进一级往右缩多少像素 */
 const INDENT_PX = 12;
@@ -27,12 +28,14 @@ interface UndatedTrayProps {
   draggingId: string | null;
   onChipPointerDown: (event: ReactPointerEvent<HTMLDivElement>, blockId: string) => void;
   onChipClickCapture: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  /** 选中的那件事的快捷条：画在它自己那一件下面 */
+  quickBar?: { blockId: string; node: ReactNode };
   /** 跟在这一串后面、也在栏里的东西：横排放这一天的「加一件事」，行不用多占一截，拖进栏的地方也大一些 */
   children?: ReactNode;
 }
 
 /**
- * 时间轴的「没排时间」：一天里没排时间的一串事，每件写标题和时间格的字，缩进了的往右缩，点一下打开详情面板。
+ * 时间轴的「没排时间」：一天里没排时间的一串事，每件写标题和时间格的字，缩进了的往右缩，点一下选中它（下面出快捷条）。
  * 横排在每行右边，按住能拖；这一栏一直在，没有事时是空的，横条也能拖进来。竖排在框下面，不能拖。
  */
 export function UndatedTray({
@@ -44,6 +47,7 @@ export function UndatedTray({
   draggingId,
   onChipPointerDown,
   onChipClickCapture,
+  quickBar,
   children,
 }: UndatedTrayProps) {
   return (
@@ -59,22 +63,29 @@ export function UndatedTray({
         const time = blockTimeLabel(block, base.date);
         const indent = block.indent ?? 0;
         return (
-          <div
-            key={block.id}
-            data-undated-chip
-            data-block-id={block.id}
-            data-slot={block.slot ?? "day"}
-            data-pending={block.status.id === "pending"}
-            data-dragging={draggingId === block.id ? true : undefined}
-            style={{ ...kindColor(plan, block.id), ...(indent > 0 ? { marginLeft: indent * INDENT_PX } : {}) }}
-            onPointerDown={(event) => onChipPointerDown(event, block.id)}
-            onClickCapture={onChipClickCapture}
-          >
-            <BlockButton blockId={block.id} name={`${block.title} ${time}`} className="timeline-chip">
-              <span className="truncate">{block.title}</span>
-              <span className="ml-auto shrink-0 pl-1 text-[10px] text-ink-muted">{time}</span>
-            </BlockButton>
-          </div>
+          <Fragment key={block.id}>
+            <div
+              data-undated-chip
+              data-block-id={block.id}
+              data-slot={block.slot ?? "day"}
+              data-pending={block.status.id === "pending"}
+              data-dragging={draggingId === block.id ? true : undefined}
+              style={{ ...kindColor(plan, block.id), ...(indent > 0 ? { marginLeft: indent * INDENT_PX } : {}) }}
+              onPointerDown={(event) => onChipPointerDown(event, block.id)}
+              onClickCapture={onChipClickCapture}
+            >
+              <BlockButton blockId={block.id} name={`${block.title} ${time}`} className="timeline-chip">
+                <span className="truncate">{block.title}</span>
+                <span className="ml-auto shrink-0 pl-1 text-[10px] text-ink-muted">{time}</span>
+              </BlockButton>
+            </div>
+            {quickBar?.blockId === block.id && (
+              // 这一栏只有 9rem 宽，快捷条比它宽：浮在这一件下面、右边对齐，往左盖住一点横轴
+              <div className="relative" style={{ height: QUICK_BAR_ROW_PX }}>
+                <div className="absolute top-0.5 right-0 z-20">{quickBar.node}</div>
+              </div>
+            )}
+          </Fragment>
         );
       })}
       {dropLabel !== null && (

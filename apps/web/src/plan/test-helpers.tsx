@@ -102,6 +102,12 @@ export async function openDayMenu(user: UserEvent, text: string): Promise<HTMLEl
   return screen.getByRole("menu");
 }
 
+/** 时间轴上打开一件事的详情面板：点一下选中它，再点快捷条的「详情…」。 */
+export async function openDetails(user: UserEvent, thing: HTMLElement): Promise<void> {
+  await user.click(thing);
+  await user.click(screen.getByRole("button", { name: "详情…" }));
+}
+
 /** 某一天安排表里的块行，按显示顺序。 */
 export async function blockRows(day: string): Promise<HTMLElement[]> {
   return [...(await dayRow(day)).querySelectorAll<HTMLElement>("tr[data-block-id]")];

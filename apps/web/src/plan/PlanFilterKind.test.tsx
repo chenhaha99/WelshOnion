@@ -5,7 +5,7 @@ import { addBlock, addExpense, setBlockStatus, type AddBlockInput } from "@welsh
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, blockTitles, dayRow, daysFromOct1, openStoredPlan, showView } from "./test-helpers";
+import { blockRow, blockTitles, dayRow, daysFromOct1, openDetails, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -243,7 +243,7 @@ describe("按类型筛选时的钱", () => {
     await waitFor(async () => expect(await moneyCellOf("10.1", "酒店")).toEqual({ label: "填钱", note: "另有别的类型的钱" }));
     await showView("时间轴");
     const timeline = await screen.findByRole("region", { name: "时间轴" });
-    await user.click(within(timeline).getAllByRole("button", { name: /^酒店 / })[0]!);
+    await openDetails(user, within(timeline).getAllByRole("button", { name: /^酒店 / })[0]!);
     const moneyButton = within(screen.getByRole("dialog", { name: "酒店" })).getByRole("button", { name: "钱" });
     expect(within(moneyButton).getByText("填钱")).toBeTruthy();
     expect(within(moneyButton).getByText("另有别的类型的钱")).toBeTruthy();

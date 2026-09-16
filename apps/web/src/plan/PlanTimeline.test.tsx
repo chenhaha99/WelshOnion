@@ -14,7 +14,7 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, dayRow, daysFromOct1, openStoredPlan, pressedView, showView } from "./test-helpers";
+import { blockRow, dayRow, daysFromOct1, openDetails, openStoredPlan, pressedView, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -60,9 +60,9 @@ function trayOf(row: HTMLElement): HTMLElement {
 
 /** 栏里每件的读屏名，按顺序。 */
 function chipNames(tray: HTMLElement): string[] {
-  return within(tray)
-    .queryAllByRole("button")
-    .map((button) => button.getAttribute("aria-label") ?? "");
+  return [...tray.querySelectorAll("[data-undated-chip] > button")].map(
+    (button) => button.getAttribute("aria-label") ?? "",
+  );
 }
 
 async function pressFilter(user: ReturnType<typeof userEvent.setup>, name: string): Promise<void> {
@@ -204,12 +204,19 @@ describe("没排时间栏", () => {
     await waitFor(async () => expect(chipNames(trayOf(await timelineRow("10.1")))).toEqual(["宋城 下午"]));
   });
 
-  it("点开详情面板：类型、状态和时间", async () => {
+  it("点一下选中，快捷条上有类型、状态；详情从快捷条打开", async () => {
     const user = userEvent.setup();
     await openStoredPlan(listForOct1);
 
-    await user.click(within(trayOf(await timelineRow("10.1"))).getByRole("button", { name: "灵隐寺 上午 · 2 小时" }));
+    const chip = within(trayOf(await timelineRow("10.1"))).getByRole("button", { name: "灵隐寺 上午 · 2 小时" });
+    await user.click(chip);
 
+    const bar = screen.getByRole("toolbar", { name: "「灵隐寺」的操作" });
+    expect(within(bar).getByRole("button", { name: "类型：游玩" })).toBeTruthy();
+    expect(within(bar).getByRole("button", { name: "状态：待定" })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await user.click(within(bar).getByRole("button", { name: "详情…" }));
     const dialog = screen.getByRole("dialog", { name: "灵隐寺" });
     expect(within(dialog).getByRole("button", { name: "类型：游玩" })).toBeTruthy();
     expect(within(dialog).getByRole("button", { name: "状态：待定" })).toBeTruthy();
@@ -325,28 +332,18 @@ describe("点块看详情", () => {
       addExpense(plan, library, { title: "房费", amountCents: 48000, blockIds: [inn] });
     });
 
-    await user.click(within(await timelineRow("10.2")).getByRole("button", { name: /^民宿 / }));
+    const second = within(await timelineRow("10.2")).getByRole("button", { name: /^民宿 / });
+    await openDetails(user, second);
 
+    // 跨午夜的块选中时两段都描边
+    const pressed = [...document.querySelectorAll('[data-segment][data-block-id] > button[aria-pressed="true"]')];
+    expect(pressed.length).toBe(2);
     const dialog = screen.getByRole("dialog", { name: "民宿" });
     expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("22:00–10.2 08:00 · 10 小时");
     expect(within(dialog).getByRole("button", { name: "钱" }).textContent).toBe("¥480");
   });
 
-  it("点横条：打开详情面板，没有「在表里改」", async () => {
-    const user = userEvent.setup();
-    await openStoredPlan((plan, library) => {
-      const [oct1] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-    });
-
-    await user.click(within(await timelineRow("10.1")).getByRole("button", { name: /^西湖 / }));
-
-    const dialog = screen.getByRole("dialog", { name: "西湖" });
-    expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("09:00–12:00 · 3 小时");
-    expect(screen.queryByRole("button", { name: "在表里改" })).toBeNull();
-  });
-
-  it("Esc 关掉：焦点回到横条", async () => {
+  it("点横条：先选中，再从快捷条打开详情；没有「在表里改」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -355,10 +352,26 @@ describe("点块看详情", () => {
 
     const bar = within(await timelineRow("10.1")).getByRole("button", { name: /^西湖 / });
     await user.click(bar);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "详情…" }));
+
+    const dialog = screen.getByRole("dialog", { name: "西湖" });
+    expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("09:00–12:00 · 3 小时");
+    expect(screen.queryByRole("button", { name: "在表里改" })).toBeNull();
+  });
+
+  it("Esc 关掉：焦点回到快捷条的「详情…」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+    });
+
+    await openDetails(user, within(await timelineRow("10.1")).getByRole("button", { name: /^西湖 / }));
     expect(screen.getByRole("dialog", { name: "西湖" })).toBeTruthy();
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("dialog", { name: "西湖" })).toBeNull();
-    expect(document.activeElement).toBe(bar);
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "详情…" }));
   });
 });

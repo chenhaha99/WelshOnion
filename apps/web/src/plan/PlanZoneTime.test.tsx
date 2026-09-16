@@ -5,7 +5,7 @@ import { addBlock, addDayInTz } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockTexts, daysFromOct1, openStoredPlan, showView } from "./test-helpers";
+import { blockTexts, daysFromOct1, openDetails, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -37,7 +37,7 @@ describe("跨时区的时间写两地的时刻", () => {
       .getAllByRole("listitem")
       .find((item) => item.getAttribute("aria-label")?.includes("洛杉矶"));
     if (!row) throw new Error("时间轴上没有洛杉矶那一行");
-    await user.click(within(row).getByRole("button", { name: /^飞洛杉矶 / }));
+    await openDetails(user, within(row).getByRole("button", { name: /^飞洛杉矶 / }));
 
     const dialog = screen.getByRole("dialog", { name: "飞洛杉矶" });
     expect(within(dialog).getByText("北京 18:00 → 洛杉矶 15:00 · 12 小时")).toBeTruthy();

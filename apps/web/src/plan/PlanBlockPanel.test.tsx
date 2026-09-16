@@ -5,7 +5,7 @@ import { addBlock, addExpense, setBlockLayer, updateBlock, type AddBlockInput } 
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, blockTexts, blockTitles, daysFromOct1, openStoredPlan, selectedText, showView } from "./test-helpers";
+import { blockRow, blockTexts, blockTitles, daysFromOct1, openDetails, openStoredPlan, selectedText, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -61,9 +61,9 @@ function segmentOf(container: HTMLElement, title: string): HTMLElement {
 
 /** 这一行「没排时间」栏里每件的读屏名，按顺序。 */
 function chipNames(row: HTMLElement): string[] {
-  return within(within(row).getByRole("group", { name: "没排时间" }))
-    .queryAllByRole("button")
-    .map((button) => button.getAttribute("aria-label") ?? "");
+  return [...within(row).getByRole("group", { name: "没排时间" }).querySelectorAll("[data-undated-chip] > button")].map(
+    (button) => button.getAttribute("aria-label") ?? "",
+  );
 }
 
 function panelOf(title: string): HTMLElement {
@@ -71,7 +71,7 @@ function panelOf(title: string): HTMLElement {
 }
 
 async function openInTimeline(user: User, day: string, title: string): Promise<HTMLElement> {
-  await user.click(thing(await timelineRow(day), title));
+  await openDetails(user, thing(await timelineRow(day), title));
   return panelOf(title);
 }
 

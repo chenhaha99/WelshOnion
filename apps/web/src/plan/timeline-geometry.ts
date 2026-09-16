@@ -16,6 +16,8 @@ export const STRIP_WIDTH = 12;
 export const MARKER_HIT = 12;
 /** 拖动中拿起来的块压在别的块上面（别的块是 1 + 缩几级） */
 export const LIFTED_Z_INDEX = 10;
+/** 横排里选中一件事时，这一行多空出来放快捷条的高度（像素） */
+export const QUICK_BAR_ROW_PX = 36;
 
 /** 横排上方背景细条一共多高。 */
 export function wideStripsHeight(layout: RowLayout): number {

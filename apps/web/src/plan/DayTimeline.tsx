@@ -7,7 +7,9 @@ import { blockTimeLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
 import { DragLabel } from "./DragLabel";
 import { todayIn } from "./day-labels";
-import { BlockButton } from "./open-block";
+import type { MoneyCell } from "./money-cells";
+import { QuickBar } from "./QuickBar";
+import { BlockButton, useBlockSelection } from "./select-block";
 import { initialDayIndex, scrollMinute } from "./timeline-day";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
 import { daySegmentStyle, dayStripsWidth, HOUR_HEIGHT, LIFTED_Z_INDEX } from "./timeline-geometry";
@@ -28,6 +30,8 @@ interface DayTimelineProps {
   /** 每一行的标签：「第 1 天 · 10.1 周四」 */
   labels: readonly string[];
   filter: StatsFilter | undefined;
+  /** 每件事的钱格摘要（按筛选算过）：快捷条上的「钱」用 */
+  moneyCells: Map<string, MoneyCell>;
   /** 看的是哪天（底座 id），记在 DayList 里：切到列表时这里卸掉，切回来接着看这天 */
   shownDay: { current: string | null };
 }
@@ -37,8 +41,9 @@ interface DayTimelineProps {
  * 打开时落在今天（没出发是第一天，已结束是最后一天），切到列表再切回来还是原来那天；滚到现在或这天第一件事，只在打开、翻天时滚。
  * 块画成竖条，同一层重叠的并排成列，停留、住宿这类在左边的细条里；竖条能拖着挪时间，拖动中画成松手后的样子（见 use-timeline-drag）。
  * 标签旁边是这天的菜单；框下面列出这天没排时间的事（没有就不出现，那里的事不能拖），再下面一直有「加一件事」。
+ * 点一件事选中它，快捷条固定在屏幕底部（手指够得着，也不会被块挤到屏幕外）。
  */
-export function DayTimeline({ doc, library, plan, libraryView, rows, labels, filter, shownDay }: DayTimelineProps) {
+export function DayTimeline({ doc, library, plan, libraryView, rows, labels, filter, moneyCells, shownDay }: DayTimelineProps) {
   const now = useNow();
   const timeZone = useTimeZone();
   const today = todayIn(now(), timeZone);
@@ -69,6 +74,9 @@ export function DayTimeline({ doc, library, plan, libraryView, rows, labels, fil
   const shownPlan = drag.dropped?.plan ?? plan;
   const layout = (drag.dropped?.rows ?? rows)[index]!;
   const undated = undatedBlocks(plan, base, filter);
+  // 选中的那件的快捷条；拖动中不画
+  const selection = useBlockSelection();
+  const selectedBlock = drag.dragView || selection.selectedId === null ? undefined : plan.blocks.get(selection.selectedId);
 
   return (
     <div ref={drag.containerRef} data-timeline-dragging={drag.dragView ? true : undefined} className="flex flex-col gap-2">
@@ -162,6 +170,19 @@ export function DayTimeline({ doc, library, plan, libraryView, rows, labels, fil
         </div>
       )}
       <TimelineAddBlock doc={doc} library={library} plan={plan} baseId={base.id} filter={filter} className="input-bare select-text" />
+      {/* 贴着屏幕下边（页面滚动时跟着），拇指够得着；卡片滚完就跟着卡片走 */}
+      {selectedBlock !== undefined && (
+        <div className="sticky bottom-2 z-20 flex justify-center pt-1">
+          <QuickBar
+            doc={doc}
+            library={library}
+            libraryView={libraryView}
+            plan={plan}
+            block={selectedBlock}
+            moneyCell={moneyCells.get(selectedBlock.id)}
+          />
+        </div>
+      )}
       {drag.pointerLabel && <DragLabel label={drag.pointerLabel} />}
     </div>
   );

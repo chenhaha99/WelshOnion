@@ -15,6 +15,7 @@ import { CommitInput } from "../app/CommitInput";
 import { Drawer } from "../app/Drawer";
 import { BlockDetails } from "./BlockDetails";
 import { deleteBlockWithNotice, deleteLabel, undatedArrangeItems } from "./block-actions";
+import { SHIFT_CHOICES } from "./block-shift";
 import { layerChoices, STACKED } from "./block-layer-choices";
 import { blockTimeLabel, durationLabel } from "./block-time";
 import { dayRowLabels } from "./day-labels";
@@ -26,13 +27,6 @@ import type { PanelFocus } from "./open-block";
 import { KindPicker, StatusPicker } from "./pickers";
 import { TimeEditor } from "./TimeEditor";
 import { zoneTimeLabel } from "./zone-time";
-
-/** 「这天从这件起往后推迟」的三档 */
-const SHIFT_CHOICES = [
-  { minutes: 15, label: "15 分钟" },
-  { minutes: 30, label: "30 分钟" },
-  { minutes: 60, label: "1 小时" },
-] as const;
 
 /** 左边一栏字、右边一栏控件 */
 const FIELD_ROW = "grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-x-2 text-sm";
@@ -57,7 +51,8 @@ interface BlockPanelProps {
  */
 export function BlockPanel({ doc, library, libraryView, plan, block, moneyCell, focus, onClose }: BlockPanelProps) {
   const [timeOpen, setTimeOpen] = useState(false);
-  const [moneyOpen, setMoneyOpen] = useState(false);
+  // 快捷条上的「钱」写不下多笔、共用时改开这里，一打开就是摊开的钱
+  const [moneyOpen, setMoneyOpen] = useState(focus === "money");
   const timeButton = useRef<HTMLButtonElement>(null);
   const moneyButton = useRef<HTMLButtonElement>(null);
   const arrangeGroup = useRef<HTMLDivElement>(null);
@@ -102,9 +97,11 @@ export function BlockPanel({ doc, library, libraryView, plan, block, moneyCell, 
     <Drawer
       title={block.title}
       onClose={() => onClose()}
-      initialFocus={(panel) =>
-        focus === "panel" ? panel : panel.querySelector<HTMLElement>('[role="group"][aria-label$=" 的详情"] input')
-      }
+      initialFocus={(panel) => {
+        if (focus === "panel") return panel;
+        const group = focus === "money" ? " 的钱" : " 的详情";
+        return panel.querySelector<HTMLElement>(`[role="group"][aria-label$="${group}"] input`);
+      }}
     >
       <CommitInput
         label="标题"
