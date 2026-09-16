@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { addBlock, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -32,8 +32,9 @@ function axisWidth(): string {
   return document.querySelector<HTMLElement>("[data-timeline-scroll] > div")!.style.minWidth;
 }
 
-function zoomGroup(): HTMLElement {
-  return screen.getByRole("group", { name: "横向放大" });
+/** 卡片上的横向放大拖动条。 */
+function zoomSlider(): HTMLInputElement {
+  return screen.getByRole("slider", { name: "横向放大" }) as HTMLInputElement;
 }
 
 describe("标题写不下时借右边的空白", () => {
@@ -73,44 +74,40 @@ describe("标题写不下时借右边的空白", () => {
 });
 
 describe("时间轴横向放大", () => {
-  it("＋ 一档一档放大，到头不能点，横轴跟着变宽", async () => {
-    const user = userEvent.setup();
+  it("拖动条无级放大：横轴跟着变宽，100% 到 400%", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
     await showView("时间轴");
 
-    expect(within(zoomGroup()).getByText("100%")).toBeTruthy();
-    expect(within(zoomGroup()).getByRole("button", { name: "缩小" })).toHaveProperty("disabled", true);
+    const slider = zoomSlider();
+    expect(slider.value).toBe("100");
+    expect(slider.min).toBe("100");
+    expect(slider.max).toBe("400");
+    expect(screen.getByText("100%")).toBeTruthy();
     expect(axisWidth()).toBe("62rem");
 
-    await user.click(within(zoomGroup()).getByRole("button", { name: "放大" }));
-    expect(within(zoomGroup()).getByText("150%")).toBeTruthy();
-    expect(axisWidth()).toBe("93rem");
+    fireEvent.change(slider, { target: { value: "170" } });
 
-    await user.click(within(zoomGroup()).getByRole("button", { name: "放大" }));
-    await user.click(within(zoomGroup()).getByRole("button", { name: "放大" }));
-    expect(within(zoomGroup()).getByText("300%")).toBeTruthy();
-    expect(axisWidth()).toBe("186rem");
-    expect(within(zoomGroup()).getByRole("button", { name: "放大" })).toHaveProperty("disabled", true);
+    await waitFor(() => expect(screen.getByText("170%")).toBeTruthy());
+    expect(axisWidth()).toBe("105.4rem");
   });
 
   it("记在这台设备上：切走再回来还是那个倍数", async () => {
-    const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
     await showView("时间轴");
 
-    await user.click(within(zoomGroup()).getByRole("button", { name: "放大" }));
+    fireEvent.change(zoomSlider(), { target: { value: "200" } });
     await showView("列表");
     await showView("时间轴");
 
-    await waitFor(() => expect(within(zoomGroup()).getByText("150%")).toBeTruthy());
-    expect(axisWidth()).toBe("93rem");
+    await waitFor(() => expect(zoomSlider().value).toBe("200"));
+    expect(axisWidth()).toBe("124rem");
   });
 
-  it("手机上没有这一组", async () => {
+  it("手机上没有拖动条", async () => {
     stubNarrowScreen();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
     await showView("时间轴");
 
-    expect(screen.queryByRole("group", { name: "横向放大" })).toBeNull();
+    expect(screen.queryByRole("slider", { name: "横向放大" })).toBeNull();
   });
 });

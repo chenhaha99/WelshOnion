@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { addBlock, addStatus } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, daysFromOct1, openStoredPlan } from "./test-helpers";
+import { blockRow, daysFromOct1, openPlanSettings, openStoredPlan } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -47,8 +47,7 @@ describe("状态选择器和状态的管理", () => {
     });
 
     // 删除搬到了计划设置里
-    await user.click(await screen.findByRole("button", { name: "计划设置" }));
-    const settings = await screen.findByRole("dialog", { name: "计划设置" });
+    const settings = await openPlanSettings(user, "类型和状态");
     const manager = within(settings).getByRole("group", { name: "状态的管理" });
     await user.click(within(manager).getByRole("button", { name: "删除：已预订" }));
     expect(within(manager).getByText(/这个计划里有 1 件事在用/)).toBeTruthy();

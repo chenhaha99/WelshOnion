@@ -59,8 +59,8 @@ export function stubNarrowScreen(): void {
   }));
 }
 
-/** 切到「时间轴」或「列表」视图；已经是就不动。 */
-export async function showView(name: "时间轴" | "列表"): Promise<void> {
+/** 切到「时间轴」「列表」或「总览」视图；已经是就不动。 */
+export async function showView(name: "时间轴" | "列表" | "总览"): Promise<void> {
   // 找日期列表的辅助函数每次都先调它，用 CSS 选择器找，比按读屏名找快
   const button = await waitFor(() => {
     const found = [...document.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="视图"] button')].find(
@@ -100,6 +100,23 @@ export async function dayRow(text: string): Promise<HTMLElement> {
 export async function openDayMenu(user: UserEvent, text: string): Promise<HTMLElement> {
   await user.click(within(await dayRow(text)).getByRole("button", { name: "这天的操作" }));
   return screen.getByRole("menu");
+}
+
+/** 「总览」视图里的开销总览卡片；会先切到「总览」。 */
+export async function moneyOverview(): Promise<HTMLElement> {
+  await showView("总览");
+  return screen.findByRole("region", { name: "开销总览" });
+}
+
+/** 打开计划设置，切到某一块（默认「基本」），返回设置窗口。 */
+export async function openPlanSettings(
+  user: UserEvent,
+  section: "基本" | "类型和状态" | "时间预算" = "基本",
+): Promise<HTMLElement> {
+  await user.click(await screen.findByRole("button", { name: "计划设置" }));
+  const settings = await screen.findByRole("dialog", { name: "计划设置" });
+  if (section !== "基本") await user.click(within(settings).getByRole("tab", { name: section }));
+  return settings;
 }
 
 /** 时间轴上打开一件事的详情面板：点一下选中它，再点快捷条的「详情…」。 */

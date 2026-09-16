@@ -28,14 +28,14 @@ function addMoney(
     blockIds: input.blockIds,
     basis: input.perPerson ? "per_person" : "total",
   });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 async function moneyCellText(day: string, title: string): Promise<string> {
   return (await blockRow(day, title)).querySelector("[data-money-cell]")?.textContent ?? "";
 }
 
-describe("钱格怎么显示", () => {
+describe("开销格怎么显示", () => {
   it("一笔和多笔", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -60,14 +60,14 @@ describe("钱格怎么显示", () => {
     expect(await moneyCellText("10.1", "晚饭")).toBe("¥240");
   });
 
-  it("没挂钱和没填金额", async () => {
+  it("没挂开销和没填金额", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       addDayBlock(plan, library, oct1!, "灵隐寺");
       addMoney(plan, library, { title: "船票", cents: null, blockIds: [addDayBlock(plan, library, oct1!, "游船")] });
     });
 
-    expect(await moneyCellText("10.1", "灵隐寺")).toBe("填钱");
+    expect(await moneyCellText("10.1", "灵隐寺")).toBe("填开销");
     expect(await moneyCellText("10.1", "游船")).toBe("未填");
   });
 

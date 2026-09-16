@@ -229,7 +229,7 @@ export interface HitContext {
   /** 这一行的横轴在屏幕上的位置 */
   axis: AxisRect;
   orientation: "wide" | "day";
-  /** 横排主轨每道多高（像素）：块上写不写钱不一样 */
+  /** 横排主轨每道多高（像素）：块上写不写开销不一样 */
   laneHeight: number;
   /** 不算的块：被拖的块、跟着它走的块，复制时还有复制出来的 */
   excluded: ReadonlySet<string>;

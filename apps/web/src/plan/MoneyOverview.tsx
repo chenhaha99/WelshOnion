@@ -20,8 +20,8 @@ interface MoneyOverviewProps {
 }
 
 /**
- * 切换视图的按钮上面的钱的总览（时间轴、列表两个视图都有）：总额、人均、已填几笔、还有几个块没挂钱，任何时候都显示（渐进），按筛选算；
- * 旁边「不属于任何一天」点开增删改不挂块的钱（签证、保险）。
+ * 切换视图的按钮上面的开销的总览（时间轴、列表两个视图都有）：总额、人均、已填几笔、还有几个块没挂开销，任何时候都显示（渐进），按筛选算；
+ * 旁边「不属于任何一天」点开增删改不挂块的开销（签证、保险）。
  */
 export function MoneyOverview({ doc, library, libraryView, plan, filter }: MoneyOverviewProps) {
   const [unattachedOpen, setUnattachedOpen] = useState(false);
@@ -34,11 +34,11 @@ export function MoneyOverview({ doc, library, libraryView, plan, filter }: Money
     `总额 ${formatYuan(summary.totalCents)}`,
     `人均 ${formatYuan(summary.perPersonCents)}`,
     `已填 ${progress.filledCount} / 共 ${progress.expenseCount} 笔`,
-    ...(progress.blocksWithoutMoney > 0 ? [`另有 ${progress.blocksWithoutMoney} 件事还没填钱`] : []),
+    ...(progress.blocksWithoutMoney > 0 ? [`另有 ${progress.blocksWithoutMoney} 件事还没填开销`] : []),
   ].join(" · ");
 
   return (
-    <section aria-label="钱的总览" className="glass-card flex flex-col gap-2 px-5 py-3">
+    <section aria-label="开销总览" className="glass-card flex flex-col gap-2 px-5 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p data-money-summary className="text-sm text-ink tabular-nums">
           {line}
@@ -61,7 +61,7 @@ export function MoneyOverview({ doc, library, libraryView, plan, filter }: Money
           kinds={kinds}
           countKindUsing={(kindId) => countBlocksUsing(plan, { kindId })}
           block={null}
-          label="不属于任何一天的钱"
+          label="不属于任何一天的开销"
           defaultKindId="other"
           // 收起后焦点回到「不属于任何一天」；先挪焦点，空行里填了没回车的借这次离开建上
           onDone={() => {

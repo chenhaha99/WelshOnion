@@ -32,9 +32,9 @@ interface DayTimelineProps {
   /** 每一行的标签：「第 1 天 · 10.1 周四」 */
   labels: readonly string[];
   filter: StatsFilter | undefined;
-  /** 每件事的钱格摘要（按筛选算过）：快捷条上的「钱」、竖条上写的钱用 */
+  /** 每件事的开销格摘要（按筛选算过）：快捷条上的「开销」、竖条上写的开销用 */
   moneyCells: Map<string, MoneyCell>;
-  /** 块上写标题，还是标题加钱 */
+  /** 块上写标题，还是标题加开销 */
   blockText: BlockText;
   /** 看的是哪天（底座 id），记在 DayList 里：切到列表时这里卸掉，切回来接着看这天 */
   shownDay: { current: string | null };
@@ -233,7 +233,7 @@ interface DaySegmentProps {
   item: PlacedSegment;
   /** 横向的位置：第几列、多宽 */
   place: CSSProperties;
-  /** 块上写钱时这件事的钱格摘要；只写标题时是 undefined */
+  /** 块上写开销时这件事的开销格摘要；只写标题时是 undefined */
   money: MoneyCell | undefined;
   dragView: DragView | null;
   handlers: SegmentHandlers;
@@ -273,7 +273,7 @@ function DaySegment({ plan, item, place, money, dragView, handlers }: DaySegment
         {point || item.track === "background" ? null : (
           <span data-bar-title>
             <span className="truncate">{block.title}</span>
-            {/* 块上写钱时标题下面再写一行；竖条不够高时被框裁掉 */}
+            {/* 块上写开销时标题下面再写一行；竖条不够高时被框裁掉 */}
             {money !== undefined && <span data-bar-money-text>{moneyCellLabel(money)}</span>}
           </span>
         )}

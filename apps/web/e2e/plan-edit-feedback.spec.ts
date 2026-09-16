@@ -39,7 +39,7 @@ test("手机上删完：滚到最后一天删一件事 → 提示和「撤销」
   expect(errors).toEqual([]);
 });
 
-test("电脑上：钱的编辑区点「收起」收起、焦点回到钱格 → 只看住宿时加一件，表里看得见", async ({ page }) => {
+test("电脑上：开销的编辑区点「收起」收起、焦点回到开销格 → 只看住宿时加一件，表里看得见", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
@@ -47,14 +47,14 @@ test("电脑上：钱的编辑区点「收起」收起、焦点回到钱格 → 
   await pickKind(page, table, "民宿", "住宿");
 
   const lake = await rowOf(table, "西湖");
-  await lake.getByRole("button", { name: "钱" }).click();
-  const editor = page.getByRole("group", { name: "西湖 的钱" });
+  await lake.getByRole("button", { name: "开销" }).click();
+  const editor = page.getByRole("group", { name: "西湖 的开销" });
   const close = editor.getByRole("button", { name: "收起" });
   await expect(close).toBeVisible();
   await shot(page, "03-money-editor");
   await close.click();
   await expect(editor).toBeHidden();
-  await expect(lake.getByRole("button", { name: "钱" })).toBeFocused();
+  await expect(lake.getByRole("button", { name: "开销" })).toBeFocused();
 
   await page.getByRole("group", { name: "按类型筛选" }).getByRole("button", { name: "住宿" }).click();
   await expect.poll(() => countRows(table, "西湖")).toBe(0);

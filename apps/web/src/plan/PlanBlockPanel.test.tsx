@@ -5,7 +5,17 @@ import { addBlock, addExpense, setBlockLayer, updateBlock, type AddBlockInput } 
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, blockTexts, blockTitles, daysFromOct1, openDetails, openStoredPlan, selectedText, showView } from "./test-helpers";
+import {
+  blockRow,
+  blockTexts,
+  blockTitles,
+  daysFromOct1,
+  moneyOverview,
+  openDetails,
+  openStoredPlan,
+  selectedText,
+  showView,
+} from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -187,11 +197,11 @@ describe("面板里有什么", () => {
     expect(buttonIn(panel, "类型：住宿")).toBeTruthy();
     expect(buttonIn(panel, "状态：已确认")).toBeTruthy();
     expect(buttonIn(panel, "时间").textContent).toBe("22:00–10.2 08:00 · 10 小时");
-    expect(buttonIn(panel, "钱").textContent).toBe("¥480");
+    expect(buttonIn(panel, "开销").textContent).toBe("¥480");
     expect(within(panel).getByLabelText("短备注")).toHaveProperty("value", "湖景房");
   });
 
-  it("路程和长备注；没挂钱写「填钱」", async () => {
+  it("路程和长备注；没挂开销写「填开销」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -204,7 +214,7 @@ describe("面板里有什么", () => {
     expect(selectedText(within(panel).getByLabelText("交通方式"))).toBe("自驾");
     expect(within(panel).getByLabelText("距离（公里）")).toHaveProperty("value", "132");
     expect(within(panel).getByLabelText("长备注")).toHaveProperty("value", "走高速");
-    expect(buttonIn(panel, "钱").textContent).toBe("填钱");
+    expect(buttonIn(panel, "开销").textContent).toBe("填开销");
   });
 
   it("没排时间的：有上移、下移、缩进，没有推迟、放在哪、复制到", async () => {
@@ -265,18 +275,18 @@ describe("面板里有什么", () => {
     expect(document.activeElement).toBe(buttonIn(panelOf("西湖"), "时间"));
   });
 
-  it("填钱：收起后「钱」按钮写着钱数，焦点在它上面", async () => {
+  it("填开销：收起后「开销」按钮写着开销数，焦点在它上面", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeAtNine);
 
     const panel = await openInTimeline(user, "10.1", "西湖");
-    await user.click(buttonIn(panel, "钱"));
-    const editor = within(panel).getByRole("group", { name: "西湖 的钱" });
+    await user.click(buttonIn(panel, "开销"));
+    const editor = within(panel).getByRole("group", { name: "西湖 的开销" });
     await user.type(within(editor).getByRole("textbox", { name: "新一笔的金额" }), "300{Enter}");
     await user.click(within(editor).getByRole("button", { name: "收起" }));
 
-    await waitFor(() => expect(buttonIn(panelOf("西湖"), "钱").textContent).toBe("¥300"));
-    expect(document.activeElement).toBe(buttonIn(panelOf("西湖"), "钱"));
+    await waitFor(() => expect(buttonIn(panelOf("西湖"), "开销").textContent).toBe("¥300"));
+    expect(document.activeElement).toBe(buttonIn(panelOf("西湖"), "开销"));
   });
 
   it("填短备注，点「关闭」：列表里标题下面写着", async () => {
@@ -336,7 +346,7 @@ describe("放在哪", () => {
 });
 
 describe("复制到另一天", () => {
-  it("连同钱复制到那天同一时刻；面板留在原来这件上；一步撤销", async () => {
+  it("连同开销复制到那天同一时刻；面板留在原来这件上；一步撤销", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 2);
@@ -354,7 +364,7 @@ describe("复制到另一天", () => {
     expect(await blockTexts("10.1")).toEqual([{ title: "西湖", time: "09:00–12:00" }]);
     expect(await blockTexts("10.2")).toEqual([{ title: "西湖", time: "09:00–12:00" }]);
     expect((await blockRow("10.2", "西湖")).querySelector("[data-money-cell]")?.textContent).toBe("¥300");
-    expect(screen.getByRole("region", { name: "钱的总览" }).textContent).toContain("总额 ¥600");
+    expect((await moneyOverview()).textContent).toContain("总额 ¥600");
 
     await user.keyboard("{Control>}z{/Control}");
     await waitFor(async () => expect(await blockTitles("10.2")).toEqual([]));

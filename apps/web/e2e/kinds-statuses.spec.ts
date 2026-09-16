@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { showView } from "./timeline-helpers";
+import { openPlanSettings, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 // 选项和「改名」这类按钮的名字会互相包含，按名字找一律精确匹配
@@ -52,8 +52,7 @@ test("类型和状态：选择器里新建并用上 → 设置里改色、删除
 
   // 到设置里改颜色：设置里写着这个计划用了几件
   const settingsButton = page.getByRole("button", { name: "计划设置", exact: true });
-  await settingsButton.click();
-  const settings = page.getByRole("dialog", { name: "计划设置" });
+  const settings = await openPlanSettings(page, "类型和状态");
   const kindManager = settings.getByRole("group", { name: "类型的管理" });
   await expect(settings.getByText("所有计划共用", { exact: false })).toBeVisible();
   await expect(kindManager.getByText("这个计划里 2 件在用").first()).toBeVisible();

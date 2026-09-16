@@ -14,22 +14,22 @@ interface BlockMoneyProps {
   library: Y.Doc;
   plan: PlanView;
   block: BlockView;
-  /** 这件事的钱格摘要（按筛选算过）；一笔钱都没挂是 undefined */
+  /** 这件事的开销格摘要（按筛选算过）；一笔开销都没挂是 undefined */
   moneyCell: MoneyCell | undefined;
-  /** 快捷条上的「¥」，还是块上写着钱的那一行 */
+  /** 快捷条上的「¥」，还是块上写着开销的那一行 */
   variant: "bar" | "line";
 }
 
 /**
- * 改这件事的钱，两处共用：快捷条上的「¥」、块上写着钱的那一行。
- * 一笔都没挂、或只挂着一笔自己的钱时，点了弹个只填金额的小框；
- * 挂着多笔、有共用的、按类型筛掉了一部分时，小框写不下，改为打开详情面板、展开钱的编辑区。
+ * 改这件事的开销，两处共用：快捷条上的「¥」、块上写着开销的那一行。
+ * 一笔都没挂、或只挂着一笔自己的开销时，点了弹个只填金额的小框；
+ * 挂着多笔、有共用的、按类型筛掉了一部分时，小框写不下，改为打开详情面板、展开开销的编辑区。
  */
 export function BlockMoney({ doc, library, plan, block, moneyCell, variant }: BlockMoneyProps) {
   const openBlock = useOpenBlock();
   const selection = useBlockSelection();
   const text = moneyCellLabel(moneyCell);
-  const label = `钱：${text}`;
+  const label = `开销：${text}`;
   const attached = [...plan.expenses.values()].filter((expense) => expense.block_ids.includes(block.id));
   const only = attached.length === 1 && attached[0]!.block_ids.length === 1 ? attached[0]! : null;
   const simple = !moneyCell?.otherKinds && (attached.length === 0 || only !== null);
@@ -46,7 +46,7 @@ export function BlockMoney({ doc, library, plan, block, moneyCell, variant }: Bl
       trigger={trigger}
       triggerClassName={triggerClassName}
       role="dialog"
-      panelLabel="改钱"
+      panelLabel="改开销"
       panelClassName="menu p-2"
       align="end"
       estimatedHeight={80}

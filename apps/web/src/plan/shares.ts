@@ -72,7 +72,7 @@ export interface MoneyShares {
   rows: MoneyShareRow[];
 }
 
-/** 钱的占比：按钱自己的类型，只算填了金额的；总数是 0 的类不进比例。 */
+/** 开销的占比：按开销自己的类型，只算填了金额的；总数是 0 的类不进比例。 */
 export function moneyShares(plan: PlanView, library: LibraryView, filter?: StatsFilter): MoneyShares {
   const summary = moneySummary(plan, filter);
   const progress = fillProgress(plan, filter);
@@ -103,9 +103,9 @@ export function moneyRowLabel(row: MoneyShareRow): string {
   return row.unfilled > 0 ? `${head} · 还有 ${row.unfilled} 笔没填` : head;
 }
 
-/** 钱的占比旁边那句；全填了、也有能进比例的，就不用写。 */
+/** 开销的占比旁边那句；全填了、也有能进比例的，就不用写。 */
 export function moneyNoteLabel(shares: MoneyShares): string | null {
-  if (shares.filledCount === 0) return "还没有填了金额的钱";
+  if (shares.filledCount === 0) return "还没有填了金额的开销";
   if (!shares.rows.some((row) => row.percent !== null)) return `填了金额的 ${shares.filledCount} 笔加起来是 ¥0`;
   if (shares.unfilledCount > 0) return `只算已填的 ${shares.filledCount} 笔，还有 ${shares.unfilledCount} 笔没填`;
   return null;

@@ -19,7 +19,7 @@ import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
 import { BlockMoney } from "./block-money";
 import type { MoneyCell } from "./money-cells";
-import { ZOOM_STEPS } from "./plan-timeline-zoom-memory";
+import { ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
 import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
@@ -46,7 +46,7 @@ const MINUTES_PER_DAY = 1440;
 /** 「块上写」的两个选项 */
 const BLOCK_TEXTS = [
   { value: "title", label: "标题" },
-  { value: "money", label: "标题 + 钱" },
+  { value: "money", label: "标题 + 开销" },
 ] as const satisfies ReadonlyArray<{ value: BlockText; label: string }>;
 
 interface TimelineProps {
@@ -56,9 +56,9 @@ interface TimelineProps {
   libraryView: LibraryView;
   /** 按状态筛选；没开是 undefined */
   filter?: StatsFilter;
-  /** 每件事的钱格摘要（按筛选算过）：快捷条上的「钱」、块上写的钱用 */
+  /** 每件事的开销格摘要（按筛选算过）：快捷条上的「开销」、块上写的开销用 */
   moneyCells: Map<string, MoneyCell>;
-  /** 块上写标题，还是标题加钱 */
+  /** 块上写标题，还是标题加开销 */
   blockText: BlockText;
   onBlockText: (next: BlockText) => void;
   /** 横向放到百分之几（横排才有） */
@@ -111,7 +111,7 @@ export function Timeline({
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-medium text-ink">时间轴</h2>
         <div className="flex items-center gap-2">
-        {/* 块上写标题，还是标题下面再写一行钱（记在这台设备上） */}
+        {/* 块上写标题，还是标题下面再写一行开销（记在这台设备上） */}
         <div role="group" aria-label="块上写" className="flex rounded-full border border-ink/10 bg-white/70 p-0.5">
           {BLOCK_TEXTS.map(({ value, label }) => (
             <button
@@ -127,30 +127,22 @@ export function Timeline({
             </button>
           ))}
         </div>
-        {/* 横向放大：一小时太窄时放大了看（只有横排有） */}
+        {/* 横向放大：像剪辑软件那样拖着放大（只有横排有） */}
         {wide && (
-          <div role="group" aria-label="横向放大" className="flex items-center gap-1 text-xs text-ink-muted">
-            <button
-              type="button"
-              aria-label="缩小"
-              title="缩小"
-              className="btn btn-ghost h-6 px-2"
-              disabled={zoom === ZOOM_STEPS[0]}
-              onClick={() => onZoom(ZOOM_STEPS[ZOOM_STEPS.indexOf(zoom as 100) - 1]!)}
-            >
-              －
-            </button>
-            <span className="tabular-nums">{`${zoom}%`}</span>
-            <button
-              type="button"
-              aria-label="放大"
-              title="放大"
-              className="btn btn-ghost h-6 px-2"
-              disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]}
-              onClick={() => onZoom(ZOOM_STEPS[ZOOM_STEPS.indexOf(zoom as 100) + 1]!)}
-            >
-              ＋
-            </button>
+          <div className="flex items-center gap-2 text-xs text-ink-muted">
+            <input
+              type="range"
+              aria-label="横向放大"
+              aria-valuetext={`${zoom}%`}
+              title={`横向放大 ${zoom}%`}
+              className="timeline-zoom"
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={10}
+              value={zoom}
+              onChange={(event) => onZoom(Number(event.target.value))}
+            />
+            <span className="w-10 text-right tabular-nums">{`${zoom}%`}</span>
           </div>
         )}
         </div>
@@ -490,9 +482,9 @@ interface SegmentProps {
   library: Y.Doc;
   plan: PlanView;
   item: PlacedSegment;
-  /** 块上要不要写钱那一行 */
+  /** 块上要不要写开销那一行 */
   showMoney: boolean;
-  /** 这件事的钱格摘要 */
+  /** 这件事的开销格摘要 */
   money: MoneyCell | undefined;
   /** 在这一行横轴里的上边和高度（像素） */
   box: { top: number; height: number };
@@ -500,7 +492,7 @@ interface SegmentProps {
   handlers: SegmentHandlers;
 }
 
-/** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点一下选中；块上写钱时下面还有写着钱的那一行。 */
+/** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点一下选中；块上写开销时下面还有写着开销的那一行。 */
 function Segment({ doc, library, plan, item, box, showMoney, money, dragView, handlers }: SegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;

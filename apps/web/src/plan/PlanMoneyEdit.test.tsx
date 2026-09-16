@@ -5,7 +5,7 @@ import { addBlock, addExpense, setPlanSettings, type ExpenseView } from "@welsho
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, daysFromOct1, openOtherTab, openStoredPlan } from "./test-helpers";
+import { blockRow, daysFromOct1, moneyOverview, openOtherTab, openStoredPlan } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -22,7 +22,7 @@ function addDayBlock(plan: Y.Doc, library: Y.Doc, baseId: string, title: string,
 
 function addMoney(plan: Y.Doc, library: Y.Doc, title: string, cents: number | null, blockIds: string[]): void {
   const result = addExpense(plan, library, { title, amountCents: cents, blockIds });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 async function moneyCellText(day: string, title: string): Promise<string> {
@@ -30,8 +30,8 @@ async function moneyCellText(day: string, title: string): Promise<string> {
 }
 
 async function openMoney(user: User, day: string, title: string): Promise<HTMLElement> {
-  await user.click(within(await blockRow(day, title)).getByRole("button", { name: "钱" }));
-  return screen.getByRole("group", { name: `${title} 的钱` });
+  await user.click(within(await blockRow(day, title)).getByRole("button", { name: "开销" }));
+  return screen.getByRole("group", { name: `${title} 的开销` });
 }
 
 /** 编辑区里说明是 note 的那一笔。 */
@@ -39,7 +39,7 @@ function expenseRow(editor: HTMLElement, note: string): HTMLElement {
   const row = [...editor.querySelectorAll<HTMLElement>("[data-expense-id]")].find(
     (item) => item.querySelector<HTMLInputElement>("input[aria-label='说明']")?.value === note,
   );
-  if (!row) throw new Error(`没有说明是「${note}」的钱`);
+  if (!row) throw new Error(`没有说明是「${note}」的开销`);
   return row;
 }
 
@@ -47,7 +47,7 @@ function expensesOf(other: Awaited<ReturnType<typeof openOtherTab>>): ExpenseVie
   return [...other.plan().expenses.values()];
 }
 
-describe("在块里填钱", () => {
+describe("在块里填开销", () => {
   it("填第一笔：类型跟块、按总价", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan((plan, library) => {
@@ -77,32 +77,32 @@ describe("在块里填钱", () => {
     const editor = await openMoney(user, "10.1", "西湖");
     await user.click(within(editor).getByRole("button", { name: "收起" }));
 
-    expect(screen.queryByRole("group", { name: "西湖 的钱" })).toBeNull();
-    expect(await moneyCellText("10.1", "西湖")).toBe("填钱");
+    expect(screen.queryByRole("group", { name: "西湖 的开销" })).toBeNull();
+    expect(await moneyCellText("10.1", "西湖")).toBe("填开销");
     expect(expensesOf(other)).toHaveLength(0);
   });
 
-  it("点「收起」、按 Esc、再点一次钱格都能收起，焦点回到钱格", async () => {
+  it("点「收起」、按 Esc、再点一次开销格都能收起，焦点回到开销格", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       addDayBlock(plan, library, oct1!, "西湖");
     });
-    const cell = within(await blockRow("10.1", "西湖")).getByRole("button", { name: "钱" });
+    const cell = within(await blockRow("10.1", "西湖")).getByRole("button", { name: "开销" });
 
     await user.click(within(await openMoney(user, "10.1", "西湖")).getByRole("button", { name: "收起" }));
-    expect(screen.queryByRole("group", { name: "西湖 的钱" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "西湖 的开销" })).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(cell));
 
-    // 一笔钱都没有时，打开后空行的金额框就有焦点，在里面按 Esc
+    // 一笔开销都没有时，打开后空行的金额框就有焦点，在里面按 Esc
     await openMoney(user, "10.1", "西湖");
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("group", { name: "西湖 的钱" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "西湖 的开销" })).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(cell));
 
     await openMoney(user, "10.1", "西湖");
     await user.click(cell);
-    expect(screen.queryByRole("group", { name: "西湖 的钱" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "西湖 的开销" })).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(cell));
   });
 
@@ -124,8 +124,8 @@ describe("在块里填钱", () => {
     await user.type(within(temple).getByRole("textbox", { name: "新一笔的金额" }), "50");
     await user.keyboard("{Escape}");
 
-    expect(screen.queryByRole("group", { name: "灵隐寺 的钱" })).toBeNull();
-    expect(await moneyCellText("10.1", "灵隐寺")).toBe("填钱");
+    expect(screen.queryByRole("group", { name: "灵隐寺 的开销" })).toBeNull();
+    expect(await moneyCellText("10.1", "灵隐寺")).toBe("填开销");
     await waitFor(() => expect(expensesOf(other).map((expense) => expense.amount_cents)).toEqual([30000]));
   });
 
@@ -177,7 +177,7 @@ describe("在块里填钱", () => {
     await waitFor(() => expect(expensesOf(other).map((expense) => expense.title)).toEqual(["面"]));
   });
 
-  it("共用的钱从这件事拿掉：钱还在", async () => {
+  it("共用的开销从这件事拿掉：开销还在", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan((plan, library) => {
       const [oct1, oct2] = daysFromOct1(plan, 2);
@@ -192,7 +192,7 @@ describe("在块里填钱", () => {
     expect(within(shared).getByText("也挂在别的事上")).toBeTruthy();
     await user.click(within(shared).getByRole("button", { name: "从这件事拿掉" }));
 
-    await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("填钱"));
+    await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("填开销"));
     expect(await moneyCellText("10.1", "民宿")).toBe("¥500");
     await waitFor(() => expect(expensesOf(other)[0]?.block_ids).toHaveLength(1));
   });
@@ -259,7 +259,7 @@ describe("把已有的一笔挂到这件事上", () => {
       const lodging = addDayBlock(plan, library, oct2!, "民宿", "lodging");
       addMoney(plan, library, "门票", 30000, [lake]);
       const perPerson = addExpense(plan, library, { title: "", amountCents: 8000, basis: "per_person", blockIds: [dinner] });
-      if (!perPerson.ok) throw new Error("建钱失败");
+      if (!perPerson.ok) throw new Error("建开销失败");
       addMoney(plan, library, "民宿两晚", 80000, [lodging]);
       addMoney(plan, library, "签证", 60000, []);
       addMoney(plan, library, "保险", null, []);
@@ -291,7 +291,7 @@ describe("把已有的一笔挂到这件事上", () => {
     expect(document.activeElement).toBe(within(editor).getByRole("button", { name: "收起" }));
   });
 
-  it("没有可挂的钱：不出这个下拉", async () => {
+  it("没有可挂的开销：不出这个下拉", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -303,7 +303,7 @@ describe("把已有的一笔挂到这件事上", () => {
     expect(within(editor).queryByRole("combobox", { name: "挂上已有的一笔" })).toBeNull();
   });
 
-  it("挂上不属于任何一天的钱：钱格有了，不属于任何一天变成 0", async () => {
+  it("挂上不属于任何一天的开销：开销格有了，不属于任何一天变成 0", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -315,10 +315,10 @@ describe("把已有的一笔挂到这件事上", () => {
     await user.selectOptions(pickOf(editor), "其他 ¥600 签证 · 不属于任何一天");
 
     await waitFor(async () => expect(await moneyCellText("10.1", "西湖")).toBe("¥600"));
-    expect(screen.getByRole("button", { name: "不属于任何一天：¥0" })).toBeTruthy();
+    expect(within(await moneyOverview()).getByRole("button", { name: "不属于任何一天：¥0" })).toBeTruthy();
   });
 
-  it("筛选开着时也列出被筛掉的钱", async () => {
+  it("筛选开着时也列出被筛掉的开销", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1, oct2] = daysFromOct1(plan, 2);
@@ -349,7 +349,7 @@ describe("把已有的一笔挂到这件事上", () => {
     await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("共用"));
 
     await user.click(screen.getByRole("button", { name: "撤销" }));
-    await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("填钱"));
+    await waitFor(async () => expect(await moneyCellText("10.2", "民宿")).toBe("填开销"));
     await waitFor(() => expect(expensesOf(other)[0]?.block_ids).toEqual([firstNight]));
 
     await user.click(screen.getByRole("button", { name: "重做" }));
@@ -358,18 +358,18 @@ describe("把已有的一笔挂到这件事上", () => {
   });
 });
 
-describe("不属于任何一天的钱", () => {
+describe("不属于任何一天的开销", () => {
   it("点「收起」收起，焦点回到「不属于任何一天」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    const overview = await screen.findByRole("region", { name: "钱的总览" });
+    const overview = await moneyOverview();
     const toggle = within(overview).getByRole("button", { name: "不属于任何一天：¥0" });
 
     await user.click(toggle);
-    const editor = screen.getByRole("group", { name: "不属于任何一天的钱" });
+    const editor = screen.getByRole("group", { name: "不属于任何一天的开销" });
     await user.click(within(editor).getByRole("button", { name: "收起" }));
 
-    expect(screen.queryByRole("group", { name: "不属于任何一天的钱" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "不属于任何一天的开销" })).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(toggle));
   });
 });

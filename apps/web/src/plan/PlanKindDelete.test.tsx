@@ -5,7 +5,7 @@ import { addBlock, addKind } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, daysFromOct1, openStoredPlan } from "./test-helpers";
+import { blockRow, daysFromOct1, openPlanSettings, openStoredPlan } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -31,8 +31,7 @@ async function openKindPicker(user: User, title: string): Promise<HTMLElement> {
 
 /** 删除搬到了计划设置里：打开设置的「类型的管理」。 */
 async function openKindManager(user: User): Promise<HTMLElement> {
-  await user.click(await screen.findByRole("button", { name: "计划设置" }));
-  const settings = await screen.findByRole("dialog", { name: "计划设置" });
+  const settings = await openPlanSettings(user, "类型和状态");
   return within(settings).getByRole("group", { name: "类型的管理" });
 }
 

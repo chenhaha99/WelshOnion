@@ -24,7 +24,7 @@ interface MoneyEditorProps {
   plan: PlanView;
   kinds: KindView[];
   countKindUsing: (kindId: string) => number;
-  /** 编辑这块挂的钱；给 null 就是一个块都不挂的钱 */
+  /** 编辑这块挂的开销；给 null 就是一个块都不挂的开销 */
   block: BlockView | null;
   label: string;
   /** 新一笔默认的类型 */
@@ -36,7 +36,7 @@ interface MoneyEditorProps {
 }
 
 /**
- * 钱的编辑区：每笔一行（类型、金额、人均或总价、说明、删除），末尾一行空的，填了才建；
+ * 开销的编辑区：每笔一行（类型、金额、人均或总价、说明、删除），末尾一行空的，填了才建；
  * 块的编辑区下面还能「挂上已有的一笔」；最后是「收起」。
  */
 export function MoneyEditor({
@@ -122,14 +122,14 @@ interface ExpenseRowProps {
   expense: ExpenseView;
   kinds: KindView[];
   countKindUsing: (kindId: string) => number;
-  /** 在哪块的编辑区里；不属于任何一天的钱、按类型分组时给 null */
+  /** 在哪块的编辑区里；不属于任何一天的开销、按类型分组时给 null */
   blockId: string | null;
   /** 按类型分组时写「挂在 10.1 周四 民宿」或「不属于任何一天」；按天时不给 */
   blocksLabel?: string;
 }
 
 /**
- * 一笔钱一行：类型、金额、人均或总价、说明，共用时能从这件事拿掉，删除这笔。按天的编辑区、按类型分组共用。
+ * 一笔开销一行：类型、金额、人均或总价、说明，共用时能从这件事拿掉，删除这笔。按天的编辑区、按类型分组共用。
  * 分两组：类型、金额、人均或总价一组，说明往后一组；放不下时第二组整个换到下一行，不会把「总价」和金额拆开。
  */
 export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId, blocksLabel }: ExpenseRowProps) {
@@ -204,7 +204,7 @@ export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, block
             </button>
           </>
         )}
-        {/* 删一笔钱不确认，靠撤销：删完在屏幕底部说删了哪笔、能撤销 */}
+        {/* 删一笔开销不确认，靠撤销：删完在屏幕底部说删了哪笔、能撤销 */}
         <button
           type="button"
           className="btn btn-ghost h-8 px-2 text-danger"
@@ -223,11 +223,11 @@ export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, block
   );
 }
 
-/** 删完的提示怎么说这笔钱：有说明说说明，没说明说金额。 */
+/** 删完的提示怎么说这笔开销：有说明说说明，没说明说金额。 */
 function deletedMessage(expense: ExpenseView): string {
-  if (expense.title !== "") return `删掉了「${expense.title}」这笔钱`;
-  if (expense.amount_cents !== null) return `删掉了 ${formatYuan(expense.amount_cents)} 这笔钱`;
-  return "删掉了一笔钱";
+  if (expense.title !== "") return `删掉了「${expense.title}」这笔开销`;
+  if (expense.amount_cents !== null) return `删掉了 ${formatYuan(expense.amount_cents)} 这笔开销`;
+  return "删掉了一笔开销";
 }
 
 interface DraftRowProps {
@@ -245,7 +245,7 @@ interface DraftRowProps {
 }
 
 /**
- * 末尾那行空的：金额或说明填了一格、按回车或焦点离开这一行时才建这笔钱。
+ * 末尾那行空的：金额或说明填了一格、按回车或焦点离开这一行时才建这笔开销。
  * 只在离开整行时提交，免得填完金额跳去填说明时先建出一笔、填完说明又建一笔。
  * 按 Esc 是不要了：清空，接着焦点离开也不建。
  */

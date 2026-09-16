@@ -139,7 +139,7 @@ interface TimelineDragOptions {
   filter: StatsFilter | undefined;
   /** 竖排正在看第几行；横排是 null */
   day: number | null;
-  /** 横排主轨每道多高（像素）：块上写不写钱不一样，量指针落在哪块上要用 */
+  /** 横排主轨每道多高（像素）：块上写不写开销不一样，量指针落在哪块上要用 */
   laneHeight: number;
   /** 竖排能上下滚的框：拖到框边时它自己滚；横排不给 */
   scroller?: RefObject<HTMLDivElement | null>;

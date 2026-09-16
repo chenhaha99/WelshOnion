@@ -3,23 +3,23 @@ import { blocksOfDay } from "./day-blocks";
 import { formatYuan } from "./money";
 
 export interface MoneyCell {
-  /** 以这块为显示块的钱里，填了金额的合计（分，人均的已按人数乘过） */
+  /** 以这块为显示块的开销里，填了金额的合计（分，人均的已按人数乘过） */
   ownCents: number;
-  /** 以这块为显示块的钱有几笔（含没填金额的） */
+  /** 以这块为显示块的开销有几笔（含没填金额的） */
   ownCount: number;
   /** 其中没填金额的笔数 */
   unfilledCount: number;
-  /** 这块还挂着显示块在别处的共用钱 */
+  /** 这块还挂着显示块在别处的共用开销 */
   sharedElsewhere: boolean;
-  /** 按类型筛时，这块还挂着类型被筛掉的钱 */
+  /** 按类型筛时，这块还挂着类型被筛掉的开销 */
   otherKinds: boolean;
 }
 
 /**
- * 每个挂了钱的块的钱格摘要。一笔钱挂多个块时，「显示块」是表里最早的那块
- * （先按天的顺序、再按这天安排表的顺序），只算进它；其他块记成「共用」。不挂块的钱不进钱格。
- * 带筛选时只算通过筛选的钱，显示块和「共用」都只在通过筛选的块里挑（被筛掉的块不显示）。
- * 按类型筛时，显示的块上挂着类型被筛掉的钱，记 otherKinds；只挂着这种钱的块，钱格是空的（见 moneyCellEmpty）。
+ * 每个挂了开销的块的开销格摘要。一笔开销挂多个块时，「显示块」是表里最早的那块
+ * （先按天的顺序、再按这天安排表的顺序），只算进它；其他块记成「共用」。不挂块的开销不进开销格。
+ * 带筛选时只算通过筛选的开销，显示块和「共用」都只在通过筛选的块里挑（被筛掉的块不显示）。
+ * 按类型筛时，显示的块上挂着类型被筛掉的开销，记 otherKinds；只挂着这种开销的块，开销格是空的（见 moneyCellEmpty）。
  */
 export function moneyCells(plan: PlanView, filter?: StatsFilter): Map<string, MoneyCell> {
   const tableOrder = new Map<string, number>();
@@ -64,8 +64,8 @@ export function moneyCells(plan: PlanView, filter?: StatsFilter): Map<string, Mo
 }
 
 /**
- * 通过筛选、挂了块、但挂的块一个都没通过筛选（安排表里找不到）的钱，填了的金额合计（分，人均的按人数乘过）。
- * 只按状态筛时一定是 0：钱按状态计入，就说明挂的块里有通过的。
+ * 通过筛选、挂了块、但挂的块一个都没通过筛选（安排表里找不到）的开销，填了的金额合计（分，人均的按人数乘过）。
+ * 只按状态筛时一定是 0：开销按状态计入，就说明挂的块里有通过的。
  */
 export function moneyOnHiddenBlocks(plan: PlanView, filter?: StatsFilter): number {
   let cents = 0;
@@ -80,14 +80,14 @@ export function moneyOnHiddenBlocks(plan: PlanView, filter?: StatsFilter): numbe
   return cents;
 }
 
-/** 钱格里没有钱可显示：没有钱格，或者自己没钱、也不是共用（只挂着类型被筛掉的钱）。 */
+/** 开销格里没有开销可显示：没有开销格，或者自己没开销、也不是共用（只挂着类型被筛掉的开销）。 */
 export function moneyCellEmpty(cell: MoneyCell | undefined): boolean {
   return cell === undefined || (cell.ownCount === 0 && !cell.sharedElsewhere);
 }
 
-/** 钱格的字：「填钱」「未填」「¥300」「¥158.50 · 2 笔」「共用」「¥30 含共用」。 */
+/** 开销格的字：「填开销」「未填」「¥300」「¥158.50 · 2 笔」「共用」「¥30 含共用」。 */
 export function moneyCellLabel(cell: MoneyCell | undefined): string {
-  if (cell === undefined || moneyCellEmpty(cell)) return "填钱";
+  if (cell === undefined || moneyCellEmpty(cell)) return "填开销";
   if (cell.ownCount === 0) return "共用";
   const own =
     cell.ownCount === 1
@@ -98,7 +98,7 @@ export function moneyCellLabel(cell: MoneyCell | undefined): string {
   return cell.sharedElsewhere ? `${own} 含共用` : own;
 }
 
-/** 钱格下面那一行：按类型筛时块上还挂着别的类型的钱，写「另有别的类型的钱」；没有是 null。 */
+/** 开销格下面那一行：按类型筛时块上还挂着别的类型的开销，写「另有别的类型的开销」；没有是 null。 */
 export function moneyCellNote(cell: MoneyCell | undefined): string | null {
-  return cell?.otherKinds ? "另有别的类型的钱" : null;
+  return cell?.otherKinds ? "另有别的类型的开销" : null;
 }

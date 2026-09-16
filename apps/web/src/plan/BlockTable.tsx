@@ -38,7 +38,7 @@ interface BlockTableProps {
   baseId: string;
   date: string;
   dayLabel: string;
-  /** 全计划的钱格摘要，按块 id */
+  /** 全计划的开销格摘要，按块 id */
   moneyCells: ReadonlyMap<string, MoneyCell>;
   /** 按状态筛选；没开是 undefined */
   filter?: StatsFilter;
@@ -118,7 +118,7 @@ export function BlockTable({
             <th>类型</th>
             <th>状态</th>
             <th>时间</th>
-            <th>钱</th>
+            <th>开销</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -176,7 +176,7 @@ interface BlockRowProps {
   followerCount: number;
   countKindUsing: (kindId: string) => number;
   countStatusUsing: (statusId: string) => number;
-  /** 这块的钱格摘要；一笔钱都没挂就是 undefined */
+  /** 这块的开销格摘要；一笔开销都没挂就是 undefined */
   moneyCell: MoneyCell | undefined;
 }
 
@@ -223,9 +223,9 @@ function BlockRow({
       if (button !== document.activeElement) button?.focus();
     });
   };
-  // 收起钱的编辑区后焦点回到钱格；先挪焦点，空行里填了没回车的借这次离开建上（按 Esc 的在空行里就放弃了）
+  // 收起开销的编辑区后焦点回到开销格；先挪焦点，空行里填了没回车的借这次离开建上（按 Esc 的在空行里就放弃了）
   const closeMoney = () => {
-    row.current?.querySelector<HTMLElement>("button[aria-label='钱']")?.focus();
+    row.current?.querySelector<HTMLElement>("button[aria-label='开销']")?.focus();
     setMoneyOpen(false);
   };
   const subtitleLine = [block.subtitle, block.note === null ? null : "有长备注"].filter((part) => part !== null).join(" · ");
@@ -281,10 +281,10 @@ function BlockRow({
           </button>
         </td>
         <td className="w-36">
-          {/* 没钱可显示时淡色的「填钱」：空格子本身就是还没填的进度；按类型筛时，别的类型的钱在下面另写一行 */}
+          {/* 没开销可显示时淡色的「填开销」：空格子本身就是还没填的进度；按类型筛时，别的类型的开销在下面另写一行 */}
           <button
             type="button"
-            aria-label="钱"
+            aria-label="开销"
             aria-expanded={moneyOpen}
             className={`input-bare text-left text-sm whitespace-nowrap tabular-nums ${moneyCellEmpty(moneyCell) ? "text-ink-muted/60" : "text-ink"}`}
             onClick={() => setMoneyOpen((value) => !value)}
@@ -320,7 +320,7 @@ function BlockRow({
               kinds={kinds}
               countKindUsing={countKindUsing}
               block={block}
-              label={`${block.title} 的钱`}
+              label={`${block.title} 的开销`}
               // 块的类型被删了时，新一笔先记成「其他」
               defaultKindId={block.kind.deleted ? "other" : block.kind.id}
               linkChoices={linkableExpenses(plan, block.id)}

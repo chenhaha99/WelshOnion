@@ -48,8 +48,8 @@ interface KindGroupsProps {
 }
 
 /**
- * 按类型分组：一类一组，这一类通过筛选的钱一笔一行（写挂在哪些块上），这一类一笔钱都没挂的块一行空的、填了就建，
- * 每组末尾加一笔；下面一行加别的类型的钱。行按行程的先后排，不挂块的钱在最后。
+ * 按类型分组：一类一组，这一类通过筛选的开销一笔一行（写挂在哪些块上），这一类一笔开销都没挂的块一行空的、填了就建，
+ * 每组末尾加一笔；下面一行加别的类型的开销。行按行程的先后排，不挂块的开销在最后。
  * 行变了、焦点掉到页面最外面时，落回同一行，那一行不在了就落到原来位置的下一行。
  */
 export function KindGroups({ doc, library, libraryView, plan, filter, onEmptyFocus }: KindGroupsProps) {
@@ -58,12 +58,12 @@ export function KindGroups({ doc, library, libraryView, plan, filter, onEmptyFoc
   const tripOrder = tripOrderOf(plan);
   const blockLabel = blockLabeller(plan);
   const groups = kindGroups(plan, libraryView, filter, tripOrder);
-  // 加钱时「挂到」只列通过筛选的块，按行程的先后：加完看得见
+  // 加开销时「挂到」只列通过筛选的块，按行程的先后：加完看得见
   const blockChoices = [...tripOrder.keys()]
     .map((blockId) => plan.blocks.get(blockId)!)
     .filter((block) => passesFilter(block, filter))
     .map((block) => ({ id: block.id, label: blockLabel(block) }));
-  // 「加一笔别的类型的钱」：按了按类型筛时只能选按下的那几类，同样是为了加完看得见
+  // 「加一笔别的类型的开销」：按了按类型筛时只能选按下的那几类，同样是为了加完看得见
   const kindIds = filter?.kindIds;
   const otherKindChoices = kindIds ? kinds.filter((kind) => kindIds.includes(kind.id)) : kinds;
   const otherDefaultKind = otherKindChoices.some((kind) => kind.id === "other")
@@ -140,7 +140,7 @@ export function KindGroups({ doc, library, libraryView, plan, filter, onEmptyFoc
                 </div>
               ),
             )}
-            {/* 被删掉的类型那一组不加：新钱不该记成已删除的类型 */}
+            {/* 被删掉的类型那一组不加：新开销不该记成已删除的类型 */}
             {group.key !== DELETED_GROUP && (
               <div data-add-row>
                 <DraftRow
@@ -156,8 +156,8 @@ export function KindGroups({ doc, library, libraryView, plan, filter, onEmptyFoc
           </li>
         ))}
       </ol>
-      {/* 每组末尾只能加这个计划已经用到的类型；第一笔新类型的钱从这里加 */}
-      <section aria-label="加一笔别的类型的钱" className="glass-card flex flex-col gap-2 px-5 py-3">
+      {/* 每组末尾只能加这个计划已经用到的类型；第一笔新类型的开销从这里加 */}
+      <section aria-label="加一笔别的类型的开销" className="glass-card flex flex-col gap-2 px-5 py-3">
         <DraftRow
           doc={doc}
           library={library}
@@ -194,7 +194,7 @@ function kindGroups(
   };
   const place = (blockId: string) => tripOrder.get(blockId) ?? Number.POSITIVE_INFINITY;
 
-  // 挂了钱的块（挂了没填金额的钱也算），不管那笔钱过不过筛选
+  // 挂了开销的块（挂了没填金额的开销也算），不管那笔开销过不过筛选
   const withMoney = new Set<string>();
   for (const expense of plan.expenses.values()) {
     for (const blockId of expense.block_ids) withMoney.add(blockId);
@@ -208,16 +208,16 @@ function kindGroups(
   }
 
   for (const group of groups.values()) {
-    // 不挂块的钱位置是无穷大：两个无穷大相减是 NaN，按 id 排（id 带着创建时间）
+    // 不挂块的开销位置是无穷大：两个无穷大相减是 NaN，按 id 排（id 带着创建时间）
     group.rows.sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
   return [...groups.values()].sort((a, b) => a.order - b.order);
 }
 
-/** 组头：「¥800 · 3 笔」「¥480 · 2 笔 · 还有 1 笔没填」；只有空行时「还没有钱」。 */
+/** 组头：「¥800 · 3 笔」「¥480 · 2 笔 · 还有 1 笔没填」；只有空行时「还没有开销」。 */
 function summaryOf(group: Group, plan: PlanView): string {
   const money = group.rows.flatMap((row) => (row.type === "expense" ? [row.expense] : []));
-  if (money.length === 0) return "还没有钱";
+  if (money.length === 0) return "还没有开销";
   let cents = 0;
   let unfilled = 0;
   for (const expense of money) {

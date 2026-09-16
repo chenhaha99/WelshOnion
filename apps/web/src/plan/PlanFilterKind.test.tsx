@@ -5,7 +5,16 @@ import { addBlock, addExpense, setBlockStatus, type AddBlockInput } from "@welsh
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, blockTitles, dayRow, daysFromOct1, openDetails, openStoredPlan, showView } from "./test-helpers";
+import {
+  blockRow,
+  blockTitles,
+  dayRow,
+  daysFromOct1,
+  moneyOverview,
+  openDetails,
+  openStoredPlan,
+  showView,
+} from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -23,7 +32,7 @@ function block(plan: Y.Doc, library: Y.Doc, input: AddBlockInput, statusId = "pe
 
 function money(plan: Y.Doc, library: Y.Doc, title: string, cents: number, kindId: string, blockIds: string[]): void {
   const result = addExpense(plan, library, { title, amountCents: cents, kindId, blockIds });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 /** 10.1：「西湖」（游玩）、「民宿」（住宿）、「午饭」（餐饮），都没排时间。 */
@@ -68,10 +77,10 @@ describe("按类型筛选", () => {
     expect(within(group).getAllByRole("button").map((button) => button.textContent)).toEqual(["住宿", "餐饮", "游玩"]);
   });
 
-  it("一个块、一笔钱都没有时没有这一排", async () => {
+  it("一个块、一笔开销都没有时没有这一排", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
 
-    await screen.findByRole("region", { name: "钱的总览" });
+    await screen.findByRole("group", { name: "视图" });
     expect(screen.queryByRole("group", { name: "按类型筛选" })).toBeNull();
   });
 
@@ -214,8 +223,8 @@ describe("按类型筛选", () => {
   });
 });
 
-describe("按类型筛选时的钱", () => {
-  it("钱格只算所选类型，另写一行；钱的总览只算所选类型", async () => {
+describe("按类型筛选时的开销", () => {
+  it("开销格只算所选类型，另写一行；开销的总览只算所选类型", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const { inn } = threeKinds(plan, library);
@@ -226,11 +235,11 @@ describe("按类型筛选时的钱", () => {
 
     await pressKind(user, "住宿");
 
-    await waitFor(async () => expect(await moneyCellOf("10.1", "民宿")).toEqual({ label: "¥480", note: "另有别的类型的钱" }));
-    expect(screen.getByRole("region", { name: "钱的总览" }).textContent).toContain("总额 ¥480");
+    await waitFor(async () => expect(await moneyCellOf("10.1", "民宿")).toEqual({ label: "¥480", note: "另有别的类型的开销" }));
+    expect((await moneyOverview()).textContent).toContain("总额 ¥480");
   });
 
-  it("只挂着别的类型的钱：写「填钱」、另写一行；时间轴上点开，面板的「钱」也这么写", async () => {
+  it("只挂着别的类型的开销：写「填开销」、另写一行；时间轴上点开，面板的「开销」也这么写", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -240,16 +249,16 @@ describe("按类型筛选时的钱", () => {
 
     await pressKind(user, "住宿");
 
-    await waitFor(async () => expect(await moneyCellOf("10.1", "酒店")).toEqual({ label: "填钱", note: "另有别的类型的钱" }));
+    await waitFor(async () => expect(await moneyCellOf("10.1", "酒店")).toEqual({ label: "填开销", note: "另有别的类型的开销" }));
     await showView("时间轴");
     const timeline = await screen.findByRole("region", { name: "时间轴" });
     await openDetails(user, within(timeline).getAllByRole("button", { name: /^酒店 / })[0]!);
-    const moneyButton = within(screen.getByRole("dialog", { name: "酒店" })).getByRole("button", { name: "钱" });
-    expect(within(moneyButton).getByText("填钱")).toBeTruthy();
-    expect(within(moneyButton).getByText("另有别的类型的钱")).toBeTruthy();
+    const moneyButton = within(screen.getByRole("dialog", { name: "酒店" })).getByRole("button", { name: "开销" });
+    expect(within(moneyButton).getByText("填开销")).toBeTruthy();
+    expect(within(moneyButton).getByText("另有别的类型的开销")).toBeTruthy();
   });
 
-  it("挂在被筛掉的事上的钱：日期列表上面写一句，钱的总览算上它", async () => {
+  it("挂在被筛掉的事上的开销：日期列表上面写一句，开销的总览算上它", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const { lake } = threeKinds(plan, library);
@@ -265,10 +274,10 @@ describe("按类型筛选时的钱", () => {
     const list = screen.getByRole("list", { name: "日期列表" });
     expect(line.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await blockTitles("10.1")).toEqual(["民宿"]);
-    expect(screen.getByRole("region", { name: "钱的总览" }).textContent).toContain("总额 ¥300");
+    expect((await moneyOverview()).textContent).toContain("总额 ¥300");
   });
 
-  it("没有这样的钱就不写", async () => {
+  it("没有这样的开销就不写", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const { inn } = threeKinds(plan, library);

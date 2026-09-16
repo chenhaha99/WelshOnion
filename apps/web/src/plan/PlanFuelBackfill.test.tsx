@@ -20,7 +20,7 @@ function driveBlock(plan: Y.Doc, library: Y.Doc, baseId: string, title: string, 
   updateBlock(plan, library, result.value.blockId, { transport_mode: "drive", distance_m: meters });
 }
 
-/** 10.1：「去湖州」自驾 132 公里、「去乌镇」自驾 30 公里，都没挂钱（每公里成本还空着，所以没自动挂油费）。 */
+/** 10.1：「去湖州」自驾 132 公里、「去乌镇」自驾 30 公里，都没挂开销（每公里成本还空着，所以没自动挂油费）。 */
 function twoDrives(plan: Y.Doc, library: Y.Doc): void {
   const [oct1] = daysFromOct1(plan, 1);
   driveBlock(plan, library, oct1!, "去湖州", 132000);
@@ -65,8 +65,8 @@ describe("事后设每公里成本时问要不要补油费", () => {
     await waitFor(async () => expect(await cellOf("去乌镇")).toBe("¥24"));
     await user.keyboard("{Control>}z{/Control}");
 
-    await waitFor(async () => expect(await cellOf("去湖州")).toBe("填钱"));
-    expect(await cellOf("去乌镇")).toBe("填钱");
+    await waitFor(async () => expect(await cellOf("去湖州")).toBe("填开销"));
+    expect(await cellOf("去乌镇")).toBe("填开销");
     await waitFor(() => expect(other.plan().plan.cost_per_km_cents).toBe(80));
   });
 
@@ -78,8 +78,8 @@ describe("事后设每公里成本时问要不要补油费", () => {
     await user.type(within(settings).getByLabelText("每公里成本（元）"), "0.8{Enter}");
     await user.click(within(within(settings).getByRole("group", { name: "补油费" })).getByRole("button", { name: "不用" }));
     expect(within(settings).queryByRole("group", { name: "补油费" })).toBeNull();
-    expect(await cellOf("去湖州")).toBe("填钱");
-    expect(await cellOf("去乌镇")).toBe("填钱");
+    expect(await cellOf("去湖州")).toBe("填开销");
+    expect(await cellOf("去乌镇")).toBe("填开销");
   });
 
   it("改成别的值不问", async () => {

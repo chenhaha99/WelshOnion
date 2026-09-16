@@ -2,7 +2,7 @@ import { expect, test, type Locator } from "@playwright/test";
 import { DAY1, DAY2, addBlocks, addMoney, newPlan, pickKind } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-/** 类型组里说明是 note 的那一行钱。 */
+/** 类型组里说明是 note 的那一行开销。 */
 async function moneyRow(group: Locator, note: string): Promise<Locator> {
   const id = await group
     .locator("[data-expense-id]")
@@ -17,7 +17,7 @@ async function moneyRow(group: Locator, note: string): Promise<Locator> {
   return group.locator(`[data-expense-id="${id}"]`);
 }
 
-test("按类型分组：按天建块挂钱 → 切到按类型 → 空行填钱 → 改类型换组 → 删掉那笔变回空行 → 手机", async ({ page }) => {
+test("按类型分组：按天建块挂开销 → 切到按类型 → 空行填开销 → 改类型换组 → 删掉那笔变回空行 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 2);
   const day1 = page.getByRole("table", { name: DAY1 });
@@ -41,7 +41,7 @@ test("按类型分组：按天建块挂钱 → 切到按类型 → 空行填钱 
   await expect(food.locator("[data-empty-block-id] [data-block-label]")).toHaveText("10.2 周五 午饭");
   await shot(page, "01-by-kind");
 
-  // 空行填钱：变成钱的一行
+  // 空行填开销：变成开销的一行
   await food.locator("[data-empty-block-id]").getByRole("textbox", { name: "新一笔的金额" }).fill("45");
   await page.keyboard.press("Enter");
   await expect(food.locator("[data-group-summary]")).toHaveText("¥45 · 1 笔");
@@ -55,7 +55,7 @@ test("按类型分组：按天建块挂钱 → 切到按类型 → 空行填钱 
   await expect(sight.getByRole("button", { name: "类型：游玩" })).toBeFocused();
   await expect(lodging.locator("[data-group-summary]")).toHaveText("¥480 · 1 笔");
 
-  // 删掉那笔：横店一笔钱都没了，在游玩组里变回空行
+  // 删掉那笔：横店一笔开销都没了，在游玩组里变回空行
   await sight.getByRole("button", { name: "删除这笔" }).click();
   await expect(sight.locator("[data-expense-id]")).toHaveCount(0);
   await expect(sight.locator("[data-empty-block-id] [data-block-label]")).toHaveText("10.1 周四 横店");

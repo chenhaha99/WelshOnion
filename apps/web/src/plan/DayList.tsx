@@ -1,9 +1,9 @@
-import { passesFilter, shiftAllDays, type KindView, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
+import { passesFilter, type KindView, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { blockFocusSelector } from "./block-actions";
 import { BlockPanel } from "./BlockPanel";
-import { dayRowLabels, daysBetween } from "./day-labels";
+import { dayRowLabels } from "./day-labels";
 import { DayRow } from "./DayRow";
 import { FilterChips, chipClass } from "./FilterChips";
 import { KindGroups } from "./KindGroups";
@@ -22,6 +22,7 @@ import { Timeline } from "./Timeline";
 const VIEWS = [
   { value: "timeline", label: "时间轴" },
   { value: "list", label: "列表" },
+  { value: "overview", label: "总览" },
 ] as const;
 
 const GROUPINGS = [
@@ -50,15 +51,14 @@ interface OpenedBlock {
 }
 
 /**
- * 计划页的主体：出发日期、按状态和类型筛选、钱的总览、占比，下面「时间轴」「列表」两个视图切换着看。
- * 列表视图是每天一个组头和它的安排表（或按类型分组）；出发日期一改，整趟一起平移。计划里至少有一天。
- * 按下了哪些状态、类型、怎么分组只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、钱、占比和每一天；
- * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：两个视图打开的是同一个，切换视图面板留着。
+ * 计划页的主体：一行筛选（按状态、按类型），下面「时间轴」「列表」「总览」三个视图切换着看。
+ * 列表视图是每天一个组头和它的安排表（或按类型分组）；总览视图是开销总览和占比。计划里至少有一天。
+ * 按下了哪些状态、类型、怎么分组只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、开销、占比和每一天；
+ * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：几个视图打开的是同一个，切换视图面板留着。
  */
 export function DayList({ doc, library, libraryView, plan, planId }: DayListProps) {
   const bases = plan.bases;
   const labels = dayRowLabels(bases);
-  const firstDate = bases[0]!.date;
 
   // 状态、类型删掉了，按下过的就不算了
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
@@ -68,7 +68,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   const pressedGrouping = useRef<HTMLButtonElement>(null);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
-  // 时间轴的块上写什么（标题，还是标题加钱）：也按计划记在这台设备上
+  // 时间轴的块上写什么（标题，还是标题加开销）：也按计划记在这台设备上
   const [blockText, setBlockText] = useState<BlockText>(() => readBlockText(planId));
   const showBlockText = (next: BlockText) => {
     setBlockText(next);
@@ -91,7 +91,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
     setViewClicks((count) => count + 1);
   };
   // 点了切换按钮（按下的那个也算）：新视图画完，把页面滚到按钮贴在顶上、视图从开头露出来。
-  // 不滚的话，第一屏差不多被筛选、钱、占比占满，换掉的内容在屏幕外面，看不出点上了
+  // 不滚的话，第一屏差不多被筛选、开销、占比占满，换掉的内容在屏幕外面，看不出点上了
   useLayoutEffect(() => {
     if (viewClicks === 0) return;
     window.scrollBy(0, viewsMarker.current!.getBoundingClientRect().top - VIEWS_STICKY_TOP);
@@ -135,7 +135,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
       ...(kindKey === "" ? {} : { kindIds: kindKey.split(",") }),
     };
   }, [statusKey, kindKey]);
-  // 钱格的摘要整份算一次：共用的钱要看全计划才知道显示在哪块
+  // 开销格的摘要整份算一次：共用的开销要看全计划才知道显示在哪块
   const cells = useMemo(() => moneyCells(plan, filter), [plan, filter]);
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
 
@@ -179,45 +179,37 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   }, [selected]);
   const statuses = [...libraryView.statuses.values()].sort((a, b) => a.order - b.order);
   const kinds = usedKinds(plan, libraryView, filter?.kindIds ?? []);
+  // 一件事都没有时筛不掉任何东西、只有一种类型时按下去也筛不掉：那一排不出现；按下过就一直留着，不然取消不了
+  const showStatusFilter = plan.blocks.size > 0 || (filter?.statusIds?.length ?? 0) > 0;
+  const showKindFilter = kinds.length >= 2 || (filter?.kindIds?.length ?? 0) > 0;
 
   return (
     <section className="flex flex-col gap-4">
-      <label className="flex items-center gap-3 self-start text-sm text-ink-muted">
-        出发日期
-        <input
-          type="date"
-          className="input"
-          value={firstDate}
-          onChange={(event) => {
-            const next = event.target.value;
-            if (next !== "" && next !== firstDate) shiftAllDays(doc, daysBetween(firstDate, next));
-          }}
-        />
-      </label>
-      {/* 一件事都没有时筛不掉任何东西，不出这一排；按下了就一直留着，不然取消不了 */}
-      {(plan.blocks.size > 0 || (filter?.statusIds?.length ?? 0) > 0) && (
-        <FilterChips
-          label="按状态筛选"
-          lead="只看"
-          clearLabel="全部显示"
-          items={statuses}
-          selected={filter?.statusIds ?? []}
-          onChange={setSelectedStatuses}
-        />
+      {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
+      {(showStatusFilter || showKindFilter) && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          {showStatusFilter && (
+            <FilterChips
+              label="按状态筛选"
+              lead="只看"
+              clearLabel="全部显示"
+              items={statuses}
+              selected={filter?.statusIds ?? []}
+              onChange={setSelectedStatuses}
+            />
+          )}
+          {showKindFilter && (
+            <FilterChips
+              label="按类型筛选"
+              lead="类型"
+              clearLabel="全部类型"
+              items={kinds}
+              selected={filter?.kindIds ?? []}
+              onChange={setSelectedKinds}
+            />
+          )}
+        </div>
       )}
-      {/* 只有一种类型时按下去什么都筛不掉，不出这一排；按下了就一直留着，不然取消不了 */}
-      {(kinds.length >= 2 || (filter?.kindIds?.length ?? 0) > 0) && (
-        <FilterChips
-          label="按类型筛选"
-          lead="类型"
-          clearLabel="全部类型"
-          items={kinds}
-          selected={filter?.kindIds ?? []}
-          onChange={setSelectedKinds}
-        />
-      )}
-      <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
-      <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
       {/* -mb-4 抵掉标记后面那道间距，切换按钮还在原来的位置 */}
       <div ref={viewsMarker} aria-hidden className="-mb-4" />
       {/* 往下滚时贴在屏幕顶上：列表多长都不用滚回来切换 */}
@@ -245,7 +237,12 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
         <SelectBlockContext.Provider value={selection}>
           {/* 至少一屏高（减去切换按钮 42 像素、贴顶的 8、间距 16、页面底边 32）：视图比一屏短时，点切换按钮照样滚得到贴顶 */}
           <div className="flex min-h-[calc(100dvh-6.125rem)] flex-col gap-4">
-            {view === "timeline" ? (
+            {view === "overview" ? (
+            <>
+              <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
+              <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
+            </>
+          ) : view === "timeline" ? (
               <Timeline
                 doc={doc}
                 library={library}
@@ -276,7 +273,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
                     </button>
                   ))}
                 </div>
-                {/* 按天、又按类型筛时，钱算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上。按类型分组时钱都在组里 */}
+                {/* 按天、又按类型筛时，开销算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上。按类型分组时开销都在组里 */}
                 {grouping === "day" && hiddenCents > 0 && (
                   <p data-hidden-money className="text-sm text-ink-muted">
                     {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的事上`}
@@ -332,7 +329,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   );
 }
 
-/** 「类型」那一排：这个计划的块和钱用到的类型，加上按下的（没人用了也留着），按类型的顺序。 */
+/** 「类型」那一排：这个计划的块和开销用到的类型，加上按下的（没人用了也留着），按类型的顺序。 */
 function usedKinds(plan: PlanView, libraryView: LibraryView, pressed: readonly string[]): KindView[] {
   const ids = new Set<string>(pressed);
   for (const block of plan.blocks.values()) ids.add(block.kind.id);

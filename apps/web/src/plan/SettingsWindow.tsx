@@ -4,6 +4,7 @@ import {
   findFuelBackfill,
   renamePlan,
   setPlanSettings,
+  shiftAllDays,
   type DayBudget,
   type LibraryView,
   type PlanSettingsView,
@@ -14,9 +15,19 @@ import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
 import { Window } from "../app/Window";
 import { BudgetFields } from "./BudgetFields";
+import { daysBetween } from "./day-labels";
 import { LibraryManager } from "./LibraryManager";
 import { parseYuan } from "./money";
 import { kindLibraryActions, statusLibraryActions } from "./pickers";
+
+/** 设置分几块，左边一列切换 */
+const SECTIONS = [
+  { value: "basic", label: "基本" },
+  { value: "library", label: "类型和状态" },
+  { value: "budget", label: "时间预算" },
+] as const;
+
+type SectionName = (typeof SECTIONS)[number]["value"];
 
 interface SettingsWindowProps {
   doc: Y.Doc;
@@ -27,104 +38,150 @@ interface SettingsWindowProps {
   onClose: () => void;
 }
 
-/** 计划设置：名字、人数、每公里成本、每天的时间预算、类型和状态，每一栏回车或离开时保存。窗口的样子见 Window。 */
+/**
+ * 计划设置窗口：左边一列分块（基本、类型和状态、时间预算），右边是那一块的内容，每一栏回车或离开时保存。
+ * 不常改的都收在这里（名字、人数、出发日期、每公里成本、资料库、时间预算），主版面只留筛选、切换和视图本身。
+ * 窗口的样子（电脑上居中、手机上占满屏幕）见 Window。
+ */
 export function SettingsWindow({ doc, library, libraryView, plan, settings, onClose }: SettingsWindowProps) {
+  const [section, setSection] = useState<SectionName>("basic");
   // 事后才设每公里成本：问一次要不要给已有的自驾块补上油费，问的时候记下找到的块；不猜，不静默补
   const [backfillIds, setBackfillIds] = useState<string[] | null>(null);
+  const firstDate = plan.bases[0]?.date ?? "";
 
   return (
     <Window title="计划设置" onClose={onClose}>
-      <CommitInput
-        label="名字"
-        value={settings.name}
-        commit={(text) => {
-          // 清空不保存，恢复原名
-          if (text !== "" && text !== settings.name) renamePlan(library, doc, text);
-          return null;
-        }}
-      />
-      <CommitInput
-        label="人数"
-        value={String(settings.traveler_count)}
-        inputMode="numeric"
-        className="input tabular-nums"
-        commit={(text) => {
-          if (!/^\d+$/.test(text) || Number(text) < 1) return "人数要是正整数";
-          const count = Number(text);
-          if (count !== settings.traveler_count && !setPlanSettings(doc, { traveler_count: count }).ok) {
-            return "人数要是正整数";
-          }
-          return null;
-        }}
-      />
-      <CommitInput
-        label="每公里成本（元）"
-        value={settings.cost_per_km_cents === null ? "" : String(settings.cost_per_km_cents / 100)}
-        inputMode="decimal"
-        className="input tabular-nums"
-        hint="油费加过路费，自驾时用；空着就不算"
-        commit={(text) => {
-          const parsed = parseYuan(text);
-          if (!parsed.ok) return "要填不小于 0 的数，最多两位小数";
-          if (parsed.cents !== settings.cost_per_km_cents) {
-            const wasEmpty = settings.cost_per_km_cents === null;
-            setPlanSettings(doc, { cost_per_km_cents: parsed.cents });
-            const found = wasEmpty && parsed.cents !== null ? findFuelBackfill(doc, library) : [];
-            setBackfillIds(found.length > 0 ? found : null);
-          }
-          return null;
-        }}
-      />
-      {/* 读屏软件会读出问句；焦点不自动挪进来，这一栏可能是点别处时保存的 */}
-      <div aria-live="polite">
-        {backfillIds !== null && (
-          <div role="group" aria-label="补油费" className="flex flex-wrap items-center gap-2 text-sm">
-            <p className="text-ink">{`有 ${backfillIds.length} 件事是自驾，给它们补上油费吗？`}</p>
+      <div className="flex gap-4">
+        <div role="tablist" aria-orientation="vertical" aria-label="设置分块" className="flex w-20 shrink-0 flex-col gap-1">
+          {SECTIONS.map(({ value, label }) => (
             <button
+              key={value}
               type="button"
-              className="btn btn-primary h-8 px-3"
-              onClick={() => {
-                backfillFuel(doc, library, backfillIds);
-                setBackfillIds(null);
-              }}
+              role="tab"
+              aria-selected={section === value}
+              className={`rounded-lg px-2.5 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+                section === value ? "bg-sage/12 font-medium text-ink" : "text-ink-muted hover:text-ink"
+              }`}
+              onClick={() => setSection(value)}
             >
-              补上
+              {label}
             </button>
-            <button type="button" className="btn btn-ghost h-8 px-3" onClick={() => setBackfillIds(null)}>
-              不用
-            </button>
-          </div>
-        )}
+          ))}
+        </div>
+
+        <div
+          role="tabpanel"
+          aria-label={SECTIONS.find((item) => item.value === section)!.label}
+          className="flex min-w-0 flex-1 flex-col gap-5"
+        >
+          {section === "basic" && (
+            <>
+              <CommitInput
+                label="名字"
+                value={settings.name}
+                commit={(text) => {
+                  // 清空不保存，恢复原名
+                  if (text !== "" && text !== settings.name) renamePlan(library, doc, text);
+                  return null;
+                }}
+              />
+              <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
+                出发日期
+                {/* 改了整趟一起平移，天数和每天的安排都不变 */}
+                <input
+                  type="date"
+                  className="input"
+                  value={firstDate}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    if (next !== "" && next !== firstDate) shiftAllDays(doc, daysBetween(firstDate, next));
+                  }}
+                />
+              </label>
+              <CommitInput
+                label="人数"
+                value={String(settings.traveler_count)}
+                inputMode="numeric"
+                className="input tabular-nums"
+                commit={(text) => {
+                  if (!/^\d+$/.test(text) || Number(text) < 1) return "人数要是正整数";
+                  const count = Number(text);
+                  if (count !== settings.traveler_count && !setPlanSettings(doc, { traveler_count: count }).ok) {
+                    return "人数要是正整数";
+                  }
+                  return null;
+                }}
+              />
+              <CommitInput
+                label="每公里成本（元）"
+                value={settings.cost_per_km_cents === null ? "" : String(settings.cost_per_km_cents / 100)}
+                inputMode="decimal"
+                className="input tabular-nums"
+                hint="油费加过路费，自驾时用；空着就不算"
+                commit={(text) => {
+                  const parsed = parseYuan(text);
+                  if (!parsed.ok) return "要填不小于 0 的数，最多两位小数";
+                  if (parsed.cents !== settings.cost_per_km_cents) {
+                    const wasEmpty = settings.cost_per_km_cents === null;
+                    setPlanSettings(doc, { cost_per_km_cents: parsed.cents });
+                    const found = wasEmpty && parsed.cents !== null ? findFuelBackfill(doc, library) : [];
+                    setBackfillIds(found.length > 0 ? found : null);
+                  }
+                  return null;
+                }}
+              />
+              {/* 读屏软件会读出问句；焦点不自动挪进来，这一栏可能是点别处时保存的 */}
+              <div aria-live="polite">
+                {backfillIds !== null && (
+                  <div role="group" aria-label="补油费" className="flex flex-wrap items-center gap-2 text-sm">
+                    <p className="text-ink">{`有 ${backfillIds.length} 件事是自驾，给它们补上油费吗？`}</p>
+                    <button
+                      type="button"
+                      className="btn btn-primary h-8 px-3"
+                      onClick={() => {
+                        backfillFuel(doc, library, backfillIds);
+                        setBackfillIds(null);
+                      }}
+                    >
+                      补上
+                    </button>
+                    <button type="button" className="btn btn-ghost h-8 px-3" onClick={() => setBackfillIds(null)}>
+                      不用
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {section === "library" && (
+            <section aria-label="类型和状态" className="flex flex-col gap-4">
+              {/* 只有一套资料库：不写清楚会以为是这个计划自己的 */}
+              <p className="text-xs text-ink-muted">所有计划共用；改了名字和颜色，别的计划里也跟着变</p>
+              <LibraryManager
+                label="类型"
+                options={[...libraryView.kinds.values()].sort(byOrder)}
+                actions={kindLibraryActions(library, (kindId) => countBlocksUsing(plan, { kindId }))}
+              />
+              <LibraryManager
+                label="状态"
+                options={[...libraryView.statuses.values()].sort(byOrder)}
+                actions={statusLibraryActions(library, (statusId) => countBlocksUsing(plan, { statusId }))}
+              />
+            </section>
+          )}
+
+          {section === "budget" && (
+            <section aria-label="每天的时间预算" className="flex flex-col gap-4">
+              <p className="text-xs text-ink-muted">空着就不设；每天还能在这天的菜单里单独改</p>
+              <BudgetFields
+                budget={settings.default_day_budget as DayBudget | null}
+                save={(next) => setPlanSettings(doc, { default_day_budget: next })}
+              />
+            </section>
+          )}
+        </div>
       </div>
-
-      <section aria-label="类型和状态" className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-medium text-ink">类型和状态</h3>
-          {/* 只有一套资料库：不写清楚会以为是这个计划自己的 */}
-          <p className="text-xs text-ink-muted">所有计划共用；改了名字和颜色，别的计划里也跟着变</p>
-        </div>
-        <LibraryManager
-          label="类型"
-          options={[...libraryView.kinds.values()].sort(byOrder)}
-          actions={kindLibraryActions(library, (kindId) => countBlocksUsing(plan, { kindId }))}
-        />
-        <LibraryManager
-          label="状态"
-          options={[...libraryView.statuses.values()].sort(byOrder)}
-          actions={statusLibraryActions(library, (statusId) => countBlocksUsing(plan, { statusId }))}
-        />
-      </section>
-
-      <section aria-label="每天的时间预算" className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-medium text-ink">每天的时间预算</h3>
-          <p className="text-xs text-ink-muted">空着就不设；每天还能在这天的菜单里单独改</p>
-        </div>
-        <BudgetFields
-          budget={settings.default_day_budget as DayBudget | null}
-          save={(next) => setPlanSettings(doc, { default_day_budget: next })}
-        />
-      </section>
     </Window>
   );
 }

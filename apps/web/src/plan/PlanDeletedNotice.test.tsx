@@ -92,7 +92,7 @@ describe("删完的提示", () => {
     await waitFor(() => expect(document.activeElement).toBe(dayMenu));
   });
 
-  it("删一笔钱：有说明写说明，没说明写金额，后删的换掉先删的；撤销后那笔回来，焦点在它的金额框上", async () => {
+  it("删一笔开销：有说明写说明，没说明写金额，后删的换掉先删的；撤销后那笔回来，焦点在它的金额框上", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -102,21 +102,21 @@ describe("删完的提示", () => {
         ["", 3850],
       ] as const) {
         const result = addExpense(plan, library, { title, amountCents: cents, blockIds: [lunch] });
-        if (!result.ok) throw new Error("建钱失败");
+        if (!result.ok) throw new Error("建开销失败");
       }
     });
 
-    await user.click(within(await blockRow("10.1", "午饭")).getByRole("button", { name: "钱" }));
-    const editor = screen.getByRole("group", { name: "午饭 的钱" });
+    await user.click(within(await blockRow("10.1", "午饭")).getByRole("button", { name: "开销" }));
+    const editor = screen.getByRole("group", { name: "午饭 的开销" });
     const rows = () => [...editor.querySelectorAll<HTMLElement>("[data-expense-id]")];
     const noodles = rows().find((row) => row.querySelector<HTMLInputElement>("input[aria-label='说明']")?.value === "面");
     await user.click(within(noodles!).getByRole("button", { name: "删除这笔" }));
     const region = await notice();
-    await waitFor(() => expect(region.textContent).toContain("删掉了「面」这笔钱"));
+    await waitFor(() => expect(region.textContent).toContain("删掉了「面」这笔开销"));
 
     await waitFor(() => expect(rows()).toHaveLength(1));
     await user.click(within(rows()[0]!).getByRole("button", { name: "删除这笔" }));
-    await waitFor(() => expect(region.textContent).toContain("删掉了 ¥38.50 这笔钱"));
+    await waitFor(() => expect(region.textContent).toContain("删掉了 ¥38.50 这笔开销"));
     expect(region.textContent).not.toContain("删掉了「面」");
     await user.click(within(region).getByRole("button", { name: "撤销" }));
 

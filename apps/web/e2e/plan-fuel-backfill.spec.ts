@@ -41,8 +41,8 @@ test("事后补油费：先有自驾块 → 设每公里成本 → 问 → 只�
   // 每公里成本还空着：填了自驾和距离也不挂油费
   await makeDrive(page, rows.nth(0), "去湖州", "132");
   await makeDrive(page, rows.nth(1), "去乌镇", "30");
-  await expect(rows.nth(0).locator("[data-money-cell]")).toHaveText("填钱");
-  await expect(rows.nth(1).locator("[data-money-cell]")).toHaveText("填钱");
+  await expect(rows.nth(0).locator("[data-money-cell]")).toHaveText("填开销");
+  await expect(rows.nth(1).locator("[data-money-cell]")).toHaveText("填开销");
 
   // 设每公里成本：问一次，焦点留在这一栏
   await page.getByRole("button", { name: "国庆杭州" }).click();
@@ -68,8 +68,8 @@ test("事后补油费：先有自驾块 → 设每公里成本 → 问 → 只�
 
   // 补油费是一步：撤销两笔都没了，重做又回来
   await page.keyboard.press("Control+z");
-  await expect(rows.nth(0).locator("[data-money-cell]")).toHaveText("填钱");
-  await expect(rows.nth(1).locator("[data-money-cell]")).toHaveText("填钱");
+  await expect(rows.nth(0).locator("[data-money-cell]")).toHaveText("填开销");
+  await expect(rows.nth(1).locator("[data-money-cell]")).toHaveText("填开销");
   await page.keyboard.press("Control+Shift+z");
   await expect(rows.nth(0).locator("[data-money-cell]")).toHaveText("¥105.60");
   await expect(rows.nth(1).locator("[data-money-cell]")).toHaveText("¥24");

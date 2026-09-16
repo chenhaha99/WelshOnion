@@ -34,7 +34,7 @@ interface Built {
   oct1: string;
 }
 
-/** 在内存里搭一个 10.1 一天的计划，按需放块、钱、状态，返回读出来的视图。 */
+/** 在内存里搭一个 10.1 一天的计划，按需放块、开销、状态，返回读出来的视图。 */
 function build(setup: (built: Built) => void): { plan: PlanView; library: LibraryView } {
   const library = new Y.Doc();
   initLibraryDoc(library);
@@ -61,7 +61,7 @@ function undated(built: Built, title: string, kindId: string): string {
 
 function money(built: Built, kindId: string, cents: number | null): void {
   const result = addExpense(built.plan, built.library, { title: kindId, amountCents: cents, kindId });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 function customKind(built: Built, name: string): string {
@@ -78,7 +78,7 @@ describe("取整百分比（最大余数法）", () => {
   });
 });
 
-describe("钱的占比", () => {
+describe("开销的占比", () => {
   it("按类型分，从多到少", () => {
     const { plan, library } = build((built) => {
       money(built, "transit", 20000);
@@ -108,7 +108,7 @@ describe("钱的占比", () => {
 
   it("一笔填了金额的都没有", () => {
     const { plan, library } = build((built) => money(built, "food", null));
-    expect(moneyNoteLabel(moneyShares(plan, library))).toBe("还没有填了金额的钱");
+    expect(moneyNoteLabel(moneyShares(plan, library))).toBe("还没有填了金额的开销");
   });
 
   it("填了的加起来是 0：没有能进比例的", () => {
@@ -255,7 +255,7 @@ describe("带筛选", () => {
 
   function linkedMoney(built: Built, blockId: string, kindId: string, cents: number): void {
     const result = addExpense(built.plan, built.library, { title: kindId, amountCents: cents, kindId, blockIds: [blockId] });
-    if (!result.ok) throw new Error("建钱失败");
+    if (!result.ok) throw new Error("建开销失败");
   }
 
   /** 西湖（游玩，待定）挂 300 元；晚饭（餐饮，已确认）挂 120 元；另有不挂块的 600 元。 */
@@ -268,7 +268,7 @@ describe("带筛选", () => {
     money(built, "other", 60000);
   }
 
-  it("钱：挂在被筛掉的块上的不算，不挂块的照算", () => {
+  it("开销：挂在被筛掉的块上的不算，不挂块的照算", () => {
     const { plan, library } = build(lakeAndDinner);
     expect(moneyShares(plan, library, confirmedOnly).rows.map(moneyRowLabel)).toEqual([
       "其他 ¥600 · 83%",

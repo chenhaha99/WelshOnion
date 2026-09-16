@@ -46,6 +46,7 @@ test("时间预算：设默认 → 每天两行 → 填错 → 这天单独设 �
   // 设置里设默认：每天马上多一行「你设的」，不写超出
   await page.getByRole("button", { name: "国庆杭州" }).click();
   const settings = page.getByRole("dialog", { name: "计划设置" });
+  await settings.getByRole("tab", { name: "时间预算" }).click();
   await settings.getByLabel("几点起").fill("8:00");
   await page.keyboard.press("Enter");
   await settings.getByLabel("几点收工").fill("22:00");
@@ -96,6 +97,7 @@ test("时间预算：设默认 → 每天两行 → 填错 → 这天单独设 �
   // 矮的手机屏：设置占满屏幕、能滚，最后一栏够得着；滚到下面「关闭」还在屏幕里，点了关掉
   await page.setViewportSize({ width: 390, height: 640 });
   await page.getByRole("button", { name: "国庆杭州" }).click();
+  await settings.getByRole("tab", { name: "时间预算" }).click();
   const phoneBox = (await settings.boundingBox())!;
   expect([phoneBox.x, phoneBox.y, phoneBox.width, phoneBox.height]).toEqual([0, 0, 390, 640]);
   await km.scrollIntoViewIfNeeded();

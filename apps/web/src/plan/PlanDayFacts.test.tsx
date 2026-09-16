@@ -37,7 +37,7 @@ function drive(plan: Y.Doc, library: Y.Doc, blockId: string, meters: number): vo
 
 function money(plan: Y.Doc, library: Y.Doc, cents: number | null, blockIds: string[]): void {
   const result = addExpense(plan, library, { title: "钱", amountCents: cents, blockIds });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 /** 某一天「这天怎么样」那一行的字；没有这一行时是 null。 */
@@ -94,15 +94,15 @@ describe("每天写这天怎么样", () => {
     await waitFor(async () => expect(await factsOf("10.1")).toBe("09:00 起 · 12:00 收工"));
   });
 
-  it("填了钱跟着变", async () => {
+  it("填了开销跟着变", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       undated(plan, library, oct1!, "西湖", "sight");
     });
 
-    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "钱" }));
-    const editor = screen.getByRole("group", { name: "西湖 的钱" });
+    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "开销" }));
+    const editor = screen.getByRole("group", { name: "西湖 的开销" });
     await user.type(within(editor).getByRole("textbox", { name: "新一笔的金额" }), "300{Enter}");
 
     await waitFor(async () => expect(await factsOf("10.1")).toBe("花 ¥300"));

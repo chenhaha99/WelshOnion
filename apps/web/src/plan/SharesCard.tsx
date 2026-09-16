@@ -16,7 +16,7 @@ interface SharesCardProps {
   filter?: StatsFilter;
 }
 
-/** 条上的一段、说明里的一项；value 是 null 的（全没填的钱）不画在条上。 */
+/** 条上的一段、说明里的一项；value 是 null 的（全没填的开销）不画在条上。 */
 interface ShareItem {
   key: string;
   color: string;
@@ -25,7 +25,7 @@ interface ShareItem {
 }
 
 /**
- * 钱的总览下面的「占比」：钱、时间各一条按类型分段的条和说明，再写各状态几件。
+ * 开销的总览下面的「占比」：开销、时间各一条按类型分段的条和说明，再写各状态几件。
  * 只摆事实，不判断多不多；「算上最底层的类型」只影响这张卡片，不存进计划。
  */
 export function SharesCard({ libraryView, plan, filter }: SharesCardProps) {
@@ -36,9 +36,9 @@ export function SharesCard({ libraryView, plan, filter }: SharesCardProps) {
 
   return (
     <section aria-label="占比" className="glass-card flex flex-col gap-4 px-5 py-4">
-      <div role="group" aria-label="钱的占比" className="flex flex-col gap-2">
+      <div role="group" aria-label="开销的占比" className="flex flex-col gap-2">
         <p className="flex flex-wrap items-baseline gap-x-3">
-          <PartTitle>钱</PartTitle>
+          <PartTitle>开销</PartTitle>
           {moneyNote !== null && <span className="text-sm text-ink-muted">{moneyNote}</span>}
         </p>
         {money.rows.some((row) => row.percent !== null) && (

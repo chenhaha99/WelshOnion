@@ -340,7 +340,7 @@ describe("点块看详情", () => {
     expect(pressed.length).toBe(2);
     const dialog = screen.getByRole("dialog", { name: "民宿" });
     expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("22:00–10.2 08:00 · 10 小时");
-    expect(within(dialog).getByRole("button", { name: "钱" }).textContent).toBe("¥480");
+    expect(within(dialog).getByRole("button", { name: "开销" }).textContent).toBe("¥480");
   });
 
   it("点横条：先选中，再从快捷条打开详情；没有「在表里改」", async () => {

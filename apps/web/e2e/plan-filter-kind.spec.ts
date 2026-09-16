@@ -1,8 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { DAY1, addBlocks, addMoney, newPlan, pickKind, rowOf, schedule, showView } from "./timeline-helpers";
+import {
+  addBlocks,
+  addMoney,
+  DAY1,
+  inOverview,
+  newPlan,
+  pickKind,
+  rowOf,
+  schedule,
+  showView,
+} from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("按类型筛选：只看住宿 → 钱格另有别的类型、挂在被筛掉的事上 → 和状态一起 → 全部类型 → 手机", async ({ page }) => {
+test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被筛掉的事上 → 和状态一起 → 全部类型 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
@@ -20,15 +30,15 @@ test("按类型筛选：只看住宿 → 钱格另有别的类型、挂在被筛
   const kinds = page.getByRole("group", { name: "按类型筛选" });
   await expect(kinds.getByRole("button")).toHaveText(["住宿", "餐饮", "游玩"]);
 
-  // 只看住宿：表只剩民宿；钱格只算住宿、另写一行；上面写挂在被筛掉的事上的钱；总览只算住宿；时间轴只画民宿
+  // 只看住宿：表只剩民宿；开销格只算住宿、另写一行；上面写挂在被筛掉的事上的开销；总览只算住宿；时间轴只画民宿
   await kinds.getByRole("button", { name: "住宿", exact: true }).click();
   await expect(rows).toHaveCount(1);
   await expect(table.locator("[data-filtered-out]")).toHaveText("筛掉了 2 件");
   const inn = await rowOf(table, "民宿");
   await expect(inn.locator("[data-money-cell]")).toHaveText("¥480");
-  await expect(inn.locator("[data-money-note]")).toHaveText("另有别的类型的钱");
+  await expect(inn.locator("[data-money-note]")).toHaveText("另有别的类型的开销");
   await expect(page.getByText("有 ¥300 挂在被筛掉的事上")).toBeVisible();
-  await expect(page.getByRole("region", { name: "钱的总览" })).toContainText("总额 ¥780");
+  await inOverview(page, ({ money }) => expect(money).toContainText("总额 ¥780"));
   await showView(page, "时间轴");
   await expect(page.getByRole("region", { name: "时间轴" }).locator("[data-segment]")).toHaveCount(1);
   await showView(page, "列表");
@@ -42,7 +52,7 @@ test("按类型筛选：只看住宿 → 钱格另有别的类型、挂在被筛
   await statuses.getByRole("button", { name: "全部显示" }).click();
   await expect(rows).toHaveCount(1);
 
-  // 全部类型：都回来，上面那一句和钱格下面那一行都不见
+  // 全部类型：都回来，上面那一句和开销格下面那一行都不见
   await kinds.getByRole("button", { name: "全部类型" }).click();
   await expect(rows).toHaveCount(3);
   await expect(page.getByText(/挂在被筛掉的事上/)).toHaveCount(0);

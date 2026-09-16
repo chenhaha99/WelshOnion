@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { showView } from "./timeline-helpers";
+import { inOverview, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 test("按状态筛选：只看待定 → 只用键盘挨个确认 → 全部显示 → 手机", async ({ page }) => {
@@ -30,15 +30,15 @@ test("按状态筛选：只看待定 → 只用键盘挨个确认 → 全部显�
   await picker.getByRole("button", { name: "已确认", exact: true }).click();
   await expect(rows.nth(1).getByRole("button", { name: "状态：已确认" })).toBeVisible();
 
-  // 只看待定的：表、占比一起变
+  // 只看待定的：表、占比一起变（占比在「总览」里）
   const filter = page.getByRole("group", { name: "按状态筛选" });
   const pending = filter.getByRole("button", { name: "待定", exact: true });
   await pending.click();
   await expect(pending).toHaveAttribute("aria-pressed", "true");
   await expect(rows).toHaveCount(2);
   await expect(filteredOut).toHaveText("筛掉了 1 件");
-  await expect(page.getByRole("region", { name: "占比" }).getByRole("group", { name: "定没定" })).toContainText(
-    "2 件事：待定 2",
+  await inOverview(page, ({ shares }) =>
+    expect(shares.getByRole("group", { name: "定没定" })).toContainText("2 件事：待定 2"),
   );
   await shot(page, "01-only-pending");
 

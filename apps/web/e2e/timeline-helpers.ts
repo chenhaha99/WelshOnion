@@ -11,7 +11,7 @@ export interface Point {
   y: number;
 }
 
-type ViewName = "时间轴" | "列表";
+type ViewName = "时间轴" | "列表" | "总览";
 
 interface NewPlanOptions {
   startDate?: string;
@@ -66,6 +66,26 @@ async function inList<T>(page: Page, action: () => Promise<T>): Promise<T> {
   const before = await pressedView(page);
   await showView(page, "列表");
   const result = await action();
+  await showView(page, before);
+  return result;
+}
+
+/**
+ * 切到「总览」看一眼开销总览、占比，看完切回原来的视图。
+ * 开销总览和占比是第三个视图，别的走查大多在列表或时间轴里做事，看一眼数字就回来。
+ */
+export async function inOverview<T>(
+  page: Page,
+  action: (cards: { money: Locator; summary: Locator; shares: Locator }) => Promise<T>,
+): Promise<T> {
+  const before = await pressedView(page);
+  await showView(page, "总览");
+  const money = page.getByRole("region", { name: "开销总览" });
+  const result = await action({
+    money,
+    summary: money.locator("[data-money-summary]"),
+    shares: page.getByRole("region", { name: "占比" }),
+  });
   await showView(page, before);
   return result;
 }
@@ -157,7 +177,7 @@ export async function keepUndated(page: Page, table: Locator, title: string, slo
   });
 }
 
-/** 在 title 这块上加一笔钱：金额 yuan；给了 note 就填说明，给了 kind 就把这笔钱改成那个类型。加完收起钱的编辑区。 */
+/** 在 title 这块上加一笔开销：金额 yuan；给了 note 就填说明，给了 kind 就把这笔开销改成那个类型。加完收起开销的编辑区。 */
 export async function addMoney(
   page: Page,
   table: Locator,
@@ -167,8 +187,8 @@ export async function addMoney(
 ): Promise<void> {
   await inList(page, async () => {
     const row = await rowOf(table, title);
-    await row.getByRole("button", { name: "钱" }).click();
-    const editor = page.getByRole("group", { name: `${title} 的钱` });
+    await row.getByRole("button", { name: "开销" }).click();
+    const editor = page.getByRole("group", { name: `${title} 的开销` });
     await editor.getByRole("textbox", { name: "新一笔的金额" }).fill(yuan);
     if (note !== undefined) await editor.getByRole("textbox", { name: "新一笔的说明" }).fill(note);
     await page.keyboard.press("Enter");
@@ -179,7 +199,7 @@ export async function addMoney(
       await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: kind, exact: true }).click();
       await expect(added.getByRole("button", { name: `类型：${kind}` })).toBeVisible();
     }
-    await row.getByRole("button", { name: "钱" }).click();
+    await row.getByRole("button", { name: "开销" }).click();
     await expect(editor).toBeHidden();
   });
 }
@@ -192,6 +212,17 @@ export function timelineRow(page: Page, day: "10.1" | "10.2" | "10.3"): Locator 
 /** 时间轴这一行里读屏名以「title 」开头的那段横条的外框。 */
 export function segment(row: Locator, title: string): Locator {
   return row.locator("[data-segment]").filter({ has: row.page().getByRole("button", { name: new RegExp(`^${title} `) }) });
+}
+
+/** 打开计划设置，切到某一块（默认「基本」），返回设置窗口。 */
+export async function openPlanSettings(
+  page: Page,
+  section: "基本" | "类型和状态" | "时间预算" = "基本",
+): Promise<Locator> {
+  await page.getByRole("button", { name: "计划设置", exact: true }).click();
+  const settings = page.getByRole("dialog", { name: "计划设置" });
+  if (section !== "基本") await settings.getByRole("tab", { name: section }).click();
+  return settings;
 }
 
 /** 时间轴上打开一件事的详情面板：点一下选中它，再点快捷条的「详情…」。 */

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("复制计划：有块有钱有请假的计划 → 列表里复制到明年 → 进新计划 → 键盘取消 → 手机", async ({ page }) => {
+test("复制计划：有块有开销有请假的计划 → 列表里复制到明年 → 进新计划 → 键盘取消 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -23,7 +23,7 @@ test("复制计划：有块有钱有请假的计划 → 列表里复制到明年
   await page.keyboard.press("Enter");
   await lake.getByRole("button", { name: /^状态：/ }).click();
   await page.getByRole("dialog", { name: "选择状态" }).getByRole("button", { name: "已确认", exact: true }).click();
-  await lake.getByRole("button", { name: "钱" }).click();
+  await lake.getByRole("button", { name: "开销" }).click();
   await page.keyboard.type("300");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Escape");
@@ -42,7 +42,7 @@ test("复制计划：有块有钱有请假的计划 → 列表里复制到明年
   await shot(page, "01-duplicate-form");
   await sourceCard.getByRole("button", { name: "复制" }).click();
 
-  // 进了新计划：日期平移，状态回到待定，钱还在，请假去掉
+  // 进了新计划：日期平移，状态回到待定，开销还在，请假去掉
   await expect(page.getByRole("button", { name: "关西 10 天 副本" })).toBeVisible();
   // 复制出来的计划没看过，打开是时间轴
   await showView(page, "列表");

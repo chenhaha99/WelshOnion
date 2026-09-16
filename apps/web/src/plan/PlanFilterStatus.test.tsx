@@ -5,7 +5,16 @@ import { addBlock, addExpense, addStatus, setBlockStatus } from "@welshonion/cor
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, blockTitles, dayRow, daysFromOct1, openOtherTab, openStoredPlan } from "./test-helpers";
+import {
+  blockRow,
+  blockTitles,
+  dayRow,
+  daysFromOct1,
+  moneyOverview,
+  openOtherTab,
+  openStoredPlan,
+  showView,
+} from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -39,7 +48,7 @@ function timed(
 
 function money(plan: Y.Doc, library: Y.Doc, cents: number, blockIds: string[]): void {
   const result = addExpense(plan, library, { title: "钱", amountCents: cents, blockIds });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 /** 10.1：「西湖」（待定）、「午饭」（已确认）、「灵隐寺」（待定），都没排时间。 */
@@ -68,7 +77,7 @@ describe("按状态筛选", () => {
   it("一件事都没有时没有「只看」那一排；加了第一件事就出现", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    await screen.findByRole("region", { name: "钱的总览" });
+    await screen.findByRole("group", { name: "视图" });
     expect(screen.queryByRole("group", { name: "按状态筛选" })).toBeNull();
 
     await user.type(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }), "西湖{Enter}");
@@ -129,8 +138,8 @@ describe("按状态筛选", () => {
   });
 });
 
-describe("筛选作用到钱、占比和这天怎么样", () => {
-  it("钱的总览：挂在被筛掉的块上的钱不算，不属于任何一天不变", async () => {
+describe("筛选作用到开销、占比和这天怎么样", () => {
+  it("开销的总览：挂在被筛掉的块上的开销不算，不属于任何一天不变", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -140,14 +149,14 @@ describe("筛选作用到钱、占比和这天怎么样", () => {
     });
 
     await pressStatus(user, "已确认");
-    const overview = screen.getByRole("region", { name: "钱的总览" });
+    const overview = (await moneyOverview());
     await waitFor(() =>
       expect(overview.querySelector("[data-money-summary]")?.textContent).toBe("总额 ¥720 · 人均 ¥720 · 已填 2 / 共 2 笔"),
     );
     expect(within(overview).getByRole("button", { name: "不属于任何一天：¥600" })).toBeTruthy();
   });
 
-  it("共用的钱显示在通过筛选的块上", async () => {
+  it("共用的开销显示在通过筛选的块上", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1, oct2] = daysFromOct1(plan, 2);
@@ -174,6 +183,7 @@ describe("筛选作用到钱、占比和这天怎么样", () => {
     await waitFor(async () =>
       expect((await dayRow("10.1")).querySelector("[data-day-facts]")?.textContent).toBe("18:00 起 · 19:00 收工"),
     );
+    await showView("总览");
     const card = screen.getByRole("region", { name: "占比" });
     const time = within(card).getByRole("group", { name: "时间的占比" });
     expect(within(time).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["餐饮 1 小时 · 100%"]);

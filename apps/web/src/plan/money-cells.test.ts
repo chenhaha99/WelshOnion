@@ -30,7 +30,7 @@ interface Builder {
   }) => void;
 }
 
-/** 在内存里搭一个 10.1 起两天的计划，按需放块和钱，返回读出来的计划视图。 */
+/** 在内存里搭一个 10.1 起两天的计划，按需放块和开销，返回读出来的计划视图。 */
 function planWith(setup: (build: Builder) => void, travelers = 1): PlanView {
   const library = new Y.Doc();
   initLibraryDoc(library);
@@ -57,7 +57,7 @@ function planWith(setup: (build: Builder) => void, travelers = 1): PlanView {
         basis: perPerson ? "per_person" : "total",
         ...(kindId === undefined ? {} : { kindId }),
       });
-      if (!added.ok) throw new Error("建钱失败");
+      if (!added.ok) throw new Error("建开销失败");
     },
   });
   return readPlan(plan, readLibrary(library));
@@ -73,7 +73,7 @@ function cellOf(view: PlanView, title: string, filter?: StatsFilter) {
   return moneyCells(view, filter).get(block.id);
 }
 
-describe("钱格怎么显示", () => {
+describe("开销格怎么显示", () => {
   it("一笔写金额，多笔写合计和笔数", () => {
     const view = planWith(({ block, expense }) => {
       expense({ title: "门票", cents: 30000, blockIds: [block(0, "西湖")] });
@@ -101,16 +101,16 @@ describe("钱格怎么显示", () => {
     expect(labelOf(view, "晚饭")).toBe("¥240");
   });
 
-  it("没挂钱写「填钱」，只有一笔没填写「未填」", () => {
+  it("没挂开销写「填开销」，只有一笔没填写「未填」", () => {
     const view = planWith(({ block, expense }) => {
       block(0, "灵隐寺");
       expense({ title: "游船", cents: null, blockIds: [block(0, "游船")] });
     });
-    expect(labelOf(view, "灵隐寺")).toBe("填钱");
+    expect(labelOf(view, "灵隐寺")).toBe("填开销");
     expect(labelOf(view, "游船")).toBe("未填");
   });
 
-  it("共用的钱只在最早那块显示；自己也有钱时加「含共用」", () => {
+  it("共用的开销只在最早那块显示；自己也有开销时加「含共用」", () => {
     const view = planWith(({ block, expense }) => {
       const firstNight = block(0, "民宿一", "lodging");
       const secondNight = block(1, "民宿二", "lodging");
@@ -121,7 +121,7 @@ describe("钱格怎么显示", () => {
     expect(labelOf(view, "民宿二")).toBe("¥30 含共用");
   });
 
-  it("只有共用的钱写「共用」", () => {
+  it("只有共用的开销写「共用」", () => {
     const view = planWith(({ block, expense }) => {
       const firstNight = block(0, "民宿一", "lodging");
       const secondNight = block(1, "民宿二", "lodging");
@@ -134,7 +134,7 @@ describe("钱格怎么显示", () => {
 describe("带筛选", () => {
   const confirmedOnly: StatsFilter = { statusIds: ["confirmed"] };
 
-  it("共用的钱显示在通过筛选的块里表上最早的那块", () => {
+  it("共用的开销显示在通过筛选的块里表上最早的那块", () => {
     const view = planWith(({ plan, library, block, expense }) => {
       const firstNight = block(0, "民宿一", "lodging");
       const secondNight = block(1, "民宿二", "lodging");
@@ -145,7 +145,7 @@ describe("带筛选", () => {
     expect(labelOf(view, "民宿二", confirmedOnly)).toBe("¥500");
   });
 
-  it("被筛掉的块不进钱格", () => {
+  it("被筛掉的块不进开销格", () => {
     const view = planWith(({ plan, library, block, expense }) => {
       expense({ title: "门票", cents: 30000, blockIds: [block(0, "西湖")] });
       const lunch = block(0, "午饭", "food");
@@ -160,30 +160,30 @@ describe("带筛选", () => {
 describe("按类型筛", () => {
   const lodgingOnly: StatsFilter = { kindIds: ["lodging"] };
 
-  it("钱格只算所选类型；块上还挂着别的类型的钱时另写一行", () => {
+  it("开销格只算所选类型；块上还挂着别的类型的开销时另写一行", () => {
     const view = planWith(({ block, expense }) => {
       const inn = block(0, "民宿", "lodging");
       expense({ title: "房费", cents: 48000, blockIds: [inn], kindId: "lodging" });
       expense({ title: "早餐", cents: 3000, blockIds: [inn], kindId: "food" });
     });
     expect(labelOf(view, "民宿", lodgingOnly)).toBe("¥480");
-    expect(moneyCellNote(cellOf(view, "民宿", lodgingOnly))).toBe("另有别的类型的钱");
+    expect(moneyCellNote(cellOf(view, "民宿", lodgingOnly))).toBe("另有别的类型的开销");
     // 不筛时两笔都算，没有那一行
     expect(labelOf(view, "民宿")).toBe("¥510 · 2 笔");
     expect(moneyCellNote(cellOf(view, "民宿"))).toBeNull();
   });
 
-  it("只挂着别的类型的钱：写「填钱」、另写一行，算空的钱格", () => {
+  it("只挂着别的类型的开销：写「填开销」、另写一行，算空的开销格", () => {
     const view = planWith(({ block, expense }) => {
       expense({ title: "早餐", cents: 3000, blockIds: [block(0, "酒店", "lodging")], kindId: "food" });
     });
     const hotel = cellOf(view, "酒店", lodgingOnly);
-    expect(moneyCellLabel(hotel)).toBe("填钱");
-    expect(moneyCellNote(hotel)).toBe("另有别的类型的钱");
+    expect(moneyCellLabel(hotel)).toBe("填开销");
+    expect(moneyCellNote(hotel)).toBe("另有别的类型的开销");
     expect(moneyCellEmpty(hotel)).toBe(true);
   });
 
-  it("没有钱格是空的；只有共用的钱不算空", () => {
+  it("没有开销格是空的；只有共用的开销不算空", () => {
     const view = planWith(({ block, expense }) => {
       const firstNight = block(0, "民宿一", "lodging");
       const secondNight = block(1, "民宿二", "lodging");
@@ -196,8 +196,8 @@ describe("按类型筛", () => {
   });
 });
 
-describe("挂在被筛掉的块上的钱", () => {
-  it("按类型筛：所选类型的钱挂的块都被筛掉了，算填了的金额；不挂块的不算", () => {
+describe("挂在被筛掉的块上的开销", () => {
+  it("按类型筛：所选类型的开销挂的块都被筛掉了，算填了的金额；不挂块的不算", () => {
     const view = planWith(({ block, expense }) => {
       const hengdian = block(0, "横店", "sight");
       expense({ title: "住宿费", cents: 30000, blockIds: [hengdian], kindId: "lodging" });

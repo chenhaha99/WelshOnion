@@ -3,12 +3,12 @@ import type { PlacedSegment, RowLayout } from "./timeline-layout";
 
 // 横条、竖条画在哪：画（Timeline、DayTimeline）和拖动中量指针落在哪块上（timeline-drop）共用这一份
 
-/** 横排：背景条每条多高；主轨每道多高——块上只写标题时 28，标题下面还写钱时 40（像素） */
+/** 横排：背景条每条多高；主轨每道多高——块上只写标题时 28，标题下面还写开销时 40（像素） */
 export const STRIP_HEIGHT = 16;
 export const LANE_HEIGHT = 28;
 export const LANE_HEIGHT_WITH_MONEY = 40;
 
-/** 块上写什么：只写标题，还是标题下面再写一行钱。按计划记在这台设备上（plan-block-text-memory）。 */
+/** 块上写什么：只写标题，还是标题下面再写一行开销。按计划记在这台设备上（plan-block-text-memory）。 */
 export type BlockText = "title" | "money";
 
 /** 这种写法下主轨每道多高（像素）。 */

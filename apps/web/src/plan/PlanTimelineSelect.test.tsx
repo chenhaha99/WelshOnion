@@ -5,7 +5,7 @@ import { addBlock, addExpense, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockTexts, blockTitles, daysFromOct1, openStoredPlan, showView } from "./test-helpers";
+import { blockTexts, blockTitles, daysFromOct1, moneyOverview, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -158,14 +158,14 @@ describe("选中后的快捷条", () => {
       "详情…",
       "类型：游玩",
       "状态：待定",
-      "钱：填钱",
+      "开销：填开销",
       "复制",
       "这天从这件起往后推迟",
       "删除",
     ]);
 
     await user.click(await blockButton("灵隐寺"));
-    expect(names(quickBar("灵隐寺"))).toEqual(["详情…", "类型：游玩", "状态：待定", "钱：填钱", "删除"]);
+    expect(names(quickBar("灵隐寺"))).toEqual(["详情…", "类型：游玩", "状态：待定", "开销：填开销", "删除"]);
   });
 
   it("Tab 进得去，Esc 退出来", async () => {
@@ -210,31 +210,33 @@ describe("选中后的快捷条", () => {
     expect(segment.style.getPropertyValue("--kind-color")).toBe("#c08d68");
   });
 
-  it("钱：一笔都没挂时填一笔，再改，按 Esc 不改", async () => {
+  it("开销：一笔都没挂时填一笔，再改，按 Esc 不改", async () => {
     const user = userEvent.setup();
     await onePlanDay();
 
     await user.click(await blockButton("西湖"));
-    await user.click(within(quickBar("西湖")).getByRole("button", { name: "钱：填钱" }));
+    await user.click(within(quickBar("西湖")).getByRole("button", { name: "开销：填开销" }));
     await user.type(screen.getByRole("textbox", { name: "金额" }), "300{Enter}");
 
-    const money = await waitFor(() => within(quickBar("西湖")).getByRole("button", { name: "钱：¥300" }));
+    const money = await waitFor(() => within(quickBar("西湖")).getByRole("button", { name: "开销：¥300" }));
     expect(document.activeElement).toBe(money);
-    expect(screen.getByRole("region", { name: "钱的总览" }).textContent).toContain("总额 ¥300");
 
     // 还选中着，接着改这一笔
-    await user.click(within(quickBar("西湖")).getByRole("button", { name: "钱：¥300" }));
+    await user.click(within(quickBar("西湖")).getByRole("button", { name: "开销：¥300" }));
     await user.clear(screen.getByRole("textbox", { name: "金额" }));
     await user.type(screen.getByRole("textbox", { name: "金额" }), "280{Enter}");
-    await waitFor(() => expect(within(quickBar("西湖")).getByRole("button", { name: "钱：¥280" })).toBeTruthy());
+    await waitFor(() => expect(within(quickBar("西湖")).getByRole("button", { name: "开销：¥280" })).toBeTruthy());
 
-    await user.click(within(quickBar("西湖")).getByRole("button", { name: "钱：¥280" }));
+    await user.click(within(quickBar("西湖")).getByRole("button", { name: "开销：¥280" }));
     await user.clear(screen.getByRole("textbox", { name: "金额" }));
     await user.type(screen.getByRole("textbox", { name: "金额" }), "500{Escape}");
-    await waitFor(() => expect(within(quickBar("西湖")).getByRole("button", { name: "钱：¥280" })).toBeTruthy());
+    await waitFor(() => expect(within(quickBar("西湖")).getByRole("button", { name: "开销：¥280" })).toBeTruthy());
+
+    // 最后看一眼总览（切视图会取消选中，所以放在最后）
+    expect((await moneyOverview()).textContent).toContain("总额 ¥280");
   });
 
-  it("钱：挂着两笔时改为开详情面板、展开钱", async () => {
+  it("开销：挂着两笔时改为开详情面板、展开开销", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [day] = daysFromOct1(plan, 1);
@@ -245,10 +247,10 @@ describe("选中后的快捷条", () => {
     await showView("时间轴");
 
     await user.click(await blockButton("午饭"));
-    await user.click(within(quickBar("午饭")).getByRole("button", { name: "钱：¥158.50 · 2 笔" }));
+    await user.click(within(quickBar("午饭")).getByRole("button", { name: "开销：¥158.50 · 2 笔" }));
 
     const panel = screen.getByRole("dialog", { name: "午饭" });
-    expect(within(panel).getByRole("group", { name: "午饭 的钱" })).toBeTruthy();
+    expect(within(panel).getByRole("group", { name: "午饭 的开销" })).toBeTruthy();
     expect(panel.contains(document.activeElement)).toBe(true);
   });
 
@@ -267,7 +269,7 @@ describe("选中后的快捷条", () => {
     // 两件同样时间的「西湖」，各挂一笔 300 元
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["西湖", "西湖"]));
     expect((await blockTexts("10.1")).map((item) => item.time)).toEqual(["09:00–12:00", "09:00–12:00"]);
-    expect(screen.getByRole("region", { name: "钱的总览" }).textContent).toContain("总额 ¥600");
+    expect((await moneyOverview()).textContent).toContain("总额 ¥600");
 
     await showView("时间轴");
     await user.keyboard("{Control>}z{/Control}");

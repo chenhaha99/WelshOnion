@@ -75,13 +75,13 @@ test("手机上时间的编辑区：「开始」和它的框、「时长」和�
   expect(errors).toEqual([]);
 });
 
-test("手机上钱的编辑区：一笔钱分两行，说明框写着「说明」", async ({ page }) => {
+test("手机上开销的编辑区：一笔开销分两行，说明框写着「说明」", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1, { width: 390, height: 844 });
   const table = page.getByRole("table", { name: DAY1 });
   await addBlocks(page, table, ["西湖"]);
-  await (await rowOf(table, "西湖")).getByRole("button", { name: "钱" }).click();
-  const editor = page.getByRole("group", { name: "西湖 的钱" });
+  await (await rowOf(table, "西湖")).getByRole("button", { name: "开销" }).click();
+  const editor = page.getByRole("group", { name: "西湖 的开销" });
   await editor.getByRole("textbox", { name: "新一笔的金额" }).fill("60");
   await page.keyboard.press("Enter");
   const expense = editor.locator("[data-expense-id]").first();
@@ -98,7 +98,7 @@ test("手机上钱的编辑区：一笔钱分两行，说明框写着「说明�
   await editor.scrollIntoViewIfNeeded();
   await page.screenshot({ path: test.info().outputPath("03-phone-money-editor.png") });
 
-  // 电脑上：一笔钱的几样还在同一行
+  // 电脑上：一笔开销的几样还在同一行
   await page.setViewportSize({ width: 1280, height: 900 });
   const onDesktop: Array<[string, Locator]> = [
     ["金额", amount],

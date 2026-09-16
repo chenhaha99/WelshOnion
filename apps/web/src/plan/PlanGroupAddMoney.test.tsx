@@ -21,14 +21,14 @@ function dayBlock(plan: Y.Doc, library: Y.Doc, baseId: string, title: string, ki
   return result.value.blockId;
 }
 
-/** 10.1「民宿」（住宿，已确认）挂 480 房费；10.2「酒店」（住宿）、「西湖」（游玩）没挂钱。 */
+/** 10.1「民宿」（住宿，已确认）挂 480 房费；10.2「酒店」（住宿）、「西湖」（游玩）没挂开销。 */
 function twoNights(plan: Y.Doc, library: Y.Doc): void {
   const [oct1, oct2] = daysFromOct1(plan, 2);
   const inn = dayBlock(plan, library, oct1!, "民宿", "lodging", "confirmed");
   dayBlock(plan, library, oct2!, "酒店", "lodging");
   dayBlock(plan, library, oct2!, "西湖", "sight");
   const result = addExpense(plan, library, { title: "房费", amountCents: 48000, kindId: "lodging", blockIds: [inn] });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 async function byKind(user: User): Promise<void> {
@@ -52,7 +52,7 @@ function addRowOf(kind: string): HTMLElement {
   return row;
 }
 
-/** 组里的行，按显示顺序：钱写说明，没挂钱的块写「（空）块的名字」。 */
+/** 组里的行，按显示顺序：开销写说明，没挂开销的块写「（空）块的名字」。 */
 function rowsOf(group: HTMLElement): string[] {
   return [...group.querySelectorAll<HTMLElement>("[data-expense-id], [data-empty-block-id]")].map((row) =>
     row.hasAttribute("data-expense-id")
@@ -68,7 +68,7 @@ function optionTexts(select: HTMLElement): string[] {
 }
 
 describe("每组末尾加一笔", () => {
-  it("挂到一块：建一笔这个类型的钱挂上；填完清空，挂到回到「不属于任何一天」，焦点还在金额", async () => {
+  it("挂到一块：建一笔这个类型的开销挂上；填完清空，挂到回到「不属于任何一天」，焦点还在金额", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan(twoNights);
     await byKind(user);
@@ -97,7 +97,7 @@ describe("每组末尾加一笔", () => {
     expect(document.activeElement).toBe(within(after).getByRole("textbox", { name: "新一笔的金额" }));
   });
 
-  it("不属于任何一天（默认）：这个类型的钱排在组的最后", async () => {
+  it("不属于任何一天（默认）：这个类型的开销排在组的最后", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan(twoNights);
     await byKind(user);
@@ -130,14 +130,14 @@ describe("每组末尾加一笔", () => {
   });
 });
 
-describe("加一笔别的类型的钱", () => {
+describe("加一笔别的类型的开销", () => {
   it("选类型、填金额：那一类的组出现", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan(twoNights);
     await byKind(user);
 
-    const region = screen.getByRole("region", { name: "加一笔别的类型的钱" });
-    // 看得见的字也要说清是加钱的地方，只写「别的类型」看不出来
+    const region = screen.getByRole("region", { name: "加一笔别的类型的开销" });
+    // 看得见的字也要说清是加开销的地方，只写「别的类型」看不出来
     expect(within(region).getByText("加一笔别的类型")).toBeTruthy();
     await user.selectOptions(within(region).getByRole("combobox", { name: "类型" }), "购物");
     await user.type(within(region).getByRole("textbox", { name: "新一笔的说明" }), "纪念品");
@@ -157,7 +157,7 @@ describe("加一笔别的类型的钱", () => {
     await byKind(user);
 
     const kindSelect = () =>
-      within(screen.getByRole("region", { name: "加一笔别的类型的钱" })).getByRole("combobox", { name: "类型" }) as HTMLSelectElement;
+      within(screen.getByRole("region", { name: "加一笔别的类型的开销" })).getByRole("combobox", { name: "类型" }) as HTMLSelectElement;
     expect(kindSelect().selectedOptions[0]!.textContent).toBe("其他");
     expect(optionTexts(kindSelect())).toEqual(["停留", "住宿", "交通", "餐饮", "游玩", "购物", "其他"]);
 

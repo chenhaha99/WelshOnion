@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import {
-  DAY1,
   addBlocks,
   addMoney,
   axisPoint,
@@ -8,19 +7,21 @@ import {
   center,
   chip,
   countRows,
+  DAY1,
   drag,
+  inOverview,
   newPlan,
   quickBar,
   schedule,
   segment,
   showView,
-  timeOf,
   timelineRow,
+  timeOf,
   trayOf,
 } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状态、填钱、按住复制拖到第二天、删除", async ({ page }) => {
+test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状态、填开销、按住复制拖到第二天、删除", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 2);
   const day1Table = page.getByRole("table", { name: DAY1 });
@@ -47,12 +48,16 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状�
   await expect(bar.getByRole("button", { name: "状态：已确认" })).toBeFocused();
   await expect(segment(day1, "西湖")).toHaveAttribute("data-pending", "false");
 
-  // 填钱：小框里填 300 回车
-  await bar.getByRole("button", { name: "钱：填钱" }).click();
-  await page.getByRole("dialog", { name: "改钱" }).getByRole("textbox", { name: "金额" }).fill("300");
+  // 填开销：小框里填 300 回车
+  await bar.getByRole("button", { name: "开销：填开销" }).click();
+  await page.getByRole("dialog", { name: "改开销" }).getByRole("textbox", { name: "金额" }).fill("300");
   await page.keyboard.press("Enter");
-  await expect(bar.getByRole("button", { name: "钱：¥300" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "钱的总览" })).toContainText("总额 ¥300");
+  await expect(bar.getByRole("button", { name: "开销：¥300" })).toBeVisible();
+  await inOverview(page, ({ money }) => expect(money).toContainText("总额 ¥300"));
+
+  // 切去总览看一眼再回来，选中就没了（切视图会取消选中）：重新点一下
+  await segment(day1, "西湖").getByRole("button", { name: /^西湖 / }).click();
+  await expect(bar).toBeVisible();
 
   // 按住「复制」往下拖到 10.2：横向不动就是同一个时刻；松手前看得见落在哪
   const copy = center(await box(bar.getByRole("button", { name: "复制" })));
@@ -64,9 +69,9 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状�
 
   await expect(segment(day2, "西湖")).toHaveAttribute("data-from", "540");
   await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "540");
-  // 复制出来的那一份连钱一起复制，接着被选中（先看选中：切到列表数行数会取消选中）
+  // 复制出来的那一份连开销一起复制，接着被选中（先看选中：切到列表数行数会取消选中）
   await expect(quickBar(page, "西湖")).toBeVisible();
-  await expect(page.getByRole("region", { name: "钱的总览" })).toContainText("总额 ¥600");
+  await inOverview(page, ({ money }) => expect(money).toContainText("总额 ¥600"));
   expect(await countRows(page.getByRole("table", { name: DAY1 }), "西湖")).toBe(1);
 
   // 删除：屏幕底部出提示，焦点落到这天的操作
@@ -80,7 +85,7 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状�
   expect(errors).toEqual([]);
 });
 
-test("电脑上：点一下复制就地多一份；块上写钱，点金额就地改", async ({ page }) => {
+test("电脑上：点一下复制就地多一份；块上写开销，点金额就地改", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
@@ -100,24 +105,24 @@ test("电脑上：点一下复制就地多一份；块上写钱，点金额就�
   await page.keyboard.press("Control+z");
   expect(await countRows(table, "西湖")).toBe(1);
 
-  // 块上写钱：横条上多一行，点了就地改
+  // 块上写开销：横条上多一行，点了就地改
   await showView(page, "时间轴");
-  await page.getByRole("group", { name: "块上写" }).getByRole("button", { name: "标题 + 钱" }).click();
+  await page.getByRole("group", { name: "块上写" }).getByRole("button", { name: "标题 + 开销" }).click();
   const money = segment(day1, "西湖").locator("[data-bar-money] button");
   await expect(money).toHaveText("¥300");
-  // 钱那一行画在块里面，不许漏到块外面
+  // 开销那一行画在块里面，不许漏到块外面
   const moneyBox = (await money.boundingBox())!;
   const lakeBox = (await segment(day1, "西湖").boundingBox())!;
   expect(moneyBox.y + moneyBox.height).toBeLessThanOrEqual(lakeBox.y + lakeBox.height + 1);
   await shot(page, "04-money-on-blocks");
   await money.click();
-  const amount = page.getByRole("dialog", { name: "改钱" }).getByRole("textbox", { name: "金额" });
+  const amount = page.getByRole("dialog", { name: "改开销" }).getByRole("textbox", { name: "金额" });
   await amount.fill("280");
   await page.keyboard.press("Enter");
   await expect(money).toHaveText("¥280");
   expect(await timeOf(table, "西湖")).toBe("09:00–12:00");
 
-  // 15 分钟的块窄得写不下钱，就只写标题
+  // 15 分钟的块窄得写不下开销，就只写标题
   await showView(page, "时间轴");
   await expect(segment(day1, "看潮").locator("[data-bar-money]")).toBeHidden();
 

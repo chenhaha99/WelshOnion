@@ -35,7 +35,7 @@ export function attachedLabel(
 }
 
 /**
- * 「挂上已有的一笔」的选项：计划里还没挂在这块上的钱（不管筛选）。按它最早那块在行程里的先后，
+ * 「挂上已有的一笔」的选项：计划里还没挂在这块上的开销（不管筛选）。按它最早那块在行程里的先后，
  * 不属于任何一天的在最后、之间按 id（id 带着创建时间）。每项写「住宿 ¥800 民宿两晚 · 挂在 10.1 周四 民宿」。
  */
 export function linkableExpenses(plan: PlanView, blockId: string): Array<{ id: string; label: string }> {

@@ -5,7 +5,7 @@ import { addBlock, addExpense, setBlockStatus } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openOtherTab, openStoredPlan, showView } from "./test-helpers";
+import { daysFromOct1, moneyOverview, openOtherTab, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -23,12 +23,12 @@ function dayBlock(plan: Y.Doc, library: Y.Doc, baseId: string, title: string, ki
 
 function money(plan: Y.Doc, library: Y.Doc, title: string, cents: number | null, kindId: string, blockIds: string[]): void {
   const result = addExpense(plan, library, { title, amountCents: cents, kindId, blockIds });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 /**
- * 10.1：「民宿」（住宿）挂 480 房费；「横店」（游玩）挂 300 住宿费（住宿）；「早茶」（餐饮）挂 30 早茶钱。
- * 10.2：「午饭」（餐饮）没挂钱；「西湖」（游玩，已确认）挂 60 门票。
+ * 10.1：「民宿」（住宿）挂 480 房费；「横店」（游玩）挂 300 住宿费（住宿）；「早茶」（餐饮）挂 30 早茶开销。
+ * 10.2：「午饭」（餐饮）没挂开销；「西湖」（游玩，已确认）挂 60 门票。
  * 不挂块：20 订房服务费（住宿，最先建的）、600 签证（其他）。
  */
 function trip(plan: Y.Doc, library: Y.Doc): void {
@@ -61,7 +61,7 @@ function groupOf(kind: string): HTMLElement {
   return group;
 }
 
-/** 组里的行，按显示顺序：钱写说明，没挂钱的块写「（空）块的名字」。 */
+/** 组里的行，按显示顺序：开销写说明，没挂开销的块写「（空）块的名字」。 */
 function rowsOf(group: HTMLElement): string[] {
   return [...group.querySelectorAll<HTMLElement>("[data-expense-id], [data-empty-block-id]")].map((row) =>
     row.hasAttribute("data-expense-id")
@@ -83,7 +83,7 @@ function summaryOf(kind: string): string | null {
 }
 
 describe("按天、按类型切换", () => {
-  it("默认按天；点「按类型」换成类型分组，钱的总览照旧；点「按天」换回来", async () => {
+  it("默认按天；点「按类型」换成类型分组，开销的总览照旧；点「按天」换回来", async () => {
     const user = userEvent.setup();
     await openStoredPlan(trip);
 
@@ -97,7 +97,7 @@ describe("按天、按类型切换", () => {
     expect(within(toggle).getByRole("button", { name: "按类型" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.queryByRole("list", { name: "日期列表" })).toBeNull();
     expect(screen.getByRole("list", { name: "类型分组" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "钱的总览" })).toBeTruthy();
+    expect((await moneyOverview())).toBeTruthy();
 
     await switchTo(user, "按天");
 
@@ -118,7 +118,7 @@ describe("类型组里有什么", () => {
     expect(summaryOf("其他")).toBe("¥600 · 1 笔");
   });
 
-  it("每笔钱一行、写挂在哪块上；没挂钱的块一行空的；按行程的先后排，不挂块的在最后", async () => {
+  it("每笔开销一行、写挂在哪块上；没挂开销的块一行空的；按行程的先后排，不挂块的在最后", async () => {
     const user = userEvent.setup();
     await openStoredPlan(trip);
     await switchTo(user, "按类型");
@@ -134,7 +134,7 @@ describe("类型组里有什么", () => {
     expect(expenseRowOf(groupOf("其他"), "签证").querySelector("[data-expense-blocks]")?.textContent).toBe("不属于任何一天");
   });
 
-  it("没填金额的，组头写「还有 N 笔没填」；只有空行的组写「还没有钱」", async () => {
+  it("没填金额的，组头写「还有 N 笔没填」；只有空行的组写「还没有开销」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -146,12 +146,12 @@ describe("类型组里有什么", () => {
     await switchTo(user, "按类型");
 
     expect(summaryOf("住宿")).toBe("¥480 · 2 笔 · 还有 1 笔没填");
-    expect(summaryOf("餐饮")).toBe("还没有钱");
+    expect(summaryOf("餐饮")).toBe("还没有开销");
   });
 });
 
 describe("在组里改", () => {
-  it("空行填了金额就建一笔这个类型的钱，挂在那块上", async () => {
+  it("空行填了金额就建一笔这个类型的开销，挂在那块上", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan(trip);
     await switchTo(user, "按类型");
@@ -169,7 +169,7 @@ describe("在组里改", () => {
     expect(summaryOf("餐饮")).toBe("¥75 · 2 笔");
   });
 
-  it("改一笔钱的类型：换到那个类型的组里，焦点跟过去", async () => {
+  it("改一笔开销的类型：换到那个类型的组里，焦点跟过去", async () => {
     const user = userEvent.setup();
     await openStoredPlan(trip);
     await switchTo(user, "按类型");
@@ -206,7 +206,7 @@ describe("在组里改", () => {
 });
 
 describe("按类型时的筛选", () => {
-  it("按类型筛：只剩所选类型的组；挂在被筛掉的块上的钱就在组里，不写那一句", async () => {
+  it("按类型筛：只剩所选类型的组；挂在被筛掉的块上的开销就在组里，不写那一句", async () => {
     const user = userEvent.setup();
     await openStoredPlan(trip);
     await switchTo(user, "按类型");
@@ -218,7 +218,7 @@ describe("按类型时的筛选", () => {
     expect(screen.queryByText(/挂在被筛掉的事上/)).toBeNull();
   });
 
-  it("按状态筛：钱看挂的块有没有通过，不挂块的照旧；空行看块的状态", async () => {
+  it("按状态筛：开销看挂的块有没有通过，不挂块的照旧；空行看块的状态", async () => {
     const user = userEvent.setup();
     await openStoredPlan(trip);
     await switchTo(user, "按类型");

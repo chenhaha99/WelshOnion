@@ -5,7 +5,7 @@ import { addBlock } from "@welshonion/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openStoredPlan, pressedView, showView, stubNarrowScreen } from "./test-helpers";
+import { daysFromOct1, moneyOverview, openStoredPlan, pressedView, showView, stubNarrowScreen } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -29,24 +29,30 @@ function follows(first: Element, second: Element): boolean {
 }
 
 describe("时间轴和列表切换着看", () => {
-  it("第一次打开是时间轴：只有时间轴卡片，没有日期列表和分组；筛选、钱的总览、占比都在", async () => {
+  it("第一次打开是时间轴：主版面只有筛选、切换和时间轴，开销总览和占比在「总览」里", async () => {
     await openStoredPlan(lakeOnOct1);
 
     const views = await viewSwitch();
-    expect(within(views).getAllByRole("button").map((button) => button.textContent)).toEqual(["时间轴", "列表"]);
+    expect(within(views).getAllByRole("button").map((button) => button.textContent)).toEqual(["时间轴", "列表", "总览"]);
     expect(pressedView()).toBe("时间轴");
     const timeline = screen.getByRole("region", { name: "时间轴" });
     expect(screen.queryByRole("list", { name: "日期列表" })).toBeNull();
     expect(screen.queryByRole("group", { name: "分组" })).toBeNull();
     expect(screen.getByRole("group", { name: "按状态筛选" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "钱的总览" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "占比" })).toBeTruthy();
-    // 切换按钮在占比和视图中间
-    expect(follows(screen.getByRole("region", { name: "占比" }), views)).toBe(true);
+    // 出发日期、开销总览、占比都不在主版面上
+    expect(screen.queryByLabelText("出发日期")).toBeNull();
+    expect(screen.queryByRole("region", { name: "开销总览" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "占比" })).toBeNull();
+    // 切换按钮在筛选和视图中间
+    expect(follows(screen.getByRole("group", { name: "按状态筛选" }), views)).toBe(true);
     expect(follows(views, timeline)).toBe(true);
+
+    await showView("总览");
+    expect(await moneyOverview()).toBeTruthy();
+    expect(screen.getByRole("region", { name: "占比" })).toBeTruthy();
   });
 
-  it("切到列表：只有日期列表和分组；筛选、钱的总览、占比还在", async () => {
+  it("切到列表：只有日期列表和分组；筛选、开销的总览、占比还在", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeOnOct1);
 
@@ -57,7 +63,7 @@ describe("时间轴和列表切换着看", () => {
     expect(screen.getByRole("group", { name: "分组" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "时间轴" })).toBeNull();
     expect(screen.getByRole("group", { name: "按状态筛选" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "钱的总览" })).toBeTruthy();
+    expect((await moneyOverview())).toBeTruthy();
     // 切视图不改计划：撤销还是灰的
     expect(screen.getByRole("button", { name: "撤销" })).toHaveProperty("disabled", true);
   });

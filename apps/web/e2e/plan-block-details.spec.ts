@@ -72,7 +72,7 @@ test("块的详情：键盘打开详情填备注 → 交通块自驾挂油费 �
   await expect(lakeDetails).toBeHidden();
   await expect(lakeMenu).toBeFocused();
 
-  // 去乌镇（交通）：详情里直接有路程，自驾 132 公里，钱格马上出现油费
+  // 去乌镇（交通）：详情里直接有路程，自驾 132 公里，开销格马上出现油费
   await rows.nth(1).getByRole("button", { name: "这件事的操作" }).click();
   await detailsItem.click();
   const routeDetails = page.getByRole("group", { name: "去乌镇 的详情" });

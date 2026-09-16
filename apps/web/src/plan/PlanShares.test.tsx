@@ -5,7 +5,7 @@ import { addBlock, addExpense, addStatus, setBlockStatus, updateKind } from "@we
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openStoredPlan, showView } from "./test-helpers";
+import { daysFromOct1, moneyOverview, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -31,11 +31,12 @@ function undated(plan: Y.Doc, library: Y.Doc, baseId: string, title: string, kin
 
 function money(plan: Y.Doc, library: Y.Doc, kindId: string, cents: number | null): void {
   const result = addExpense(plan, library, { title: kindId, amountCents: cents, kindId });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
-/** 占比卡片里的一块：「钱的占比」「时间的占比」「定没定」。 */
+/** 占比卡片里的一块：「开销的占比」「时间的占比」「定没定」。 */
 async function part(name: string): Promise<HTMLElement> {
+  await showView("总览");
   const card = await screen.findByRole("region", { name: "占比" });
   return within(card).getByRole("group", { name });
 }
@@ -53,20 +54,24 @@ function segmentCount(group: HTMLElement): number {
 }
 
 describe("占比卡片", () => {
-  it("在钱的总览下面、日期列表上面", async () => {
+  it("在「总览」这个视图里，开销总览在上面", async () => {
     await openStoredPlan((plan) => {
       oneDay(plan);
     });
+
+    await showView("总览");
+
     const card = await screen.findByRole("region", { name: "占比" });
-    const overview = screen.getByRole("region", { name: "钱的总览" });
-    await showView("列表");
-    const days = screen.getByRole("list", { name: "日期列表" });
+    const overview = (await moneyOverview());
     expect(overview.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(card.compareDocumentPosition(days) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 时间轴、列表里都没有它们
+    await showView("时间轴");
+    expect(screen.queryByRole("region", { name: "占比" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "开销总览" })).toBeNull();
   });
 });
 
-describe("钱的占比", () => {
+describe("开销的占比", () => {
   it("按类型分：条按比例分段，说明从多到少", async () => {
     await openStoredPlan((plan, library) => {
       oneDay(plan);
@@ -74,7 +79,7 @@ describe("钱的占比", () => {
       money(plan, library, "lodging", 120000);
       money(plan, library, "food", 60000);
     });
-    const group = await part("钱的占比");
+    const group = await part("开销的占比");
     expect(legend(group)).toEqual(["住宿 ¥1,200 · 60%", "餐饮 ¥600 · 30%", "交通 ¥200 · 10%"]);
     expect(segmentCount(group)).toBe(3);
   });
@@ -87,19 +92,19 @@ describe("钱的占比", () => {
       money(plan, library, "food", null);
       money(plan, library, "shopping", null);
     });
-    const group = await part("钱的占比");
+    const group = await part("开销的占比");
     expect(within(group).getByText("只算已填的 2 笔，还有 2 笔没填")).toBeTruthy();
     expect(legend(group)).toEqual(["住宿 ¥1,200 · 67%", "餐饮 ¥600 · 33% · 还有 1 笔没填", "购物 · 还有 1 笔没填"]);
     expect(segmentCount(group)).toBe(2);
   });
 
-  it("还没有填了金额的钱", async () => {
+  it("还没有填了金额的开销", async () => {
     await openStoredPlan((plan, library) => {
       oneDay(plan);
       money(plan, library, "food", null);
     });
-    const group = await part("钱的占比");
-    expect(within(group).getByText("还没有填了金额的钱")).toBeTruthy();
+    const group = await part("开销的占比");
+    expect(within(group).getByText("还没有填了金额的开销")).toBeTruthy();
     expect(legend(group)).toEqual([]);
     expect(segmentCount(group)).toBe(0);
   });
@@ -109,26 +114,26 @@ describe("钱的占比", () => {
       oneDay(plan);
       money(plan, library, "sight", 0);
     });
-    const group = await part("钱的占比");
+    const group = await part("开销的占比");
     expect(within(group).getByText("填了金额的 1 笔加起来是 ¥0")).toBeTruthy();
     expect(legend(group)).toEqual([]);
   });
 
-  it("填一笔钱，占比跟着变", async () => {
+  it("填一笔开销，占比跟着变", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => {
       oneDay(plan);
     });
-    const group = await part("钱的占比");
-    expect(within(group).getByText("还没有填了金额的钱")).toBeTruthy();
+    const group = await part("开销的占比");
+    expect(within(group).getByText("还没有填了金额的开销")).toBeTruthy();
 
-    const overview = screen.getByRole("region", { name: "钱的总览" });
+    const overview = (await moneyOverview());
     await user.click(within(overview).getByRole("button", { name: "不属于任何一天：¥0" }));
-    const editor = screen.getByRole("group", { name: "不属于任何一天的钱" });
+    const editor = screen.getByRole("group", { name: "不属于任何一天的开销" });
     await user.type(within(editor).getByRole("textbox", { name: "新一笔的金额" }), "600{Enter}");
 
     expect(await within(group).findByText("其他 ¥600 · 100%")).toBeTruthy();
-    expect(within(group).queryByText("还没有填了金额的钱")).toBeNull();
+    expect(within(group).queryByText("还没有填了金额的开销")).toBeNull();
   });
 });
 

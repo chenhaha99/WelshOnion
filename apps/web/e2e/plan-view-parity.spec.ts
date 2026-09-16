@@ -23,7 +23,7 @@ async function expectView(page: Page, name: "时间轴" | "列表"): Promise<voi
   await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name, pressed: true })).toBeVisible();
 }
 
-test("电脑上只在时间轴里：加事 → 点开排时间、挂钱、复制到下一天、推迟 → 删掉另一天的 → 插一天、改时区", async ({
+test("电脑上只在时间轴里：加事 → 点开排时间、挂开销、复制到下一天、推迟 → 删掉另一天的 → 插一天、改时区", async ({
   page,
 }) => {
   const errors = watchErrors(page);
@@ -54,12 +54,12 @@ test("电脑上只在时间轴里：加事 → 点开排时间、挂钱、复制
   await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "540");
 
   // 挂 300 元
-  await panel.getByRole("button", { name: "钱" }).click();
-  const money = panel.getByRole("group", { name: "西湖 的钱" });
+  await panel.getByRole("button", { name: "开销" }).click();
+  const money = panel.getByRole("group", { name: "西湖 的开销" });
   await money.getByRole("textbox", { name: "新一笔的金额" }).fill("300");
   await page.keyboard.press("Enter");
   await money.getByRole("button", { name: "收起" }).click();
-  await expect(panel.getByRole("button", { name: "钱" })).toHaveText("¥300");
+  await expect(panel.getByRole("button", { name: "开销" })).toHaveText("¥300");
 
   // 复制到 10.2：面板留着，写着复制到了哪天
   await panel.getByRole("combobox", { name: "复制到" }).selectOption({ label: "第 2 天 · 10.2 周五" });

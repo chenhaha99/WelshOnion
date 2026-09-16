@@ -8,6 +8,7 @@ import {
   DAY3,
   drag,
   hourWidth,
+  inOverview,
   newPlan,
   pickKind,
   quickBar,
@@ -248,8 +249,8 @@ test("按住 Alt 复制 → Esc 放弃 → 拖的时候块没了", async ({ page
   const day2Table = page.getByRole("table", { name: DAY2 });
   await addBlocks(page, day1Table, ["西湖", "灵隐寺"]);
   await schedule(page, day1Table, "西湖", "09:00", "3");
-  await (await rowOf(day1Table, "西湖")).getByRole("button", { name: "钱" }).click();
-  await page.getByRole("group", { name: "西湖 的钱" }).getByRole("textbox", { name: "新一笔的金额" }).fill("300");
+  await (await rowOf(day1Table, "西湖")).getByRole("button", { name: "开销" }).click();
+  await page.getByRole("group", { name: "西湖 的开销" }).getByRole("textbox", { name: "新一笔的金额" }).fill("300");
   await page.keyboard.press("Enter");
   await expect((await rowOf(day1Table, "西湖")).locator("[data-money-cell]")).toHaveText("¥300");
   const day1 = timelineRow(page, "10.1");
@@ -257,7 +258,7 @@ test("按住 Alt 复制 → Esc 放弃 → 拖的时候块没了", async ({ page
   const hour = await hourWidth(day1);
   const label = page.locator("[data-drag-label]");
 
-  // 按住 Alt 拖到 10.2：指针上方写「复制 · 」，10.1 的西湖还在原处，10.2 画着复制出来的；松手后原来的不动，10.2 多一个，钱也复制成新的一笔
+  // 按住 Alt 拖到 10.2：指针上方写「复制 · 」，10.1 的西湖还在原处，10.2 画着复制出来的；松手后原来的不动，10.2 多一个，开销也复制成新的一笔
   const lake = center(await box(segment(day1, "西湖")));
   const day2Axis = await box(day2.locator("[data-timeline-axis]"));
   await drag(page, lake, { x: lake.x, y: day2Axis.y + day2Axis.height - 8 }, { alt: true, release: false });
@@ -271,7 +272,7 @@ test("按住 Alt 复制 → Esc 放弃 → 拖的时候块没了", async ({ page
   await expect.poll(() => timeOf(day2Table, "西湖")).toBe("09:00–12:00");
   expect(await timeOf(day1Table, "西湖")).toBe("09:00–12:00");
   await expect((await rowOf(day2Table, "西湖")).locator("[data-money-cell]")).toHaveText("¥300");
-  await expect(page.getByRole("region", { name: "钱的总览" })).toContainText("总额 ¥600");
+  await inOverview(page, ({ money }) => expect(money).toContainText("总额 ¥600"));
 
   // Esc 放弃：画回拖之前的样子，松手后什么都不变，也不打开详情
   const lakeAgain = center(await box(segment(day1, "西湖")));

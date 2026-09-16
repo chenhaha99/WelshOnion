@@ -38,7 +38,7 @@ test("导出 → 删掉 → 空列表上导入恢复 → 再导入另存一份 �
   await page.keyboard.press("Escape");
   await expect(panel).toBeHidden();
 
-  // 删掉计划，列表空了；空列表上也有「设置」，导入：进入计划，块和钱都在
+  // 删掉计划，列表空了；空列表上也有「设置」，导入：进入计划，块和开销都在
   const card = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: "国庆杭州" }) });
   await card.getByRole("button", { name: "删除" }).click();
   await card.getByRole("button", { name: "确认删除" }).click();

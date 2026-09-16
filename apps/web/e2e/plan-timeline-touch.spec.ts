@@ -296,8 +296,9 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   // 没长按就往下滑：滚的是页面（往回滚），没有预览框。切换按钮贴顶时时间轴下面没有别的了，往上滑滚不动，所以往下滑。
   // 放在最后：在时间轴上快速滑过以后，Chromium 模拟的手指在一两秒里点不出点击（惯性把那一下吃了），后面再点、再按会不稳
   const lakeNow = center(await box(segment(day1, "西湖")));
+  // 主版面上面只剩一行筛选，切换按钮贴顶时页面只滚下去几十像素，够往回滚就行
   const beforeSwipe = await pageScrollY(page);
-  expect(beforeSwipe).toBeGreaterThan(200);
+  expect(beforeSwipe).toBeGreaterThan(10);
   await fingerDown(page, lakeNow);
   await fingerMove(page, lakeNow, { x: lakeNow.x, y: lakeNow.y + 200 }, 10);
   await fingerUp(page);

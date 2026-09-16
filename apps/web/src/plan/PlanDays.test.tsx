@@ -8,7 +8,7 @@ import { NOW, renderApp } from "../app/test-render";
 import { openLibrary } from "../storage/library";
 import { createPlan, openPlan } from "../storage/plans";
 import { releaseAll, track } from "../storage/test-helpers";
-import { showView } from "./test-helpers";
+import { openPlanSettings, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -97,11 +97,13 @@ describe("日期列表", () => {
 });
 
 describe("整趟改出发日期", () => {
-  it("推迟一周", async () => {
+  it("推迟一周（出发日期在计划设置里）", async () => {
+    const user = userEvent.setup();
     await openStoredPlan(threeDaysFromOct1);
     await dayLabels();
 
-    fireEvent.change(screen.getByLabelText("出发日期"), { target: { value: "2026-10-08" } });
+    const settings = await openPlanSettings(user);
+    fireEvent.change(within(settings).getByLabelText("出发日期"), { target: { value: "2026-10-08" } });
     await waitFor(async () =>
       expect(await dayLabels()).toEqual(["第 1 天 · 10.8 周四", "第 2 天 · 10.9 周五", "第 3 天 · 10.10 周六"]),
     );

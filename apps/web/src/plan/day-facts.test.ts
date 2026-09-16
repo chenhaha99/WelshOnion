@@ -24,7 +24,7 @@ interface Built {
   oct2: string;
 }
 
-/** 在内存里搭 10.1、10.2 两天的计划，按需放块和钱，返回读出来的视图。 */
+/** 在内存里搭 10.1、10.2 两天的计划，按需放块和开销，返回读出来的视图。 */
 function build(setup: (built: Built) => void): PlanView {
   const library = new Y.Doc();
   initLibraryDoc(library);
@@ -67,7 +67,7 @@ function travel(built: Built, blockId: string, mode: "drive" | "walk", meters: n
 
 function money(built: Built, cents: number | null, blockIds: string[]): void {
   const result = addExpense(built.plan, built.library, { title: "钱", amountCents: cents, blockIds });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 describe("每天写这天怎么样", () => {
@@ -174,10 +174,10 @@ describe("这天花多少", () => {
     const plan = build((built) => {
       money(built, null, [undated(built, built.oct1, "午饭", "food")]);
     });
-    expect(lineOf(plan, 0)).toBe("有 1 笔钱没填");
+    expect(lineOf(plan, 0)).toBe("有 1 笔开销没填");
   });
 
-  it("不属于任何一天的钱", () => {
+  it("不属于任何一天的开销", () => {
     const plan = build((built) => {
       money(built, 60000, []);
       undated(built, built.oct1, "西湖", "sight");

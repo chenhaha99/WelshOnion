@@ -271,6 +271,17 @@
   color: var(--color-ink-muted);
 }
 
+@utility timeline-zoom {
+  width: 6rem;
+  height: 1rem;
+  accent-color: var(--color-sage);
+  cursor: pointer;
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 2px;
+  }
+}
+
 @utility quick-bar {
   display: inline-flex;
   align-items: center;

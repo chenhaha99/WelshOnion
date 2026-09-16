@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { showView } from "./timeline-helpers";
+import { inOverview, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 test("两晚共用一笔房费：第二晚挂上第一晚那笔 → 共用 → 删掉第一晚房费还在 → 撤销 → 手机上拿掉再挂上", async ({ page }) => {
@@ -25,26 +25,24 @@ test("两晚共用一笔房费：第二晚挂上第一晚那笔 → 共用 → �
   }
   const firstNight = firstDay.locator("tr[data-block-id]").first();
   const secondNight = secondDay.locator("tr[data-block-id]").first();
-  const summary = page.getByRole("region", { name: "钱的总览" }).locator("[data-money-summary]");
-
   // 第一晚填 800 的房费
-  await firstNight.getByRole("button", { name: "钱" }).click();
-  const money = page.getByRole("group", { name: "民宿 的钱" });
+  await firstNight.getByRole("button", { name: "开销" }).click();
+  const money = page.getByRole("group", { name: "民宿 的开销" });
   await money.getByRole("textbox", { name: "新一笔的金额" }).fill("800");
   await money.getByRole("textbox", { name: "新一笔的说明" }).fill("民宿两晚");
   await page.keyboard.press("Enter");
   await expect(firstNight.locator("[data-money-cell]")).toHaveText("¥800");
   await page.keyboard.press("Escape");
   await expect(money).toBeHidden();
-  await expect(summary).toContainText("另有 1 件事还没填钱");
+  await inOverview(page, ({ summary }) => expect(summary).toContainText("另有 1 件事还没填开销"));
 
   // 第二晚挂上第一晚那笔
-  await secondNight.getByRole("button", { name: "钱" }).click();
+  await secondNight.getByRole("button", { name: "开销" }).click();
   await money.getByRole("combobox", { name: "挂上已有的一笔" }).selectOption({ label: "住宿 ¥800 民宿两晚 · 挂在 10.1 周四 民宿" });
   await expect(secondNight.locator("[data-money-cell]")).toHaveText("共用");
   await expect(firstNight.locator("[data-money-cell]")).toHaveText("¥800");
   await expect(money.getByText("也挂在别的事上")).toBeVisible();
-  await expect(summary).not.toContainText("还没填钱");
+  await inOverview(page, ({ summary }) => expect(summary).not.toContainText("还没填开销"));
   await shot(page, "01-shared");
   await page.keyboard.press("Escape");
   await expect(money).toBeHidden();
@@ -54,7 +52,7 @@ test("两晚共用一笔房费：第二晚挂上第一晚那笔 → 共用 → �
   await page.getByRole("menuitem", { name: "删除" }).click();
   await expect(firstDay.locator("tr[data-block-id]")).toHaveCount(0);
   await expect(secondNight.locator("[data-money-cell]")).toHaveText("¥800");
-  await expect(summary).toContainText("总额 ¥800");
+  await inOverview(page, ({ summary }) => expect(summary).toContainText("总额 ¥800"));
 
   // 撤销删除：回到共用
   await page.keyboard.press("Control+z");
@@ -63,9 +61,9 @@ test("两晚共用一笔房费：第二晚挂上第一晚那笔 → 共用 → �
 
   // 手机宽度：从第二晚拿掉，再用下拉挂上；下拉整个在屏幕里
   await page.setViewportSize({ width: 390, height: 844 });
-  await secondNight.getByRole("button", { name: "钱" }).click();
+  await secondNight.getByRole("button", { name: "开销" }).click();
   await money.getByRole("button", { name: "从这件事拿掉" }).click();
-  await expect(secondNight.locator("[data-money-cell]")).toHaveText("填钱");
+  await expect(secondNight.locator("[data-money-cell]")).toHaveText("填开销");
   const pick = money.getByRole("combobox", { name: "挂上已有的一笔" });
   await pick.scrollIntoViewIfNeeded();
   const box = await pick.boundingBox();

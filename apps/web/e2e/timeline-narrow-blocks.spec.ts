@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { DAY1, addBlocks, box, newPlan, schedule, segment, showView, timelineRow } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("窄块：一小时的事标题借右边的空白写全 → 右边挨着下一件就截断 → 放大 200% 一小时宽一倍", async ({ page }) => {
+test("窄块：一小时的事标题借右边的空白写全 → 右边挨着下一件就截断 → 拖动条放大到 200% 一小时宽一倍", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
@@ -32,12 +32,23 @@ test("窄块：一小时的事标题借右边的空白写全 → 右边挨着下
     "写不下，截断",
   ).toBe(true);
 
-  // 放大到 200%：一小时的块宽一倍
+  // 拖动条往右拖：倍数跟着变
   const before = (await box(segment(day1, "西湖漫步"))).width;
-  const zoom = page.getByRole("group", { name: "横向放大" });
-  await zoom.getByRole("button", { name: "放大" }).click();
-  await zoom.getByRole("button", { name: "放大" }).click();
-  await expect(zoom.getByText("200%")).toBeVisible();
+  const zoom = page.getByRole("slider", { name: "横向放大" });
+  const track = await box(zoom);
+  await page.mouse.move(track.x + track.width / 4, track.y + track.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width / 2, track.y + track.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(zoom).not.toHaveValue("100");
+
+  // 键盘也能拖：Home 回到 100%，方向键一档 10%，按 10 下正好 200%
+  await zoom.focus();
+  await page.keyboard.press("Home");
+  await expect(zoom).toHaveValue("100");
+  for (let step = 0; step < 10; step += 1) await page.keyboard.press("ArrowRight");
+  await expect(zoom).toHaveValue("200");
+  await expect(page.getByText("200%")).toBeVisible();
   const after = (await box(segment(day1, "西湖漫步"))).width;
   expect(after).toBeGreaterThan(before * 1.8);
   await shot(page, "02-zoom-200");

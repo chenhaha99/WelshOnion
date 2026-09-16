@@ -65,7 +65,7 @@ interface ExpenseKindPickerProps {
   countUsing: (kindId: string) => number;
 }
 
-/** 一笔钱的类型选择器：钱自己带类型，可以和挂的块不一样（住宿块上的停车费）。 */
+/** 一笔开销的类型选择器：开销自己带类型，可以和挂的块不一样（住宿块上的停车费）。 */
 export function ExpenseKindPicker({ doc, library, expense, kinds, countUsing }: ExpenseKindPickerProps) {
   return (
     <LibraryPicker

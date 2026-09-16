@@ -5,7 +5,7 @@ import { addBlock, setDayBudget, setPlanSettings } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { dayRow, daysFromOct1, openDayMenu, openOtherTab, openStoredPlan } from "./test-helpers";
+import { dayRow, daysFromOct1, openDayMenu, openOtherTab, openPlanSettings, openStoredPlan } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -20,8 +20,8 @@ function timed(plan: Y.Doc, library: Y.Doc, baseId: string, title: string, minut
 }
 
 async function openSettings(user: User): Promise<HTMLElement> {
-  await user.click(await screen.findByRole("button", { name: "测试计划" }));
-  return screen.getByRole("dialog", { name: "计划设置" });
+  // 设置分了块：时间预算在「时间预算」那一块里
+  return openPlanSettings(user, "时间预算");
 }
 
 async function openDayBudget(user: User, day: string): Promise<HTMLElement> {

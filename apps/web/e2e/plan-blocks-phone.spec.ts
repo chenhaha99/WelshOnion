@@ -20,23 +20,23 @@ function controlsOf(row: Locator): Array<[string, Locator]> {
     ["类型", row.getByRole("button", { name: /^类型：/ })],
     ["状态", row.getByRole("button", { name: /^状态：/ })],
     ["时间", row.getByRole("button", { name: "时间" })],
-    ["钱", row.getByRole("button", { name: "钱" })],
+    ["开销", row.getByRole("button", { name: "开销" })],
     ["这件事的操作", row.getByRole("button", { name: "这件事的操作" })],
   ];
 }
 
-test("手机上一个块一张卡：六个控件都在屏幕里、操作在标题那一行 → 缩进整张卡往右 → 钱的编辑区在屏幕里 → 电脑上还是一行", async ({ page }) => {
+test("手机上一个块一张卡：六个控件都在屏幕里、操作在标题那一行 → 缩进整张卡往右 → 开销的编辑区在屏幕里 → 电脑上还是一行", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1, { width: 390, height: 844 });
   const table = page.getByRole("table", { name: DAY1 });
   await addBlocks(page, table, ["西湖", "河坊街", "灵隐寺"]);
   await schedule(page, table, "西湖", "09:00", "3");
-  const money = page.getByRole("group", { name: "西湖 的钱" });
-  await (await rowOf(table, "西湖")).getByRole("button", { name: "钱" }).click();
+  const money = page.getByRole("group", { name: "西湖 的开销" });
+  await (await rowOf(table, "西湖")).getByRole("button", { name: "开销" }).click();
   await money.getByRole("textbox", { name: "新一笔的金额" }).fill("300");
   await page.keyboard.press("Enter");
   await expect((await rowOf(table, "西湖")).locator("[data-money-cell]")).toHaveText("¥300");
-  await (await rowOf(table, "西湖")).getByRole("button", { name: "钱" }).click();
+  await (await rowOf(table, "西湖")).getByRole("button", { name: "开销" }).click();
   await expect(money).toBeHidden();
   await (await rowOf(table, "灵隐寺")).getByRole("button", { name: "这件事的操作" }).click();
   await page.getByRole("menuitem", { name: "缩进" }).click();
@@ -65,12 +65,12 @@ test("手机上一个块一张卡：六个控件都在屏幕里、操作在标�
   await table.scrollIntoViewIfNeeded();
   await shot(page, "01-phone-cards");
 
-  // 展开钱：编辑区在卡片下面，左右都在屏幕里
-  await lake.getByRole("button", { name: "钱" }).click();
+  // 展开开销：编辑区在卡片下面，左右都在屏幕里
+  await lake.getByRole("button", { name: "开销" }).click();
   await expect(money).toBeVisible();
-  await expectInsideWidth(money, "西湖 的钱", 390);
+  await expectInsideWidth(money, "西湖 的开销", 390);
   await shot(page, "02-phone-money");
-  await lake.getByRole("button", { name: "钱" }).click();
+  await lake.getByRole("button", { name: "开销" }).click();
   await expect(money).toBeHidden();
 
   // 电脑上：还是一行，时间和标题在同一行；安排表不横着滚

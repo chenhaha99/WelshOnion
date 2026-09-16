@@ -5,7 +5,7 @@ import { addBlock, addExpense, setPlanSettings } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openOtherTab, openStoredPlan } from "./test-helpers";
+import { daysFromOct1, moneyOverview, openOtherTab, openStoredPlan } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -20,11 +20,12 @@ function addDayBlock(plan: Y.Doc, library: Y.Doc, baseId: string, title: string)
 
 function addMoney(plan: Y.Doc, library: Y.Doc, title: string, cents: number | null, blockIds: string[]): void {
   const result = addExpense(plan, library, { title, amountCents: cents, blockIds });
-  if (!result.ok) throw new Error("建钱失败");
+  if (!result.ok) throw new Error("建开销失败");
 }
 
 async function summaryText(): Promise<string> {
-  const overview = await screen.findByRole("region", { name: "钱的总览" });
+  // 开销总览在「总览」这个视图里
+  const overview = await moneyOverview();
   return overview.querySelector("[data-money-summary]")?.textContent ?? "";
 }
 
@@ -39,19 +40,19 @@ describe("总额、人均和填写进度", () => {
       addDayBlock(plan, library, oct1!, "灵隐寺");
     });
 
-    expect(await summaryText()).toBe("总额 ¥900 · 人均 ¥300 · 已填 2 / 共 3 笔 · 另有 1 件事还没填钱");
+    expect(await summaryText()).toBe("总额 ¥900 · 人均 ¥300 · 已填 2 / 共 3 笔 · 另有 1 件事还没填开销");
   });
 });
 
-describe("不属于任何一天的钱", () => {
+describe("不属于任何一天的开销", () => {
   it("加一笔签证费：不挂块、类型其他", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan((plan) => daysFromOct1(plan, 1));
     const other = await openOtherTab(planId);
 
-    const overview = await screen.findByRole("region", { name: "钱的总览" });
+    const overview = await moneyOverview();
     await user.click(within(overview).getByRole("button", { name: "不属于任何一天：¥0" }));
-    const editor = screen.getByRole("group", { name: "不属于任何一天的钱" });
+    const editor = screen.getByRole("group", { name: "不属于任何一天的开销" });
     await user.type(within(editor).getByRole("textbox", { name: "新一笔的说明" }), "签证");
     await user.type(within(editor).getByRole("textbox", { name: "新一笔的金额" }), "600{Enter}");
 

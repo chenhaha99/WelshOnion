@@ -37,7 +37,7 @@ interface BlockPanelProps {
   libraryView: LibraryView;
   plan: PlanView;
   block: BlockView;
-  /** 这件事的钱格摘要（按筛选算过）；一笔钱都没挂是 undefined */
+  /** 这件事的开销格摘要（按筛选算过）；一笔开销都没挂是 undefined */
   moneyCell: MoneyCell | undefined;
   focus: PanelFocus;
   /** 关掉面板；删掉了这件事时给它那天的底座 id，焦点好落到那天 */
@@ -46,12 +46,12 @@ interface BlockPanelProps {
 
 /**
  * 一件事的详情面板：时间轴上点开的、列表「详情…」打开的都是它；电脑上在右边、手机上占满屏幕（见 Drawer）。
- * 从上往下：标题；类型、状态、时间、钱（时间、钱点开是和列表同一个编辑区，收起后焦点回到各自的按钮）；
+ * 从上往下：标题；类型、状态、时间、开销（时间、开销点开是和列表同一个编辑区，收起后焦点回到各自的按钮）；
  * 排上时间的推迟、放在哪、复制到；短备注、路程、长备注；没排时间的缩进、上移、下移；删除。
  */
 export function BlockPanel({ doc, library, libraryView, plan, block, moneyCell, focus, onClose }: BlockPanelProps) {
   const [timeOpen, setTimeOpen] = useState(false);
-  // 快捷条上的「钱」写不下多笔、共用时改开这里，一打开就是摊开的钱
+  // 快捷条上的「开销」写不下多笔、共用时改开这里，一打开就是摊开的开销
   const [moneyOpen, setMoneyOpen] = useState(focus === "money");
   const timeButton = useRef<HTMLButtonElement>(null);
   const moneyButton = useRef<HTMLButtonElement>(null);
@@ -77,7 +77,7 @@ export function BlockPanel({ doc, library, libraryView, plan, block, moneyCell, 
     timeButton.current?.focus();
     setTimeOpen(false);
   };
-  // 先挪焦点，钱的空行里填了没回车的借这次离开建上（按 Esc 的在空行里就放弃了）
+  // 先挪焦点，开销的空行里填了没回车的借这次离开建上（按 Esc 的在空行里就放弃了）
   const closeMoney = () => {
     moneyButton.current?.focus();
     setMoneyOpen(false);
@@ -99,7 +99,7 @@ export function BlockPanel({ doc, library, libraryView, plan, block, moneyCell, 
       onClose={() => onClose()}
       initialFocus={(panel) => {
         if (focus === "panel") return panel;
-        if (focus === "money") return panel.querySelector<HTMLElement>('[role="group"][aria-label$=" 的钱"] input');
+        if (focus === "money") return panel.querySelector<HTMLElement>('[role="group"][aria-label$=" 的开销"] input');
         // 备注收起着时焦点放在「加备注」上，摊开着时放在短备注（它是这一组里第一个框）
         return (
           panel.querySelector<HTMLElement>("[data-add-notes]") ??
@@ -141,11 +141,11 @@ export function BlockPanel({ doc, library, libraryView, plan, block, moneyCell, 
         </div>
         {timeOpen && <TimeEditor doc={doc} library={library} plan={plan} block={block} onDone={closeTime} />}
         <div className={FIELD_ROW}>
-          <span className="text-ink-muted">钱</span>
+          <span className="text-ink-muted">开销</span>
           <button
             ref={moneyButton}
             type="button"
-            aria-label="钱"
+            aria-label="开销"
             aria-expanded={moneyOpen}
             className={`input h-auto min-h-9 w-full py-1.5 text-left tabular-nums ${moneyCellEmpty(moneyCell) ? "text-ink-muted" : "text-ink"}`}
             onClick={() => setMoneyOpen((open) => !open)}
@@ -162,7 +162,7 @@ export function BlockPanel({ doc, library, libraryView, plan, block, moneyCell, 
             kinds={kinds}
             countKindUsing={countKindUsing}
             block={block}
-            label={`${block.title} 的钱`}
+            label={`${block.title} 的开销`}
             // 块的类型被删了时，新一笔先记成「其他」
             defaultKindId={block.kind.deleted ? "other" : block.kind.id}
             linkChoices={linkableExpenses(plan, block.id)}
@@ -269,7 +269,7 @@ interface CopyToProps {
   block: BlockView;
 }
 
-/** 「复制到」：选一天就在那天同一个开始时刻复制一份（连同里面的事和钱），面板留着，下面写复制到了哪天。 */
+/** 「复制到」：选一天就在那天同一个开始时刻复制一份（连同里面的事和开销），面板留着，下面写复制到了哪天。 */
 function CopyTo({ doc, library, plan, block }: CopyToProps) {
   // 复制到了哪天（底座 id）；那天后来删了就不写
   const [copiedTo, setCopiedTo] = useState<string | null>(null);

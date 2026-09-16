@@ -13,7 +13,7 @@ async function schedule(page: Page, row: Locator, title: string, start: string, 
   await expect(editor).toBeHidden();
 }
 
-test("这天怎么样：空的一天 → 排时间 → 取消时间留下没排的 → 填钱 → 另一天 → 手机", async ({ page }) => {
+test("这天怎么样：空的一天 → 排时间 → 取消时间留下没排的 → 填开销 → 另一天 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -57,8 +57,8 @@ test("这天怎么样：空的一天 → 排时间 → 取消时间留下没排�
 
   // 西湖填 300；晚饭加一笔只写了说明的
   await expect(rows.nth(0).getByRole("textbox", { name: "标题" })).toHaveValue("西湖");
-  await rows.nth(0).getByRole("button", { name: "钱" }).click();
-  const lakeMoney = page.getByRole("group", { name: "西湖 的钱" });
+  await rows.nth(0).getByRole("button", { name: "开销" }).click();
+  const lakeMoney = page.getByRole("group", { name: "西湖 的开销" });
   await expect(lakeMoney.getByRole("textbox", { name: "新一笔的金额" })).toBeFocused();
   await page.keyboard.type("300");
   await page.keyboard.press("Enter");
@@ -67,8 +67,8 @@ test("这天怎么样：空的一天 → 排时间 → 取消时间留下没排�
   await expect(lakeMoney).toBeHidden();
 
   await expect(rows.nth(1).getByRole("textbox", { name: "标题" })).toHaveValue("晚饭");
-  await rows.nth(1).getByRole("button", { name: "钱" }).click();
-  const dinnerMoney = page.getByRole("group", { name: "晚饭 的钱" });
+  await rows.nth(1).getByRole("button", { name: "开销" }).click();
+  const dinnerMoney = page.getByRole("group", { name: "晚饭 的开销" });
   await dinnerMoney.getByRole("textbox", { name: "新一笔的说明" }).fill("餐费");
   await page.keyboard.press("Enter");
   await expect(dinnerMoney.locator("[data-expense-id]")).toHaveCount(1);

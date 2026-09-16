@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { DAY1, DAY2, addBlocks, addMoney, newPlan, pickKind } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("按类型加钱：组末尾加一笔挂到一块 → 不挂块排在最后 → 加一笔别的类型 → 手机", async ({ page }) => {
+test("按类型加开销：组末尾加一笔挂到一块 → 不挂块排在最后 → 加一笔别的类型 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 2);
   const day1 = page.getByRole("table", { name: DAY1 });
@@ -35,8 +35,8 @@ test("按类型加钱：组末尾加一笔挂到一块 → 不挂块排在最后
   await expect(lodging.locator("[data-expense-blocks]").last()).toHaveText("不属于任何一天");
   await shot(page, "01-add-in-group");
 
-  // 加一笔别的类型的钱：选购物，购物组出现
-  const others = page.getByRole("region", { name: "加一笔别的类型的钱" });
+  // 加一笔别的类型的开销：选购物，购物组出现
+  const others = page.getByRole("region", { name: "加一笔别的类型的开销" });
   await others.getByRole("combobox", { name: "类型" }).selectOption({ label: "购物" });
   await others.getByRole("textbox", { name: "新一笔的金额" }).fill("99");
   await page.keyboard.press("Enter");
