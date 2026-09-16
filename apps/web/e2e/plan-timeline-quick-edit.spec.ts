@@ -17,7 +17,7 @@ import {
   showView,
   timelineRow,
   timeOf,
-  trayOf,
+  tray,
 } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
@@ -161,18 +161,17 @@ test("手机上：竖条选中后，快捷条固定在屏幕底部", async ({ pa
   expect(errors).toEqual([]);
 });
 
-test("栏里的一件：点一下选中，快捷条画在它下面", async ({ page }) => {
+test("条上的一件：点一下选中，快捷条画在条下面", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
   await addBlocks(page, table, ["灵隐寺"]);
   await showView(page, "时间轴");
-  const day1 = timelineRow(page, "10.1");
 
-  await chip(day1, "灵隐寺").getByRole("button").click();
+  await chip(page, "灵隐寺").getByRole("button").click();
   const bar = quickBar(page, "灵隐寺");
   const barBox = await box(bar);
-  const chipBox = await box(chip(day1, "灵隐寺"));
+  const chipBox = await box(chip(page, "灵隐寺"));
   expect(barBox.y).toBeGreaterThanOrEqual(chipBox.y + chipBox.height - 1);
   await shot(page, "06-tray-quick-bar");
 
@@ -187,18 +186,22 @@ test("按住复制拖进「没排时间」栏：原来的不动，那天多一�
   await schedule(page, table, "西湖", "09:00", "3");
   await showView(page, "时间轴");
   const day1 = timelineRow(page, "10.1");
-  const day2 = timelineRow(page, "10.2");
 
   await segment(day1, "西湖").getByRole("button", { name: /^西湖 / }).click();
+  // 条上一件都没有时它不占位，按住往外拖才浮出来：先拖一点点，再量它在哪
   const copy = center(await box(quickBar(page, "西湖").getByRole("button", { name: "复制" })));
-  await drag(page, copy, center(await box(trayOf(day2))));
+  await drag(page, copy, { x: copy.x + 40, y: copy.y }, { release: false });
+  const trayPoint = center(await box(tray(page)));
+  await page.mouse.move(trayPoint.x, trayPoint.y, { steps: 8 });
+  await expect(tray(page)).toHaveAttribute("data-drop-target", "true");
+  await page.mouse.up();
 
-  await expect(chip(day2, "西湖").getByRole("button", { name: "西湖 上午 · 3 小时" })).toBeVisible();
+  await expect(chip(page, "西湖").getByRole("button", { name: "西湖 10.1 上午 · 3 小时" })).toBeVisible();
   await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "540");
 
   // 一步撤销：复制出来的那一件没了
   await page.keyboard.press("Control+z");
-  await expect(chip(day2, "西湖")).toBeHidden();
+  await expect(chip(page, "西湖")).toBeHidden();
   await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "540");
 
   expect(errors).toEqual([]);

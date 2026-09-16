@@ -120,6 +120,17 @@ export async function openPlanSettings(
 }
 
 /** 时间轴上打开一件事的详情面板：点一下选中它，再点快捷条的「详情…」。 */
+/** 时间轴上面那条「没排时间」（一件都没有时它不在，返回 null）。 */
+export function undatedStrip(): HTMLElement | null {
+  return screen.queryByRole("group", { name: "没排时间" });
+}
+
+/** 时间轴上点开某一天的「加一件事」，返回弹出来的输入框。 */
+export async function openAddBlock(user: UserEvent, row: HTMLElement): Promise<HTMLElement> {
+  await user.click(within(row).getByRole("button", { name: "加一件事" }));
+  return within(screen.getByRole("dialog", { name: "加一件事" })).getByRole("textbox", { name: "加一件事" });
+}
+
 export async function openDetails(user: UserEvent, thing: HTMLElement): Promise<void> {
   await user.click(thing);
   await user.click(screen.getByRole("button", { name: "详情…" }));

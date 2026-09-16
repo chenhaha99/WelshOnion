@@ -12,13 +12,15 @@ import {
 import type * as Y from "yjs";
 import { useWideScreen } from "../app/use-wide-screen";
 import { TimelineAddBlock } from "./AddBlock";
-import { blockTimeLabel } from "./block-time";
+import { blockTimeLabel, durationLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
 import { DayTimeline } from "./DayTimeline";
 import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
 import { BlockMoney } from "./block-money";
 import type { MoneyCell } from "./money-cells";
+import { Popover } from "../app/Popover";
+import { PlusIcon } from "./icons";
 import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
@@ -33,12 +35,14 @@ import {
   type BlockText,
 } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
-import { UndatedTray, undatedBlocks } from "./UndatedTray";
+import { UndatedStrip } from "./UndatedTray";
 import { useTimelineDrag, type CopyHandlers, type DragView, type SegmentHandlers } from "./use-timeline-drag";
 import { zoneTimeLabel } from "./zone-time";
 
-/** 每行三栏：标签、横轴、「没排时间」 */
-const ROW_COLUMNS = "grid grid-cols-[5.5rem_1fr_9rem] gap-x-3";
+/** 每行两栏：钉住的第一列（日期、这天的菜单、加一件事）和 0–24 点的横轴 */
+const ROW_COLUMNS = "grid grid-cols-[6.5rem_1fr] gap-x-3";
+/** 第一列：横向滚动时钉在左边，底色盖住从下面滚过去的横条 */
+const FIRST_COLUMN = "sticky left-0 z-10 bg-white/85 backdrop-blur-[2px]";
 
 const MINUTES_PER_DAY = 1440;
 
@@ -89,8 +93,14 @@ export function Timeline({
   }, [plan, libraryView, filter]);
   const hasTimed = [...plan.blocks.values()].some((block) => block.start_minute !== null);
   const wide = useWideScreen();
-  // 「加第一件事」：时间轴上第一个「加一件事」（横排是第 1 天那一行的，竖排是正在看的这天的）滚到中间、给焦点
+  // 「加第一件事」：横排点开第 1 天那一行的「＋」（弹出的框自己拿焦点），竖排直接给那个框焦点
   const focusFirstAdd = () => {
+    const add = section.current!.querySelector<HTMLButtonElement>('button[aria-label="加一件事"]');
+    if (add !== null) {
+      add.scrollIntoView({ block: "center" });
+      add.click();
+      return;
+    }
     const input = section.current!.querySelector<HTMLInputElement>('input[aria-label="加一件事"]')!;
     input.scrollIntoView({ block: "center" });
     input.focus({ preventScroll: true });
@@ -112,7 +122,7 @@ export function Timeline({
         !hasTimed && (
           <p className="text-sm text-ink-muted">
             {wide
-              ? "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者点开它排时间"
+              ? "排上时间的事会画在这里：把上面没排时间的事拖到时间轴上，或者点开它排时间"
               : "排上时间的事会画在这里：点开下面没排时间的事排时间"}
           </p>
         )
@@ -162,9 +172,9 @@ interface WideTimelineProps {
 }
 
 /**
- * 横排：一天一行，横向 0–24 点按真实比例，右边一栏放这天没排时间的事、下面「加一件事」。
+ * 横排：一天一行，横向 0–24 点按真实比例；上面横着一条「没排时间」，第一列（日期、这天的菜单、加一件事）钉在左边。
  * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条选中它。
- * 拖动中画成松手后的样子，「没排时间」栏照原来的计划（见 use-timeline-drag）。
+ * 拖动中画成松手后的样子，「没排时间」条照原来的计划（见 use-timeline-drag）。
  */
 function WideTimeline({
   doc,
@@ -198,24 +208,52 @@ function WideTimeline({
   const selectedBlock = drag.dragView || selection.selectedId === null ? undefined : plan.blocks.get(selection.selectedId);
   const barRow = selectedBlock === undefined ? -1 : quickBarRow(selectedBlock, rows, plan, selection.anchorBaseId);
 
+  const selectedUndated = selectedBlock !== undefined && selectedBlock.start_minute === null ? selectedBlock : null;
+  const quickBarFor = (block: BlockView) => (
+    <QuickBar
+      doc={doc}
+      library={library}
+      libraryView={libraryView}
+      plan={plan}
+      block={block}
+      moneyCell={moneyCells.get(block.id)}
+      copyHandlers={drag.copyHandlers}
+    />
+  );
+
   return (
-    // 横轴至少 720 像素（每小时 30 像素），放不下就在卡片里横着滚
-    <div
-      ref={drag.containerRef}
-      data-timeline-scroll
-      data-timeline-dragging={drag.dragView ? true : undefined}
-      className="-mx-2 overflow-x-auto px-2 pb-1"
-    >
+    <div ref={drag.containerRef} className="relative flex flex-col gap-1">
+      {/* 「没排时间」在时间轴上面横着一条（你提的）：一件都没有时整条不出现 */}
+      <UndatedStrip
+        // 条用现在的计划画：拖动中被拖的那一件留在条上、变淡，松手后才拿走
+        plan={plan}
+        filter={filter}
+        trayRef={drag.trayRef}
+        dropLabel={drag.trayDrop?.label ?? null}
+        draggingId={drag.dragView && !drag.dragView.copying ? drag.dragView.blockId : null}
+        onChipPointerDown={(event: ReactPointerEvent<HTMLDivElement>, blockId: string) =>
+          drag.chipHandlers.onPointerDown(event, blockId, 0)
+        }
+        onChipClickCapture={drag.chipHandlers.onClickCapture}
+        quickBar={selectedUndated === null ? undefined : quickBarFor(selectedUndated)}
+        showWhenEmpty={drag.dragView !== null && plan.blocks.get(drag.dragView.blockId)?.start_minute !== null}
+      />
+      {/* 横轴至少 720 像素（每小时 30 像素），放不下就在卡片里横着滚 */}
+      <div
+        data-timeline-scroll
+        data-timeline-dragging={drag.dragView ? true : undefined}
+        className="-mx-2 overflow-x-auto px-2 pb-1"
+      >
       {/* 横轴至少 62rem（每小时 30 像素），放大就按倍数加宽 */}
       <div className="pr-3" style={{ minWidth: `${(62 * zoom) / 100}rem` }}>
         <div aria-hidden className={ROW_COLUMNS}>
-          <span />
+          <span className={FIRST_COLUMN} />
           <div className="relative h-4">
             {HOUR_TICKS.map((hour) => (
               <span
                 key={hour}
                 data-hour-tick
-                // 最右的「24」右对齐到 24 点那条线，不伸进「没排时间」那一栏
+                // 最右的「24」右对齐到 24 点那条线
                 className={`absolute ${hour === 24 ? "-translate-x-full" : "-translate-x-1/2"} text-[11px] leading-4 text-ink-muted tabular-nums`}
                 style={{ left: percent(hour * 60) }}
               >
@@ -223,7 +261,6 @@ function WideTimeline({
               </span>
             ))}
           </div>
-          <span className="text-[11px] leading-4 text-ink-muted">没排时间</span>
         </div>
         <ol className="flex flex-col">
           {plan.bases.map((base, index) => (
@@ -233,7 +270,6 @@ function WideTimeline({
               library={library}
               rowRef={drag.rowRef(index)}
               axisRef={drag.axisRef(index)}
-              trayRef={drag.trayRef(index)}
               plan={shownPlan}
               currentPlan={plan}
               base={base}
@@ -242,19 +278,17 @@ function WideTimeline({
               layout={shownRows[index]!}
               filter={filter}
               dragView={drag.dragView}
-              trayDropLabel={drag.trayDrop?.row === index ? drag.trayDrop.label : null}
               handlers={drag.handlers}
-              onChipPointerDown={(event, blockId) => drag.chipHandlers.onPointerDown(event, blockId, index)}
-              onChipClickCapture={drag.chipHandlers.onClickCapture}
               libraryView={libraryView}
               moneyCells={moneyCells}
               blockText={blockText}
               laneHeight={lane}
-              quickBarBlock={index === barRow ? selectedBlock! : null}
+              quickBarBlock={index === barRow && selectedUndated === null ? selectedBlock! : null}
               copyHandlers={drag.copyHandlers}
             />
           ))}
         </ol>
+        </div>
       </div>
       {drag.pointerLabel && <DragLabel label={drag.pointerLabel} />}
     </div>
@@ -266,7 +300,6 @@ interface TimelineRowProps {
   library: Y.Doc;
   rowRef: (element: HTMLLIElement | null) => void;
   axisRef: (element: HTMLDivElement | null) => void;
-  trayRef: (element: HTMLDivElement | null) => void;
   /** 画横条用的计划：拖动中是松手后的 */
   plan: PlanView;
   /** 没拖时的计划：「没排时间」栏、「加一件事」、这天的菜单用它；拖动中被拖的那一件还留在栏里，变淡 */
@@ -278,10 +311,7 @@ interface TimelineRowProps {
   filter: StatsFilter | undefined;
   dragView: DragView | null;
   /** 正拖进这一行的「没排时间」栏时，会进哪一格；没往这里拖是 null */
-  trayDropLabel: string | null;
   handlers: SegmentHandlers;
-  onChipPointerDown: (event: ReactPointerEvent<HTMLDivElement>, blockId: string) => void;
-  onChipClickCapture: (event: ReactMouseEvent<HTMLDivElement>) => void;
   libraryView: LibraryView;
   moneyCells: Map<string, MoneyCell>;
   blockText: BlockText;
@@ -297,7 +327,6 @@ function TimelineRow({
   library,
   rowRef,
   axisRef,
-  trayRef,
   plan,
   currentPlan,
   base,
@@ -306,10 +335,7 @@ function TimelineRow({
   layout,
   filter,
   dragView,
-  trayDropLabel,
   handlers,
-  onChipPointerDown,
-  onChipClickCapture,
   libraryView,
   moneyCells,
   blockText,
@@ -347,12 +373,35 @@ function TimelineRow({
 
   return (
     <li ref={rowRef} aria-label={label} data-base-id={base.id} className={`${ROW_COLUMNS} border-t border-ink/5 py-1.5`}>
-      <div className="flex flex-col text-xs leading-4 text-ink-muted tabular-nums">
+      <div className={`${FIRST_COLUMN} flex flex-col text-xs leading-4 text-ink-muted tabular-nums`}>
+        {/* 「第 1 天」和这天的两个按钮挤一行、日期单独一行：一道的块才 28 像素高，这一列不能比它高太多 */}
         <div className="flex items-center gap-0.5">
           <span aria-hidden className="text-ink">
             {dayNumber}
           </span>
           {dayMenu.menu}
+          <Popover
+            label="加一件事"
+            triggerTitle="加一件事"
+            trigger={<PlusIcon />}
+            triggerClassName="btn btn-ghost h-6 px-1.5"
+            role="dialog"
+            panelLabel="加一件事"
+            panelClassName="menu p-2"
+            align="start"
+            estimatedHeight={72}
+          >
+            {() => (
+              <TimelineAddBlock
+                doc={doc}
+                library={library}
+                plan={currentPlan}
+                baseId={base.id}
+                filter={filter}
+                className="input-bare h-7 w-44 px-2 text-sm select-text"
+              />
+            )}
+          </Popover>
         </div>
         {rest.map((part) => (
           <span key={part} aria-hidden>
@@ -392,6 +441,7 @@ function TimelineRow({
             item={item}
             box={wideSegmentBox(item, layout, laneHeight)}
             showTitle={blockText.title}
+            showDuration={blockText.duration && item.track === "main"}
             showMoney={blockText.money && item.track === "main"}
             money={moneyCells.get(item.blockId)}
             dragView={dragView}
@@ -404,28 +454,7 @@ function TimelineRow({
           </QuickBarAnchor>
         )}
       </div>
-      <UndatedTray
-        plan={currentPlan}
-        base={base}
-        blocks={undatedBlocks(currentPlan, base, filter)}
-        trayRef={trayRef}
-        dropLabel={trayDropLabel}
-        draggingId={dragView && !dragView.copying ? dragView.blockId : null}
-        onChipPointerDown={onChipPointerDown}
-        onChipClickCapture={onChipClickCapture}
-        quickBar={quickBarBlock && barSegment === undefined ? { blockId: quickBarBlock.id, node: quickBar } : undefined}
-      >
-        {/* 和栏里的一件一样高 */}
-        <TimelineAddBlock
-          doc={doc}
-          library={library}
-          plan={currentPlan}
-          baseId={base.id}
-          filter={filter}
-          className="input-bare h-[1.375rem] px-1.5 text-xs select-text"
-        />
-      </UndatedTray>
-      {dayMenu.form !== null && <div className="col-span-3 py-1.5 select-text">{dayMenu.form}</div>}
+      {dayMenu.form !== null && <div className="col-span-2 py-1.5 select-text">{dayMenu.form}</div>}
     </li>
   );
 }
@@ -437,6 +466,8 @@ interface SegmentProps {
   item: PlacedSegment;
   /** 块上要不要写标题 */
   showTitle: boolean;
+  /** 块上要不要写时长 */
+  showDuration: boolean;
   /** 块上要不要写开销那一行 */
   showMoney: boolean;
   /** 这件事的开销格摘要 */
@@ -448,7 +479,7 @@ interface SegmentProps {
 }
 
 /** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点一下选中；块上写开销时下面还有写着开销的那一行。 */
-function Segment({ doc, library, plan, item, box, showTitle, showMoney, money, dragView, handlers }: SegmentProps) {
+function Segment({ doc, library, plan, item, box, showTitle, showDuration, showMoney, money, dragView, handlers }: SegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
@@ -470,7 +501,7 @@ function Segment({ doc, library, plan, item, box, showTitle, showMoney, money, d
       data-continues-after={item.continuesAfter}
       data-lifted={lifted ? true : undefined}
       // 标题和开销都写：标题贴上边，下面留给开销那一行（见 index.css）
-      data-two-rows={showTitle && showMoney && !point ? true : undefined}
+      data-two-rows={(showTitle || showDuration) && showMoney && !point ? true : undefined}
       // 指针在「没排时间」栏里时时间轴不重排：被拖的横条留在原处变淡
       data-dragging={
         dragView && dragView.liftedId === null && !dragView.copying && dragView.blockId === item.blockId ? true : undefined
@@ -492,11 +523,17 @@ function Segment({ doc, library, plan, item, box, showTitle, showMoney, money, d
       <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} className={buttonClass}>
         {/* 写不下就截断加「…」，不写到块外面去（鼠标停上去的提示里有全名） */}
         {point || !showTitle ? null : <span data-bar-title>{block.title}</span>}
+        {/* 时长写在标题右边；只开时长时它就是正文，靠左 */}
+        {point || !showDuration || block.duration_min === null ? null : (
+          <span data-bar-duration className={showTitle ? "ml-auto" : undefined}>
+            {durationLabel(block.duration_min)}
+          </span>
+        )}
       </BlockButton>
       {showMoney && !point && (
         <BlockMoney
           variant="line"
-          solo={!showTitle}
+          solo={!showTitle && !showDuration}
           doc={doc}
           library={library}
           plan={plan}

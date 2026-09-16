@@ -8,6 +8,7 @@ import { releaseAll } from "../storage/test-helpers";
 import {
   blockTitles,
   daysFromOct1,
+  openAddBlock,
   openOtherTab,
   openStoredPlan,
   pressedView,
@@ -50,7 +51,7 @@ async function timelineRow(day: string): Promise<HTMLElement> {
   return row;
 }
 
-/** container 里「没排时间」那一串每件的读屏名，按顺序。 */
+/** container 里「没排时间」那一串每件的读屏名，按顺序（横排的条在时间轴上面，竖排的在框下面）。 */
 function chipNames(container: HTMLElement): string[] {
   return [
     ...within(container).getByRole("group", { name: "没排时间" }).querySelectorAll("[data-undated-chip] > button"),
@@ -68,19 +69,31 @@ async function chooseDayMenu(user: User, container: HTMLElement, item: string): 
 }
 
 describe("在时间轴上加一件事", () => {
-  it("横排：在这一行栏下面连着加两件，焦点留在框里", async () => {
+  it("横排：点第一列的「＋」连着加两件，焦点留在框里", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 2));
 
-    const add = within(await timelineRow("10.2")).getByRole<HTMLInputElement>("textbox", { name: "加一件事" });
+    const add = (await openAddBlock(user, await timelineRow("10.2"))) as HTMLInputElement;
     await user.type(add, "西湖{Enter}");
     await user.type(add, "灵隐寺{Enter}");
 
-    await waitFor(async () => expect(chipNames(await timelineRow("10.2"))).toEqual(["西湖 整天", "灵隐寺 整天"]));
+    await waitFor(async () => expect(chipNames(await timeline())).toEqual(["西湖 10.2 整天", "灵隐寺 10.2 整天"]));
     expect(document.activeElement).toBe(add);
     expect(add.value).toBe("");
     expect(pressedView()).toBe("时间轴");
     expect(await blockTitles("10.2")).toEqual(["西湖", "灵隐寺"]);
+  });
+
+  it("按 Esc 关掉输入框，焦点回到「＋」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFromOct1(plan, 1));
+    const row = await timelineRow("10.1");
+
+    await openAddBlock(user, row);
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "加一件事" })).toBeNull());
+    expect(document.activeElement).toBe(within(row).getByRole("button", { name: "加一件事" }));
   });
 
   it("加的被筛掉了：框下面写一句；松开筛选就不写", async () => {
@@ -92,14 +105,16 @@ describe("在时间轴上加一件事", () => {
     await pressFilter(user, "已确认");
 
     const row = await timelineRow("10.1");
-    await user.type(within(row).getByRole("textbox", { name: "加一件事" }), "宋城{Enter}");
+    await user.type(await openAddBlock(user, row), "宋城{Enter}");
+    const panel = screen.getByRole("dialog", { name: "加一件事" });
 
-    await waitFor(() => expect(within(row).getByText("刚加的「宋城」被筛掉了")).toBeTruthy());
-    expect(chipNames(row)).toEqual([]);
+    await waitFor(() => expect(within(panel).getByText("刚加的「宋城」被筛掉了")).toBeTruthy());
+    expect(screen.queryByRole("group", { name: "没排时间" })).toBeNull();
 
+    // 松开筛选：条上就有它了（点筛选时输入框当「点外面」收起来，那一句跟着没了）
     await pressFilter(user, "已确认");
-    await waitFor(() => expect(within(row).queryByText("刚加的「宋城」被筛掉了")).toBeNull());
-    expect(chipNames(row)).toEqual(["宋城 整天"]);
+    await waitFor(async () => expect(chipNames(await timeline())).toEqual(["宋城 10.1 整天"]));
+    expect(screen.queryByText("刚加的「宋城」被筛掉了")).toBeNull();
   });
 
   it("竖排：框下面加到正在看的这一天", async () => {
@@ -119,8 +134,9 @@ describe("在时间轴上加一件事", () => {
   });
 
   it("手指按住「加一件事」的框：不拦系统的长按菜单（粘贴要用）", async () => {
+    const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    const add = within(await timelineRow("10.1")).getByRole("textbox", { name: "加一件事" });
+    const add = await openAddBlock(user, await timelineRow("10.1"));
 
     fireEvent.pointerDown(add, { pointerType: "touch" });
     const menu = createEvent.contextMenu(add);

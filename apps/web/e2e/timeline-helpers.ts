@@ -236,16 +236,22 @@ export function quickBar(page: Page, title: string): Locator {
   return page.getByRole("toolbar", { name: `「${title}」的操作` });
 }
 
-/** 时间轴这一行右边的「没排时间」栏。 */
-export function trayOf(row: Locator): Locator {
-  return row.getByRole("group", { name: "没排时间" });
+/** 时间轴上面那条「没排时间」（整个计划共用一条）。 */
+export function tray(page: Page): Locator {
+  return page.getByRole("group", { name: "没排时间" });
 }
 
-/** 「没排时间」栏里读屏名以「title 」开头的那一件。 */
-export function chip(row: Locator, title: string): Locator {
-  return trayOf(row)
+/** 条上读屏名以「title 」开头的那一件。 */
+export function chip(page: Page, title: string): Locator {
+  return tray(page)
     .locator("[data-undated-chip]")
-    .filter({ has: row.page().getByRole("button", { name: new RegExp(`^${title} `) }) });
+    .filter({ has: page.getByRole("button", { name: new RegExp(`^${title} `) }) });
+}
+
+/** 时间轴某一行第一列的「＋ 加一件事」：点开，返回弹出来的输入框。 */
+export async function openAddBlock(page: Page, row: Locator): Promise<Locator> {
+  await row.getByRole("button", { name: "加一件事" }).click();
+  return page.getByRole("dialog", { name: "加一件事" }).getByRole("textbox", { name: "加一件事" });
 }
 
 /**

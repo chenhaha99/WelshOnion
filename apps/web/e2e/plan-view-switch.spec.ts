@@ -17,14 +17,18 @@ async function edges(locator: Locator): Promise<{ top: number; bottom: number }>
   return { top: found.y, bottom: found.y + found.height };
 }
 
-/** 切换按钮贴在屏幕顶上（离上边不到 12 像素），下面紧挨着 below（隔开不到 24 像素）。 */
+/**
+ * 切换按钮贴在屏幕顶上（离上边不到 12 像素），下面紧挨着 below（隔开不到 24 像素）。
+ * 量的是整行（`[data-view-row]`）：这一行右边还有「标题」「时长」「开销」和放大条，窄屏上会折到第二行。
+ */
 async function expectPinned(page: Page, below: Locator): Promise<void> {
   const views = await edges(page.getByRole("group", { name: "视图" }));
   expect(views.top, "切换按钮的上边").toBeGreaterThanOrEqual(0);
   expect(views.top, "切换按钮的上边").toBeLessThan(12);
-  const next = (await edges(below)).top - views.bottom;
-  expect(next, "下面的视图离切换按钮").toBeGreaterThanOrEqual(0);
-  expect(next, "下面的视图离切换按钮").toBeLessThanOrEqual(24);
+  const row = await edges(page.locator("[data-view-row]"));
+  const next = (await edges(below)).top - row.bottom;
+  expect(next, "下面的视图离切换按钮那一行").toBeGreaterThanOrEqual(0);
+  expect(next, "下面的视图离切换按钮那一行").toBeLessThanOrEqual(24);
 }
 
 test("手机上切换视图：打开是时间轴 → 列表滚到下面时切换按钮贴顶 → 点「列表」回到开头 → 重新打开还是上次看的", async ({

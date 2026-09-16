@@ -658,6 +658,23 @@
   white-space: nowrap;
 }
 
+/* 块上的时长：标题右边一小截淡色数字（只开时长时它就是正文，靠左） */
+[data-timeline-axis] [data-bar-duration] {
+  flex-shrink: 0;
+  padding-left: 0.25rem;
+  color: var(--color-ink-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+[data-day-axis] [data-bar-duration] {
+  color: var(--color-ink-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.875rem;
+}
+
 /* 标题和开销都写时：标题贴上边，下面那截留给开销 */
 [data-timeline-axis] [data-two-rows] > .timeline-bar {
   align-items: flex-start;
@@ -667,6 +684,12 @@
 /* 选中的那件：描边（跨午夜的块每一段都描，它们是同一个 blockId） */
 .timeline-bar[aria-pressed="true"],
 .timeline-strip[aria-pressed="true"],
+/* 时间轴上面那条里的一件：按字宽（竖排那一栏里是占满一行），太长就截断 */
+[data-timeline-tray="strip"] [data-undated-chip] > .timeline-chip {
+  width: auto;
+  max-width: 11rem;
+}
+
 .timeline-chip[aria-pressed="true"],
 .timeline-marker[aria-pressed="true"],
 .timeline-marker-h[aria-pressed="true"] {

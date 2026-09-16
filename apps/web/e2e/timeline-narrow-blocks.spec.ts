@@ -52,6 +52,21 @@ test("窄块：一小时的事标题截断不外溢 → 鼠标提示写全名 �
   expect(after).toBeGreaterThan(before * 1.8);
   await shot(page, "02-zoom-200");
 
+  // 放大后横向滚到 20 点：第一列（日期、这天的菜单、加一件事）钉在左边，还在屏幕里（你提的）
+  const scroller = page.locator("[data-timeline-scroll]");
+  await scroller.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth * 0.75;
+  });
+  const first = (await day1.getByText("10.1 周四").boundingBox())!;
+  const scrollerBox = (await scroller.boundingBox())!;
+  expect(first.x, "第一列还在屏幕里").toBeGreaterThanOrEqual(0);
+  expect(first.x - scrollerBox.x, "第一列钉在卡片左边").toBeLessThanOrEqual(12);
+  await expect(day1.getByRole("button", { name: "加一件事" })).toBeInViewport();
+  await shot(page, "03-sticky-first-column");
+  await scroller.evaluate((element) => {
+    element.scrollLeft = 0;
+  });
+
   // 放大后还是画在 09:00–10:00
   await expect(segment(day1, "西湖漫步")).toHaveAttribute("data-from", "540");
   await expect(segment(day1, "西湖漫步")).toHaveAttribute("data-to", "600");

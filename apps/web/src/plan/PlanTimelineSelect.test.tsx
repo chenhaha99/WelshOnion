@@ -5,7 +5,15 @@ import { addBlock, addExpense, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockTexts, blockTitles, daysFromOct1, moneyOverview, openStoredPlan, showView } from "./test-helpers";
+import {
+  blockTexts,
+  blockTitles,
+  daysFromOct1,
+  moneyOverview,
+  openAddBlock,
+  openStoredPlan,
+  showView,
+} from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -125,7 +133,7 @@ describe("时间轴上点一下选中", () => {
     await showView("时间轴");
     const timeline = await screen.findByRole("region", { name: "时间轴" });
 
-    await user.type(within(timeline).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");
+    await user.type(await openAddBlock(user, within(timeline).getAllByRole("listitem")[0]!), "河坊街{Enter}");
     await user.click(await blockButton("河坊街"));
     expect(selectedTitles()).toEqual(["河坊街"]);
 

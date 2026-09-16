@@ -261,7 +261,8 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   await longPress(page, lake);
   await expect(label).toHaveText("09:00–12:00");
   await expect(segment(day1, "西湖")).toHaveAttribute("data-lifted", "true");
-  await fingerMove(page, lake, { x: lake.x + hour, y: lake.y - 60 });
+  // 斜着挪一点点就行：往上挪太多会进「没排时间」那一条（它在时间轴上面），那是另一回事
+  await fingerMove(page, lake, { x: lake.x + hour, y: lake.y - 12 });
   await expect(label).toHaveText("10:00–13:00");
   expect(await pageScrollY(page)).toBe(scrollBefore);
   await shot(page, "04-wide-finger", { dragging: true });
@@ -285,7 +286,7 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
 
   // 栏里的一件：长按 0.5 秒拿起，拖到 10.1 那一行的 14:00 处
-  const temple = center(await box(chip(day1, "灵隐寺")));
+  const temple = center(await box(chip(page, "灵隐寺")));
   const at14 = await axisPoint(day1, 14 * 60);
   await longPress(page, temple);
   await fingerMove(page, temple, at14);

@@ -5,6 +5,7 @@ import {
   DAY1,
   DAY2,
   newPlan,
+  openAddBlock,
   openDetails,
   quickBar,
   rowOf,
@@ -33,13 +34,14 @@ test("电脑上只在时间轴里：加事 → 点开排时间、挂开销、复
   const day1 = timelineRow(page, "10.1");
   const day2 = timelineRow(page, "10.2");
 
-  // 在 10.1 那一行的栏里加「西湖」
-  await day1.getByRole("textbox", { name: "加一件事" }).fill("西湖");
+  // 在 10.1 那一行的「＋」里加「西湖」
+  await (await openAddBlock(page, day1)).fill("西湖");
   await page.keyboard.press("Enter");
-  await expect(chip(day1, "西湖")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(chip(page, "西湖")).toBeVisible();
 
   // 点开：面板在屏幕右边、320 像素宽；排上 09:00 起 3 小时
-  await openDetails(chip(day1, "西湖").getByRole("button"));
+  await openDetails(chip(page, "西湖").getByRole("button"));
   const panel = page.getByRole("dialog", { name: "西湖" });
   const panelBox = (await panel.boundingBox())!;
   expect(Math.round(panelBox.width)).toBe(320);

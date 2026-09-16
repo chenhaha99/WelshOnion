@@ -11,6 +11,7 @@ import {
   blockTitles,
   daysFromOct1,
   moneyOverview,
+  openAddBlock,
   openDetails,
   openStoredPlan,
   selectedText,
@@ -69,11 +70,11 @@ function segmentOf(container: HTMLElement, title: string): HTMLElement {
   return thing(container, title).closest<HTMLElement>("[data-segment]")!;
 }
 
-/** 这一行「没排时间」栏里每件的读屏名，按顺序。 */
-function chipNames(row: HTMLElement): string[] {
-  return [...within(row).getByRole("group", { name: "没排时间" }).querySelectorAll("[data-undated-chip] > button")].map(
-    (button) => button.getAttribute("aria-label") ?? "",
-  );
+/** 时间轴上面那条「没排时间」里每件的读屏名，按顺序。 */
+function chipNames(): string[] {
+  return [
+    ...screen.getByRole("group", { name: "没排时间" }).querySelectorAll("[data-undated-chip] > button"),
+  ].map((button) => button.getAttribute("aria-label") ?? "");
 }
 
 function panelOf(title: string): HTMLElement {
@@ -81,7 +82,10 @@ function panelOf(title: string): HTMLElement {
 }
 
 async function openInTimeline(user: User, day: string, title: string): Promise<HTMLElement> {
-  await openDetails(user, thing(await timelineRow(day), title));
+  // 排上时间的在这一行的横轴上；没排时间的在时间轴上面那条里（整个计划共用一条）
+  const row = await timelineRow(day);
+  const inRow = within(row).queryAllByRole("button", { name: new RegExp(`^${title} `) })[0];
+  await openDetails(user, inRow ?? thing(screen.getByRole("group", { name: "没排时间" }), title));
   return panelOf(title);
 }
 
@@ -164,8 +168,8 @@ describe("打开和关掉详情面板", () => {
   it("这件事被撤销掉了：面板自己关", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    await user.type(within(await timelineRow("10.1")).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");
-    await waitFor(async () => expect(chipNames(await timelineRow("10.1"))).toEqual(["河坊街 整天"]));
+    await user.type(await openAddBlock(user, await timelineRow("10.1")), "河坊街{Enter}");
+    await waitFor(async () => expect(chipNames()).toEqual(["河坊街 10.1 整天"]));
 
     await openInTimeline(user, "10.1", "河坊街");
     await user.keyboard("{Control>}z{/Control}");
@@ -383,14 +387,14 @@ describe("没排时间的上移、下移、缩进", () => {
     const panel = await openInTimeline(user, "10.1", "西湖");
     await user.click(buttonIn(panel, "下移"));
 
-    await waitFor(async () => expect(chipNames(await timelineRow("10.1"))).toEqual(["灵隐寺 整天", "西湖 整天"]));
+    await waitFor(async () => expect(chipNames()).toEqual(["灵隐寺 10.1 整天", "西湖 10.1 整天"]));
     expect(buttonIn(panelOf("西湖"), "下移")).toHaveProperty("disabled", true);
     expect(buttonIn(panelOf("西湖"), "上移")).toHaveProperty("disabled", false);
     expect(panelOf("西湖").contains(document.activeElement)).toBe(true);
 
     await user.click(buttonIn(panelOf("西湖"), "缩进"));
     await waitFor(() => expect(buttonIn(panelOf("西湖"), "取消缩进")).toBeTruthy());
-    const chip = thing(await timelineRow("10.1"), "西湖").closest<HTMLElement>("[data-undated-chip]")!;
+    const chip = thing(screen.getByRole("group", { name: "没排时间" }), "西湖").closest<HTMLElement>("[data-undated-chip]")!;
     expect(chip.style.marginLeft).toBe("12px");
     expect((await blockRow("10.1", "西湖")).querySelector("td")?.dataset.indent).toBe("1");
   });

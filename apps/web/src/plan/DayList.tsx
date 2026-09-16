@@ -29,6 +29,7 @@ const VIEWS = [
 /** 块上写什么：两个开关，各开各关 */
 const BLOCK_TEXT_PARTS = [
   { value: "title", label: "标题" },
+  { value: "duration", label: "时长" },
   { value: "money", label: "开销" },
 ] as const;
 
@@ -77,7 +78,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
   // 时间轴的块上写标题、开销（各开各关）：也按计划记在这台设备上
   const [blockText, setBlockText] = useState<BlockText>(() => readBlockText(planId));
-  const toggleBlockText = (part: "title" | "money") => {
+  const toggleBlockText = (part: "title" | "duration" | "money") => {
     const next = { ...blockText, [part]: !blockText[part] };
     setBlockText(next);
     saveBlockText(planId, next);
@@ -223,6 +224,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
       <div ref={viewsMarker} aria-hidden className="-mb-4" />
       {/* 往下滚时贴在屏幕顶上：列表多长都不用滚回来切换。右边是只在时间轴上有意义的两样（你提的：放到这一行，居右） */}
       <div
+        data-view-row
         className="sticky z-20 flex flex-wrap items-center justify-between gap-2"
         style={{ top: VIEWS_STICKY_TOP }}
       >

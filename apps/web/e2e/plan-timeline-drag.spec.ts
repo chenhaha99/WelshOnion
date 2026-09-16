@@ -17,7 +17,7 @@ import {
   segment,
   timelineRow,
   timeOf,
-  trayOf,
+  tray,
 } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
@@ -293,7 +293,7 @@ test("按住 Alt 复制 → Esc 放弃 → 拖的时候块没了", async ({ page
   await expect(label).toBeVisible();
   await page.keyboard.press("Control+z");
   await expect(day1.locator("[data-timeline-axis]").getByRole("button", { name: /^灵隐寺 / })).toHaveCount(0);
-  await expect(trayOf(day1).getByRole("button", { name: "灵隐寺 整天" })).toBeVisible();
+  await expect(tray(page).getByRole("button", { name: "灵隐寺 10.1 整天" })).toBeVisible();
   await expect(label).toHaveCount(0);
   await page.mouse.up();
   await expect.poll(() => timeOf(day1Table, "灵隐寺")).toBe("整天");

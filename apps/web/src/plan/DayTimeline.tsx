@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import type * as Y from "yjs";
 import { useNow, useTimeZone } from "../app/services";
 import { TimelineAddBlock } from "./AddBlock";
-import { blockTimeLabel } from "./block-time";
+import { blockTimeLabel, durationLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
 import { useDeletedShown } from "./DeletedNotice";
 import { DragLabel } from "./DragLabel";
@@ -173,6 +173,7 @@ export function DayTimeline({
                 item={item}
                 place={daySegmentStyle(item, layout)}
                 showTitle={blockText.title}
+                showDuration={blockText.duration && item.track === "main"}
                 money={blockText.money && item.track === "main" ? moneyCells.get(item.blockId) : undefined}
                 dragView={drag.dragView}
                 handlers={drag.handlers}
@@ -236,6 +237,8 @@ interface DaySegmentProps {
   place: CSSProperties;
   /** 块上要不要写标题 */
   showTitle: boolean;
+  /** 块上要不要写时长 */
+  showDuration: boolean;
   /** 块上写开销时这件事的开销格摘要；不写开销时是 undefined */
   money: MoneyCell | undefined;
   dragView: DragView | null;
@@ -243,7 +246,7 @@ interface DaySegmentProps {
 }
 
 /** 一段竖条：外框放位置、data 属性和拖拽的监听（和横排一样），里面的按钮点一下选中。背景细条太窄，不写字。 */
-function DaySegment({ plan, item, place, showTitle, money, dragView, handlers }: DaySegmentProps) {
+function DaySegment({ plan, item, place, showTitle, showDuration, money, dragView, handlers }: DaySegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
@@ -273,9 +276,12 @@ function DaySegment({ plan, item, place, showTitle, money, dragView, handlers }:
     >
       <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} className={buttonClass}>
         {/* 名字单独一段：竖排里竖条开头滚出框的上边时，名字贴着框的上边（见 index.css） */}
-        {point || item.track === "background" || (!showTitle && money === undefined) ? null : (
+        {point || item.track === "background" || (!showTitle && !showDuration && money === undefined) ? null : (
           <span data-bar-title>
             {showTitle && <span className="truncate">{block.title}</span>}
+            {showDuration && block.duration_min !== null && (
+              <span data-bar-duration>{durationLabel(block.duration_min)}</span>
+            )}
             {/* 块上写开销时标题下面再写一行；竖条不够高时被框裁掉 */}
             {money !== undefined && <span data-bar-money-text>{moneyCellLabel(money)}</span>}
           </span>

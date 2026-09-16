@@ -22,6 +22,15 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
+/** 加一件事：一个加号 */
+export function PlusIcon() {
+  return (
+    <Icon>
+      <path d="M8 3.5v9M3.5 8h9" />
+    </Icon>
+  );
+}
+
 /** 详情：三个点 */
 export function DetailsIcon() {
   return (
@@ -47,9 +56,9 @@ export function CopyIcon() {
 export function GearIcon() {
   return (
     <Icon>
-      <circle cx="8" cy="8" r="2.25" />
-      <path d="M8 1.75v1.4M8 12.85v1.4M14.25 8h-1.4M3.15 8h-1.4" />
-      <path d="m12.42 3.58-1 1M4.58 11.42l-1 1M12.42 12.42l-1-1M4.58 4.58l-1-1" />
+      {/* 八个齿连成一圈（齿顶 6、齿根 4.3）+ 中间的孔；原来是圆加八条射线，看着像太阳 */}
+      <path d="M8 2 L9.65 4.03 L12.24 3.76 L11.97 6.35 L14 8 L11.97 9.65 L12.24 12.24 L9.65 11.97 L8 14 L6.35 11.97 L3.76 12.24 L4.03 9.65 L2 8 L4.03 6.35 L3.76 3.76 L6.35 4.03 Z" />
+      <circle cx="8" cy="8" r="2.2" />
     </Icon>
   );
 }

@@ -141,7 +141,7 @@ describe("推迟这天后面的安排", () => {
     expect(choices).toEqual(["15 分钟", "30 分钟", "1 小时"]);
     await user.keyboard("{Escape}");
 
-    await user.click(within(within(row).getByRole("group", { name: "没排时间" })).getByRole("button", { name: /^河坊街 / }));
+    await user.click(within(screen.getByRole("group", { name: "没排时间" })).getByRole("button", { name: /^河坊街 / }));
     const bar = screen.getByRole("toolbar", { name: "「河坊街」的操作" });
     expect(within(bar).queryByRole("button", { name: SHIFT })).toBeNull();
     await user.click(within(bar).getByRole("button", { name: "详情…" }));

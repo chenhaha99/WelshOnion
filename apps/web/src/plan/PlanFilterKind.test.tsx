@@ -125,7 +125,7 @@ describe("按类型筛选", () => {
     expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
     await showView("时间轴");
     const tray = within(await screen.findByRole("region", { name: "时间轴" })).getByRole("group", { name: "没排时间" });
-    expect(within(tray).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["民宿 整天"]);
+    expect(within(tray).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["民宿 10.1 整天"]);
   });
 
   it("和状态一起：两样都符合才显示", async () => {

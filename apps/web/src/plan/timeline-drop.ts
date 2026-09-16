@@ -45,9 +45,8 @@ export interface DropInput {
   /** 这一次是从快捷条的「复制」按住拖出来的：拖的是复制出来的那一份，进「没排时间」栏也是复制 */
   forceCopy: boolean;
   /** 指针在横轴上，还是在某一行的「没排时间」栏里 */
-  zone: { kind: "axis" } | { kind: "tray"; row: number };
+  zone: { kind: "axis" } | { kind: "tray" };
   /** 栏里的一件在第几行的栏里；横条是 null */
-  homeRow: number | null;
   down: PointerSpot;
   now: PointerSpot;
   /** 横条：按下时块的开始（线性分钟）和时长；栏里的一件：只用时长 */
@@ -81,16 +80,17 @@ export function dropAction(input: DropInput, plan: PlanView, day: number | null)
   const blockId = block.id;
 
   if (input.zone.kind === "tray") {
-    const baseId = plan.bases[input.zone.row]!.id;
-    if (input.source === "chip") {
-      return block.start_minute === null && input.zone.row !== input.homeRow
-        ? { kind: "undated", blockId, copy: false, baseId, slot: block.slot ?? "day" }
-        : null;
-    }
-    // 拖进栏里都是挪（按着 Alt 也是）；只有从快捷条的「复制」拖出来的，进栏的是复制出来的那一份
-    return block.start_minute === null
-      ? null
-      : { kind: "undated", blockId, copy: input.forceCopy, baseId, slot: slotOfMinute(block.start_minute) };
+    // 条里的拖回条里：不改（只有一条，没有「换到另一天的栏」这回事了）
+    if (input.source === "chip" || block.start_minute === null) return null;
+    // 拖进条里都是挪（按着 Alt 也是）；只有从快捷条的「复制」拖出来的，进条的是复制出来的那一份。
+    // 留在它原来那一天：条是整个计划共用的，没有「拖进了哪一天」
+    return {
+      kind: "undated",
+      blockId,
+      copy: input.forceCopy,
+      baseId: block.start_base_id,
+      slot: slotOfMinute(block.start_minute),
+    };
   }
 
   if (input.source === "chip") {

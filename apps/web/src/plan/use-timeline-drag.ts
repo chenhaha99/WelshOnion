@@ -111,9 +111,8 @@ export interface PointerLabel {
   y: number;
 }
 
-/** 拖进某一行的「没排时间」栏时：哪一行、会进哪一格。 */
+/** 拖进「没排时间」条时：会进哪一格。 */
 export interface TrayDrop {
-  row: number;
   label: string;
 }
 
@@ -160,7 +159,7 @@ export interface TimelineDrag {
   /** 第 index 行的整行元素、横轴元素、「没排时间」栏：换算指针位置用 */
   rowRef: (index: number) => (element: HTMLLIElement | null) => void;
   axisRef: (index: number) => (element: HTMLDivElement | null) => void;
-  trayRef: (index: number) => (element: HTMLDivElement | null) => void;
+  trayRef: (element: HTMLDivElement | null) => void;
   /** 时间轴最外层的元素：挂触摸和系统菜单的监听 */
   containerRef: (element: HTMLElement | null) => void;
 }
@@ -218,7 +217,7 @@ export function useTimelineDrag({
   );
   const rowElements = useRef<Array<HTMLLIElement | null>>([]);
   const axisElements = useRef<Array<HTMLDivElement | null>>([]);
-  const trayElements = useRef<Array<HTMLDivElement | null>>([]);
+  const trayElement = useRef<HTMLDivElement | null>(null);
   const suppressClick = useRef(false);
   /** 拿起来拖过的手指刚抬起：接着的 touchend 拦下，浏览器就不补发点击 */
   const swallowTouchEnd = useRef(false);
@@ -247,11 +246,13 @@ export function useTimelineDrag({
     return { row, minute: ((clientX - axis.left) / axis.width) * MINUTES_PER_DAY };
   };
 
-  /** 横排：横坐标到了这一行「没排时间」栏的左边界及以右，就是在栏里。竖排没有栏。 */
-  const zoneAt = (clientX: number, row: number): Drag["zone"] =>
-    latest.current.day === null && clientX >= trayElements.current[row]!.getBoundingClientRect().left
-      ? { kind: "tray", row }
-      : { kind: "axis" };
+/** 横排：指针落在时间轴上面那条「没排时间」里就是在条里（条是整个计划一条）。竖排没有条。 */
+  const zoneAt = (clientX: number, clientY: number): Drag["zone"] => {
+    const tray = latest.current.day === null ? trayElement.current?.getBoundingClientRect() : undefined;
+    const inside =
+      tray !== undefined && clientX >= tray.left && clientX <= tray.right && clientY >= tray.top && clientY <= tray.bottom;
+    return inside ? { kind: "tray" } : { kind: "axis" };
+  };
 
   // 拖到一半块没了（被撤销、被筛掉、别的标签页删了）：横条或栏里那件没了，松手也收不到，直接清掉
   useEffect(() => {
@@ -301,7 +302,7 @@ export function useTimelineDrag({
     const { plan, libraryView } = latest.current;
     const now = spotAt(clientX, clientY);
     // 改长度不会进栏
-    const zone = current.mode === "move" ? zoneAt(clientX, now.row) : { kind: "axis" as const };
+    const zone = current.mode === "move" ? zoneAt(clientX, clientY) : { kind: "axis" as const };
     const followers =
       current.source !== "segment" || current.mode !== "move"
         ? []
@@ -546,7 +547,7 @@ export function useTimelineDrag({
   /** 按下：记下按在哪；鼠标挪 4 像素才开始拖，手指、笔开始长按计时。 */
   const startPress = (
     event: ReactPointerEvent<HTMLElement>,
-    fields: Pick<Drag, "source" | "blockId" | "mode" | "homeRow" | "span" | "zone"> & { forceCopy?: boolean },
+    fields: Pick<Drag, "source" | "blockId" | "mode" | "span" | "zone"> & { forceCopy?: boolean },
   ) => {
     const touch = event.pointerType !== "mouse";
     const down = spotAt(event.clientX, event.clientY);
@@ -586,7 +587,6 @@ export function useTimelineDrag({
           event.pointerType === "mouse" && day === null
             ? edgeAt(event.currentTarget.getBoundingClientRect(), event.clientX, item)
             : "move",
-        homeRow: null,
         span: { start: startRow * MINUTES_PER_DAY + block.start_minute!, duration: block.duration_min ?? 0 },
         zone: { kind: "axis" },
       });
@@ -612,7 +612,6 @@ export function useTimelineDrag({
         source: "segment",
         blockId,
         mode: "move",
-        homeRow: null,
         span: { start: startRow * MINUTES_PER_DAY + block.start_minute, duration: block.duration_min ?? 0 },
         zone: { kind: "axis" },
         forceCopy: true,
@@ -633,9 +632,8 @@ export function useTimelineDrag({
         source: "chip",
         blockId,
         mode: "move",
-        homeRow: row,
         span: { start: 0, duration: block.duration_min ?? 0 },
-        zone: { kind: "tray", row },
+        zone: { kind: "tray" },
       });
     },
     onClickCapture: suppressClickAfterDrag,
@@ -684,8 +682,8 @@ export function useTimelineDrag({
     axisRef: (index) => (element) => {
       axisElements.current[index] = element;
     },
-    trayRef: (index) => (element) => {
-      trayElements.current[index] = element;
+    trayRef: (element) => {
+      trayElement.current = element;
     },
     containerRef,
   };
@@ -707,16 +705,12 @@ function liftedLabel(block: BlockView, plan: PlanView, copying: boolean): string
   return copying ? `复制 · ${time}` : time;
 }
 
-/** 拖进栏里时：那一栏描边、写会进哪一格（复制着拖的写明「复制 · 」）。栏里的一件拖回原来那天的栏不算。 */
+/** 拖进条里时：条描边、写会进哪一格（复制着拖的写明「复制 · 」）。条里的一件拖回条里不算。 */
 function trayDropOf(drag: Drag, plan: PlanView): TrayDrop | null {
-  if (drag.zone.kind !== "tray") return null;
+  if (drag.zone.kind !== "tray" || drag.source === "chip") return null;
   const block = plan.blocks.get(drag.blockId);
-  if (!block) return null;
-  if (drag.source === "chip") {
-    return drag.zone.row === drag.homeRow ? null : { row: drag.zone.row, label: slotLabel(block.slot) };
-  }
-  if (block.start_minute === null) return null;
+  if (!block || block.start_minute === null) return null;
   const slot = slotOfMinute(block.start_minute);
   const label = slotLabel(slot === "day" ? null : slot);
-  return { row: drag.zone.row, label: drag.forceCopy ? `复制 · ${label}` : label };
+  return { label: drag.forceCopy ? `复制 · ${label}` : label };
 }

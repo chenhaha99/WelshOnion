@@ -53,14 +53,14 @@ function segmentData(segment: HTMLElement) {
   return { from, to, track, lane, depth, pending };
 }
 
-/** 这一行的「没排时间」栏。 */
-function trayOf(row: HTMLElement): HTMLElement {
-  return within(row).getByRole("group", { name: "没排时间" });
+/** 时间轴上面那条「没排时间」。 */
+function tray(): HTMLElement {
+  return screen.getByRole("group", { name: "没排时间" });
 }
 
-/** 栏里每件的读屏名，按顺序。 */
-function chipNames(tray: HTMLElement): string[] {
-  return [...tray.querySelectorAll("[data-undated-chip] > button")].map(
+/** 条上每件的读屏名，按顺序。 */
+function chipNames(strip: HTMLElement): string[] {
+  return [...strip.querySelectorAll("[data-undated-chip] > button")].map(
     (button) => button.getAttribute("aria-label") ?? "",
   );
 }
@@ -74,7 +74,7 @@ function groupingPressed(name: string): string | null {
   return within(screen.getByRole("group", { name: "分组" })).getByRole("button", { name }).getAttribute("aria-pressed");
 }
 
-const HINT = "排上时间的事会画在这里：把右边没排时间的事拖到时间轴上，或者点开它排时间";
+const HINT = "排上时间的事会画在这里：把上面没排时间的事拖到时间轴上，或者点开它排时间";
 
 describe("时间轴一天一行", () => {
   it("两天的计划：标签和刻度", async () => {
@@ -174,7 +174,7 @@ describe("块怎么画", () => {
   });
 });
 
-describe("没排时间栏", () => {
+describe("没排时间的那一条", () => {
   function listForOct1(plan: Y.Doc, library: Y.Doc): void {
     const [oct1] = daysFromOct1(plan, 1);
     block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "morning", duration: 120 });
@@ -183,32 +183,37 @@ describe("没排时间栏", () => {
     block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
   }
 
-  it("按整天、上午、下午、晚上排，只放没排时间的；颜色和虚实同横条", async () => {
+  it("按天、按整天上午下午晚上排，每件写日期；颜色和虚实同横条", async () => {
     await openStoredPlan(listForOct1);
 
-    const tray = trayOf(await timelineRow("10.1"));
-    expect(chipNames(tray)).toEqual(["河坊街 整天", "灵隐寺 上午 · 2 小时", "宋城 下午"]);
-    const temple = within(tray).getByRole("button", { name: "灵隐寺 上午 · 2 小时" }).closest<HTMLElement>("[data-undated-chip]")!;
+    await screen.findByRole("region", { name: "时间轴" });
+    expect(chipNames(tray())).toEqual(["河坊街 10.1 整天", "灵隐寺 10.1 上午 · 2 小时", "宋城 10.1 下午"]);
+    const temple = within(tray())
+      .getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时" })
+      .closest<HTMLElement>("[data-undated-chip]")!;
     expect(temple.style.getPropertyValue("--kind-color")).toBe("#77a389");
     expect(temple.dataset.pending).toBe("true");
-    const songcheng = within(tray).getByRole("button", { name: "宋城 下午" }).closest<HTMLElement>("[data-undated-chip]")!;
+    const songcheng = within(tray())
+      .getByRole("button", { name: "宋城 10.1 下午" })
+      .closest<HTMLElement>("[data-undated-chip]")!;
     expect(songcheng.dataset.pending).toBe("false");
   });
 
-  it("只看已确认的：栏里也只剩通过筛选的", async () => {
+  it("只看已确认的：条上也只剩通过筛选的", async () => {
     const user = userEvent.setup();
     await openStoredPlan(listForOct1);
 
     await pressFilter(user, "已确认");
 
-    await waitFor(async () => expect(chipNames(trayOf(await timelineRow("10.1")))).toEqual(["宋城 下午"]));
+    await waitFor(() => expect(chipNames(tray())).toEqual(["宋城 10.1 下午"]));
   });
 
   it("点一下选中，快捷条上有类型、状态；详情从快捷条打开", async () => {
     const user = userEvent.setup();
     await openStoredPlan(listForOct1);
 
-    const chip = within(trayOf(await timelineRow("10.1"))).getByRole("button", { name: "灵隐寺 上午 · 2 小时" });
+    await screen.findByRole("region", { name: "时间轴" });
+    const chip = within(tray()).getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时" });
     await user.click(chip);
 
     const bar = screen.getByRole("toolbar", { name: "「灵隐寺」的操作" });
@@ -231,16 +236,17 @@ describe("没排时间栏", () => {
       setBlockIndent(plan, temple, 1);
     });
 
-    const tray = trayOf(await timelineRow("10.1"));
+    await screen.findByRole("region", { name: "时间轴" });
     const chipOf = (title: string) =>
-      within(tray).getByRole("button", { name: new RegExp(`^${title} `) }).closest<HTMLElement>("[data-undated-chip]")!;
+      within(tray()).getByRole("button", { name: new RegExp(`^${title} `) }).closest<HTMLElement>("[data-undated-chip]")!;
     expect(chipOf("河坊街").style.marginLeft).toBe("");
     expect(chipOf("灵隐寺").style.marginLeft).toBe("12px");
   });
 
-  it("空的一天也有栏", async () => {
+  it("一件没排时间的都没有：整条不出现", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 2));
-    expect(chipNames(trayOf(await timelineRow("10.2")))).toEqual([]);
+    await screen.findByRole("region", { name: "时间轴" });
+    expect(screen.queryByRole("group", { name: "没排时间" })).toBeNull();
   });
 });
 
@@ -255,8 +261,11 @@ describe("空的时候", () => {
     await user.click(within(region).getByRole("button", { name: "加第一件事" }));
 
     expect(pressedView()).toBe("时间轴");
-    await waitFor(async () =>
-      expect(document.activeElement).toBe(within(await timelineRow("10.1")).getByRole("textbox", { name: "加一件事" })),
+    // 「加一件事」现在是第一列里的「＋」，点了弹出输入框、焦点落在里面
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(screen.getByRole("dialog", { name: "加一件事" })).getByRole("textbox", { name: "加一件事" }),
+      ),
     );
   });
 
@@ -274,7 +283,7 @@ describe("空的时候", () => {
     expect(within(region).getByText(HINT)).toBeTruthy();
     expect(within(region).queryByText("还没有事。加了事、排上时间，就会画在这里")).toBeNull();
     expect(within(region).queryByRole("button", { name: "加第一件事" })).toBeNull();
-    expect(chipNames(trayOf(await timelineRow("10.1")))).toEqual(["西湖 整天"]);
+    expect(chipNames(tray())).toEqual(["西湖 10.1 整天"]);
   });
 
   it("事删光了：「加第一件事」又出来", async () => {

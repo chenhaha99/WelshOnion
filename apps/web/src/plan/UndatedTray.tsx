@@ -1,6 +1,6 @@
 import { passesFilter, type BaseView, type BlockView, type PlanView, type StatsFilter } from "@welshonion/core";
 import { Fragment, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { blockTimeLabel } from "./block-time";
+import { blockTimeLabel, monthDay } from "./block-time";
 import { BlockButton } from "./select-block";
 import { kindColor } from "./timeline-draw";
 import { QUICK_BAR_ROW_PX } from "./timeline-geometry";
@@ -94,6 +94,107 @@ export function UndatedTray({
         </div>
       )}
       {children}
+    </div>
+  );
+}
+
+/** 整个计划里没排时间、又通过筛选的事：按天、再按格子排好，每件带着它那天。 */
+export function undatedAcrossDays(
+  plan: PlanView,
+  filter: StatsFilter | undefined,
+): Array<{ block: BlockView; base: BaseView }> {
+  return plan.bases.flatMap((base) => undatedBlocks(plan, base, filter).map((block) => ({ block, base })));
+}
+
+interface UndatedStripProps {
+  plan: PlanView;
+  filter: StatsFilter | undefined;
+  trayRef: (element: HTMLDivElement | null) => void;
+  /** 正往这里拖时，松手会进哪一格（「上午」）；没往这里拖是 null */
+  dropLabel: string | null;
+  /** 正在被拖的那一件 */
+  draggingId: string | null;
+  onChipPointerDown: (event: ReactPointerEvent<HTMLDivElement>, blockId: string) => void;
+  onChipClickCapture: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  /** 选中的那件没排时间的事的快捷条：画在条下面 */
+  quickBar?: ReactNode;
+  /** 正拖着一件排上时间的事：条上一件都没有时也要画出来，不然没地方可拖 */
+  showWhenEmpty: boolean;
+}
+
+/**
+ * 时间轴上面的「没排时间」条：整个计划里没排时间的事横着排一行，每件写日期和标题，
+ * 放不下就在这一条里横向滚。一件都没有、又没在往这里拖时，整条不出现。
+ */
+export function UndatedStrip({
+  plan,
+  filter,
+  trayRef,
+  dropLabel,
+  draggingId,
+  onChipPointerDown,
+  onChipClickCapture,
+  quickBar,
+  showWhenEmpty,
+}: UndatedStripProps) {
+  const items = undatedAcrossDays(plan, filter);
+  if (items.length === 0 && dropLabel === null && !showWhenEmpty) return null;
+  // 条上一件都没有、只是拖动中才画出来的：浮在时间轴上面，不占位——占位会把横轴顶下去，拖着的落点就偏了
+  const floating = items.length === 0;
+  return (
+    <div className={floating ? "absolute inset-x-0 top-0 z-30" : "flex flex-col gap-1"}>
+      <div
+        ref={trayRef}
+        role="group"
+        aria-label="没排时间"
+        data-timeline-tray="strip"
+        data-drop-target={dropLabel !== null ? true : undefined}
+        className={`flex items-center gap-1.5 overflow-x-auto py-0.5 ${
+          floating ? "rounded-lg border border-dashed border-sage/60 bg-white/85 px-2 backdrop-blur-[2px]" : ""
+        }`}
+      >
+        <span aria-hidden className="shrink-0 pr-0.5 text-[11px] leading-4 text-ink-muted">
+          没排时间
+        </span>
+        {items.map(({ block, base }) => {
+          const time = blockTimeLabel(block, base.date);
+          const indent = block.indent ?? 0;
+          return (
+            <div
+              key={block.id}
+              data-undated-chip
+              data-block-id={block.id}
+              data-slot={block.slot ?? "day"}
+              data-pending={block.status.id === "pending"}
+              data-dragging={draggingId === block.id ? true : undefined}
+              className="shrink-0"
+              style={{ ...kindColor(plan, block.id), ...(indent > 0 ? { marginLeft: indent * INDENT_PX } : {}) }}
+              onPointerDown={(event) => onChipPointerDown(event, block.id)}
+              onClickCapture={onChipClickCapture}
+            >
+              <BlockButton
+                blockId={block.id}
+                name={`${block.title} ${monthDay(base.date)} ${time}`}
+                className="timeline-chip"
+              >
+                <span aria-hidden className="shrink-0 pr-1 text-[10px] text-ink-muted tabular-nums">
+                  {monthDay(base.date)}
+                </span>
+                <span className="truncate">{block.title}</span>
+              </BlockButton>
+            </div>
+          );
+        })}
+        {dropLabel !== null && (
+          <div data-drag-ghost className="timeline-tray-ghost shrink-0">
+            {dropLabel}
+          </div>
+        )}
+        {items.length === 0 && dropLabel === null && (
+          <span className="shrink-0 text-[11px] leading-4 text-ink-muted">拖到这里就变回没排时间</span>
+        )}
+      </div>
+      {quickBar !== undefined && <div className="flex">{quickBar}</div>}
     </div>
   );
 }

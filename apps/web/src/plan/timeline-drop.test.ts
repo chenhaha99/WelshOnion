@@ -186,7 +186,6 @@ function chipDrag(built: Built, title: string, fields: Partial<DropInput>): Drop
     alt: false,
     forceCopy: false,
     zone: { kind: "axis" },
-    homeRow: 0,
     down: { row: 0, minute: 0 },
     now: { row: 0, minute: 0 },
     span: { start: 0, duration: 60 },
@@ -208,7 +207,6 @@ function segmentDrag(built: Built, title: string, fields: Partial<DropInput>): D
     alt: false,
     forceCopy: false,
     zone: { kind: "axis" },
-    homeRow: null,
     down: { row, minute: block.start_minute! },
     now: { row, minute: block.start_minute! },
     span: { start, duration: block.duration_min ?? 0 },
@@ -266,14 +264,22 @@ describe("松手后做什么、松手后的计划", () => {
     expect([started.start_minute, started.duration_min]).toEqual([600, 120]);
   });
 
-  it("拖进栏里：时间轴不重排；拖回原来那天的栏：什么都不做", () => {
-    const built = build(1, [{ title: "西湖", minute: 540, duration: 180 }, { title: "河坊街" }]);
+  it("拖进条里：时间轴不重排、留在原来那一天；条里的拖回条里：什么都不做", () => {
+    const built = build(2, [{ title: "西湖", minute: 540, duration: 180 }, { title: "河坊街" }]);
 
-    const intoTray = dropAction(segmentDrag(built, "西湖", { zone: { kind: "tray", row: 0 } }), built.plan, null)!;
-    expect(intoTray).toMatchObject({ kind: "undated", slot: "morning" });
+    const intoTray = dropAction(segmentDrag(built, "西湖", { zone: { kind: "tray" } }), built.plan, null)!;
+    expect(intoTray).toMatchObject({ kind: "undated", slot: "morning", baseId: built.plan.bases[0]!.id });
     expect(droppedPlan(built.plan, built.library, intoTray)).toBeNull();
 
-    expect(dropAction(chipDrag(built, "河坊街", { zone: { kind: "tray", row: 0 } }), built.plan, null)).toBeNull();
+    // 指针停在第 2 行上方也一样：条是整个计划一条，进条就留在它自己那一天
+    const fromRow2 = dropAction(
+      segmentDrag(built, "西湖", { zone: { kind: "tray" }, now: { row: 1, minute: 600 } }),
+      built.plan,
+      null,
+    )!;
+    expect(fromRow2).toMatchObject({ kind: "undated", baseId: built.plan.bases[0]!.id });
+
+    expect(dropAction(chipDrag(built, "河坊街", { zone: { kind: "tray" } }), built.plan, null)).toBeNull();
   });
 });
 

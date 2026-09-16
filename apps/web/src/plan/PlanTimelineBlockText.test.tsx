@@ -49,17 +49,22 @@ function titleText(segment: HTMLElement): HTMLElement | null {
   return segment.querySelector<HTMLElement>("[data-bar-title]");
 }
 
+/** 这一段上写着时长的那一小段（没写是 null）。 */
+function durationText(segment: HTMLElement): HTMLElement | null {
+  return segment.querySelector<HTMLElement>("[data-bar-duration]");
+}
+
 /** 横轴那一层的最小高度：背景细条 16 + 主轨每道 28（或写开销时 40）。 */
 function axisHeight(): string {
   return document.querySelector<HTMLElement>("[data-timeline-axis]")!.style.minHeight;
 }
 
 /** 点一下视图那一行右边的「标题」或「开销」开关。 */
-async function toggle(user: ReturnType<typeof userEvent.setup>, label: "标题" | "开销"): Promise<void> {
+async function toggle(user: ReturnType<typeof userEvent.setup>, label: "标题" | "时长" | "开销"): Promise<void> {
   await user.click(within(screen.getByRole("group", { name: "块上写" })).getByRole("button", { name: label }));
 }
 
-function pressed(label: "标题" | "开销"): string | null {
+function pressed(label: "标题" | "时长" | "开销"): string | null {
   return within(screen.getByRole("group", { name: "块上写" }))
     .getByRole("button", { name: label })
     .getAttribute("aria-pressed");
@@ -70,8 +75,10 @@ describe("块上写标题、开销：两个开关各开各关", () => {
     await dayWithMoney();
 
     expect(pressed("标题")).toBe("true");
+    expect(pressed("时长")).toBe("false");
     expect(pressed("开销")).toBe("false");
     expect(titleText(await segmentOf("西湖"))?.textContent).toBe("西湖");
+    expect(durationText(await segmentOf("西湖"))).toBeNull();
     expect(moneyLine(await segmentOf("西湖"))).toBeNull();
     expect(axisHeight()).toBe("44px"); // 背景细条 16 + 一道 28
   });
@@ -112,6 +119,56 @@ describe("块上写标题、开销：两个开关各开各关", () => {
     expect(pressed("开销")).toBe("false");
     expect(axisHeight()).toBe("44px");
     expect((await segmentOf("西湖")).dataset).toMatchObject({ from: "540", to: "720" });
+  });
+
+  it("开「时长」：块上标题右边写时长，一道还是 28 像素", async () => {
+    const user = userEvent.setup();
+    await dayWithMoney();
+
+    await toggle(user, "时长");
+
+    await waitFor(async () => expect(durationText(await segmentOf("西湖"))?.textContent).toBe("3 小时"));
+    expect(titleText(await segmentOf("西湖"))?.textContent).toBe("西湖");
+    expect(axisHeight()).toBe("44px");
+  });
+
+  it("时长和开销一起：第一行标题加时长，第二行开销，一道 40 像素", async () => {
+    const user = userEvent.setup();
+    await dayWithMoney();
+
+    await toggle(user, "时长");
+    await toggle(user, "开销");
+
+    await waitFor(async () => expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥300"));
+    expect(durationText(await segmentOf("西湖"))?.textContent).toBe("3 小时");
+    expect(axisHeight()).toBe("56px");
+  });
+
+  it("只开时长：块上只有时长", async () => {
+    const user = userEvent.setup();
+    await dayWithMoney();
+
+    await toggle(user, "时长");
+    await toggle(user, "标题");
+
+    await waitFor(async () => expect(titleText(await segmentOf("西湖"))).toBeNull());
+    expect(durationText(await segmentOf("西湖"))?.textContent).toBe("3 小时");
+    expect(axisHeight()).toBe("44px");
+  });
+
+  it("不到一小时写分钟；细条不写时长", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [day] = daysFromOct1(plan, 1);
+      block(plan, library, { baseId: day!, kindId: "sight", title: "看潮", minute: 720, duration: 45 });
+      block(plan, library, { baseId: day!, kindId: "stay", title: "在杭州", minute: 0, duration: 1440 });
+    });
+    await showView("时间轴");
+
+    await toggle(user, "时长");
+
+    await waitFor(async () => expect(durationText(await segmentOf("看潮"))?.textContent).toBe("45 分钟"));
+    expect(durationText(await segmentOf("在杭州"))).toBeNull();
   });
 
   it("没挂开销的写淡色的「填开销」；垫在下面的细条不写开销", async () => {
