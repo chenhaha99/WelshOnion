@@ -1,5 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
-import { DAY1, DAY2, addBlocks, chip, newPlan, rowOf, schedule, segment, showView, timeOf, timelineRow } from "./timeline-helpers";
+import {
+  addBlocks,
+  chip,
+  DAY1,
+  DAY2,
+  newPlan,
+  openDetails,
+  quickBar,
+  rowOf,
+  schedule,
+  segment,
+  showView,
+  timelineRow,
+  timeOf,
+} from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 // 「现在」固定在 9.14，行程 10.1 还没出发：手机上打开是第一天
@@ -25,7 +39,7 @@ test("电脑上只在时间轴里：加事 → 点开排时间、挂钱、复制
   await expect(chip(day1, "西湖")).toBeVisible();
 
   // 点开：面板在屏幕右边、320 像素宽；排上 09:00 起 3 小时
-  await chip(day1, "西湖").getByRole("button").click();
+  await openDetails(chip(day1, "西湖").getByRole("button"));
   const panel = page.getByRole("dialog", { name: "西湖" });
   const panelBox = (await panel.boundingBox())!;
   expect(Math.round(panelBox.width)).toBe(320);
@@ -60,7 +74,7 @@ test("电脑上只在时间轴里：加事 → 点开排时间、挂钱、复制
   await expect(segment(day2, "西湖")).toHaveAttribute("data-from", "540");
 
   // 点开 10.2 的删掉：提示能撤销，焦点落到 10.2 的「这天的操作」
-  await segment(day2, "西湖").getByRole("button").click();
+  await openDetails(segment(day2, "西湖").getByRole("button"));
   await page.getByRole("dialog", { name: "西湖" }).getByRole("button", { name: "删除" }).click();
   await expect(segment(day2, "西湖")).toHaveCount(0);
   await expect(page.getByRole("status", { name: "删完的提示" })).toContainText("删掉了「西湖」");
@@ -103,7 +117,7 @@ test("手机上只在时间轴里：框下面加事 → 点开占满屏幕、排
   await expect(tray.getByRole("button", { name: "西湖 整天" })).toBeVisible();
 
   // 点开：面板占满屏幕；排上 09:00 起 1 小时，关掉
-  await tray.getByRole("button", { name: "西湖 整天" }).click();
+  await openDetails(tray.getByRole("button", { name: "西湖 整天" }));
   const panel = page.getByRole("dialog", { name: "西湖" });
   const box = (await panel.boundingBox())!;
   expect(Math.round(box.x)).toBe(0);
@@ -124,10 +138,9 @@ test("手机上只在时间轴里：框下面加事 → 点开占满屏幕、排
   await expect(lake).toHaveAttribute("data-from", "540");
   await expect(tray).toHaveCount(0);
 
-  // 点竖条推迟 30 分钟：面板关掉，竖条挪到 09:30
-  await lake.getByRole("button").click();
-  await panel.getByRole("group", { name: "这天从这件起往后推迟" }).getByRole("button", { name: "30 分钟" }).click();
-  await expect(panel).toBeHidden();
+  // 排完时间它还选中着（点开详情前点的那一下）：从屏幕底部的快捷条推迟 30 分钟，竖条挪到 09:30
+  await quickBar(page, "西湖").getByRole("button", { name: "这天从这件起往后推迟" }).click();
+  await page.getByRole("dialog", { name: "推迟多久" }).getByRole("button", { name: "30 分钟" }).click();
   await expect(lake).toHaveAttribute("data-from", "570");
 
   // 这天的菜单：在下面插一天，往后翻两天是第 3 天

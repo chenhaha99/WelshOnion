@@ -13,6 +13,7 @@ import {
   hourWidth,
   keepUndated,
   newPlan,
+  quickBar,
   schedule,
   segment,
   showView,
@@ -77,11 +78,11 @@ test("手机上用手指：长按拿起 → 挪晚 1 小时 → 点一下开详�
   await expect(label).toHaveCount(0);
   await expect(lakeDetails).toHaveCount(0);
 
-  // 点一下：打开详情
+  // 点一下：选中它
   await fingerTap(page, center(await box(segment(timeline, "西湖"))));
-  await expect(lakeDetails).toBeVisible();
+  await expect(quickBar(page, "西湖")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(lakeDetails).toBeHidden();
+  await expect(quickBar(page, "西湖")).toBeHidden();
 
   // 长按不挪就抬起：不改、不开详情
   // 按住时整个页面不能选字（iOS 长按会选中旁边的字）、系统长按菜单被拦下，抬起后恢复选字。
@@ -118,9 +119,9 @@ test("手机上用手指：长按拿起 → 挪晚 1 小时 → 点一下开详�
   await page.keyboard.press("Escape");
   expect(await timeOf(day1Table, "河坊街")).toBe("整天");
   await fingerTap(page, center(await box(tray.getByRole("button", { name: "河坊街 整天" }))));
-  await expect(page.getByRole("dialog", { name: "河坊街" })).toBeVisible();
+  await expect(quickBar(page, "河坊街")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "河坊街" })).toBeHidden();
+  await expect(quickBar(page, "河坊街")).toBeHidden();
 
   // 拿起来拖着的时候浏览器取消了触摸（来电、系统手势）：放弃，预览框和时间都不见，计划不变，页面恢复选字
   // 前面滑过框，西湖可能有一截滚出了框，先滚进来再量
@@ -271,16 +272,16 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("10:00–13:00");
   await expect(page.getByRole("dialog", { name: "西湖" })).toHaveCount(0);
 
-  // 点一下：打开详情；长按不挪就抬起：不改、不开详情
-  const lakeDetails = page.getByRole("dialog", { name: "西湖" });
+  // 点一下：选中它；长按不挪就抬起：不改、也不选中
+  const lakeBar = quickBar(page, "西湖");
   await fingerTap(page, center(await box(segment(day1, "西湖"))));
-  await expect(lakeDetails).toBeVisible();
+  await expect(lakeBar).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(lakeDetails).toBeHidden();
+  await expect(lakeBar).toBeHidden();
   await longPress(page, center(await box(segment(day1, "西湖"))));
   await fingerUp(page);
   await expect(lifted).toHaveCount(0);
-  await expect(lakeDetails).toHaveCount(0);
+  await expect(lakeBar).toHaveCount(0);
   expect(await timeOf(day1Table, "西湖")).toBe("10:00–13:00");
 
   // 栏里的一件：长按 0.5 秒拿起，拖到 10.1 那一行的 14:00 处

@@ -10,6 +10,7 @@ import {
   hourWidth,
   newPlan,
   pickKind,
+  quickBar,
   rowOf,
   schedule,
   segment,
@@ -39,12 +40,13 @@ test("拖中间：点一下开详情 → 预览 → 挪 → 撤销重做 → 吸
   const redo = page.getByRole("button", { name: "重做" });
   await expect(redo).toBeEnabled();
 
-  // 点一下：打开详情
+  // 点一下：选中它，旁边出快捷条；没开详情面板
   const lake = center(await box(segment(day1, "西湖")));
   await page.mouse.click(lake.x, lake.y);
-  await expect(page.getByRole("dialog", { name: "西湖" })).toBeVisible();
+  await expect(quickBar(page, "西湖")).toBeVisible();
+  await expect(page.getByRole("dialog")).toBeHidden();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "西湖" })).toBeHidden();
+  await expect(quickBar(page, "西湖")).toBeHidden();
 
   // 往右拖 1 小时、先不松手：西湖已经画在 10:00–13:00、是拿起来的样子，指针上方写着时间；计划还没变
   await drag(page, lake, { x: lake.x + hour, y: lake.y }, { release: false });

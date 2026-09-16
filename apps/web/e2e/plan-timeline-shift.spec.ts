@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { DAY1, addBlocks, newPlan, schedule, showView } from "./timeline-helpers";
+import { addBlocks, DAY1, newPlan, openDetails, quickBar, schedule, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 const SHIFT = "这天从这件起往后推迟";
@@ -13,7 +13,7 @@ async function span(timeline: Locator, title: string): Promise<[number, number]>
 }
 
 // 「现在」固定在 9.14，行程 10.1 还没出发：手机上打开是第一天
-test("推迟：手机上点开下一件推迟 30 分钟 → 再推 15 分钟 → 前面的不动 → 撤销一次 → 电脑上的详情", async ({ page }) => {
+test("推迟：手机上选中下一件、从快捷条推迟 30 分钟 → 再推 15 分钟 → 前面的不动 → 撤销一次 → 电脑上的详情", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(new Date("2026-09-14T06:20:00Z"));
   await newPlan(page, 1, { width: 390, height: 844 });
@@ -25,22 +25,23 @@ test("推迟：手机上点开下一件推迟 30 分钟 → 再推 15 分钟 →
   await schedule(page, table, "灵隐寺", "14:00", "2");
   await showView(page, "时间轴");
 
-  // 点开午饭推迟 30 分钟：午饭和灵隐寺往后挪，西湖不动；详情面板关掉，焦点回到竖条
+  // 选中午饭、从快捷条推迟 30 分钟：午饭和灵隐寺往后挪，西湖不动；还选中着，焦点回到「推迟」
   const lunch = timeline.getByRole("button", { name: /^午饭 / });
-  const dialog = page.getByRole("dialog", { name: "午饭" });
+  const shiftButton = quickBar(page, "午饭").getByRole("button", { name: SHIFT });
+  const choices = page.getByRole("dialog", { name: "推迟多久" });
   await lunch.click();
-  await expect(dialog.getByRole("group", { name: SHIFT })).toBeVisible();
-  await shot(page, "01-phone-panel");
-  await dialog.getByRole("group", { name: SHIFT }).getByRole("button", { name: "30 分钟" }).click();
-  await expect(dialog).toBeHidden();
+  await shiftButton.click();
+  await expect(choices).toBeVisible();
+  await shot(page, "01-phone-quick-bar");
+  await choices.getByRole("button", { name: "30 分钟" }).click();
   await expect.poll(() => span(timeline, "午饭")).toEqual([750, 810]);
   expect(await span(timeline, "灵隐寺")).toEqual([870, 990]);
   expect(await span(timeline, "西湖")).toEqual([540, 720]);
-  await expect(lunch).toBeFocused();
+  await expect(shiftButton).toBeFocused();
 
   // 再推 15 分钟
-  await lunch.click();
-  await dialog.getByRole("group", { name: SHIFT }).getByRole("button", { name: "15 分钟" }).click();
+  await shiftButton.click();
+  await choices.getByRole("button", { name: "15 分钟" }).click();
   await expect.poll(() => span(timeline, "午饭")).toEqual([765, 825]);
   expect(await span(timeline, "灵隐寺")).toEqual([885, 1005]);
   expect(await span(timeline, "西湖")).toEqual([540, 720]);
@@ -52,11 +53,11 @@ test("推迟：手机上点开下一件推迟 30 分钟 → 再推 15 分钟 →
   await expect.poll(() => span(timeline, "午饭")).toEqual([750, 810]);
   expect(await span(timeline, "灵隐寺")).toEqual([870, 990]);
 
-  // 电脑宽度上：横条的详情面板里也有这一组
+  // 电脑宽度上：详情面板里也有这一组
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(timeline.locator("[data-timeline-scroll]")).toBeVisible();
-  await lunch.click();
-  await expect(dialog.getByRole("group", { name: SHIFT })).toBeVisible();
+  await openDetails(timeline.getByRole("button", { name: /^午饭 / }));
+  await expect(page.getByRole("dialog", { name: "午饭" }).getByRole("group", { name: SHIFT })).toBeVisible();
   await shot(page, "03-desktop-panel");
 
   expect(errors).toEqual([]);

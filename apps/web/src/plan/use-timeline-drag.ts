@@ -2,6 +2,7 @@ import {
   duplicateBlock,
   followersOf,
   kindLayer,
+  LOCAL_ORIGIN,
   layerWhenOnto,
   moveBlock,
   passesFilter,
@@ -79,6 +80,8 @@ interface Drag extends DropInput {
 export interface CopyHandlers {
   onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>, blockId: string) => void;
   onClickCapture: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  /** 手指已经把复制出来的那一份拿起来了：这时手指挪动不能滚页面（手机上快捷条不在时间轴里面，要它自己拦） */
+  liftedByFinger: () => boolean;
 }
 
 /** 拖动中每段横条要画成什么样。 */
@@ -488,7 +491,8 @@ export function useTimelineDrag({
           if (!copy.ok) return;
           setBlockUndated(doc, copy.value.blockId, { baseId: action.baseId, slot: action.slot });
           onDropped?.(copy.value.blockId);
-        });
+          // 事务的来源要和 core 的操作一样，撤销才记得住这一步
+        }, LOCAL_ORIGIN);
         return;
       }
       case "timed":
@@ -520,7 +524,11 @@ export function useTimelineDrag({
         const block = plan.blocks.get(action.blockId)!;
         const layerAfter = action.ontoId === null ? null : layerWhenOnto(plan, libraryView, block, action.ontoId);
         const unmoved = action.minute === clampStart(done.span.start, done.span, plan.bases.length, day);
-        if (unmoved && layerAfter === block.layer) return;
+        // 拖回原地什么都不用改，但拖过的那一件照样接着选中
+        if (unmoved && layerAfter === block.layer) {
+          onDropped?.(action.blockId);
+          return;
+        }
         moveBlock(doc, library, action.blockId, target);
         onDropped?.(action.blockId);
       }
@@ -614,6 +622,7 @@ export function useTimelineDrag({
       if (!draggedLastPress.current) return;
       suppressClickAfterDrag(event);
     },
+    liftedByFinger: () => dragRef.current?.touch === true && dragRef.current.active && dragRef.current.forceCopy,
   };
 
   const chipHandlers: ChipHandlers = {

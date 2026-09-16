@@ -7,12 +7,13 @@ import {
   type LibraryView,
   type PlanView,
 } from "@welshonion/core";
+import { useEffect, useRef } from "react";
 import type * as Y from "yjs";
 import { Popover } from "../app/Popover";
 import { blockFocusSelector, deleteBlockWithNotice, deleteLabel } from "./block-actions";
+import { BlockMoney } from "./block-money";
 import { SHIFT_CHOICES } from "./block-shift";
 import { useNotifyDeleted } from "./DeletedNotice";
-import { BlockMoney } from "./block-money";
 import { CopyIcon, DetailsIcon, ShiftIcon, TrashIcon } from "./icons";
 import type { MoneyCell } from "./money-cells";
 import { useOpenBlock } from "./open-block";
@@ -49,6 +50,27 @@ export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, co
   const statuses = [...libraryView.statuses.values()].sort(byOrder);
   const followerCount = followersOf(plan, libraryView, block.id).length;
   const deleteText = deleteLabel(followerCount);
+  const copyButton = useRef<HTMLButtonElement>(null);
+  // 每次渲染 copyHandlers 都是新对象，监听里读这个 ref，不用跟着重挂
+  const lifted = useRef(copyHandlers?.liftedByFinger);
+  lifted.current = copyHandlers?.liftedByFinger;
+
+  // 手机上快捷条挂在页面最外层（不在时间轴里面），时间轴那套触摸监听管不到它：
+  // 拿起来以后手指挪动不滚页面、长按不弹系统菜单，这两件「复制」按钮自己拦
+  useEffect(() => {
+    const element = copyButton.current;
+    if (!element) return;
+    const onTouchMove = (event: TouchEvent) => {
+      if (lifted.current?.()) event.preventDefault();
+    };
+    const onContextMenu = (event: MouseEvent) => event.preventDefault();
+    element.addEventListener("touchmove", onTouchMove, { passive: false });
+    element.addEventListener("contextmenu", onContextMenu);
+    return () => {
+      element.removeEventListener("touchmove", onTouchMove);
+      element.removeEventListener("contextmenu", onContextMenu);
+    };
+  }, [timed]);
 
   return (
     <div
@@ -97,6 +119,7 @@ export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, co
       <BlockMoney variant="bar" doc={doc} library={library} plan={plan} block={block} moneyCell={moneyCell} />
       {timed && (
         <button
+          ref={copyButton}
           type="button"
           data-copy
           aria-label="复制"
@@ -161,7 +184,8 @@ export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, co
         type="button"
         aria-label={deleteText}
         title={deleteText}
-        className="quick-button text-danger"
+        // 和「推迟」隔开一点：删除不确认，别点岔了
+        className="quick-button ml-1 text-danger"
         onClick={() => {
           const baseId = block.start_base_id;
           notifyDeleted(deleteBlockWithNotice(doc, library, block, followerCount));

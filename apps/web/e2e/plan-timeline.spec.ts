@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { showView } from "./timeline-helpers";
+import { openDetails, quickBar, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 async function pickKind(page: Page, row: Locator, kind: string): Promise<void> {
@@ -92,7 +92,7 @@ test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电�
   await shot(page, "01-timeline");
 
   // 点第二天那段打开详情面板：类型、状态、时间；电脑上在屏幕右边、320 像素宽，还是时间轴视图
-  await segment(day2, "民宿").getByRole("button").click();
+  await openDetails(segment(day2, "民宿").getByRole("button"));
   const panel = page.getByRole("dialog", { name: "民宿" });
   await expect(panel.getByRole("button", { name: "类型：住宿" })).toBeVisible();
   await expect(panel.getByRole("button", { name: "状态：待定" })).toBeVisible();
@@ -110,10 +110,16 @@ test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电�
   await showView(page, "时间轴");
   const lakeBar = segment(day1, "西湖").getByRole("button");
   await lakeBar.focus();
+  // 回车选中 → Tab 进快捷条 → 回车开详情 → Esc 关详情、再 Esc 取消选中
+  await page.keyboard.press("Enter");
+  await expect(quickBar(page, "西湖")).toBeVisible();
+  await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog", { name: "西湖" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "西湖" })).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(quickBar(page, "西湖")).toBeHidden();
   await expect(lakeBar).toBeFocused();
 
   // 电脑上不用横着滚，每小时至少 30 像素

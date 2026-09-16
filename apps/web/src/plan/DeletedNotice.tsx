@@ -12,6 +12,12 @@ export interface Deleted {
 }
 
 const NotifyContext = createContext<((deleted: Deleted) => void) | null>(null);
+/** 屏幕底部正显示着删完的提示：底部还有别的东西（手机上的快捷条）时要给它让位 */
+const ShownContext = createContext(false);
+
+export function useDeletedShown(): boolean {
+  return useContext(ShownContext);
+}
 
 /** 计划页里删东西的地方，删完用它出提示。 */
 export function useNotifyDeleted(): (deleted: Deleted) => void {
@@ -52,7 +58,7 @@ export function DeletedNotice({ undo, children }: { undo: UndoControls; children
 
   return (
     <NotifyContext.Provider value={notify}>
-      {children}
+      <ShownContext.Provider value={visible !== null}>{children}</ShownContext.Provider>
       <div
         role="status"
         aria-label="删完的提示"

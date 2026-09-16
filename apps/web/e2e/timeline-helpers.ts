@@ -178,6 +178,17 @@ export function segment(row: Locator, title: string): Locator {
   return row.locator("[data-segment]").filter({ has: row.page().getByRole("button", { name: new RegExp(`^${title} `) }) });
 }
 
+/** 时间轴上打开一件事的详情面板：点一下选中它，再点快捷条的「详情…」。 */
+export async function openDetails(thing: Locator): Promise<void> {
+  await thing.click();
+  await thing.page().getByRole("button", { name: "详情…" }).click();
+}
+
+/** 选中一件事以后浮出来的快捷条。 */
+export function quickBar(page: Page, title: string): Locator {
+  return page.getByRole("toolbar", { name: `「${title}」的操作` });
+}
+
 /** 时间轴这一行右边的「没排时间」栏。 */
 export function trayOf(row: Locator): Locator {
   return row.getByRole("group", { name: "没排时间" });

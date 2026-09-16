@@ -1,10 +1,12 @@
 import { baseStartUtcMs, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import type * as Y from "yjs";
 import { useNow, useTimeZone } from "../app/services";
 import { TimelineAddBlock } from "./AddBlock";
 import { blockTimeLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
+import { useDeletedShown } from "./DeletedNotice";
 import { DragLabel } from "./DragLabel";
 import { todayIn } from "./day-labels";
 import { moneyCellLabel, type MoneyCell } from "./money-cells";
@@ -102,6 +104,7 @@ export function DayTimeline({
   const undated = undatedBlocks(plan, base, filter);
   // 选中的那件的快捷条；拖动中不画
   const selectedBlock = drag.dragView || selection.selectedId === null ? undefined : plan.blocks.get(selection.selectedId);
+  const noticeShown = useDeletedShown();
 
   return (
     <div ref={drag.containerRef} data-timeline-dragging={drag.dragView ? true : undefined} className="flex flex-col gap-2">
@@ -196,20 +199,30 @@ export function DayTimeline({
         </div>
       )}
       <TimelineAddBlock doc={doc} library={library} plan={plan} baseId={base.id} filter={filter} className="input-bare select-text" />
-      {/* 贴着屏幕下边（页面滚动时跟着），拇指够得着；卡片滚完就跟着卡片走 */}
-      {selectedBlock !== undefined && (
-        <div className="sticky bottom-2 z-20 flex justify-center pt-1">
-          <QuickBar
-            doc={doc}
-            library={library}
-            libraryView={libraryView}
-            plan={plan}
-            block={selectedBlock}
-            moneyCell={moneyCells.get(selectedBlock.id)}
-            copyHandlers={drag.copyHandlers}
-          />
-        </div>
-      )}
+      {/* 贴着屏幕下边，拇指够得着。挂到页面最外层：卡片有背景模糊，fixed 放在里面会以卡片为准；
+          删完的提示也在底部，它在的时候让到它上面 */}
+      {selectedBlock !== undefined &&
+        createPortal(
+          <div
+            className="fixed inset-x-0 z-10 flex justify-center px-4"
+            style={{
+              bottom: noticeShown
+                ? "calc(max(1rem, env(safe-area-inset-bottom)) + 3rem)"
+                : "max(1rem, env(safe-area-inset-bottom))",
+            }}
+          >
+            <QuickBar
+              doc={doc}
+              library={library}
+              libraryView={libraryView}
+              plan={plan}
+              block={selectedBlock}
+              moneyCell={moneyCells.get(selectedBlock.id)}
+              copyHandlers={drag.copyHandlers}
+            />
+          </div>,
+          document.body,
+        )}
       {drag.pointerLabel && <DragLabel label={drag.pointerLabel} />}
     </div>
   );

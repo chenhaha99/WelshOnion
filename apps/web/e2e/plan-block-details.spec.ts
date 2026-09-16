@@ -54,6 +54,9 @@ test("块的详情：键盘打开详情填备注 → 交通块自驾挂油费 �
   await expect(detailsItem).toBeFocused();
   await page.keyboard.press("Enter");
   const lakeDetails = page.getByRole("group", { name: "西湖 的详情" });
+  // 两个备注都空着时收起着：焦点落在「加备注」上，按回车才摊开
+  await expect(lakeDetails.getByRole("button", { name: "加备注" })).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect(lakeDetails.getByLabel("短备注")).toBeFocused();
   await expect(lakeDetails.getByLabel("交通方式")).toHaveCount(0);
   await page.keyboard.type("看落日");
