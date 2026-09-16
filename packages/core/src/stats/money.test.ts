@@ -25,7 +25,7 @@ function plain(map: ReadonlyMap<string, number>): Record<string, number> {
   return Object.fromEntries(map);
 }
 
-/** 南浔两天的钱 */
+/** 南浔两天的开销 */
 function nanxunMoney(statuses: Record<string, string> = {}) {
   planDoc.getMap("plan").set("traveler_count", 2);
   const status = (id: string) => statuses[id] ?? "pending";
