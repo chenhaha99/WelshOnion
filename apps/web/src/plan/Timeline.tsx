@@ -19,6 +19,7 @@ import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
 import { BlockMoney } from "./block-money";
 import type { MoneyCell } from "./money-cells";
+import { ZOOM_STEPS } from "./plan-timeline-zoom-memory";
 import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
@@ -60,6 +61,9 @@ interface TimelineProps {
   /** 块上写标题，还是标题加钱 */
   blockText: BlockText;
   onBlockText: (next: BlockText) => void;
+  /** 横向放到百分之几（横排才有） */
+  zoom: number;
+  onZoom: (next: number) => void;
   /** 竖排看的是哪天（底座 id）：DayList 记着，切到列表再切回来接着看这天 */
   shownDay: { current: string | null };
 }
@@ -77,6 +81,8 @@ export function Timeline({
   moneyCells,
   blockText,
   onBlockText,
+  zoom,
+  onZoom,
   shownDay,
 }: TimelineProps) {
   const section = useRef<HTMLElement>(null);
@@ -104,6 +110,7 @@ export function Timeline({
     <section ref={section} aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-medium text-ink">时间轴</h2>
+        <div className="flex items-center gap-2">
         {/* 块上写标题，还是标题下面再写一行钱（记在这台设备上） */}
         <div role="group" aria-label="块上写" className="flex rounded-full border border-ink/10 bg-white/70 p-0.5">
           {BLOCK_TEXTS.map(({ value, label }) => (
@@ -119,6 +126,33 @@ export function Timeline({
               {label}
             </button>
           ))}
+        </div>
+        {/* 横向放大：一小时太窄时放大了看（只有横排有） */}
+        {wide && (
+          <div role="group" aria-label="横向放大" className="flex items-center gap-1 text-xs text-ink-muted">
+            <button
+              type="button"
+              aria-label="缩小"
+              title="缩小"
+              className="btn btn-ghost h-6 px-2"
+              disabled={zoom === ZOOM_STEPS[0]}
+              onClick={() => onZoom(ZOOM_STEPS[ZOOM_STEPS.indexOf(zoom as 100) - 1]!)}
+            >
+              －
+            </button>
+            <span className="tabular-nums">{`${zoom}%`}</span>
+            <button
+              type="button"
+              aria-label="放大"
+              title="放大"
+              className="btn btn-ghost h-6 px-2"
+              disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+              onClick={() => onZoom(ZOOM_STEPS[ZOOM_STEPS.indexOf(zoom as 100) + 1]!)}
+            >
+              ＋
+            </button>
+          </div>
+        )}
         </div>
       </div>
       {plan.blocks.size === 0 ? (
@@ -150,6 +184,7 @@ export function Timeline({
           filter={filter}
           moneyCells={moneyCells}
           blockText={blockText}
+          zoom={zoom}
         />
       ) : (
         <DayTimeline
@@ -179,6 +214,7 @@ interface WideTimelineProps {
   filter: StatsFilter | undefined;
   moneyCells: Map<string, MoneyCell>;
   blockText: BlockText;
+  zoom: number;
 }
 
 /**
@@ -196,6 +232,7 @@ function WideTimeline({
   filter,
   moneyCells,
   blockText,
+  zoom,
 }: WideTimelineProps) {
   const selection = useBlockSelection();
   const lane = laneHeight(blockText);
@@ -225,7 +262,8 @@ function WideTimeline({
       data-timeline-dragging={drag.dragView ? true : undefined}
       className="-mx-2 overflow-x-auto px-2 pb-1"
     >
-      <div className="min-w-[62rem] pr-3">
+      {/* 横轴至少 62rem（每小时 30 像素），放大就按倍数加宽 */}
+      <div className="pr-3" style={{ minWidth: `${(62 * zoom) / 100}rem` }}>
         <div aria-hidden className={ROW_COLUMNS}>
           <span />
           <div className="relative h-4">
@@ -503,7 +541,12 @@ function Segment({ doc, library, plan, item, box, showMoney, money, dragView, ha
       onClickCapture={handlers.onClickCapture}
     >
       <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} className={buttonClass}>
-        {point ? null : block.title}
+        {/* 写不下时借右边的空白：最宽是自己这一段的几倍，横轴多宽都对 */}
+        {point ? null : (
+          <span data-bar-title style={{ maxWidth: titleRoom(item) }}>
+            {block.title}
+          </span>
+        )}
       </BlockButton>
       {showMoney && !point && (
         <BlockMoney variant="line" doc={doc} library={library} plan={plan} block={block} moneyCell={money} />
@@ -514,6 +557,12 @@ function Segment({ doc, library, plan, item, box, showMoney, money, dragView, ha
 
 function horizontal(item: PlacedSegment): CSSProperties {
   return { left: percent(item.from), width: percent(item.to - item.from) };
+}
+
+/** 标题最宽多少：自己这一段加上右边借来的空白，写成自己宽度的百分比。 */
+function titleRoom(item: PlacedSegment): string {
+  const own = item.to - item.from;
+  return own === 0 ? "100%" : `${((item.roomTo - item.from) / own) * 100}%`;
 }
 
 /** 快捷条画在哪一行：排上时间的贴点的那一段（跨午夜的点哪一段贴哪一段），点的那一行不在了就找第一段；没排时间的在它那天。 */

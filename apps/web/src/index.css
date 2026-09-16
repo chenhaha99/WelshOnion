@@ -371,7 +371,8 @@
   display: block;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  /* 标题写不下时伸到块右边的空白上（伸多远由 max-width 定）；竖排在下面改回裁掉 */
+  overflow: visible;
   padding-inline: 0.375rem;
   border: 1px solid var(--kind-color);
   border-radius: 0.375rem;
@@ -412,7 +413,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   padding-inline: 0.25rem;
   border: 1px solid color-mix(in srgb, var(--kind-color) 70%, white);
   border-radius: 0.25rem;
@@ -619,6 +620,17 @@
 /* 窄屏竖排：竖条的字靠上；接着前一天、后一天的那头（上、下）是平的，横排是左、右 */
 /* 竖排里名字单独一段（data-bar-title）：竖条开头滚出框的上边时，名字贴着框的上边。
    按钮剪掉溢出但不当滚动容器（clip），名字的 sticky 才以外面的框为准；不认识 clip 的浏览器照旧 hidden */
+/* 横排横条、背景条里的标题：一行写完，写不下截断加「…」；最宽由 max-width 定（借右边的空白） */
+[data-timeline-axis] [data-bar-title] {
+  /* 宽度按字走、封顶到 max-width（借来的空白），这样短标题不占空地、长标题才伸出去 */
+  display: inline-block;
+  width: max-content;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
 /* 选中的那件：描边（跨午夜的块每一段都描，它们是同一个 blockId） */
 .timeline-bar[aria-pressed="true"],
 .timeline-strip[aria-pressed="true"],

@@ -12,6 +12,7 @@ import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
 import { OpenBlockContext, type OpenBlock, type PanelFocus } from "./open-block";
 import { readBlockText, saveBlockText } from "./plan-block-text-memory";
+import { readTimelineZoom, saveTimelineZoom } from "./plan-timeline-zoom-memory";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
 import { SelectBlockContext, type BlockSelection } from "./select-block";
 import type { BlockText } from "./timeline-geometry";
@@ -72,6 +73,12 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   const showBlockText = (next: BlockText) => {
     setBlockText(next);
     saveBlockText(planId, next);
+  };
+  // 时间轴横向放到百分之几：也按计划记在这台设备上
+  const [zoom, setZoom] = useState(() => readTimelineZoom(planId));
+  const showZoom = (next: number) => {
+    setZoom(next);
+    saveTimelineZoom(planId, next);
   };
   // 竖排看的是哪天（底座 id）：切到列表时时间轴卸掉，切回来接着看这天
   const shownDay = useRef<string | null>(null);
@@ -248,6 +255,8 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
                 moneyCells={cells}
                 blockText={blockText}
                 onBlockText={showBlockText}
+                zoom={zoom}
+                onZoom={showZoom}
                 shownDay={shownDay}
               />
             ) : (

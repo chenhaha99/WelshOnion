@@ -29,7 +29,7 @@ describe("打开时落在哪一天", () => {
 });
 
 function placed(blockId: string, from: number, to: number, track: PlacedSegment["track"] = "main"): PlacedSegment {
-  return { blockId, row: 0, from, to, continuesBefore: false, continuesAfter: false, track, lane: 1, depth: 0 };
+  return { blockId, row: 0, from, to, continuesBefore: false, continuesAfter: false, track, lane: 1, depth: 0, roomTo: to };
 }
 
 function rowWith(segments: PlacedSegment[]): RowLayout {

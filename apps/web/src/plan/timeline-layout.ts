@@ -35,6 +35,11 @@ export interface PlacedSegment extends Segment {
   lane: number;
   /** 比自己类型的层高几层，最多 3；背景条是 0 */
   depth: number;
+  /**
+   * 标题最多能写到第几分钟：自己这一段写不下时，右边的空白借给它接着写。
+   * 借到同一道里下一段的开头为止（没有下一段就借到 24 点）；套在别人里面的，不许写出外层块的范围。
+   */
+  roomTo: number;
 }
 
 /** 按道（条）、再按开始、再按缩进排：这就是键盘 Tab 走的顺序，外层块排在叠在它上面的块前面 */
@@ -45,6 +50,9 @@ export interface RowLayout {
   /** 主轨几道，至少 1 */
   laneCount: number;
 }
+
+/** 摆好了道、还没算标题能写多远的一段 */
+type Placing = Omit<PlacedSegment, "roomTo">;
 
 interface Item {
   segment: Segment;
@@ -124,8 +132,8 @@ export function layoutRow(segments: readonly Segment[], plan: PlanView, library:
     const block = plan.blocks.get(segment.blockId)!;
     return { segment, layer: effectiveLayer(block, library), kindLayer: kindLayer(block, library) };
   });
-  const background = placeBackground(items.filter((item) => item.kindLayer < topKindLayer));
-  const main = placeMain(items.filter((item) => item.kindLayer >= topKindLayer));
+  const background = withRoom(placeBackground(items.filter((item) => item.kindLayer < topKindLayer)));
+  const main = withRoom(placeMain(items.filter((item) => item.kindLayer >= topKindLayer)));
   return {
     background,
     main,
@@ -139,7 +147,7 @@ export function layoutRow(segments: readonly Segment[], plan: PlanView, library:
  * 一道里不能有有效层一样、时间又重叠的块；有效层更高的叠画在上面。
  * 时间被有效层更低的块完全包住时，放进最里面那个外层块的那一道（放得下的话）。
  */
-function placeMain(items: readonly Item[]): PlacedSegment[] {
+function placeMain(items: readonly Item[]): Placing[] {
   const placed: Array<{ item: Item; lane: number }> = [];
   for (const item of [...items].sort((a, b) => a.layer - b.layer || startOrder(a.segment, b.segment))) {
     // 先放的层都不比它高，所以只会和同层的挤
@@ -160,7 +168,7 @@ function placeMain(items: readonly Item[]): PlacedSegment[] {
     placed.push({ item, lane });
   }
   return placed
-    .map(({ item, lane }): PlacedSegment => ({
+    .map(({ item, lane }): Placing => ({
       ...item.segment,
       track: "main",
       lane,
@@ -170,7 +178,7 @@ function placeMain(items: readonly Item[]): PlacedSegment[] {
 }
 
 /** 背景条：类型层从低到高、开始从早到晚、长的先，挨个放进第一条时间不重叠的细条（细条太薄，叠不下）。 */
-function placeBackground(items: readonly Item[]): PlacedSegment[] {
+function placeBackground(items: readonly Item[]): Placing[] {
   const placed: Array<{ item: Item; lane: number }> = [];
   for (const item of [...items].sort((a, b) => a.kindLayer - b.kindLayer || startOrder(a.segment, b.segment))) {
     let lane = 1;
@@ -178,11 +186,27 @@ function placeBackground(items: readonly Item[]): PlacedSegment[] {
     placed.push({ item, lane });
   }
   return placed
-    .map(({ item, lane }): PlacedSegment => ({ ...item.segment, track: "background", lane, depth: 0 }))
+    .map(({ item, lane }): Placing => ({ ...item.segment, track: "background", lane, depth: 0 }))
     .sort(visualOrder);
 }
 
-function visualOrder(a: PlacedSegment, b: PlacedSegment): number {
+/**
+ * 每一段的标题能写到第几分钟：同一道里下一段的开头（没有就到 24 点），
+ * 套在别人里面的再夹一道——不许写出最靠里那个外层块的范围。
+ */
+function withRoom(placed: readonly Placing[]): PlacedSegment[] {
+  return placed.map((item) => {
+    const lane = placed.filter((other) => other !== item && other.lane === item.lane);
+    const next = Math.min(MINUTES_PER_DAY, ...lane.filter((other) => other.from >= item.to).map((other) => other.from));
+    const outer = Math.min(
+      MINUTES_PER_DAY,
+      ...lane.filter((other) => other.from <= item.from && item.to <= other.to).map((other) => other.to),
+    );
+    return { ...item, roomTo: Math.max(item.to, Math.min(next, outer)) };
+  });
+}
+
+function visualOrder(a: Placing, b: Placing): number {
   return a.lane - b.lane || a.from - b.from || a.depth - b.depth || compareIds(a.blockId, b.blockId);
 }
 
