@@ -52,7 +52,17 @@ export function CopyIcon() {
   );
 }
 
-/** 推迟：钟面加一圈箭头 */
+/** 时间：钟面加指针 */
+export function ClockIcon() {
+  return (
+    <Icon>
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M8 5v3.2l2 1.6" />
+    </Icon>
+  );
+}
+
+/** 设置：齿轮 */
 export function GearIcon() {
   return (
     <Icon>

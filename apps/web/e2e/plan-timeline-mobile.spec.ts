@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addBlocks, newPlan, openDetails, quickBar, schedule, showView } from "./timeline-helpers";
+import { addBlocks, box, center, drag, newPlan, openDetails, quickBar, schedule, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 /** 竖排每小时多高（像素），和 DayTimeline 一样 */
@@ -60,18 +60,14 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   await expect(timeline.getByRole("button", { name: /^灵隐寺 / })).toHaveCount(1);
   await expect(tray).toHaveCount(0);
 
-  // 手动滚到 12:00 在最上面，在竖条的详情面板里把 14:00 的灵隐寺往后推迟 1 小时：框不自己滚
+  // 手动滚到 12:00 在最上面，把 14:00 的灵隐寺往下拖 1 小时（手机上改时间就在竖条上拖）：框不自己滚
   // （框高 28rem、一天 1152 像素，最多滚到 14 点多在最上面，所以挑 12:00）
   await scroller.evaluate((element, hourHeight) => {
     element.scrollTop = 12 * hourHeight;
   }, HOUR_HEIGHT);
-  await openDetails(timeline.getByRole("button", { name: /^灵隐寺 / }));
-  await page
-    .getByRole("dialog", { name: "灵隐寺" })
-    .getByRole("group", { name: "这天从这件起往后推迟" })
-    .getByRole("button", { name: "1 小时" })
-    .click();
-  await expect(timeline.getByRole("button", { name: "灵隐寺 15:00–17:00" })).toBeVisible();
+  const lingyin = center(await box(timeline.getByRole("button", { name: /^灵隐寺 / })));
+  await drag(page, lingyin, { x: lingyin.x, y: lingyin.y + HOUR_HEIGHT });
+  await expect(timeline.getByRole("button", { name: /^灵隐寺 15:00–17:00/ })).toBeVisible();
   expect(await topMinute(scroller)).toBe(12 * 60);
 
   // 回到今天：又滚到 13:00；再往前翻到空的 9.13：滚到 08:00

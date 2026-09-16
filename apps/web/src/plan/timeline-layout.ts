@@ -44,6 +44,8 @@ export interface RowLayout {
   backgroundCount: number;
   /** 主轨几道，至少 1 */
   laneCount: number;
+  /** 每道里最深缩了几级（第 1 道排在最前）：套着块的那一道变高，外层块的标题才不被盖住；没套东西的道不跟着变高 */
+  laneDepths: readonly number[];
 }
 
 interface Item {
@@ -126,11 +128,15 @@ export function layoutRow(segments: readonly Segment[], plan: PlanView, library:
   });
   const background = placeBackground(items.filter((item) => item.kindLayer < topKindLayer));
   const main = placeMain(items.filter((item) => item.kindLayer >= topKindLayer));
+  const laneCount = Math.max(1, ...main.map((item) => item.lane));
   return {
     background,
     main,
     backgroundCount: Math.max(0, ...background.map((item) => item.lane)),
-    laneCount: Math.max(1, ...main.map((item) => item.lane)),
+    laneCount,
+    laneDepths: Array.from({ length: laneCount }, (_, index) =>
+      Math.max(0, ...main.filter((item) => item.lane === index + 1).map((item) => item.depth)),
+    ),
   };
 }
 

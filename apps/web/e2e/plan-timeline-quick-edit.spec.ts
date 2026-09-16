@@ -60,8 +60,11 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状�
   await expect(bar).toBeVisible();
 
   // 按住「复制」往下拖到 10.2：横向不动就是同一个时刻；松手前看得见落在哪
+  // 往下拖到 10.2 那一行（快捷条浮在上面、盖着下一行，所以按这件事自己那一行算拖了几天）。
+  // 先量行、最后量按钮：box() 会把时间轴滚进屏幕，先量按钮的话坐标会过期
+  const day2Axis = await box(day2.locator("[data-timeline-axis]"));
   const copy = center(await box(bar.getByRole("button", { name: "复制" })));
-  const target = { x: copy.x, y: (await axisPoint(day2, 720)).y };
+  const target = { x: copy.x, y: day2Axis.y + day2Axis.height / 2 };
   await drag(page, copy, target, { release: false });
   await expect(page.getByText("复制 · 09:00–12:00")).toBeVisible();
   await shot(page, "02-copy-drag", { dragging: true });
@@ -116,9 +119,11 @@ test("电脑上：点一下复制就地多一份；块上写开销，点金额�
   expect(moneyBox.y + moneyBox.height).toBeLessThanOrEqual(lakeBox.y + lakeBox.height + 1);
   await shot(page, "04-money-on-blocks");
   await money.click();
-  const amount = page.getByRole("dialog", { name: "改开销" }).getByRole("textbox", { name: "金额" });
-  await amount.fill("280");
+  // 点了弹出完整的开销编辑区（和列表里点开销格展开的是同一套）
+  const editor = page.getByRole("group", { name: "西湖 的开销" });
+  await editor.getByRole("textbox", { name: "金额", exact: true }).fill("280");
   await page.keyboard.press("Enter");
+  await page.keyboard.press("Escape");
   await expect(money).toHaveText("¥280");
   expect(await timeOf(table, "西湖")).toBe("09:00–12:00");
 

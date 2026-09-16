@@ -208,11 +208,10 @@ function BlockRow({
     danger: true,
     onSelect: () => notifyDeleted(deleteBlockWithNotice(doc, library, block, followerCount)),
   };
-  // 「详情…」打开详情面板（时间轴上点开的也是它），焦点放在短备注；关掉后焦点回到这一行的行菜单按钮
+  // 「详情…」打开详情气泡（时间轴上点开的也是它），贴着这一行的行菜单按钮弹出
   const detailsItem: MenuItem = {
     label: "详情…",
-    onSelect: () =>
-      openBlock(block.id, row.current!.querySelector<HTMLElement>("button[aria-label='这件事的操作']")!, "subtitle"),
+    onSelect: () => openBlock(block.id, row.current!.querySelector<HTMLElement>("button[aria-label='这件事的操作']")!),
   };
   // 收起时间的编辑区后焦点回到「时间」按钮；换了天的，这一行画到了那天的表里，等画完再找一次
   const closeTime = () => {

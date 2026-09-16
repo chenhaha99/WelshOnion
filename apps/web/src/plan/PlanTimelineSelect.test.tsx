@@ -157,7 +157,7 @@ describe("时间轴上点一下选中", () => {
 });
 
 describe("选中后的快捷条", () => {
-  it("排上时间的有六个图标，没排时间的少「复制」", async () => {
+  it("排上时间的有七个图标，没排时间的少「复制」", async () => {
     const user = userEvent.setup();
     await onePlanDay();
 
@@ -166,13 +166,37 @@ describe("选中后的快捷条", () => {
       "详情…",
       "类型：游玩",
       "状态：待定",
+      "时间：09:00–12:00",
       "开销：填开销",
       "复制",
       "删除",
     ]);
 
     await user.click(await blockButton("灵隐寺"));
-    expect(names(quickBar("灵隐寺"))).toEqual(["详情…", "类型：游玩", "状态：待定", "开销：填开销", "删除"]);
+    expect(names(quickBar("灵隐寺"))).toEqual([
+      "详情…",
+      "类型：游玩",
+      "状态：待定",
+      "时间：上午 · 2 小时",
+      "开销：填开销",
+      "删除",
+    ]);
+  });
+
+  it("时间：点了弹出时间的编辑区，没排时间的排上时间", async () => {
+    const user = userEvent.setup();
+    await onePlanDay();
+
+    // 手机上条里的事拖不上竖轴，快捷条的「时间」是它唯一的排时间入口
+    await user.click(await blockButton("灵隐寺"));
+    await user.click(within(quickBar("灵隐寺")).getByRole("button", { name: "时间：上午 · 2 小时" }));
+    const editor = screen.getByRole("group", { name: "灵隐寺 的时间" });
+    await user.clear(within(editor).getByLabelText("开始"));
+    await user.type(within(editor).getByLabelText("开始"), "14:00");
+    await user.click(within(editor).getByRole("button", { name: "排上时间" }));
+
+    await waitFor(() => expect(screen.queryByRole("group", { name: "灵隐寺 的时间" })).toBeNull());
+    expect((await blockButton("灵隐寺")).getAttribute("aria-label")).toContain("14:00–16:00");
   });
 
   it("Tab 进得去，Esc 退出来", async () => {
@@ -217,33 +241,32 @@ describe("选中后的快捷条", () => {
     expect(segment.style.getPropertyValue("--kind-color")).toBe("#c08d68");
   });
 
-  it("开销：一笔都没挂时填一笔，再改，按 Esc 不改", async () => {
+  it("开销：点了弹出完整的编辑区，填一笔、改一笔、Esc 收起", async () => {
     const user = userEvent.setup();
     await onePlanDay();
 
     await user.click(await blockButton("西湖"));
     await user.click(within(quickBar("西湖")).getByRole("button", { name: "开销：填开销" }));
-    await user.type(screen.getByRole("textbox", { name: "金额" }), "300{Enter}");
 
-    const money = await waitFor(() => within(quickBar("西湖")).getByRole("button", { name: "开销：¥300" }));
-    expect(document.activeElement).toBe(money);
+    // 完整的编辑区：末尾一行空的，能填类型、金额、人均或总价、说明
+    const editor = screen.getByRole("group", { name: "西湖 的开销" });
+    await user.type(within(editor).getByRole("textbox", { name: "新一笔的金额" }), "300{Enter}");
 
-    // 还选中着，接着改这一笔
-    await user.click(within(quickBar("西湖")).getByRole("button", { name: "开销：¥300" }));
-    await user.clear(screen.getByRole("textbox", { name: "金额" }));
-    await user.type(screen.getByRole("textbox", { name: "金额" }), "280{Enter}");
+    await waitFor(() => expect(within(quickBar("西湖")).getByRole("button", { name: "开销：¥300" })).toBeTruthy());
+    const amount = within(screen.getByRole("group", { name: "西湖 的开销" })).getByRole("textbox", { name: "金额" });
+    await user.clear(amount);
+    await user.type(amount, "280{Enter}");
     await waitFor(() => expect(within(quickBar("西湖")).getByRole("button", { name: "开销：¥280" })).toBeTruthy());
 
-    await user.click(within(quickBar("西湖")).getByRole("button", { name: "开销：¥280" }));
-    await user.clear(screen.getByRole("textbox", { name: "金额" }));
-    await user.type(screen.getByRole("textbox", { name: "金额" }), "500{Escape}");
-    await waitFor(() => expect(within(quickBar("西湖")).getByRole("button", { name: "开销：¥280" })).toBeTruthy());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("group", { name: "西湖 的开销" })).toBeNull());
+    expect(document.activeElement).toBe(within(quickBar("西湖")).getByRole("button", { name: "开销：¥280" }));
 
     // 最后看一眼总览（切视图会取消选中，所以放在最后）
     expect((await moneyOverview()).textContent).toContain("总额 ¥280");
   });
 
-  it("开销：挂着两笔时改为开详情面板、展开开销", async () => {
+  it("开销：挂着两笔时也在这里改，不再开详情", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [day] = daysFromOct1(plan, 1);
@@ -256,9 +279,9 @@ describe("选中后的快捷条", () => {
     await user.click(await blockButton("午饭"));
     await user.click(within(quickBar("午饭")).getByRole("button", { name: "开销：¥158.50 · 2 笔" }));
 
-    const panel = screen.getByRole("dialog", { name: "午饭" });
-    expect(within(panel).getByRole("group", { name: "午饭 的开销" })).toBeTruthy();
-    expect(panel.contains(document.activeElement)).toBe(true);
+    const editor = screen.getByRole("group", { name: "午饭 的开销" });
+    expect(within(editor).getAllByRole("textbox", { name: "金额" })).toHaveLength(2);
+    expect(screen.queryByRole("dialog", { name: "午饭" })).toBeNull();
   });
 
   it("点一下复制：原地多一件，选中新的，一步撤销", async () => {

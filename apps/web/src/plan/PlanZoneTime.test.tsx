@@ -37,9 +37,14 @@ describe("跨时区的时间写两地的时刻", () => {
       .getAllByRole("listitem")
       .find((item) => item.getAttribute("aria-label")?.includes("洛杉矶"));
     if (!row) throw new Error("时间轴上没有洛杉矶那一行");
-    await openDetails(user, within(row).getByRole("button", { name: /^飞洛杉矶 / }));
-
-    const dialog = screen.getByRole("dialog", { name: "飞洛杉矶" });
-    expect(within(dialog).getByText("北京 18:00 → 洛杉矶 15:00 · 12 小时")).toBeTruthy();
+    // 时间不在详情气泡里了（在快捷条和列表的时间格上）：横条自己的读屏名和鼠标提示写两地时刻
+    const bar = within(row).getByRole("button", { name: /^飞洛杉矶 / });
+    expect(bar.getAttribute("aria-label")).toBe("飞洛杉矶 北京 18:00 → 洛杉矶 15:00");
+    expect(bar.getAttribute("title")).toBe("飞洛杉矶 北京 18:00 → 洛杉矶 15:00");
+    await openDetails(user, bar);
+    expect(within(screen.getByRole("dialog", { name: "飞洛杉矶" })).getByLabelText("标题")).toHaveProperty(
+      "value",
+      "飞洛杉矶",
+    );
   });
 });

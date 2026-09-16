@@ -223,9 +223,10 @@ describe("没排时间的那一条", () => {
 
     await user.click(within(bar).getByRole("button", { name: "详情…" }));
     const dialog = screen.getByRole("dialog", { name: "灵隐寺" });
-    expect(within(dialog).getByRole("button", { name: "类型：游玩" })).toBeTruthy();
-    expect(within(dialog).getByRole("button", { name: "状态：待定" })).toBeTruthy();
-    expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("上午 · 2 小时");
+    expect(within(dialog).getByLabelText("标题")).toHaveProperty("value", "灵隐寺");
+    // 类型、状态、时间都在快捷条上，气泡里不重复摆
+    expect(within(dialog).queryByRole("button", { name: "类型：游玩" })).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: "时间" })).toBeNull();
   });
 
   it("缩进了的往右缩 12 像素", async () => {
@@ -347,9 +348,11 @@ describe("点块看详情", () => {
     // 跨午夜的块选中时两段都描边
     const pressed = [...document.querySelectorAll('[data-segment][data-block-id] > button[aria-pressed="true"]')];
     expect(pressed.length).toBe(2);
-    const dialog = screen.getByRole("dialog", { name: "民宿" });
-    expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("22:00–10.2 08:00 · 10 小时");
-    expect(within(dialog).getByRole("button", { name: "开销" }).textContent).toBe("¥480");
+    // 时间、开销在快捷条上（气泡里只剩标题、备注这些）
+    const bar = screen.getByRole("toolbar", { name: "「民宿」的操作" });
+    expect(within(bar).getByRole("button", { name: "开销：¥480" })).toBeTruthy();
+    expect(within(screen.getByRole("dialog", { name: "民宿" })).getByLabelText("短备注")).toHaveProperty("value", "湖景房");
+    expect(second.getAttribute("title")).toBe("民宿 22:00–10.2 08:00");
   });
 
   it("点横条：先选中，再从快捷条打开详情；没有「在表里改」", async () => {
@@ -365,7 +368,9 @@ describe("点块看详情", () => {
     await user.click(screen.getByRole("button", { name: "详情…" }));
 
     const dialog = screen.getByRole("dialog", { name: "西湖" });
-    expect(within(dialog).getByRole("button", { name: "时间" }).textContent).toBe("09:00–12:00 · 3 小时");
+    // 气泡里只有快捷条上没有的：标题、备注这些；时间、类型、状态、开销都在快捷条上
+    expect(within(dialog).getByLabelText("标题")).toHaveProperty("value", "西湖");
+    expect(within(dialog).queryByRole("button", { name: "时间" })).toBeNull();
     expect(screen.queryByRole("button", { name: "在表里改" })).toBeNull();
   });
 

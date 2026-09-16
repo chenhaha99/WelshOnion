@@ -35,7 +35,7 @@ function placed(blockId: string, from: number, to: number, track: PlacedSegment[
 function rowWith(segments: PlacedSegment[]): RowLayout {
   const background = segments.filter((segment) => segment.track === "background");
   const main = segments.filter((segment) => segment.track === "main");
-  return { background, main, backgroundCount: background.length, laneCount: 1 };
+  return { background, main, backgroundCount: background.length, laneCount: 1, laneDepths: [0] };
 }
 
 describe("打开时滚到哪（最上面是这天第几分钟，取到整点）", () => {

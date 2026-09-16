@@ -77,7 +77,8 @@ describe("块的详情", () => {
     const add = within(details).getByRole("button", { name: "加备注" });
     expect(within(details).queryByLabelText("短备注")).toBeNull();
     expect(within(details).queryByLabelText("长备注")).toBeNull();
-    expect(document.activeElement).toBe(add);
+    // 打开时焦点在标题框上（气泡里第一个框）
+    expect(document.activeElement).toBe(within(screen.getByRole("dialog", { name: "西湖" })).getByLabelText("标题"));
 
     await user.click(add);
     expect(document.activeElement).toBe(within(details).getByLabelText("短备注"));
@@ -89,7 +90,9 @@ describe("块的详情", () => {
     await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "详情…" }));
     const again = screen.getByRole("group", { name: "西湖 的详情" });
     expect(within(again).queryByRole("button", { name: "加备注" })).toBeNull();
-    expect(document.activeElement).toBe(within(again).getByLabelText("短备注"));
+    expect(within(again).getByLabelText("短备注")).toHaveProperty("value", "看落日");
+    // 打开时焦点照旧在标题框上
+    expect(document.activeElement).toBe(within(screen.getByRole("dialog", { name: "西湖" })).getByLabelText("标题"));
   });
 
   it("清空短备注：标题下面没有小字", async () => {

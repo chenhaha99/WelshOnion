@@ -252,10 +252,10 @@ describe("按类型筛选时的开销", () => {
     await waitFor(async () => expect(await moneyCellOf("10.1", "酒店")).toEqual({ label: "填开销", note: "另有别的类型的开销" }));
     await showView("时间轴");
     const timeline = await screen.findByRole("region", { name: "时间轴" });
-    await openDetails(user, within(timeline).getAllByRole("button", { name: /^酒店 / })[0]!);
-    const moneyButton = within(screen.getByRole("dialog", { name: "酒店" })).getByRole("button", { name: "开销" });
-    expect(within(moneyButton).getByText("填开销")).toBeTruthy();
-    expect(within(moneyButton).getByText("另有别的类型的开销")).toBeTruthy();
+    // 开销在快捷条上：按钮的读屏名写着这块开销格的字
+    await user.click(within(timeline).getAllByRole("button", { name: /^酒店 / })[0]!);
+    const bar = screen.getByRole("toolbar", { name: "「酒店」的操作" });
+    expect(within(bar).getByRole("button", { name: "开销：填开销" })).toBeTruthy();
   });
 
   it("挂在被筛掉的事上的开销：日期列表上面写一句，开销的总览算上它", async () => {

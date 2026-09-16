@@ -93,16 +93,22 @@ test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电�
   await timeline.scrollIntoViewIfNeeded();
   await shot(page, "01-timeline");
 
-  // 点第二天那段打开详情面板：类型、状态、时间；电脑上在屏幕右边、320 像素宽，还是时间轴视图
-  await openDetails(segment(day2, "民宿").getByRole("button"));
+  // 点第二天那段：快捷条上有类型、状态、开销；「详情…」弹出的是贴着按钮的气泡（只有标题、备注这些）
+  const second = segment(day2, "民宿").getByRole("button", { name: /^民宿 / });
+  await second.click();
+  const bar = page.getByRole("toolbar", { name: "「民宿」的操作" });
+  await expect(bar.getByRole("button", { name: "类型：住宿" })).toBeVisible();
+  await expect(bar.getByRole("button", { name: "状态：待定" })).toBeVisible();
+  await expect(second).toHaveAttribute("title", "民宿 22:00–10.2 08:00");
+  await bar.getByRole("button", { name: "详情…" }).click();
   const panel = page.getByRole("dialog", { name: "民宿" });
-  await expect(panel.getByRole("button", { name: "类型：住宿" })).toBeVisible();
-  await expect(panel.getByRole("button", { name: "状态：待定" })).toBeVisible();
-  await expect(panel.getByRole("button", { name: "时间" })).toHaveText("22:00–10.2 08:00 · 10 小时");
-  await expect(panel.getByRole("button", { name: "在表里改" })).toHaveCount(0);
+  await expect(panel.getByLabel("标题")).toHaveValue("民宿");
+  await expect(panel.getByRole("button", { name: "时间" })).toHaveCount(0);
   const panelBox = (await panel.boundingBox())!;
-  expect(Math.round(panelBox.width)).toBe(320);
-  expect(panelBox.x + panelBox.width).toBeGreaterThan(1260);
+  const barBox = (await bar.boundingBox())!;
+  // 贴着「详情…」那个按钮弹出，不是占满右边的抽屉
+  expect(Math.abs(panelBox.x - barBox.x)).toBeLessThan(200);
+  expect(panelBox.x + panelBox.width).toBeLessThan(1280);
   await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
   await shot(page, "02-details");
   await page.keyboard.press("Escape");

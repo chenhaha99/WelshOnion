@@ -32,8 +32,8 @@ const MINUTES_PER_DAY = 1440;
 /** 没填时长的事拖上时间轴给多长（分钟），和安排表「排上时间」的默认一样 */
 const DEFAULT_DURATION_MIN = 60;
 /** 落在一块的这一段（横排从上往下、竖排从左往右）算中间，叠上去；两边放旁边 */
-const ONTO_FROM = 0.3;
-const ONTO_TO = 0.7;
+/** 块的上下边（竖排左右边）各留这么多算「边上」：横排按道高的比例，竖排按这一段自己的宽度 */
+const EDGE_RATIO = 0.3;
 
 /** 算松手后的事要用的拖拽状态。 */
 export interface DropInput {
@@ -205,6 +205,10 @@ function shownRow(layout: RowLayout, before: RowLayout | null): RowLayout {
     ...layout,
     laneCount: Math.max(layout.laneCount, before.laneCount),
     backgroundCount: Math.max(layout.backgroundCount, before.backgroundCount),
+    // 道高也不比拖之前矮：套进去、拿出来时道高会变（套在里面的往下让一行），拖动中变来变去，指针底下的落点会跳
+    laneDepths: Array.from({ length: Math.max(layout.laneCount, before.laneCount) }, (_, index) =>
+      Math.max(layout.laneDepths[index] ?? 0, before.laneDepths[index] ?? 0),
+    ),
   };
 }
 
@@ -240,6 +244,11 @@ export interface HitContext {
 /**
  * 指针落在哪块的中间就叠到哪块上，返回那块的 id；落在它的边上、没落在类型层一样的块上，是 null（放旁边）。
  * 几块叠着时从画在最上面的看起（缩得深的在上，一样深的后画的在上），类型层不一样的跳过、接着往下看。
+ *
+ * 横排的「边」按**道高**量（0.3 道高，28 像素的道约 8 像素），不按这一段自己的高度量：
+ * 一叠进去，那一道就高出一行字，这一段跟着变高；按自己的高度量的话，刚够叠上去的那个点，
+ * 叠上去以后又不够了（decideOnto 第二步不认），得对准 4 像素的窄缝才叠得进去。
+ * 竖排的列宽不随叠放变，还是按这一段自己的宽度取两边各 30%。
  */
 export function ontoAt(point: Point, context: HitContext): string | null {
   const { plan, library, layout, axis, orientation, excluded, laneHeight } = context;
@@ -249,8 +258,13 @@ export function ontoAt(point: Point, context: HitContext): string | null {
     .sort((a, b) => b.item.depth - a.item.depth || b.order - a.order);
   for (const { item, rect } of under) {
     if (kindLayer(plan.blocks.get(item.blockId)!, library) !== context.kindLayer) continue;
-    const share = orientation === "wide" ? (point.y - rect.top) / rect.height : (point.x - rect.left) / rect.width;
-    return share >= ONTO_FROM && share <= ONTO_TO ? item.blockId : null;
+    if (orientation === "wide") {
+      const edge = EDGE_RATIO * laneHeight;
+      const middle = point.y >= rect.top + edge && point.y <= rect.top + rect.height - edge;
+      return middle ? item.blockId : null;
+    }
+    const share = (point.x - rect.left) / rect.width;
+    return share >= EDGE_RATIO && share <= 1 - EDGE_RATIO ? item.blockId : null;
   }
   return null;
 }

@@ -160,8 +160,9 @@ describe("竖条怎么画", () => {
     expect(segmentOf(region, "游船").dataset.lane).toBe("2");
 
     await openDetails(user, within(lake).getByRole("button", { name: /^西湖 / }));
+    // 气泡里只剩标题、备注这些；时间在快捷条和列表的时间格上
     const dialog = screen.getByRole("dialog", { name: "西湖" });
-    expect(within(dialog).getByText("09:00–12:00 · 3 小时")).toBeTruthy();
+    expect(within(dialog).getByLabelText("标题")).toHaveProperty("value", "西湖");
   });
 
   it("跨午夜的块只画落在这一天里的那一段", async () => {

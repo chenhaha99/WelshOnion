@@ -123,7 +123,7 @@ describe("指针落在哪块的中间", () => {
       { title: "横店", minute: 480, duration: 720 },
       { title: "明清宫苑", minute: 600, duration: 120, onto: "横店" },
     ]);
-    // 明清宫苑缩 1 级：从 y=6 画到 y=26，正中间 y=16 落在横店的 58% 处
+    // 明清宫苑缩 1 级、往下让 18：从 y=20 画到 y=44；y=16 在它上面那截，落在横店的中间
     expect(ontoAt({ x: 660, y: 16 }, wideContext(built, [built.ids["明清宫苑"]!]))).toBe(built.ids["横店"]);
   });
 
@@ -133,7 +133,8 @@ describe("指针落在哪块的中间", () => {
       { title: "明清宫苑", minute: 600, duration: 120, onto: "横店" },
       { title: "拍照", minute: 900, duration: 30 },
     ]);
-    expect(ontoAt({ x: 660, y: 16 }, wideContext(built, [built.ids["拍照"]!]))).toBe(built.ids["明清宫苑"]);
+    // y=32 落在明清宫苑（20–44）的中间那一段
+    expect(ontoAt({ x: 660, y: 32 }, wideContext(built, [built.ids["拍照"]!]))).toBe(built.ids["明清宫苑"]);
   });
 
   it("竖排：落在中间叠上去，落在左右边放旁边", () => {
@@ -150,6 +151,25 @@ describe("指针落在哪块的中间", () => {
     expect(ontoAt({ x: 150, y: 600 }, context)).toBe(built.ids["横店"]);
     expect(ontoAt({ x: 20, y: 600 }, context)).toBeNull();
     expect(ontoAt({ x: 280, y: 600 }, context)).toBeNull();
+  });
+
+  it("刚够叠上去的那个点，叠上去以后那一道变高了也还算叠上去", () => {
+    // 横店一道、明清宫苑在第 2 道（没套）：横店画在 y=2 到 y=26
+    const apart = build(1, [
+      { title: "横店", minute: 480, duration: 720 },
+      { title: "明清宫苑", minute: 600, duration: 120 },
+    ]);
+    const palace = apart.ids["明清宫苑"]!;
+    // 挨着上边 8.4 像素（0.3 道高）就是「边上」，再往里就叠上去
+    expect(ontoAt({ x: 660, y: 10 }, wideContext(apart, [palace]))).toBeNull();
+    expect(ontoAt({ x: 660, y: 11 }, wideContext(apart, [palace]))).toBe(apart.ids["横店"]!);
+
+    // 同样的点，在「已经叠上去」的样子里也还是叠上去（这一道高了 18，横店画到 y=44）
+    const nested = build(1, [
+      { title: "横店", minute: 480, duration: 720 },
+      { title: "明清宫苑", minute: 600, duration: 120, onto: "横店" },
+    ]);
+    expect(ontoAt({ x: 660, y: 11 }, wideContext(nested, [nested.ids["明清宫苑"]!]))).toBe(nested.ids["横店"]!);
   });
 
   it("时长为 0 的块按 12 像素宽量", () => {

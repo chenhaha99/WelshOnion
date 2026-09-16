@@ -414,8 +414,8 @@ function TimelineRow({
         ref={axisRef}
         data-timeline-axis
         className="relative"
-        // 快捷条在这一行时，这一行多空出它那一截：条画在道的下面，不盖住别的事
-        style={{ minHeight: wideAxisHeight(layout, laneHeight) + (barSegment ? QUICK_BAR_ROW_PX : 0) }}
+        // 快捷条浮在上面、不占这一行的高度（你提的：选中不该把下面的时间轴顶下去）
+        style={{ minHeight: wideAxisHeight(layout, laneHeight) }}
       >
         {HOUR_LINES.map((hour) => (
           <div
@@ -438,6 +438,7 @@ function TimelineRow({
             key={`${item.track}-${item.blockId}`}
             doc={doc}
             library={library}
+            libraryView={libraryView}
             plan={plan}
             item={item}
             box={wideSegmentBox(item, layout, laneHeight)}
@@ -463,6 +464,7 @@ function TimelineRow({
 interface SegmentProps {
   doc: Y.Doc;
   library: Y.Doc;
+  libraryView: LibraryView;
   plan: PlanView;
   item: PlacedSegment;
   /** 块上要不要写标题 */
@@ -480,7 +482,20 @@ interface SegmentProps {
 }
 
 /** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点一下选中；块上写开销时下面还有写着开销的那一行。 */
-function Segment({ doc, library, plan, item, box, showTitle, showDuration, showMoney, money, dragView, handlers }: SegmentProps) {
+function Segment({
+  doc,
+  library,
+  libraryView,
+  plan,
+  item,
+  box,
+  showTitle,
+  showDuration,
+  showMoney,
+  money,
+  dragView,
+  handlers,
+}: SegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
@@ -537,6 +552,7 @@ function Segment({ doc, library, plan, item, box, showTitle, showDuration, showM
           solo={!showTitle && !showDuration}
           doc={doc}
           library={library}
+          libraryView={libraryView}
           plan={plan}
           block={block}
           moneyCell={money}

@@ -195,6 +195,19 @@ describe("一行里怎么摆", () => {
     const row = layoutOf(view, 0);
     expect(placedTexts(view, row.main)).toEqual(["横店 1 0 480–1200", "明清宫苑 1 1 600–720", "拍照 1 2 630–660"]);
     expect(row.laneCount).toBe(1);
+    expect(row.laneDepths).toEqual([2]);
+  });
+
+  it("只有套着块的那一道记着缩了几级，别的道是 0", () => {
+    const view = build(1, (built) => {
+      const hengdian = timed(built, "横店", 480, 720);
+      const palace = timed(built, "明清宫苑", 600, 120);
+      onto(built, palace, hengdian);
+      timed(built, "午饭", 720, 60);
+    });
+    const row = layoutOf(view, 0);
+    expect(placedTexts(view, row.main)).toEqual(["横店 1 0 480–1200", "明清宫苑 1 1 600–720", "午饭 2 0 720–780"]);
+    expect(row.laneDepths).toEqual([1, 0]);
   });
 
   it("叠在旁边那道的块上：和最里面的外层块同一道", () => {

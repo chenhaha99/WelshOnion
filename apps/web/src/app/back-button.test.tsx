@@ -100,7 +100,7 @@ describe("返回键", () => {
     expect(app.exitApp).not.toHaveBeenCalled();
   });
 
-  it("详情面板里时间的编辑区开着：先收起编辑区，面板还开着", async () => {
+  it("快捷条上开销的编辑区开着：先收起编辑区，时间轴还在", async () => {
     const user = userEvent.setup();
     await registerBackButton();
     await openStoredPlan((plan, library) => {
@@ -108,16 +108,15 @@ describe("返回键", () => {
       addBlock(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
     });
 
-    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: "这件事的操作" }));
-    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "详情…" }));
-    const panel = screen.getByRole("dialog", { name: "西湖" });
-    await user.click(within(panel).getByRole("button", { name: "时间" }));
-    await user.click(within(within(panel).getByRole("group", { name: "西湖 的时间" })).getByLabelText("开始"));
+    const timeline = await screen.findByRole("region", { name: "时间轴" });
+    await user.click(within(timeline).getByRole("button", { name: /^西湖 / }));
+    await user.click(screen.getByRole("button", { name: "开销：填开销" }));
+    await user.click(within(screen.getByRole("group", { name: "西湖 的开销" })).getByRole("textbox", { name: "新一笔的金额" }));
 
     pressBack();
 
-    await waitFor(() => expect(within(panel).queryByRole("group", { name: "西湖 的时间" })).toBeNull());
-    expect(screen.getByRole("dialog", { name: "西湖" })).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("group", { name: "西湖 的开销" })).toBeNull());
+    expect(screen.getByRole("region", { name: "时间轴" })).toBeTruthy();
   });
 
   it("在计划列表、什么都没开：退出 app", async () => {

@@ -27,9 +27,11 @@ export function blockTextRows(blockText: BlockText): number {
 export function laneHeight(blockText: BlockText): number {
   return blockTextRows(blockText) > 1 ? LANE_HEIGHT_WITH_MONEY : LANE_HEIGHT;
 }
-/** 块和块之间留多少、叠在上面的块每级缩多少（像素），横排竖排一样 */
+/** 块和块之间留多少（像素），横排竖排一样；竖排里叠在上面的块每级往右缩多少 */
 export const GAP = 2;
 export const DEPTH_INSET = 4;
+/** 横排里套在里面的块每级往下让多少（像素）：一行字 16 加 2，外层块的标题就露在上面 */
+export const NEST_STEP = 18;
 /** 竖排：每小时多高、背景细条每条多宽（像素） */
 export const HOUR_HEIGHT = 48;
 export const STRIP_WIDTH = 12;
@@ -45,17 +47,35 @@ export function wideStripsHeight(layout: RowLayout): number {
   return layout.backgroundCount * STRIP_HEIGHT;
 }
 
-/** 横排一行的横轴至少多高：背景细条加主轨的道。 */
-export function wideAxisHeight(layout: RowLayout, lane: number): number {
-  return wideStripsHeight(layout) + layout.laneCount * lane;
+/**
+ * 横排第 lane 道有多高：本来的道高，加上这道里最深缩几级（每级让出一行字）。
+ * 只有套着块的那一道变高：别的道不动，指针底下的块就不会因为别处套了东西而挪位置。
+ */
+export function wideLaneHeight(layout: RowLayout, base: number, lane: number): number {
+  return base + (layout.laneDepths[lane - 1] ?? 0) * NEST_STEP;
 }
 
-/** 横排一段在这一行横轴里的上边和高度（像素）：背景块在上方的细条里；主轨在细条下面分道，叠在上面的从上面往下缩。 */
-export function wideSegmentBox(item: PlacedSegment, layout: RowLayout, lane: number): { top: number; height: number } {
+/** 横排第 lane 道的上边离横轴顶多远（像素）：背景细条，加上它前面几道。 */
+export function wideLaneTop(layout: RowLayout, base: number, lane: number): number {
+  let top = wideStripsHeight(layout);
+  for (let before = 1; before < lane; before++) top += wideLaneHeight(layout, base, before);
+  return top;
+}
+
+/** 横排一行的横轴至少多高：背景细条加主轨的每一道。 */
+export function wideAxisHeight(layout: RowLayout, base: number): number {
+  return wideLaneTop(layout, base, layout.laneCount + 1);
+}
+
+/**
+ * 横排一段在这一行横轴里的上边和高度（像素）：背景块在上方的细条里；
+ * 主轨在细条下面分道，套在里面的每级往下让一行字、底边对齐（外层块的标题露在上面）。
+ */
+export function wideSegmentBox(item: PlacedSegment, layout: RowLayout, base: number): { top: number; height: number } {
   if (item.track === "background") return { top: (item.lane - 1) * STRIP_HEIGHT, height: STRIP_HEIGHT - GAP };
   return {
-    top: wideStripsHeight(layout) + (item.lane - 1) * lane + GAP + item.depth * DEPTH_INSET,
-    height: lane - 2 * GAP - item.depth * DEPTH_INSET,
+    top: wideLaneTop(layout, base, item.lane) + GAP + item.depth * NEST_STEP,
+    height: wideLaneHeight(layout, base, item.lane) - 2 * GAP - item.depth * NEST_STEP,
   };
 }
 

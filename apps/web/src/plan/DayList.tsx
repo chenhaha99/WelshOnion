@@ -10,7 +10,7 @@ import { KindGroups } from "./KindGroups";
 import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
-import { OpenBlockContext, type OpenBlock, type PanelFocus } from "./open-block";
+import { OpenBlockContext, type OpenBlock } from "./open-block";
 import { readBlockText, saveBlockText } from "./plan-block-text-memory";
 import { readTimelineZoom, saveTimelineZoom, ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
@@ -53,9 +53,8 @@ interface DayListProps {
 /** 详情面板开着哪件事：谁点开的（关掉后焦点回到它）、打开时焦点放哪 */
 interface OpenedBlock {
   blockId: string;
-  /** 点开它的按钮；面板跟着选中换到别件时没有这个按钮，是 null（关掉时按这件事现在的按钮找焦点） */
-  opener: HTMLElement | null;
-  focus: PanelFocus;
+  /** 点开它的那个按钮：气泡贴着它弹出，关掉后焦点回到它 */
+  opener: HTMLElement;
 }
 
 /**
@@ -112,27 +111,18 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
   const selectedBlock = selected === null ? undefined : plan.blocks.get(selected.blockId);
 
   const [opened, setOpened] = useState<OpenedBlock | null>(null);
-  const openBlock = useCallback<OpenBlock>((blockId, opener, focus = "panel") => setOpened({ blockId, opener, focus }), []);
-  // 面板开着时选中另一件：面板跟着换过去（点开它的那个「详情…」按钮跟着没了，关掉时按这件事现在的按钮找焦点）
-  const followPanel = useCallback((blockId: string) => {
-    setOpened((current) => (current === null || current.blockId === blockId ? current : { blockId, opener: null, focus: "panel" }));
-  }, []);
+  const openBlock = useCallback<OpenBlock>((blockId, opener) => setOpened({ blockId, opener }), []);
   const openedBlock = opened === null ? undefined : plan.blocks.get(opened.blockId);
-  // 这件事没了（撤销掉了、别的标签页删了），面板自己关
+  // 这件事没了（撤销掉了、别的标签页删了），气泡自己关
   if (opened !== null && openedBlock === undefined) setOpened(null);
-  const closePanel = (deletedFromBaseId?: string) => {
+  const closePanel = () => {
     const closing = opened!;
     setOpened(null);
-    if (deletedFromBaseId === undefined && closing.opener?.isConnected) closing.opener.focus();
-    // 等改动画出来再看焦点：点开它的按钮没了（换了行、切了视图），放到这件事现在的按钮上；
-    // 删掉了的，列表里安排表自己落到下一行，时间轴上落到那天的「这天的操作」
+    if (closing.opener.isConnected) closing.opener.focus();
+    // 等改动画出来再看焦点：点开它的按钮没了（换了行、切了视图），放到这件事现在的按钮上
     requestAnimationFrame(() => {
       if (document.activeElement !== null && document.activeElement !== document.body) return;
-      const selector =
-        deletedFromBaseId === undefined
-          ? blockFocusSelector(closing.blockId)
-          : `[data-base-id="${deletedFromBaseId}"] button[aria-label="这天的操作"]`;
-      document.querySelector<HTMLElement>(selector)?.focus();
+      document.querySelector<HTMLElement>(blockFocusSelector(closing.blockId))?.focus();
     });
   };
 
@@ -159,11 +149,11 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
       anchorBaseId: selected?.baseId ?? null,
       toggle: (blockId, baseId) => {
         setSelected((current) => (current?.blockId === blockId ? null : { blockId, baseId }));
-        followPanel(blockId);
+        setOpened(null);
       },
       select: (blockId, baseId) => {
         setSelected({ blockId, baseId });
-        followPanel(blockId);
+        setOpened(null);
       },
       clear: (options) => {
         setSelected(null);
@@ -375,8 +365,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
           libraryView={libraryView}
           plan={plan}
           block={openedBlock}
-          moneyCell={cells.get(opened.blockId)}
-          focus={opened.focus}
+          anchor={opened.opener}
           onClose={closePanel}
         />
       )}

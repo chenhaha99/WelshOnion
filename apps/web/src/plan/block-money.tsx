@@ -1,17 +1,15 @@
-import { addExpense, updateExpense, type BlockView, type ExpenseView, type PlanView } from "@welshonion/core";
-import { useRef, useState } from "react";
+import { countBlocksUsing, type BlockView, type LibraryView, type PlanView } from "@welshonion/core";
 import type * as Y from "yjs";
 import { Popover } from "../app/Popover";
-import { parseYuan } from "./money";
+import { linkableExpenses } from "./expense-links";
+import { MoneyEditor } from "./MoneyEditor";
 import { moneyCellEmpty, moneyCellLabel, type MoneyCell } from "./money-cells";
-import { useOpenBlock } from "./open-block";
 import { useBlockSelection } from "./select-block";
-
-const AMOUNT_ERROR = "要填不小于 0 的数，最多两位小数";
 
 interface BlockMoneyProps {
   doc: Y.Doc;
   library: Y.Doc;
+  libraryView: LibraryView;
   plan: PlanView;
   block: BlockView;
   /** 这件事的开销格摘要（按筛选算过）；一笔开销都没挂是 undefined */
@@ -24,24 +22,21 @@ interface BlockMoneyProps {
 
 /**
  * 改这件事的开销，两处共用：快捷条上的「¥」、块上写着开销的那一行。
- * 一笔都没挂、或只挂着一笔自己的开销时，点了弹个只填金额的小框；
- * 挂着多笔、有共用的、按类型筛掉了一部分时，小框写不下，改为打开详情面板、展开开销的编辑区。
+ * 点了贴着按钮弹出完整的开销编辑区（和列表里点开销格展开的是同一套）：每笔一行能改类型、金额、人均或总价、说明，
+ * 末尾一行空的填了才建，下面还能挂上已有的一笔。你提的：以前只弹一个填金额的小框，「现在太简单」。
  */
-export function BlockMoney({ doc, library, plan, block, moneyCell, variant, solo = false }: BlockMoneyProps) {
-  const openBlock = useOpenBlock();
+export function BlockMoney({ doc, library, libraryView, plan, block, moneyCell, variant, solo = false }: BlockMoneyProps) {
   const selection = useBlockSelection();
   const text = moneyCellLabel(moneyCell);
   const label = `开销：${text}`;
-  const attached = [...plan.expenses.values()].filter((expense) => expense.block_ids.includes(block.id));
-  const only = attached.length === 1 && attached[0]!.block_ids.length === 1 ? attached[0]! : null;
-  const simple = !moneyCell?.otherKinds && (attached.length === 0 || only !== null);
   const line = variant === "line";
   // 类名写成完整的一段：Tailwind 扫源码找类名，`timeline-money${...}` 这样插值粘在后面它认不出来
   const emptyClass = moneyCellEmpty(moneyCell) ? " timeline-money-empty" : "";
   const triggerClassName = line ? "timeline-money" + emptyClass : "quick-button tabular-nums";
   const trigger = line ? <span className="truncate">{text}</span> : <span aria-hidden>¥</span>;
+  const kinds = [...libraryView.kinds.values()].sort((a, b) => a.order - b.order);
 
-  const button = simple ? (
+  const button = (
     <Popover
       label={label}
       triggerTitle={label}
@@ -49,22 +44,26 @@ export function BlockMoney({ doc, library, plan, block, moneyCell, variant, solo
       triggerClassName={triggerClassName}
       role="dialog"
       panelLabel="改开销"
-      panelClassName="menu p-2"
+      panelClassName="menu w-[22rem] max-w-full p-2"
       align="end"
-      estimatedHeight={80}
+      estimatedHeight={200}
     >
-      {(close) => <AmountBox doc={doc} library={library} block={block} expense={only} close={close} />}
+      {(close) => (
+        <MoneyEditor
+          doc={doc}
+          library={library}
+          plan={plan}
+          kinds={kinds}
+          countKindUsing={(kindId) => countBlocksUsing(plan, { kindId })}
+          block={block}
+          label={`${block.title} 的开销`}
+          // 块的类型被删了时，新一笔先记成「其他」
+          defaultKindId={block.kind.deleted ? "other" : block.kind.id}
+          linkChoices={linkableExpenses(plan, block.id)}
+          onDone={() => close(true)}
+        />
+      )}
     </Popover>
-  ) : (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      className={triggerClassName}
-      onClick={(event) => openBlock(block.id, event.currentTarget, "money")}
-    >
-      {trigger}
-    </button>
   );
 
   // 块上那一行：点它同时选中这件事（拖它还是拖整块，按下照样传给外面的横条）
@@ -78,77 +77,5 @@ export function BlockMoney({ doc, library, plan, block, moneyCell, variant, solo
     </span>
   ) : (
     button
-  );
-}
-
-interface AmountBoxProps {
-  doc: Y.Doc;
-  library: Y.Doc;
-  block: BlockView;
-  /** 要改的那一笔；一笔都没挂是 null（填了才建） */
-  expense: ExpenseView | null;
-  close: (returnFocus?: boolean) => void;
-}
-
-/** 只填金额的小框：回车或点别处保存，Esc 放弃。填空就是这一笔没填金额（那一笔还在）。 */
-function AmountBox({ doc, library, block, expense, close }: AmountBoxProps) {
-  const [text, setText] = useState(
-    expense === null || expense.amount_cents === null ? "" : String(expense.amount_cents / 100),
-  );
-  const [error, setError] = useState<string | null>(null);
-  // 回车已经存过、或者按了 Esc 不存：接着弹层关掉时框会失去焦点，那一次不再存（不然会建出两笔）
-  const settled = useRef(false);
-
-  const save = (): boolean => {
-    const parsed = parseYuan(text.trim());
-    if (!parsed.ok) {
-      setError(AMOUNT_ERROR);
-      return false;
-    }
-    if (expense === null) {
-      // 一笔都没挂：填了金额才建，类型跟着这件事（类型被删了就记「其他」）
-      if (parsed.cents !== null) {
-        addExpense(doc, library, {
-          title: "",
-          amountCents: parsed.cents,
-          blockIds: [block.id],
-          kindId: block.kind.deleted ? "other" : block.kind.id,
-        });
-      }
-    } else if (parsed.cents !== expense.amount_cents) {
-      updateExpense(doc, library, expense.id, { amount_cents: parsed.cents });
-    }
-    return true;
-  };
-
-  return (
-    <div className="flex flex-col gap-1">
-      <input
-        aria-label="金额"
-        inputMode="decimal"
-        autoFocus
-        className="input h-8 w-24 tabular-nums"
-        value={text}
-        onChange={(event) => {
-          setText(event.target.value);
-          setError(null);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            if (!save()) return;
-            settled.current = true;
-            close(true);
-          } else if (event.key === "Escape") {
-            // 不保存：交给弹层关掉、焦点回到点开它的地方
-            settled.current = true;
-          }
-        }}
-        onBlur={() => {
-          if (!settled.current) save();
-        }}
-      />
-      {error !== null && <p className="text-xs text-danger">{error}</p>}
-    </div>
   );
 }

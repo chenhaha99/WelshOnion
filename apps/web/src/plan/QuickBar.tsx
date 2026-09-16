@@ -11,6 +11,7 @@ import type * as Y from "yjs";
 import { Popover } from "../app/Popover";
 import { blockFocusSelector, deleteBlockWithNotice, deleteLabel } from "./block-actions";
 import { BlockMoney } from "./block-money";
+import { BlockTimeButton } from "./block-time-button";
 import { useNotifyDeleted } from "./DeletedNotice";
 import { CopyIcon, DetailsIcon, TrashIcon } from "./icons";
 import type { MoneyCell } from "./money-cells";
@@ -34,9 +35,11 @@ interface QuickBarProps {
 }
 
 /**
- * 选中一件事后浮出的快捷条：详情、类型、状态、开销、复制、删除。
- * 常改的几样在这里一两下就改完，不用开详情面板；没排时间的事没有「复制」。
- * 「这天从这件起往后推迟」只在详情面板里（你说快捷条上那个「似乎没什么用」）。
+ * 选中一件事后浮出的快捷条：详情、类型、状态、时间、开销、复制、删除。
+ * 常改的几样在这里一两下就改完，不用开详情气泡；没排时间的事没有「复制」。
+ * 已经排上时间的，在时间轴上拖着改更快（你提的「时间这类在时间轴操作会更好」）；
+ * 「时间」按钮管的是拖不出来的那几样：排上时间、取消时间、换天、填时长。
+ * 条是浮着的，不占时间轴的行高，不然点一下整条时间轴会往下跳（你提的）。
  * 摆在哪由外面决定：横排贴着这件事的右下角，竖排固定在屏幕底部。
  */
 export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, copyHandlers }: QuickBarProps) {
@@ -114,7 +117,16 @@ export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, co
         statuses={statuses}
         countUsing={(statusId) => countBlocksUsing(plan, { statusId })}
       />
-      <BlockMoney variant="bar" doc={doc} library={library} plan={plan} block={block} moneyCell={moneyCell} />
+      <BlockTimeButton doc={doc} library={library} plan={plan} block={block} />
+      <BlockMoney
+        variant="bar"
+        doc={doc}
+        library={library}
+        libraryView={libraryView}
+        plan={plan}
+        block={block}
+        moneyCell={moneyCell}
+      />
       {timed && (
         <button
           ref={copyButton}

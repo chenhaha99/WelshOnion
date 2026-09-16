@@ -547,10 +547,13 @@ export function useTimelineDrag({
   /** 按下：记下按在哪；鼠标挪 4 像素才开始拖，手指、笔开始长按计时。 */
   const startPress = (
     event: ReactPointerEvent<HTMLElement>,
-    fields: Pick<Drag, "source" | "blockId" | "mode" | "span" | "zone"> & { forceCopy?: boolean },
+    fields: Pick<Drag, "source" | "blockId" | "mode" | "span" | "zone"> & { forceCopy?: boolean; downRow?: number },
   ) => {
     const touch = event.pointerType !== "mouse";
-    const down = spotAt(event.clientX, event.clientY);
+    const spot = spotAt(event.clientX, event.clientY);
+    // 挪多远按「指针走了多远」算。从快捷条的「复制」按下时，指针在浮着的快捷条上（盖着下一行），
+    // 起点的行要按这件事自己那一行算，不然往下拖一行反而没换天
+    const down = fields.downRow === undefined ? spot : { ...spot, row: fields.downRow };
     update({
       ...fields,
       pointerId: event.pointerId,
@@ -615,6 +618,7 @@ export function useTimelineDrag({
         span: { start: startRow * MINUTES_PER_DAY + block.start_minute, duration: block.duration_min ?? 0 },
         zone: { kind: "axis" },
         forceCopy: true,
+        downRow: startRow,
       });
     },
     onClickCapture: (event) => {
