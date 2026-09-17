@@ -178,6 +178,8 @@ describe("只看没划掉的", () => {
 
     await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
     await user.click(within(screen.getByRole("group", { name: "按类型筛选" })).getByRole("button", { name: "游玩" }));
+    // 按状态筛选撤掉了：筛选那一行只有这两样
+    expect(screen.queryByRole("group", { name: "按状态筛选" })).toBeNull();
 
     const region = await timeline();
     await waitFor(() => expect(within(region).queryByRole("button", { name: /^西湖 / })).toBeNull());
