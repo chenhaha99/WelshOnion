@@ -171,7 +171,7 @@ interface TimelineDragOptions {
   libraryView: LibraryView;
   /** 每一行摆好的横条（已经按筛选算过） */
   rows: readonly RowLayout[];
-  /** 按状态筛选；没开是 undefined */
+  /** 筛选；没开是 undefined */
   filter: StatsFilter | undefined;
   /** 竖排正在看第几行；横排是 null */
   day: number | null;

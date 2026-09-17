@@ -51,7 +51,8 @@ test("手机上切换视图：打开是时间轴 → 列表滚到下面时切换
   const stuck = await edges(views);
   expect(stuck.top).toBeGreaterThanOrEqual(0);
   expect(stuck.top).toBeLessThan(12);
-  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
+  // 真的往下滚了一大截，贴顶才看得出来
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(600);
   await shot(page, "02-phone-list-stuck");
 
   // 点按下的「列表」：回到列表开头

@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { describe, expect, test } from "vitest";
+import { createPlanUndoManager } from "./ops/origin";
 import {
   DocumentError,
   initLibraryDoc,
@@ -10,7 +11,7 @@ import {
 } from "./schema";
 
 const PLAN_TOP_LEVEL = ["bases", "blocks", "expenses", "meta", "plan"];
-const LIBRARY_TOP_LEVEL = ["kinds", "meta", "places", "plan_index", "statuses"];
+const LIBRARY_TOP_LEVEL = ["kinds", "meta", "places", "plan_index"];
 
 const EXPECTED_KINDS = [
   ["stay", "停留", 0, 1],
@@ -45,7 +46,7 @@ describe("计划文档初始化", () => {
       expect(doc.share.get(name)).toBeInstanceOf(Y.Map);
     }
     const meta = doc.getMap("meta");
-    expect(meta.get("schema")).toBe(1);
+    expect(meta.get("schema")).toBe(2);
     expect(meta.get("plan_id")).toBe("p1");
   });
 
@@ -67,13 +68,12 @@ describe("资料库文档初始化", () => {
     initLibraryDoc(doc);
 
     expect(topLevelNames(doc)).toEqual(LIBRARY_TOP_LEVEL);
-    expect(doc.getMap("meta").get("schema")).toBe(1);
+    expect(doc.getMap("meta").get("schema")).toBe(2);
     expect(doc.getMap("kinds").size).toBe(7);
-    expect(doc.getMap("statuses").size).toBe(2);
   });
 });
 
-describe("预设类型和状态的播种", () => {
+describe("预设类型的播种", () => {
   test("空资料库播种", () => {
     const doc = new Y.Doc();
     seedLibrary(doc);
@@ -88,18 +88,8 @@ describe("预设类型和状态的播种", () => {
       expect(kind?.get("builtin")).toBe(true);
       expect(kind?.get("color")).toMatch(/^#[0-9a-f]{6}$/);
     }
-
-    const statuses = doc.getMap<Y.Map<unknown>>("statuses");
-    expect([...statuses.keys()].sort()).toEqual(["confirmed", "pending"]);
-    expect(statuses.get("pending")?.get("name")).toBe("待定");
-    expect(statuses.get("pending")?.get("order")).toBe(1);
-    expect(statuses.get("confirmed")?.get("name")).toBe("已确认");
-    expect(statuses.get("confirmed")?.get("order")).toBe(2);
-    for (const status of statuses.values()) {
-      expect(status.get("builtin")).toBe(true);
-      expect(status.get("color")).toMatch(/^#[0-9a-f]{6}$/);
-      expect(status.has("layer")).toBe(false);
-    }
+    // 状态 2026-09-17 整个去掉了：不再播种
+    expect(doc.share.has("statuses")).toBe(false);
   });
 
   test("重复播种不多出一套", () => {
@@ -108,7 +98,7 @@ describe("预设类型和状态的播种", () => {
     seedLibrary(doc);
 
     expect(doc.getMap("kinds").size).toBe(7);
-    expect(doc.getMap("statuses").size).toBe(2);
+    expect(doc.share.has("statuses")).toBe(false);
   });
 
   test("播种不覆盖用户改过的预设", () => {
@@ -152,7 +142,7 @@ describe("打开文档时检查 schema 版本", () => {
   test("版本比代码新", () => {
     const doc = new Y.Doc();
     initPlanDoc(doc, "p1");
-    doc.getMap("meta").set("schema", 2);
+    doc.getMap("meta").set("schema", 3);
 
     expect(errorCodeOf(() => openPlanDoc(doc))).toBe("SCHEMA_TOO_NEW");
   });
@@ -166,5 +156,75 @@ describe("打开文档时检查 schema 版本", () => {
     initLibraryDoc(doc);
 
     expect(errorCodeOf(() => openLibraryDoc(doc))).toBeUndefined();
+  });
+});
+
+describe("打开版本 1 的文档时迁移", () => {
+  /** 版本 1 的计划文档：两件事，一件待定、一件已确认且勾上了。 */
+  function planV1(): Y.Doc {
+    const doc = new Y.Doc();
+    initPlanDoc(doc, "p1");
+    doc.transact(() => {
+      doc.getMap("meta").set("schema", 1);
+      const blocks = doc.getMap<Y.Map<unknown>>("blocks");
+      blocks.set("k1", new Y.Map<unknown>([["title", "西湖"], ["kind_id", "sight"], ["status_id", "pending"]]));
+      blocks.set(
+        "k2",
+        new Y.Map<unknown>([["title", "灵隐寺"], ["kind_id", "sight"], ["status_id", "confirmed"], ["checked", true]]),
+      );
+    });
+    return doc;
+  }
+
+  test("计划文档：每件事去掉状态，勾上的照旧，版本写成 2", () => {
+    const doc = planV1();
+
+    openPlanDoc(doc);
+
+    const blocks = doc.getMap<Y.Map<unknown>>("blocks");
+    expect(blocks.get("k1")?.has("status_id")).toBe(false);
+    expect(blocks.get("k2")?.has("status_id")).toBe(false);
+    expect(blocks.get("k2")?.get("checked")).toBe(true);
+    expect(blocks.get("k1")?.get("title")).toBe("西湖");
+    expect(doc.getMap("meta").get("schema")).toBe(2);
+  });
+
+  test("迁移不进撤销历史", () => {
+    const doc = planV1();
+    const undo = createPlanUndoManager(doc);
+
+    openPlanDoc(doc);
+
+    expect(undo.undoStack).toHaveLength(0);
+  });
+
+  test("资料库：清空状态，版本写成 2", () => {
+    const doc = new Y.Doc();
+    initLibraryDoc(doc);
+    doc.transact(() => {
+      doc.getMap("meta").set("schema", 1);
+      const statuses = doc.getMap<Y.Map<unknown>>("statuses");
+      statuses.set("pending", new Y.Map<unknown>([["name", "待定"]]));
+      statuses.set("s1", new Y.Map<unknown>([["name", "已预订"]]));
+    });
+
+    openLibraryDoc(doc);
+
+    expect(doc.getMap("statuses").size).toBe(0);
+    expect(doc.getMap("kinds").size).toBe(7);
+    expect(doc.getMap("meta").get("schema")).toBe(2);
+  });
+
+  test("已经是版本 2 的不动", () => {
+    const doc = new Y.Doc();
+    initPlanDoc(doc, "p1");
+    let transactions = 0;
+    doc.on("afterTransaction", () => {
+      transactions += 1;
+    });
+
+    openPlanDoc(doc);
+
+    expect(transactions).toBe(0);
   });
 });

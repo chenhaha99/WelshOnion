@@ -47,7 +47,7 @@ describe("每天下面列出这天的块", () => {
 });
 
 describe("加一件事", () => {
-  it("连着加两件：整天、游玩、待定，焦点留在输入框", async () => {
+  it("连着加两件：整天、游玩、没划掉，焦点留在输入框", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
 
@@ -61,7 +61,8 @@ describe("加一件事", () => {
       const row = await blockRow("10.1", title);
       expect(row.querySelector("[data-block-time]")?.textContent).toBe("整天");
       expect(within(row).getByRole("button", { name: "类型：游玩" })).toBeTruthy();
-      expect(within(row).getByRole("button", { name: "状态：待定" })).toBeTruthy();
+      expect(row.dataset.checked).toBe("false");
+      expect(within(row).queryByRole("button", { name: /^状态/ })).toBeNull();
     }
     expect(document.activeElement).toBe(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }));
   });

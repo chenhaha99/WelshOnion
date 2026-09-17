@@ -40,7 +40,7 @@ export interface DuplicatePlanOptions {
 
 /**
  * 把源计划整份复制进一份空的新计划文档：换 id 和名字，所有天平移到新的出发日期（顺序、时区、间隔不变），
- * 块的状态回到待定、请假补班标记去掉（「定没定」和请假都是那一趟的事），再写计划索引。复制本身不进撤销，源计划不动。
+ * 划掉的事全部恢复成没划掉（划没划掉是那一趟的事），再写计划索引。复制本身不进撤销，源计划不动。
  */
 export function duplicatePlan(library: Y.Doc, source: Y.Doc, target: Y.Doc, options: DuplicatePlanOptions): OpResult {
   if (options.startDate !== undefined) {
@@ -60,11 +60,7 @@ export function duplicatePlan(library: Y.Doc, source: Y.Doc, target: Y.Doc, opti
       const deltaDays = Math.round((Date.parse(`${options.startDate}T00:00:00Z`) - Date.parse(`${firstDate}T00:00:00Z`)) / 86_400_000);
       for (const base of bases) base.set("date", addDays(base.get("date") as string, deltaDays));
     }
-    // 定没定、勾没勾都是那一趟的事
-    for (const block of target.getMap<Y.Map<unknown>>("blocks").values()) {
-      block.set("status_id", "pending");
-      block.delete("checked");
-    }
+    for (const block of target.getMap<Y.Map<unknown>>("blocks").values()) block.delete("checked");
   });
   writeIndexEntry(library, target, options.now);
   return done();

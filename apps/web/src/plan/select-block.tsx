@@ -26,9 +26,9 @@ export function useBlockSelection(): BlockSelection {
 
 interface BlockButtonProps {
   blockId: string;
-  /** 读屏名，也是鼠标停上去的提示：「西湖 09:00–12:00」；勾上了末尾再加「 · 勾了」 */
+  /** 读屏名，也是鼠标停上去的提示：「西湖 09:00–12:00」；划掉了末尾再加「 · 划掉了」 */
   name: string;
-  /** 勾上了：右上角画一个勾的角标 */
+  /** 划掉了没有：样子由外面那一层的 data-checked 画 */
   checked: boolean;
   className: string;
   children: ReactNode;
@@ -41,8 +41,8 @@ interface BlockButtonProps {
 export function BlockButton({ blockId, name, checked, className, children }: BlockButtonProps) {
   const selection = useBlockSelection();
   const selected = selection.selectedId === blockId;
-  // 勾的含义用户自己定：只加角标、块的颜色虚实文字都不动；读屏读不到角标，名字里写出来
-  const fullName = checked ? `${name} · 勾了` : name;
+  // 划掉的样子（虚线、变淡、划一道）读屏看不到，名字里写出来
+  const fullName = checked ? `${name} · 划掉了` : name;
   return (
     <button
       type="button"
@@ -67,13 +67,6 @@ export function BlockButton({ blockId, name, checked, className, children }: Blo
       }}
     >
       {children}
-      {checked && (
-        <span data-checked-mark aria-hidden className="checked-mark">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-          </svg>
-        </span>
-      )}
     </button>
   );
 }

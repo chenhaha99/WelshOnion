@@ -20,18 +20,12 @@ function block(plan: Y.Doc, library: Y.Doc, input: AddBlockInput): string {
   return result.value.blockId;
 }
 
-/** 10.1、10.2 两天，10.1 有「西湖」09:00 起 3 小时（横轴折起成 07:00–21:00）。 */
-function lakePlan(statusId?: string) {
+/** 10.1、10.2 两天，10.1 有「西湖」09:00 起 3 小时（横轴折起成 07:00–21:00）；more 里再放别的。 */
+function lakePlan(more?: (plan: Y.Doc, library: Y.Doc, days: string[]) => void) {
   return (plan: Y.Doc, library: Y.Doc) => {
     const days = daysFromOct1(plan, 2);
-    block(plan, library, {
-      baseId: days[0]!,
-      kindId: "sight",
-      title: "西湖",
-      minute: 540,
-      duration: 180,
-      ...(statusId === undefined ? {} : { statusId }),
-    });
+    block(plan, library, { baseId: days[0]!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+    more?.(plan, library, days);
   };
 }
 
@@ -152,10 +146,18 @@ describe("电脑上点空白处加一件事", () => {
   });
 
   it("建出来被筛掉：框不关，写一句", async () => {
-    await openStoredPlan(lakePlan("confirmed"));
+    // 10.2 另放没排时间的住宿、餐饮各一件：按下这两个类型，新加的还是游玩，被筛掉
+    await openStoredPlan(
+      lakePlan((plan, library, days) => {
+        block(plan, library, { baseId: days[1]!, kindId: "lodging", title: "民宿", slot: "day" });
+        block(plan, library, { baseId: days[1]!, kindId: "food", title: "晚饭", slot: "day" });
+      }),
+    );
     const user = userEvent.setup();
+    const kinds = await screen.findByRole("group", { name: "按类型筛选" });
+    await user.click(within(kinds).getByRole("button", { name: "住宿" }));
+    await user.click(within(kinds).getByRole("button", { name: "餐饮" }));
     const region = await wideTimeline();
-    await user.click(within(screen.getByRole("group", { name: "按状态筛选" })).getByRole("button", { name: "已确认" }));
 
     mousePress(axisOf(region, 0), wideSpot(0, 850));
     const card = await screen.findByRole("dialog", { name: "加一件事" });

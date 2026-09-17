@@ -11,28 +11,27 @@ export interface PickerActions {
   onCreate: (input: { name: string; color: string }) => string | null;
   onRename: (id: string, name: string) => void;
   onRecolor: (id: string, color: string) => void;
-  /** 不给就没有「改层」（状态没有层） */
-  onRelayer?: (id: string, layer: number) => void;
+  onRelayer: (id: string, layer: number) => void;
   onDelete: (id: string) => void;
   /** 当前计划里有几个块在用 */
   countUsing: (id: string) => number;
 }
 
 interface LibraryPickerProps extends PickerActions {
-  /** 「类型」或「状态」 */
+  /** 「类型」 */
   label: string;
   /** 块现在用的；指不到时 deleted 为 true */
   current: { id: string; deleted: boolean; name?: string; color?: string };
   options: PickerOption[];
-  /** 快捷条上的样子：只画一个实心点（类型）或空心圈（状态），名字只在读屏名和提示里 */
-  compact?: "fill" | "ring";
+  /** 快捷条上的样子：只画一个实心点，名字只在读屏名和提示里 */
+  compact?: boolean;
 }
 
 const DELETED_COLOR = "#9aa3ad";
 const OPTION_HEIGHT_PX = 36;
 
 /**
- * 类型、状态的选择器：按钮写着现在的值；点开是资料库里的全部选项，点一项就选上并关掉。
+ * 类型的选择器：按钮写着现在的值；点开是资料库里的全部选项，点一项就选上并关掉。
  * 每项右边一个小菜单（改名、改颜色、改层、删除）；最后一项「+ 新建」。这些都在面板里原地展开。
  */
 export function LibraryPicker({ label, current, options, compact, ...actions }: LibraryPickerProps) {
@@ -45,11 +44,7 @@ export function LibraryPicker({ label, current, options, compact, ...actions }: 
       triggerTitle={compact ? `${label}：${currentName}` : undefined}
       trigger={
         compact ? (
-          <span
-            className={compact === "ring" ? "status-dot" : "kind-dot"}
-            aria-hidden
-            style={compact === "ring" ? { color: currentColor } : { backgroundColor: currentColor }}
-          />
+          <span className="kind-dot" aria-hidden style={{ backgroundColor: currentColor }} />
         ) : (
           <>
             <span className="kind-dot" aria-hidden style={{ backgroundColor: currentColor }} />

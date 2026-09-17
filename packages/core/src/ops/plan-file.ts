@@ -1,18 +1,21 @@
 /**
  * 计划文件：一个计划导出成一段 JSON 文本，读回来，再导进一份新的计划文档。
- * 计划整份编码进去（一个字段都不漏）；它用到的类型、状态、地点写成普通对象，导入时按 id、名字、高德 poi_id 合并进本机资料库。
+ * 计划整份编码进去（一个字段都不漏）；它用到的类型、地点写成普通对象，导入时按 id、名字、高德 poi_id 合并进本机资料库。
  */
 import * as Y from "yjs";
 import { readLibrary, type LibraryView } from "../read";
-import { SCHEMA_VERSION } from "../schema";
+import { SCHEMA_VERSION, upgradePlanDoc } from "../schema";
 import { validateField } from "../validate";
 import { LOCAL_ORIGIN } from "./origin";
 import { writeIndexEntry } from "./plan";
 import { done, fail, ok, type OpResult } from "./result";
 
 const FORMAT = "welshonion-plan";
-/** 文件这一层的版本，和计划文档里的 meta.schema 分开管 */
-const FILE_VERSION = 1;
+/**
+ * 文件这一层的版本，和计划文档里的 meta.schema 分开管。
+ * 第 2 版（2026-09-17）去掉了状态；第 1 版的文件照样能读，里面的状态不要。
+ */
+const FILE_VERSION = 2;
 
 type YMap = Y.Map<unknown>;
 
@@ -21,13 +24,6 @@ export interface FileKind {
   name: string;
   color: string;
   layer: number;
-  order: number;
-}
-
-export interface FileStatus {
-  id: string;
-  name: string;
-  color: string;
   order: number;
 }
 
@@ -46,7 +42,7 @@ export interface PlanFile {
   name: string;
   /** 整个计划文档编码后的样子 */
   plan: Uint8Array;
-  library: { kinds: FileKind[]; statuses: FileStatus[]; places: FilePlace[] };
+  library: { kinds: FileKind[]; places: FilePlace[] };
 }
 
 export interface ImportPlanOptions {
@@ -56,7 +52,7 @@ export interface ImportPlanOptions {
   now: string;
 }
 
-/** 导出：整个计划编码成 base64，加上它的块、钱用到、本机资料库里还在的类型、状态、地点。计划索引不放。 */
+/** 导出：整个计划编码成 base64，加上它的块、钱用到、本机资料库里还在的类型、地点。计划索引不放。 */
 export function exportPlan(library: Y.Doc, planDoc: Y.Doc, now: string): string {
   const used = usedLibraryIds(planDoc);
   const view = readLibrary(library);
@@ -64,10 +60,6 @@ export function exportPlan(library: Y.Doc, planDoc: Y.Doc, now: string): string 
     .filter((kind) => used.kinds.has(kind.id))
     .sort(byOrder)
     .map(({ id, name, color, layer, order }) => ({ id, name, color, layer, order }));
-  const statuses = [...view.statuses.values()]
-    .filter((status) => used.statuses.has(status.id))
-    .sort(byOrder)
-    .map(({ id, name, color, order }) => ({ id, name, color, order }));
   const places = [...view.places.values()]
     .filter((place) => used.places.has(place.id))
     .sort((a, b) => compareIds(a.id, b.id))
@@ -78,7 +70,7 @@ export function exportPlan(library: Y.Doc, planDoc: Y.Doc, now: string): string 
     version: FILE_VERSION,
     exported_at: now,
     plan: encodeBase64(Y.encodeStateAsUpdate(planDoc)),
-    library: { kinds, statuses, places },
+    library: { kinds, places },
   });
 }
 
@@ -117,19 +109,19 @@ export function parsePlanFile(text: string): OpResult<PlanFile> {
 }
 
 /**
- * 导进一份空的计划文档：计划原样解进去，换计划 id（给了名字就换名字）；类型、状态、地点合并进本机资料库，
- * 计划里 id 变了的引用改成本机的；最后写计划索引。不进撤销。
+ * 导进一份空的计划文档：计划原样解进去（结构版本旧的顺手迁移），换计划 id（给了名字就换名字）；
+ * 类型、地点合并进本机资料库，计划里 id 变了的引用改成本机的；最后写计划索引。不进撤销。
  */
 export function importPlan(library: Y.Doc, target: Y.Doc, file: PlanFile, options: ImportPlanOptions): OpResult {
   const merge = planMerge(readLibrary(library), file.library);
 
   Y.applyUpdate(target, file.plan);
   target.transact(() => {
+    if (target.getMap("meta").get("schema") !== SCHEMA_VERSION) upgradePlanDoc(target);
     target.getMap("meta").set("plan_id", options.planId);
     if (options.name !== undefined) target.getMap("plan").set("name", options.name);
     for (const block of target.getMap<YMap>("blocks").values()) {
       remapField(block, "kind_id", merge.kindIds);
-      remapField(block, "status_id", merge.statusIds);
       const placeIds = block.get("place_ids");
       if (placeIds instanceof Y.Array) {
         const current = placeIds.toArray() as string[];
@@ -158,19 +150,6 @@ export function importPlan(library: Y.Doc, target: Y.Doc, file: PlanFile, option
         ]),
       );
     }
-    const statuses = library.getMap<YMap>("statuses");
-    let statusOrder = merge.maxStatusOrder;
-    for (const status of merge.newStatuses) {
-      statuses.set(
-        status.id,
-        new Y.Map<unknown>([
-          ["name", status.name],
-          ["color", status.color],
-          ["builtin", false],
-          ["order", ++statusOrder],
-        ]),
-      );
-    }
     const places = library.getMap<YMap>("places");
     for (const place of merge.newPlaces) {
       const entry = new Y.Map<unknown>();
@@ -190,40 +169,29 @@ export function importPlan(library: Y.Doc, target: Y.Doc, file: PlanFile, option
 interface Merge {
   /** 文件里的 id → 本机的 id，只记变了的 */
   kindIds: Map<string, string>;
-  statusIds: Map<string, string>;
   placeIds: Map<string, string>;
   newKinds: FileKind[];
-  newStatuses: FileStatus[];
   newPlaces: FilePlace[];
   maxKindOrder: number;
-  maxStatusOrder: number;
 }
 
 /**
- * 按导入前的本机资料库算怎么合并，不写文档。类型、状态：先比 id，再比名字（同名几条取排序最靠前的）；
+ * 按导入前的本机资料库算怎么合并，不写文档。类型：先比 id，再比名字（同名几条取排序最靠前的）；
  * 地点：先比 id，再比高德 poi_id，从不按名字。都对不上就新建，沿用文件里的 id。
  */
 function planMerge(local: LibraryView, file: PlanFile["library"]): Merge {
   const merge: Merge = {
     kindIds: new Map(),
-    statusIds: new Map(),
     placeIds: new Map(),
     newKinds: [],
-    newStatuses: [],
     newPlaces: [],
     maxKindOrder: maxOrder(local.kinds.values()),
-    maxStatusOrder: maxOrder(local.statuses.values()),
   };
 
   for (const kind of file.kinds) {
     const match = local.kinds.has(kind.id) ? kind.id : firstByName(local.kinds.values(), kind.name);
     if (match === null) merge.newKinds.push(kind);
     else if (match !== kind.id) merge.kindIds.set(kind.id, match);
-  }
-  for (const status of file.statuses) {
-    const match = local.statuses.has(status.id) ? status.id : firstByName(local.statuses.values(), status.name);
-    if (match === null) merge.newStatuses.push(status);
-    else if (match !== status.id) merge.statusIds.set(status.id, match);
   }
   for (const place of file.places) {
     const poiId = amapPoiId(place.providers);
@@ -239,13 +207,11 @@ function planMerge(local: LibraryView, file: PlanFile["library"]): Merge {
 }
 
 function usedLibraryIds(planDoc: Y.Doc) {
-  const used = { kinds: new Set<string>(), statuses: new Set<string>(), places: new Set<string>() };
+  const used = { kinds: new Set<string>(), places: new Set<string>() };
   for (const block of planDoc.getMap<YMap>("blocks").values()) {
     const kindId = block.get("kind_id");
-    const statusId = block.get("status_id");
     const placeIds = block.get("place_ids");
     if (typeof kindId === "string") used.kinds.add(kindId);
-    if (typeof statusId === "string") used.statuses.add(statusId);
     if (placeIds instanceof Y.Array) {
       for (const id of placeIds.toArray()) if (typeof id === "string") used.places.add(id);
     }
@@ -257,21 +223,14 @@ function usedLibraryIds(planDoc: Y.Doc) {
   return used;
 }
 
+/** 第 1 版文件里还有 statuses，不读。 */
 function parseLibrary(value: unknown): PlanFile["library"] | null {
-  if (!isObject(value) || !Array.isArray(value.kinds) || !Array.isArray(value.statuses) || !Array.isArray(value.places)) {
-    return null;
-  }
+  if (!isObject(value) || !Array.isArray(value.kinds) || !Array.isArray(value.places)) return null;
   const kinds: FileKind[] = [];
   for (const item of value.kinds) {
     if (!isObject(item) || typeof item.id !== "string" || typeof item.name !== "string" || !isFiniteNumber(item.order)) return null;
     if (!validateField("color", item.color).ok || typeof item.layer !== "number" || !validateField("layer", item.layer).ok) return null;
     kinds.push({ id: item.id, name: item.name, color: item.color as string, layer: item.layer, order: item.order });
-  }
-  const statuses: FileStatus[] = [];
-  for (const item of value.statuses) {
-    if (!isObject(item) || typeof item.id !== "string" || typeof item.name !== "string" || !isFiniteNumber(item.order)) return null;
-    if (!validateField("color", item.color).ok) return null;
-    statuses.push({ id: item.id, name: item.name, color: item.color as string, order: item.order });
   }
   const places: FilePlace[] = [];
   for (const item of value.places) {
@@ -287,7 +246,7 @@ function parseLibrary(value: unknown): PlanFile["library"] | null {
       providers: item.providers,
     });
   }
-  return { kinds, statuses, places };
+  return { kinds, places };
 }
 
 function remapField(entry: YMap, field: string, ids: ReadonlyMap<string, string>): void {

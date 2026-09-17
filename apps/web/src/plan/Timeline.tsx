@@ -71,7 +71,7 @@ interface TimelineProps {
   library: Y.Doc;
   plan: PlanView;
   libraryView: LibraryView;
-  /** 按状态筛选；没开是 undefined */
+  /** 筛选；没开是 undefined */
   filter?: StatsFilter;
   /** 每件事的开销格摘要（按筛选算过）：快捷条上的「开销」、块上写的开销用 */
   moneyCells: Map<string, MoneyCell>;
@@ -624,7 +624,7 @@ function Segment({
       data-track={item.track}
       data-lane={item.lane}
       data-depth={item.depth}
-      data-pending={block.status.id === "pending"}
+      data-checked={block.checked}
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
       data-lifted={lifted ? true : undefined}

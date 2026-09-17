@@ -21,7 +21,7 @@ import {
 } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状态、填开销、按住复制拖到第二天、删除", async ({ page }) => {
+test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 划掉再取消、填开销、按住复制拖到第二天、删除", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 2);
   const day1Table = page.getByRole("table", { name: DAY1 });
@@ -49,11 +49,13 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状�
   expect(barBox.y).toBeGreaterThanOrEqual(segBox.y + segBox.height - 1);
   await shot(page, "01-quick-bar");
 
-  // 改状态：两下点完，横条变实线，还选中着
-  await bar.getByRole("button", { name: "状态：待定" }).click();
-  await page.getByRole("dialog", { name: "选择状态" }).getByRole("button", { name: "已确认", exact: true }).click();
-  await expect(bar.getByRole("button", { name: "状态：已确认" })).toBeFocused();
-  await expect(segment(day1, "西湖")).toHaveAttribute("data-pending", "false");
+  // 划掉再取消：一下一个，横条跟着变，还选中着、焦点留在按钮上
+  const strike = bar.getByRole("button", { name: "划掉", exact: true });
+  await strike.click();
+  await expect(segment(day1, "西湖")).toHaveAttribute("data-checked", "true");
+  await expect(strike).toBeFocused();
+  await strike.click();
+  await expect(segment(day1, "西湖")).toHaveAttribute("data-checked", "false");
 
   // 填开销：小框里填 300 回车
   await bar.getByRole("button", { name: "开销：填开销" }).click();
@@ -181,10 +183,9 @@ test("手机上：竖条选中后，快捷条固定在屏幕底部", async ({ pa
   expect(844 - (barBox.y + barBox.height)).toBeLessThan(24);
   await shot(page, "05-phone-quick-bar");
 
-  // 手机上也是两下改完状态
-  await bar.getByRole("button", { name: "状态：待定" }).click();
-  await page.getByRole("dialog", { name: "选择状态" }).getByRole("button", { name: "已确认", exact: true }).click();
-  await expect(bar.getByRole("button", { name: "状态：已确认" })).toBeVisible();
+  // 手机上也是一下划掉
+  await bar.getByRole("button", { name: "划掉", exact: true }).click();
+  await expect(bar.getByRole("button", { name: "划掉", exact: true })).toHaveAttribute("aria-pressed", "true");
 
   // 栏里没排时间的那一件：快捷条上没有「复制」
   await addBlocks(page, table, ["河坊街"]);

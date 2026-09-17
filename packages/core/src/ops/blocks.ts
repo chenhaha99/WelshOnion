@@ -39,7 +39,6 @@ interface BlockBasics {
   baseId: string;
   kindId: string;
   title: string;
-  statusId?: string;
   placeIds?: string[];
   subtitle?: string;
   createdBy?: string;
@@ -73,9 +72,7 @@ export function addBlock(planDoc: Y.Doc, library: Y.Doc, input: AddBlockInput): 
   if (invalid) return fail(invalid);
   const base = basesOf(planDoc).get(input.baseId);
   if (!base) return fail({ code: "NOT_FOUND", id: input.baseId });
-  const statusId = input.statusId ?? "pending";
-  const missing = missingInLibrary(library, { kindId: input.kindId, statusId });
-  if (missing) return fail({ code: "NOT_FOUND", id: missing });
+  if (!library.getMap("kinds").has(input.kindId)) return fail({ code: "NOT_FOUND", id: input.kindId });
 
   const blockId = newId();
   planDoc.transact(() => {
@@ -83,7 +80,6 @@ export function addBlock(planDoc: Y.Doc, library: Y.Doc, input: AddBlockInput): 
     blocksOf(planDoc).set(blockId, block);
     block.set("start_base_id", input.baseId);
     block.set("kind_id", input.kindId);
-    block.set("status_id", statusId);
     block.set("title", input.title);
     block.set("created_by", input.createdBy ?? "me");
     block.set("place_ids", Y.Array.from(input.placeIds ?? []));
@@ -108,9 +104,8 @@ export function updateBlock(planDoc: Y.Doc, library: Y.Doc, blockId: string, pat
   if (invalid) return fail(invalid);
   const block = blocksOf(planDoc).get(blockId);
   if (!block) return fail({ code: "NOT_FOUND", id: blockId });
-  if (patch.kind_id !== undefined) {
-    const missing = missingInLibrary(library, { kindId: patch.kind_id });
-    if (missing) return fail({ code: "NOT_FOUND", id: missing });
+  if (patch.kind_id !== undefined && !library.getMap("kinds").has(patch.kind_id)) {
+    return fail({ code: "NOT_FOUND", id: patch.kind_id });
   }
 
   // 自驾油费：「自驾、有距离、设了每公里成本」这次刚凑齐、块上还没有交通类的钱，就在同一步里挂上
@@ -168,27 +163,7 @@ export function deleteBlock(planDoc: Y.Doc, library: Y.Doc, blockId: string): Op
   return done();
 }
 
-export function setBlockStatus(
-  planDoc: Y.Doc,
-  library: Y.Doc,
-  blockIds: readonly string[],
-  statusId: string,
-): OpResult {
-  const missing = missingInLibrary(library, { statusId });
-  if (missing) return fail({ code: "NOT_FOUND", id: missing });
-  const blocks = blocksOf(planDoc);
-  const absent = blockIds.find((id) => !blocks.has(id));
-  if (absent !== undefined) return fail({ code: "NOT_FOUND", id: absent });
-
-  planDoc.transact(() => {
-    for (const id of blockIds) {
-      blocks.get(id)?.set("status_id", statusId);
-    }
-  }, LOCAL_ORIGIN);
-  return done();
-}
-
-/** 一组块一次勾上或取消勾，一步撤销：勾上存 true，取消勾删掉键。有块找不到就一个都不改。 */
+/** 一组块一次划掉或取消划掉，一步撤销：划掉存 true，取消就删掉键。有块找不到就一个都不改。 */
 export function setBlockChecked(planDoc: Y.Doc, blockIds: readonly string[], checked: boolean): OpResult {
   const blocks = blocksOf(planDoc);
   const absent = blockIds.find((id) => !blocks.has(id));
@@ -344,12 +319,6 @@ export function moveUndated(
 
 function slotValue(slot: SlotChoice): Slot | null {
   return slot === "day" ? null : slot;
-}
-
-function missingInLibrary(library: Y.Doc, ids: { kindId?: string; statusId?: string }): string | null {
-  if (ids.kindId !== undefined && !library.getMap("kinds").has(ids.kindId)) return ids.kindId;
-  if (ids.statusId !== undefined && !library.getMap("statuses").has(ids.statusId)) return ids.statusId;
-  return null;
 }
 
 function removeFromAllUndated(planDoc: Y.Doc, blockIds: readonly string[]): void {

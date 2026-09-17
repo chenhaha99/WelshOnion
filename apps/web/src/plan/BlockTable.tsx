@@ -9,7 +9,6 @@ import {
   type LibraryView,
   type PlanView,
   type StatsFilter,
-  type StatusView,
 } from "@welshonion/core";
 import { useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent } from "react";
 import type * as Y from "yjs";
@@ -24,12 +23,12 @@ import { linkableExpenses } from "./expense-links";
 import { MoneyEditor } from "./MoneyEditor";
 import { moneyCellEmpty, moneyCellLabel, moneyCellNote, type MoneyCell } from "./money-cells";
 import { useOpenBlock } from "./open-block";
-import { KindPicker, StatusPicker } from "./pickers";
+import { KindPicker } from "./pickers";
 import { TimeEditor } from "./TimeEditor";
 import { zoneTimeLabel } from "./zone-time";
 
 const DELETED_COLOR = "#9aa3ad";
-const COLUMN_COUNT = 6;
+const COLUMN_COUNT = 5;
 
 interface BlockTableProps {
   doc: Y.Doc;
@@ -41,13 +40,13 @@ interface BlockTableProps {
   dayLabel: string;
   /** 全计划的开销格摘要，按块 id */
   moneyCells: ReadonlyMap<string, MoneyCell>;
-  /** 按状态筛选；没开是 undefined */
+  /** 筛选；没开是 undefined */
   filter?: StatsFilter;
   /** 这天一行都不剩时把焦点交出去（落到这天的菜单按钮） */
   onEmptyFocus: () => void;
 }
 
-/** 焦点最后在哪一行、这一行的哪个位置（读屏名里「：」前面那段，比如「状态：」「这件事的操作」）。 */
+/** 焦点最后在哪一行、这一行的哪个位置（读屏名里「：」前面那段，比如「类型：」「这件事的操作」）。 */
 interface FocusSpot {
   blockId: string;
   index: number;
@@ -56,7 +55,7 @@ interface FocusSpot {
 
 /**
  * 一天的安排表：一行一个块，末尾「加一件事」。带筛选时只画通过的块，写「筛掉了 N 件」。
- * 一行消失（改状态被筛掉、删除）而焦点掉到页面最外面时，焦点落到下一行的同一个位置，没有下一行就上一行，都没有就交给这天的组头。
+ * 一行消失（划掉、改类型被筛掉，删除）而焦点掉到页面最外面时，焦点落到下一行的同一个位置，没有下一行就上一行，都没有就交给这天的组头。
  */
 export function BlockTable({
   doc,
@@ -105,9 +104,7 @@ export function BlockTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleIds]);
   const kinds = [...libraryView.kinds.values()].sort(byOrder);
-  const statuses = [...libraryView.statuses.values()].sort(byOrder);
   const countKindUsing = (kindId: string) => countBlocksUsing(plan, { kindId });
-  const countStatusUsing = (statusId: string) => countBlocksUsing(plan, { statusId });
 
   return (
     // 外层是量宽度的容器：放不下 42rem 的表格时，index.css 把一行换成一张卡
@@ -117,7 +114,6 @@ export function BlockTable({
           <tr>
             <th>标题</th>
             <th>类型</th>
-            <th>状态</th>
             <th>时间</th>
             <th>开销</th>
             <th>操作</th>
@@ -133,10 +129,8 @@ export function BlockTable({
               block={block}
               date={date}
               kinds={kinds}
-              statuses={statuses}
               followerCount={followersOf(plan, libraryView, block.id).length}
               countKindUsing={countKindUsing}
-              countStatusUsing={countStatusUsing}
               moneyCell={moneyCells.get(block.id)}
             />
           ))}
@@ -172,11 +166,9 @@ interface BlockRowProps {
   block: BlockView;
   date: string;
   kinds: KindView[];
-  statuses: StatusView[];
   /** 删除时会被一起带走的块数 */
   followerCount: number;
   countKindUsing: (kindId: string) => number;
-  countStatusUsing: (statusId: string) => number;
   /** 这块的开销格摘要；一笔开销都没挂就是 undefined */
   moneyCell: MoneyCell | undefined;
 }
@@ -188,10 +180,8 @@ function BlockRow({
   block,
   date,
   kinds,
-  statuses,
   followerCount,
   countKindUsing,
-  countStatusUsing,
   moneyCell,
 }: BlockRowProps) {
   const [timeOpen, setTimeOpen] = useState(false);
@@ -239,16 +229,16 @@ function BlockRow({
       <tr
         ref={row}
         data-block-id={block.id}
-        data-pending={block.status.id === "pending"}
+        data-checked={block.checked}
         className="block-row"
         style={{ "--kind-color": color, "--indent": indent } as CSSProperties}
       >
         <td data-indent={indent}>
-          {/* 勾在标题前面、同一格里（不另加一列：窄屏卡片按列的位置摆） */}
+          {/* 「划掉」的勾选框在标题前面、同一格里（不另加一列：窄屏卡片按列的位置摆） */}
           <div className="flex items-center gap-1">
             <input
               type="checkbox"
-              aria-label="勾"
+              aria-label="划掉"
               className="block-check"
               checked={block.checked}
               onChange={(event) => setBlockChecked(doc, [block.id], event.target.checked)}
@@ -273,9 +263,6 @@ function BlockRow({
         </td>
         <td className="w-32">
           <KindPicker doc={doc} library={library} block={block} kinds={kinds} countUsing={countKindUsing} />
-        </td>
-        <td className="w-28">
-          <StatusPicker doc={doc} library={library} block={block} statuses={statuses} countUsing={countStatusUsing} />
         </td>
         <td className="w-40">
           <button
@@ -347,7 +334,7 @@ function byOrder(a: { order: number }, b: { order: number }): number {
   return a.order - b.order;
 }
 
-/** 读屏名里「：」前面那段当位置：「状态：待定」「状态：已确认」是同一个位置。 */
+/** 读屏名里「：」前面那段当位置：「类型：游玩」「类型：餐饮」是同一个位置。 */
 function controlKey(label: string): string {
   const colon = label.indexOf("：");
   return colon === -1 ? label : label.slice(0, colon + 1);

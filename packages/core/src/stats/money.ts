@@ -82,13 +82,6 @@ export function fillProgress(plan: PlanView, filter?: StatsFilter): FillProgress
   return { expenseCount, filledCount, blocksWithoutMoney, unfilledByKind };
 }
 
-/** 按状态数块，给「N 件事里 M 件已确认」用。 */
-export function statusCounts(plan: PlanView, filter?: StatsFilter): ReadonlyMap<string, number> {
-  const counts = new Map<string, number>();
-  for (const block of filteredBlocks(plan, filter)) addTo(counts, block.status.id, 1);
-  return counts;
-}
-
 function earliestDay(expense: ExpenseView, plan: PlanView, dayOrder: ReadonlyMap<string, number>): string | null {
   let earliest: { baseId: string; order: number } | null = null;
   for (const blockId of expense.block_ids) {

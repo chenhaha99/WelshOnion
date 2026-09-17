@@ -1,5 +1,5 @@
 /**
- * 资料库操作：类型、状态、地点（跨计划共用）。
+ * 资料库操作：类型、地点（跨计划共用）。
  * 资料库文档没有撤销管理器，所以这些写入不进撤销。
  */
 import * as Y from "yjs";
@@ -19,11 +19,6 @@ export interface KindPatch {
   name?: string;
   color?: string;
   layer?: number;
-}
-
-export interface StatusPatch {
-  name?: string;
-  color?: string;
 }
 
 export interface AddPlaceInput {
@@ -76,43 +71,26 @@ export function updateKind(library: Y.Doc, kindId: string, patch: KindPatch): Op
   const checks: Checks = [];
   if (patch.color !== undefined) checks.push(["color", patch.color]);
   if (patch.layer !== undefined) checks.push(["layer", patch.layer]);
-  return updateEntry(library, "kinds", kindId, patch, checks);
+  const invalid = firstInvalidField(checks);
+  if (invalid) return fail(invalid);
+  const kind = entriesOf(library, "kinds").get(kindId);
+  if (!kind) return fail({ code: "NOT_FOUND", id: kindId });
+  library.transact(() => {
+    for (const [key, value] of Object.entries(patch)) {
+      if (value !== undefined) kind.set(key, value);
+    }
+  }, LOCAL_ORIGIN);
+  return done();
 }
 
 /** 不检查有没有块在用：在用的块读出来是「已删除的类型」。 */
 export function deleteKind(library: Y.Doc, kindId: string): OpResult {
-  return deleteEntry(library, "kinds", kindId);
-}
-
-export function addStatus(library: Y.Doc, input: { name: string; color: string }): OpResult<{ statusId: string }> {
-  const invalid = firstInvalidField([["color", input.color]]);
-  if (invalid) return fail(invalid);
-  const statuses = entriesOf(library, "statuses");
-
-  const statusId = newId();
-  const order = maxNumber(statuses, "order") + 1;
-  library.transact(() => {
-    statuses.set(
-      statusId,
-      new Y.Map<unknown>([
-        ["name", input.name],
-        ["color", input.color],
-        ["builtin", false],
-        ["order", order],
-      ]),
-    );
-  }, LOCAL_ORIGIN);
-  return ok({ statusId });
-}
-
-export function updateStatus(library: Y.Doc, statusId: string, patch: StatusPatch): OpResult {
-  const checks: Checks = [];
-  if (patch.color !== undefined) checks.push(["color", patch.color]);
-  return updateEntry(library, "statuses", statusId, patch, checks);
-}
-
-export function deleteStatus(library: Y.Doc, statusId: string): OpResult {
-  return deleteEntry(library, "statuses", statusId);
+  const kinds = entriesOf(library, "kinds");
+  const kind = kinds.get(kindId);
+  if (!kind) return fail({ code: "NOT_FOUND", id: kindId });
+  if (kind.get("builtin") === true) return fail({ code: "BUILTIN" });
+  library.transact(() => kinds.delete(kindId), LOCAL_ORIGIN);
+  return done();
 }
 
 export function addPlace(library: Y.Doc, input: AddPlaceInput): OpResult<{ placeId: string }> {
@@ -159,34 +137,6 @@ export function updatePlace(library: Y.Doc, placeId: string, patch: PlacePatch):
   return done();
 }
 
-function updateEntry(
-  library: Y.Doc,
-  collection: "kinds" | "statuses",
-  id: string,
-  patch: KindPatch | StatusPatch,
-  checks: Checks,
-): OpResult {
-  const invalid = firstInvalidField(checks);
-  if (invalid) return fail(invalid);
-  const entry = entriesOf(library, collection).get(id);
-  if (!entry) return fail({ code: "NOT_FOUND", id });
-  library.transact(() => {
-    for (const [key, value] of Object.entries(patch)) {
-      if (value !== undefined) entry.set(key, value);
-    }
-  }, LOCAL_ORIGIN);
-  return done();
-}
-
-function deleteEntry(library: Y.Doc, collection: "kinds" | "statuses", id: string): OpResult {
-  const entries = entriesOf(library, collection);
-  const entry = entries.get(id);
-  if (!entry) return fail({ code: "NOT_FOUND", id });
-  if (entry.get("builtin") === true) return fail({ code: "BUILTIN" });
-  library.transact(() => entries.delete(id), LOCAL_ORIGIN);
-  return done();
-}
-
 function maxNumber(entries: Y.Map<YMap>, field: "layer" | "order"): number {
   let max = 0;
   for (const entry of entries.values()) {
@@ -196,6 +146,6 @@ function maxNumber(entries: Y.Map<YMap>, field: "layer" | "order"): number {
   return max;
 }
 
-function entriesOf(library: Y.Doc, collection: "kinds" | "statuses" | "places"): Y.Map<YMap> {
+function entriesOf(library: Y.Doc, collection: "kinds" | "places"): Y.Map<YMap> {
   return library.getMap<YMap>(collection);
 }

@@ -3,7 +3,7 @@ import { openPlanSettings, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 // 选项和「改名」这类按钮的名字会互相包含，按名字找一律精确匹配
-test("类型和状态：选择器里新建并用上 → 设置里改色、删除 → 新建状态 → 键盘 → 手机", async ({ page }) => {
+test("类型：选择器里新建并用上 → 设置里改色、删除 → 键盘 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -52,7 +52,7 @@ test("类型和状态：选择器里新建并用上 → 设置里改色、删除
 
   // 到设置里改颜色：设置里写着这个计划用了几件
   const settingsButton = page.getByRole("button", { name: "计划设置", exact: true });
-  const settings = await openPlanSettings(page, "类型和状态");
+  const settings = await openPlanSettings(page, "类型");
   const kindManager = settings.getByRole("group", { name: "类型的管理" });
   await expect(settings.getByText("所有计划共用", { exact: false })).toBeVisible();
   await expect(kindManager.getByText("这个计划里 2 件在用").first()).toBeVisible();
@@ -72,15 +72,6 @@ test("类型和状态：选择器里新建并用上 → 设置里改色、删除
   await expect(rows.nth(0).getByRole("button", { name: "类型：已删除的类型" })).toBeVisible();
   await expect(rows.nth(1).getByRole("button", { name: "类型：已删除的类型" })).toBeVisible();
   await shot(page, "05-after-delete");
-
-  // 新建状态「已预订」并用上
-  await rows.nth(0).getByRole("button", { name: "状态：待定" }).click();
-  const statusPicker = page.getByRole("dialog", { name: "选择状态" });
-  await statusPicker.getByRole("button", { name: "+ 新建状态" }).click();
-  await statusPicker.getByRole("textbox", { name: "名字" }).fill("已预订");
-  await page.keyboard.press("Enter");
-  await expect(rows.nth(0).getByRole("button", { name: "状态：已预订" })).toBeVisible();
-  await expect(rows.nth(0)).toHaveAttribute("data-pending", "false");
 
   // 只用键盘：回车打开，Esc 关掉，焦点回到按钮
   const secondKind = rows.nth(1).getByRole("button", { name: /^类型：/ });

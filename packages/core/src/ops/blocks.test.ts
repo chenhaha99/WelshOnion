@@ -10,7 +10,6 @@ import {
   resizeBlock,
   setBlockChecked,
   setBlockIndent,
-  setBlockStatus,
   setBlockTimed,
   setBlockUndated,
   updateBlock,
@@ -66,10 +65,9 @@ describe("新建块", () => {
     expect(block?.get("start_base_id")).toBe("d1");
     expect(block?.get("start_minute")).toBe(780);
     expect(block?.get("duration_min")).toBe(300);
-    expect(block?.get("status_id")).toBe("pending");
     expect(block?.get("created_by")).toBe("me");
     expect((block?.get("place_ids") as Y.Array<string>).toArray()).toEqual([]);
-    for (const key of ["slot", "layer", "indent"]) {
+    for (const key of ["slot", "layer", "indent", "status_id", "checked"]) {
       expect(block?.has(key), key).toBe(false);
     }
   });
@@ -217,40 +215,14 @@ describe("删除块", () => {
   });
 });
 
-describe("批量改状态", () => {
+describe("批量划掉", () => {
   beforeEach(() => {
     addBase(planDoc, "d1", "2026-10-01");
     seedBlock(planDoc, "k1", { start_base_id: "d1", start_minute: 540, duration_min: 60 });
     seedBlock(planDoc, "k2", { start_base_id: "d1", start_minute: 660, duration_min: 60 });
   });
 
-  test("一次改两个", () => {
-    const undo = createPlanUndoManager(planDoc);
-
-    expect(setBlockStatus(planDoc, library, ["k1", "k2"], "confirmed").ok).toBe(true);
-    expect([raw("k1")?.get("status_id"), raw("k2")?.get("status_id")]).toEqual(["confirmed", "confirmed"]);
-
-    undo.undo();
-    expect([raw("k1")?.get("status_id"), raw("k2")?.get("status_id")]).toEqual(["pending", "pending"]);
-  });
-
-  test("状态不存在", () => {
-    expect(setBlockStatus(planDoc, library, ["k1"], "booked")).toEqual({
-      ok: false,
-      error: { code: "NOT_FOUND", id: "booked" },
-    });
-    expect(raw("k1")?.get("status_id")).toBe("pending");
-  });
-});
-
-describe("批量勾", () => {
-  beforeEach(() => {
-    addBase(planDoc, "d1", "2026-10-01");
-    seedBlock(planDoc, "k1", { start_base_id: "d1", start_minute: 540, duration_min: 60 });
-    seedBlock(planDoc, "k2", { start_base_id: "d1", start_minute: 660, duration_min: 60 });
-  });
-
-  test("一次勾两个，一步撤销", () => {
+  test("一次划掉两个，一步撤销", () => {
     const undo = createPlanUndoManager(planDoc);
 
     expect(setBlockChecked(planDoc, ["k1", "k2"], true).ok).toBe(true);
@@ -260,7 +232,7 @@ describe("批量勾", () => {
     expect([raw("k1")?.has("checked"), raw("k2")?.has("checked")]).toEqual([false, false]);
   });
 
-  test("取消勾删掉键", () => {
+  test("取消划掉删掉键", () => {
     setBlockChecked(planDoc, ["k1"], true);
 
     expect(setBlockChecked(planDoc, ["k1"], false).ok).toBe(true);

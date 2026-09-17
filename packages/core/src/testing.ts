@@ -17,7 +17,7 @@ export function addBase(doc: Y.Doc, id: string, date: string, tz = "Asia/Shangha
 export function addBlock(doc: Y.Doc, id: string, fields: Fields) {
   const { note, place_ids, ...rest } = fields;
   const block = new Y.Map<unknown>(
-    Object.entries({ kind_id: "sight", status_id: "pending", title: id, created_by: "me", ...rest }),
+    Object.entries({ kind_id: "sight", title: id, created_by: "me", ...rest }),
   );
   block.set("place_ids", Y.Array.from((place_ids as string[] | undefined) ?? []));
   if (typeof note === "string") {

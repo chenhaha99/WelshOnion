@@ -68,7 +68,7 @@ export function UndatedTray({
               data-undated-chip
               data-block-id={block.id}
               data-slot={block.slot ?? "day"}
-              data-pending={block.status.id === "pending"}
+              data-checked={block.checked}
               data-dragging={draggingId === block.id ? true : undefined}
               style={{ ...kindColor(plan, block.id), ...(indent > 0 ? { marginLeft: indent * INDENT_PX } : {}) }}
               onPointerDown={(event) => onChipPointerDown(event, block.id)}
@@ -165,7 +165,7 @@ export function UndatedStrip({
               data-undated-chip
               data-block-id={block.id}
               data-slot={block.slot ?? "day"}
-              data-pending={block.status.id === "pending"}
+              data-checked={block.checked}
               data-dragging={draggingId === block.id ? true : undefined}
               className="shrink-0"
               style={{ ...kindColor(plan, block.id), ...(indent > 0 ? { marginLeft: indent * INDENT_PX } : {}) }}

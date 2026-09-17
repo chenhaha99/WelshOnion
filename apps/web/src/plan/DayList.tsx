@@ -66,19 +66,18 @@ interface OpenedBlock {
 }
 
 /**
- * 计划页的主体：一行筛选（按状态、按类型），下面「时间轴」「列表」「总览」三个视图切换着看。
+ * 计划页的主体：一行筛选（按类型、只看没划掉的），下面「时间轴」「列表」「总览」三个视图切换着看。
  * 列表视图是每天一个组头和它的安排表（或按类型分组）；总览视图是开销总览和占比。计划里至少有一天。
- * 按下了哪些状态、类型、怎么分组只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、开销、占比和每一天；
+ * 按下了哪些类型、只看没划掉的、怎么分组只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、开销、占比和每一天；
  * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：几个视图打开的是同一个，切换视图面板留着。
  */
 export function DayList({ doc, library, libraryView, plan, planId, searchAnchor, onSearchClosed }: DayListProps) {
   const bases = plan.bases;
   const labels = dayRowLabels(bases);
 
-  // 状态、类型删掉了，按下过的就不算了
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  // 类型删掉了，按下过的就不算了
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
-  // 只看没勾的（勾的含义用户自己定；行中拿来看「还剩什么」）
+  // 只看没划掉的（划掉的含义用户自己定；行中拿来看「还剩什么」）
   const [onlyUnchecked, setOnlyUnchecked] = useState(false);
   // 按天还是按类型分组，也只在这一页
   const [grouping, setGrouping] = useState<"day" | "kind">("day");
@@ -150,16 +149,14 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     });
   };
 
-  const statusKey = selectedStatuses.filter((id) => libraryView.statuses.has(id)).join(",");
   const kindKey = selectedKinds.filter((id) => libraryView.kinds.has(id)).join(",");
   const filter = useMemo<StatsFilter | undefined>(() => {
-    if (statusKey === "" && kindKey === "" && !onlyUnchecked) return undefined;
+    if (kindKey === "" && !onlyUnchecked) return undefined;
     return {
-      ...(statusKey === "" ? {} : { statusIds: statusKey.split(",") }),
       ...(kindKey === "" ? {} : { kindIds: kindKey.split(",") }),
       ...(onlyUnchecked ? { onlyUnchecked: true as const } : {}),
     };
-  }, [statusKey, kindKey, onlyUnchecked]);
+  }, [kindKey, onlyUnchecked]);
   // 开销格的摘要整份算一次：共用的开销要看全计划才知道显示在哪块
   const cells = useMemo(() => moneyCells(plan, filter), [plan, filter]);
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
@@ -209,7 +206,6 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const jumpToBlock = (blockId: string) => {
     const block = plan.blocks.get(blockId)!;
     if (!passesFilter(block, filter)) {
-      setSelectedStatuses([]);
       setSelectedKinds([]);
       setOnlyUnchecked(false);
     }
@@ -227,29 +223,17 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     target.focus();
   }, [jump]);
 
-  const statuses = [...libraryView.statuses.values()].sort((a, b) => a.order - b.order);
   const kinds = usedKinds(plan, libraryView, filter?.kindIds ?? []);
-  // 一件事都没有时筛不掉任何东西、只有一种类型时按下去也筛不掉：那一排不出现；按下过就一直留着，不然取消不了
-  const showStatusFilter = plan.blocks.size > 0 || (filter?.statusIds?.length ?? 0) > 0;
+  // 只用到一种类型时按下去也筛不掉：那一排不出现；按下过就一直留着，不然取消不了
   const showKindFilter = kinds.length >= 2 || (filter?.kindIds?.length ?? 0) > 0;
-  // 一件勾上的都没有时按下去也筛不掉：不出现；按下过就留着
+  // 一件划掉的都没有时按下去也筛不掉：不出现；按下过就留着
   const showCheckFilter = onlyUnchecked || [...plan.blocks.values()].some((block) => block.checked);
 
   return (
     <section className="flex flex-col gap-4">
       {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
-      {(showStatusFilter || showKindFilter || showCheckFilter) && (
+      {(showKindFilter || showCheckFilter) && (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          {showStatusFilter && (
-            <FilterChips
-              label="按状态筛选"
-              lead="只看"
-              clearLabel="全部显示"
-              items={statuses}
-              selected={filter?.statusIds ?? []}
-              onChange={setSelectedStatuses}
-            />
-          )}
           {showKindFilter && (
             <FilterChips
               label="按类型筛选"
@@ -267,7 +251,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
               className={chipClass(onlyUnchecked)}
               onClick={() => setOnlyUnchecked((value) => !value)}
             >
-              只看没勾的
+              只看没划掉的
             </button>
           )}
         </div>

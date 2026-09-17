@@ -8,8 +8,8 @@ export {
   seedLibrary,
 } from "./schema";
 export type { DocumentErrorCode } from "./schema";
-export { PRESET_KINDS, PRESET_STATUSES } from "./presets";
-export type { PresetKind, PresetStatus } from "./presets";
+export { PRESET_KINDS } from "./presets";
+export type { PresetKind } from "./presets";
 export { newId } from "./ids";
 export { validateField } from "./validate";
 export type { ValidatedField, ValidationResult } from "./validate";
@@ -19,7 +19,7 @@ export type { OpError, OpResult } from "./ops/result";
 export { createPlan, deletePlan, duplicatePlan, renamePlan, setPlanSettings, touchPlan } from "./ops/plan";
 export type { PlanSettingsPatch } from "./ops/plan";
 export { exportPlan, importPlan, parsePlanFile } from "./ops/plan-file";
-export type { FileKind, FilePlace, FileStatus, ImportPlanOptions, PlanFile } from "./ops/plan-file";
+export type { FileKind, FilePlace, ImportPlanOptions, PlanFile } from "./ops/plan-file";
 export {
   addDayInTz,
   deleteDay,
@@ -42,7 +42,6 @@ export {
   resizeBlock,
   setBlockChecked,
   setBlockIndent,
-  setBlockStatus,
   setBlockTimed,
   setBlockUndated,
   updateBlock,
@@ -61,23 +60,14 @@ export type { DropTarget } from "./ops/drag";
 export { addExpense, deleteExpense, linkExpense, unlinkExpense, updateExpense } from "./ops/expenses";
 export type { AddExpenseInput, ExpensePatch } from "./ops/expenses";
 export { backfillFuel, findFuelBackfill, fuelCostCents } from "./ops/fuel";
-export {
-  addKind,
-  addPlace,
-  addStatus,
-  deleteKind,
-  deleteStatus,
-  updateKind,
-  updatePlace,
-  updateStatus,
-} from "./ops/library";
-export type { AddPlaceInput, KindPatch, PlacePatch, ProviderData, StatusPatch } from "./ops/library";
+export { addKind, addPlace, deleteKind, updateKind, updatePlace } from "./ops/library";
+export type { AddPlaceInput, KindPatch, PlacePatch, ProviderData } from "./ops/library";
 export { countBlocksUsing } from "./usage";
 export { expensePasses, passesFilter } from "./stats/filter";
 export type { StatsFilter } from "./stats/filter";
 export { dayFacts, occupiedMinutes, timeByKind, unscheduledMinutes } from "./stats/time";
 export type { DayFacts, TimeByKindOptions } from "./stats/time";
-export { expenseTotalCents, fillProgress, moneySummary, statusCounts } from "./stats/money";
+export { expenseTotalCents, fillProgress, moneySummary } from "./stats/money";
 export type { FillProgress, MoneySummary } from "./stats/money";
 export { readLibrary, readPlan, reconcilePlanIndex, summarizePlan } from "./read";
 export type {
@@ -95,8 +85,6 @@ export type {
   PlanSummary,
   PlanView,
   Slot,
-  StatusRef,
-  StatusView,
   TransportMode,
   UndatedGroups,
 } from "./read";

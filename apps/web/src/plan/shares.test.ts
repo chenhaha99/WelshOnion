@@ -2,18 +2,17 @@ import {
   addBlock,
   addExpense,
   addKind,
-  addStatus,
   deleteKind,
-  deleteStatus,
   initLibraryDoc,
   initPlanDoc,
   readLibrary,
   readPlan,
-  setBlockStatus,
+  setBlockChecked,
   setDays,
   updateKind,
   type LibraryView,
   type PlanView,
+  type StatsFilter,
 } from "@welshonion/core";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
@@ -22,7 +21,6 @@ import {
   moneyRowLabel,
   moneyShares,
   sharePercents,
-  statusLine,
   timeEmptyLabel,
   timeRowLabel,
   timeShares,
@@ -34,7 +32,7 @@ interface Built {
   oct1: string;
 }
 
-/** 在内存里搭一个 10.1 一天的计划，按需放块、开销、状态，返回读出来的视图。 */
+/** 在内存里搭一个 10.1 一天的计划，按需放块、开销，返回读出来的视图。 */
 function build(setup: (built: Built) => void): { plan: PlanView; library: LibraryView } {
   const library = new Y.Doc();
   initLibraryDoc(library);
@@ -220,49 +218,19 @@ describe("时间的占比", () => {
   });
 });
 
-describe("各状态几件", () => {
-  it("每个状态各有几件，含自建状态，0 件的不写", () => {
-    const { plan, library } = build((built) => {
-      const booked = addStatus(built.library, { name: "已预订", color: "#6b8fb0" });
-      if (!booked.ok) throw new Error("建状态失败");
-      undated(built, "西湖", "sight");
-      undated(built, "灵隐寺", "sight");
-      setBlockStatus(built.plan, built.library, [undated(built, "午饭", "food")], "confirmed");
-      setBlockStatus(built.plan, built.library, [undated(built, "酒店", "lodging")], booked.value.statusId);
-    });
-    expect(statusLine(plan, library)).toBe("4 件事：待定 2 · 已确认 1 · 已预订 1");
-  });
-
-  it("被删掉的状态合在最后", () => {
-    const { plan, library } = build((built) => {
-      const booked = addStatus(built.library, { name: "已预订", color: "#6b8fb0" });
-      if (!booked.ok) throw new Error("建状态失败");
-      undated(built, "西湖", "sight");
-      setBlockStatus(built.plan, built.library, [undated(built, "酒店", "lodging")], booked.value.statusId);
-      deleteStatus(built.library, booked.value.statusId);
-    });
-    expect(statusLine(plan, library)).toBe("2 件事：待定 1 · 已删除的状态 1");
-  });
-
-  it("一个块都没有", () => {
-    const { plan, library } = build(() => {});
-    expect(statusLine(plan, library)).toBe("还没有事");
-  });
-});
-
 describe("带筛选", () => {
-  const confirmedOnly = { statusIds: ["confirmed"] };
+  const onlyUnchecked: StatsFilter = { onlyUnchecked: true };
 
   function linkedMoney(built: Built, blockId: string, kindId: string, cents: number): void {
     const result = addExpense(built.plan, built.library, { title: kindId, amountCents: cents, kindId, blockIds: [blockId] });
     if (!result.ok) throw new Error("建开销失败");
   }
 
-  /** 西湖（游玩，待定）挂 300 元；晚饭（餐饮，已确认）挂 120 元；另有不挂块的 600 元。 */
+  /** 西湖（游玩，划掉了）挂 300 元；晚饭（餐饮）挂 120 元；另有不挂块的 600 元。 */
   function lakeAndDinner(built: Built): void {
     const lake = timed(built, "西湖", "sight", 540, 180);
     const dinner = timed(built, "晚饭", "food", 1080, 60);
-    setBlockStatus(built.plan, built.library, [dinner], "confirmed");
+    setBlockChecked(built.plan, [lake], true);
     linkedMoney(built, lake, "sight", 30000);
     linkedMoney(built, dinner, "food", 12000);
     money(built, "other", 60000);
@@ -270,7 +238,7 @@ describe("带筛选", () => {
 
   it("开销：挂在被筛掉的块上的不算，不挂块的照算", () => {
     const { plan, library } = build(lakeAndDinner);
-    expect(moneyShares(plan, library, confirmedOnly).rows.map(moneyRowLabel)).toEqual([
+    expect(moneyShares(plan, library, onlyUnchecked).rows.map(moneyRowLabel)).toEqual([
       "其他 ¥600 · 83%",
       "餐饮 ¥120 · 17%",
     ]);
@@ -278,11 +246,6 @@ describe("带筛选", () => {
 
   it("时间：被筛掉的块不占时间", () => {
     const { plan, library } = build(lakeAndDinner);
-    expect(timeShares(plan, library, false, confirmedOnly).rows.map(timeRowLabel)).toEqual(["餐饮 1 小时 · 100%"]);
-  });
-
-  it("各状态几件：只数通过筛选的块", () => {
-    const { plan, library } = build(lakeAndDinner);
-    expect(statusLine(plan, library, confirmedOnly)).toBe("1 件事：已确认 1");
+    expect(timeShares(plan, library, false, onlyUnchecked).rows.map(timeRowLabel)).toEqual(["餐饮 1 小时 · 100%"]);
   });
 });

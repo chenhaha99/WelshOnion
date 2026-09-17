@@ -14,7 +14,7 @@ async function expectOnScreen(locator: Locator, name: string, width: number, hei
 const EMPTY_PLAN = "还没有事。加了事、排上时间，就会画在这里";
 const NOT_TIMED = "排上时间的事会画在这里：把上面没排时间的事拖到时间轴上，或者点开它排时间";
 
-test("电脑上新计划的第一屏：是时间轴、看得见「加第一件事」、没有「只看」、最右的刻度不伸出横轴→ 点了焦点到时间轴第 1 天的「加一件事」→ 加一件换回原来那句 → 列表里第 1 天的「加一件事」也在第一屏 → 页顶「计划设置」", async ({
+test("电脑上新计划的第一屏：是时间轴、看得见「加第一件事」、没有筛选那一行、最右的刻度不伸出横轴→ 点了焦点到时间轴第 1 天的「加一件事」→ 加一件换回原来那句 → 列表里第 1 天的「加一件事」也在第一屏 → 页顶「计划设置」", async ({
   page,
 }) => {
   const errors = watchErrors(page);
@@ -29,7 +29,7 @@ test("电脑上新计划的第一屏：是时间轴、看得见「加第一件�
   const addFirst = timeline.getByRole("button", { name: "加第一件事" });
   await expect(timeline.getByText(EMPTY_PLAN, { exact: true })).toBeVisible();
   await expectOnScreen(addFirst, "加第一件事", 1280, 800);
-  await expect(page.getByRole("group", { name: "按状态筛选" })).toHaveCount(0);
+  await expect(page.getByRole("group", { name: "按类型筛选" })).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath("01-desktop-first-screen.png") });
 
   // 表头最右的刻度不伸出横轴（没事的凌晨和深夜折起时是「21」，按下「0–24 点」时是「24」，右对齐到那条线）
@@ -45,7 +45,6 @@ test("电脑上新计划的第一屏：是时间轴、看得见「加第一件�
   await expectOnScreen(timelineAdd, "时间轴 10.1 的「加一件事」", 1280, 800);
   await page.keyboard.type("西湖");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("group", { name: "按状态筛选" })).toBeVisible();
   await expect(timeline.getByText(NOT_TIMED, { exact: true })).toBeVisible();
   await expect(timeline.getByRole("group", { name: "没排时间" }).first().getByRole("button", { name: "西湖 10.1 整天" })).toBeVisible();
   await expect(addFirst).toHaveCount(0);

@@ -19,7 +19,7 @@ async function schedule(page: Page, row: Locator, title: string, start: string, 
   await expect(editor).toBeHidden();
 }
 
-test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消失 → 填开销 → 定没定 → 手机", async ({ page }) => {
+test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消失 → 填开销 → 划掉了几件 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -35,14 +35,13 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   const card = page.getByRole("region", { name: "占比" });
   const moneyPart = card.getByRole("group", { name: "开销的占比" });
   const timePart = card.getByRole("group", { name: "时间的占比" });
-  const statusPart = card.getByRole("group", { name: "定没定" });
   const baseLayer = timePart.getByRole("checkbox", { name: "算上最底层的类型（停留）" });
 
-  // 空计划：三句「还没有」，没有勾选。占比卡片在第三个视图「总览」里
+  // 空计划：两句「还没有」，没有勾选，不写划掉了几件。占比卡片在第三个视图「总览」里
   await showView(page, "总览");
   await expect(moneyPart).toContainText("还没有填了金额的开销");
   await expect(timePart).toContainText("还没有排了时间的事");
-  await expect(statusPart).toContainText("还没有事");
+  await expect(card.getByText(/^划掉/)).toHaveCount(0);
   await expect(timePart.getByRole("checkbox")).toHaveCount(0);
   await shot(page, "01-empty");
 
@@ -58,7 +57,6 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await expect(rows).toHaveCount(3);
   await pickKind(page, rows.nth(0), "停留");
   await pickKind(page, rows.nth(2), "餐饮");
-  await inOverview(page, () => expect(statusPart).toContainText("3 件事：待定 3"));
 
   // 先只排停留：勾选出现，时间写「除了停留」
   await schedule(page, rows.nth(0), "在杭州", "00:00", "24");
@@ -137,11 +135,10 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await expect(moneyPart.locator("[data-share-segment]")).toHaveCount(3);
   await shot(page, "04-money");
 
-  // 定没定：西湖改成已确认
+  // 划掉了几件：划掉西湖
   await showView(page, "列表");
-  await rows.nth(1).getByRole("button", { name: /^状态：/ }).click();
-  await page.getByRole("dialog", { name: "选择状态" }).getByRole("button", { name: "已确认", exact: true }).click();
-  await inOverview(page, () => expect(statusPart).toContainText("3 件事：待定 2 · 已确认 1"));
+  await rows.nth(1).getByRole("checkbox", { name: "划掉" }).check();
+  await inOverview(page, () => expect(card.getByText("划掉 1 件，共 3 件")).toBeVisible());
 
   await page.setViewportSize({ width: 390, height: 844 });
   await showView(page, "总览");

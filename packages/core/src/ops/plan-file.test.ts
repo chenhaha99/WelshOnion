@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc } from "../schema";
-import { addBlock, setBlockChecked, setBlockStatus, updateBlock, type AddBlockInput } from "./blocks";
+import { addBlock, setBlockChecked, updateBlock, type AddBlockInput } from "./blocks";
 import { setDays } from "./days";
 import { setBlockLayer } from "./drag";
 import { addExpense } from "./expenses";
@@ -20,7 +20,7 @@ function newLibrary(): Y.Doc {
   return library;
 }
 
-/** 直接写一条自定义类型、状态、地点，好指定 id 和顺序。 */
+/** 直接写一条自定义类型、地点，好指定 id 和顺序。 */
 function putKind(library: Y.Doc, id: string, name: string, color: string, order: number, layer = 2) {
   library.getMap("kinds").set(
     id,
@@ -28,18 +28,6 @@ function putKind(library: Y.Doc, id: string, name: string, color: string, order:
       ["name", name],
       ["color", color],
       ["layer", layer],
-      ["builtin", false],
-      ["order", order],
-    ]),
-  );
-}
-
-function putStatus(library: Y.Doc, id: string, name: string, color: string, order: number) {
-  library.getMap("statuses").set(
-    id,
-    new Y.Map<unknown>([
-      ["name", name],
-      ["color", color],
       ["builtin", false],
       ["order", order],
     ]),
@@ -80,16 +68,14 @@ function exportAndParse(library: Y.Doc, planDoc: Y.Doc): PlanFile {
 }
 
 describe("导出一个计划", () => {
-  test("只放用到的类型、状态、地点，不放计划索引", () => {
+  test("只放用到的类型、地点，不放计划索引", () => {
     const library = newLibrary();
     putKind(library, "k-work", "工作", "#8a9bb5", 100);
     putKind(library, "k-hike", "徒步", "#9aa7c7", 101);
-    putStatus(library, "s-booked", "已订", "#6f9a82", 100);
     const { planDoc, baseIds } = newPlan(library);
     const meeting = block(planDoc, library, {
       baseId: baseIds[0]!,
       kindId: "k-work",
-      statusId: "s-booked",
       title: "开会",
       minute: 540,
       duration: 60,
@@ -99,11 +85,10 @@ describe("导出一个计划", () => {
     const file = JSON.parse(exportPlan(library, planDoc, EXPORTED));
 
     expect(Object.keys(file)).toEqual(["format", "version", "exported_at", "plan", "library"]);
-    expect(file).toMatchObject({ format: "welshonion-plan", version: 1, exported_at: EXPORTED });
-    expect(Object.keys(file.library)).toEqual(["kinds", "statuses", "places"]);
+    expect(file).toMatchObject({ format: "welshonion-plan", version: 2, exported_at: EXPORTED });
+    expect(Object.keys(file.library)).toEqual(["kinds", "places"]);
     expect(file.library.kinds.map((kind: { id: string }) => kind.id)).toEqual(["food", "k-work"]);
     expect(file.library.kinds[1]).toEqual({ id: "k-work", name: "工作", color: "#8a9bb5", layer: 2, order: 100 });
-    expect(file.library.statuses).toEqual([{ id: "s-booked", name: "已订", color: "#6f9a82", order: 100 }]);
     expect(file.library.places).toEqual([]);
   });
 
@@ -147,9 +132,9 @@ describe("读文件", () => {
     const { planDoc } = newPlan(library);
     const file = JSON.parse(exportPlan(library, planDoc, EXPORTED));
 
-    expect(parsePlanFile(JSON.stringify({ ...file, version: 2 }))).toEqual(TOO_NEW);
+    expect(parsePlanFile(JSON.stringify({ ...file, version: 3 }))).toEqual(TOO_NEW);
 
-    planDoc.getMap("meta").set("schema", 2);
+    planDoc.getMap("meta").set("schema", 3);
     expect(parsePlanFile(exportPlan(library, planDoc, EXPORTED))).toEqual(TOO_NEW);
   });
 
@@ -177,13 +162,12 @@ describe("读文件", () => {
 });
 
 describe("导入到新的计划文档", () => {
-  /** 10.2：已确认、勾上了的「西湖」备注「带伞」挂 30000 分门票，「明清宫苑」叠在「横店」上；10.1 上午两件没排时间的事。 */
+  /** 10.2：划掉了的「西湖」备注「带伞」挂 30000 分门票，「明清宫苑」叠在「横店」上；10.1 上午两件没排时间的事。 */
   function kansai() {
     const library = newLibrary();
     const { planDoc, baseIds } = newPlan(library);
     const [oct1, oct2, oct3] = baseIds;
     const lake = block(planDoc, library, { baseId: oct2!, kindId: "sight", title: "西湖", minute: 540, duration: 120 });
-    setBlockStatus(planDoc, library, [lake], "confirmed");
     setBlockChecked(planDoc, [lake], true);
     updateBlock(planDoc, library, lake, { note: "带伞" });
     addExpense(planDoc, library, { title: "门票", amountCents: 30000, blockIds: [lake] });
@@ -240,6 +224,51 @@ describe("导入到新的计划文档", () => {
     const undo = createPlanUndoManager(target);
 
     importPlan(newLibrary(), target, exportAndParse(library, planDoc), { planId: "p9", now: IMPORTED });
+
+    expect(undo.canUndo()).toBe(false);
+  });
+});
+
+describe("读第 1 版文件", () => {
+  /** 第 1 版文件：资料库部分带状态；计划文档是结构版本 1，每件事有 status_id，「西湖」勾上了。 */
+  function fileV1(): PlanFile {
+    const library = newLibrary();
+    const { planDoc, baseIds } = newPlan(library);
+    const lake = block(planDoc, library, { baseId: baseIds[1]!, kindId: "sight", title: "西湖", minute: 540, duration: 120 });
+    block(planDoc, library, { baseId: baseIds[1]!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
+    setBlockChecked(planDoc, [lake], true);
+    planDoc.transact(() => {
+      planDoc.getMap("meta").set("schema", 1);
+      for (const entry of planDoc.getMap<Y.Map<unknown>>("blocks").values()) entry.set("status_id", "s-booked");
+    });
+    const file = JSON.parse(exportPlan(library, planDoc, EXPORTED));
+    const statuses = [{ id: "s-booked", name: "已订", color: "#6f9a82", order: 100 }];
+    const parsed = parsePlanFile(JSON.stringify({ ...file, version: 1, library: { ...file.library, statuses } }));
+    if (!parsed.ok) throw new Error("读文件失败");
+    return parsed.value;
+  }
+
+  test("忽略状态，勾上的导进来就是划掉，结构版本写成 2", () => {
+    const local = newLibrary();
+    const target = new Y.Doc();
+
+    expect(importPlan(local, target, fileV1(), { planId: "p9", now: IMPORTED }).ok).toBe(true);
+
+    expect([...target.getMap<Y.Map<unknown>>("blocks").values()].some((entry) => entry.has("status_id"))).toBe(false);
+    expect(target.getMap("meta").get("schema")).toBe(2);
+    const blocks = [...readPlan(target, readLibrary(local)).blocks.values()];
+    expect(blocks.map((entry) => [entry.title, entry.checked])).toEqual([
+      ["西湖", true],
+      ["午饭", false],
+    ]);
+    expect(local.share.has("statuses")).toBe(false);
+  });
+
+  test("迁移不进撤销", () => {
+    const target = new Y.Doc();
+    const undo = createPlanUndoManager(target);
+
+    importPlan(newLibrary(), target, fileV1(), { planId: "p9", now: IMPORTED });
 
     expect(undo.canUndo()).toBe(false);
   });
@@ -316,41 +345,6 @@ describe("导入时合并资料库", () => {
     expect(onlyBlock(imported).kind.id).toBe("k-a");
   });
 
-  test("状态对不上就新建：沿用文件里的 id，排在最后", () => {
-    const file = fileUsing(
-      (library) => putStatus(library, "s-a", "已订", "#6f9a82", 100),
-      (planDoc, library, dayId) => {
-        block(planDoc, library, { baseId: dayId, kindId: "sight", statusId: "s-a", title: "西湖", minute: 540, duration: 60 });
-      },
-    );
-    const local = newLibrary();
-
-    const imported = importInto(local, file);
-
-    const statuses = readLibrary(local).statuses;
-    expect(statuses.get("s-a")).toMatchObject({ name: "已订", color: "#6f9a82", builtin: false });
-    const others = [...statuses.values()].filter((status) => status.id !== "s-a");
-    expect(statuses.get("s-a")!.order).toBeGreaterThan(Math.max(...others.map((status) => status.order)));
-    expect(onlyBlock(imported).status.id).toBe("s-a");
-  });
-
-  test("状态按名字合并", () => {
-    const file = fileUsing(
-      (library) => putStatus(library, "s-a", "已订", "#8a9bb5", 100),
-      (planDoc, library, dayId) => {
-        block(planDoc, library, { baseId: dayId, kindId: "sight", statusId: "s-a", title: "西湖", minute: 540, duration: 60 });
-      },
-    );
-    const local = newLibrary();
-    putStatus(local, "s-b", "已订", "#6f9a82", 100);
-
-    const imported = importInto(local, file);
-
-    expect(readLibrary(local).statuses.has("s-a")).toBe(false);
-    expect(readLibrary(local).statuses.get("s-b")?.color).toBe("#6f9a82");
-    expect(onlyBlock(imported).status.id).toBe("s-b");
-  });
-
   test("预设按 id：本机改过的名字不动，不多出一条", () => {
     const file = fileUsing(
       () => {},
@@ -399,14 +393,12 @@ describe("导入时合并资料库", () => {
     const file = fileUsing(
       (library) => {
         putKind(library, "k-a", "工作", "#8a9bb5", 100);
-        putStatus(library, "s-a", "已订", "#6f9a82", 100);
         putPlace(library, "pl-a", "酒店", null);
       },
       (planDoc, library, dayId) => {
         const meeting = block(planDoc, library, {
           baseId: dayId,
           kindId: "k-a",
-          statusId: "s-a",
           title: "开会",
           minute: 540,
           duration: 60,
@@ -417,7 +409,7 @@ describe("导入时合并资料库", () => {
     const local = newLibrary();
     const sizes = () => {
       const view = readLibrary(local);
-      return [view.kinds.size, view.statuses.size, view.places.size];
+      return [view.kinds.size, view.places.size];
     };
 
     importInto(local, file);

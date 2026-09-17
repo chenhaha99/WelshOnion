@@ -22,14 +22,6 @@ export interface KindView {
   order: number;
 }
 
-export interface StatusView {
-  id: string;
-  name: string;
-  color: string;
-  builtin: boolean;
-  order: number;
-}
-
 export interface PlaceView {
   id: string;
   name: string;
@@ -51,14 +43,12 @@ export interface PlanIndexEntryView {
 
 export interface LibraryView {
   kinds: ReadonlyMap<string, KindView>;
-  statuses: ReadonlyMap<string, StatusView>;
   places: ReadonlyMap<string, PlaceView>;
   planIndex: ReadonlyMap<string, PlanIndexEntryView>;
 }
 
-/** 指不到资料库时保留原 id 并标记已删除，界面据此显示「已删除的类型 / 状态」。 */
+/** 指不到资料库时保留原 id 并标记已删除，界面据此显示「已删除的类型」。 */
 export type KindRef = { id: string; deleted: true } | (KindView & { deleted: false });
-export type StatusRef = { id: string; deleted: true } | (StatusView & { deleted: false });
 
 export interface PlanSettingsView {
   name: string;
@@ -80,10 +70,9 @@ export interface BlockView {
   duration_min: number | null;
   slot: Slot | null;
   kind: KindRef;
-  status: StatusRef;
   layer: number | null;
   indent: number | null;
-  /** 勾：含义由用户自己定；存的是 true 才算勾上 */
+  /** 划掉：含义由用户自己定；存的是 true 才算划掉 */
   checked: boolean;
   title: string;
   place_ids: string[];
@@ -147,17 +136,6 @@ export function readLibrary(doc: Y.Doc): LibraryView {
     });
   }
 
-  const statuses = new Map<string, StatusView>();
-  for (const [id, map] of sortedEntries(doc.getMap<Record_>("statuses"))) {
-    statuses.set(id, {
-      id,
-      name: required(map, "name"),
-      color: required(map, "color"),
-      builtin: map.get("builtin") === true,
-      order: required(map, "order"),
-    });
-  }
-
   const places = new Map<string, PlaceView>();
   for (const [id, map] of sortedEntries(doc.getMap<Record_>("places"))) {
     const providers = map.get("providers");
@@ -184,7 +162,7 @@ export function readLibrary(doc: Y.Doc): LibraryView {
     });
   }
 
-  return { kinds, statuses, places, planIndex };
+  return { kinds, places, planIndex };
 }
 
 export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
@@ -223,11 +201,10 @@ export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
       duration_min: optional(map, "duration_min"),
       slot: optional(map, "slot"),
       kind: kindRef(library, required(map, "kind_id")),
-      status: statusRef(library, required(map, "status_id")),
       // 同时存了 layer 和 indent 时，排了时间只认 layer，没排时间只认 indent
       layer: startMinute === null ? null : optional(map, "layer"),
       indent: startMinute === null ? optional(map, "indent") : null,
-      // 旧文档没有这个键：读成没勾，不用迁移
+      // 没划掉就不存这个键
       checked: map.get("checked") === true,
       title: required(map, "title"),
       place_ids: places.map((place) => place.id),
@@ -327,11 +304,6 @@ function groupBySlot(order: string[], blocks: ReadonlyMap<string, BlockView>): U
 function kindRef(library: LibraryView, id: string): KindRef {
   const kind = library.kinds.get(id);
   return kind ? { ...kind, deleted: false } : { id, deleted: true };
-}
-
-function statusRef(library: LibraryView, id: string): StatusRef {
-  const status = library.statuses.get(id);
-  return status ? { ...status, deleted: false } : { id, deleted: true };
 }
 
 /** 唯一把「键不存在」读成 null 的地方。 */

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc, initPlanDoc } from "../schema";
 import { addBase, addBlock, addExpense } from "../testing";
-import { fillProgress, moneySummary, statusCounts } from "./money";
+import { fillProgress, moneySummary } from "./money";
 
 let library: Y.Doc;
 let planDoc: Y.Doc;
@@ -26,25 +26,12 @@ function plain(map: ReadonlyMap<string, number>): Record<string, number> {
 }
 
 /** 南浔两天的开销 */
-function nanxunMoney(statuses: Record<string, string> = {}) {
+function nanxunMoney() {
   planDoc.getMap("plan").set("traveler_count", 2);
-  const status = (id: string) => statuses[id] ?? "pending";
-  addBlock(planDoc, "drive", {
-    start_base_id: "d1",
-    start_minute: 540,
-    duration_min: 180,
-    kind_id: "transit",
-    status_id: status("drive"),
-  });
-  addBlock(planDoc, "inn", {
-    start_base_id: "d1",
-    start_minute: 1320,
-    duration_min: 600,
-    kind_id: "lodging",
-    status_id: status("inn"),
-  });
-  addBlock(planDoc, "xiaolz", { start_base_id: "d2", slot: "afternoon", kind_id: "sight", status_id: status("xiaolz") });
-  addBlock(planDoc, "zhangsm", { start_base_id: "d2", slot: "afternoon", kind_id: "sight", status_id: status("zhangsm") });
+  addBlock(planDoc, "drive", { start_base_id: "d1", start_minute: 540, duration_min: 180, kind_id: "transit" });
+  addBlock(planDoc, "inn", { start_base_id: "d1", start_minute: 1320, duration_min: 600, kind_id: "lodging" });
+  addBlock(planDoc, "xiaolz", { start_base_id: "d2", slot: "afternoon", kind_id: "sight" });
+  addBlock(planDoc, "zhangsm", { start_base_id: "d2", slot: "afternoon", kind_id: "sight" });
   addExpense(planDoc, "fuel", { amount_cents: 10560, basis: "total", kind_id: "transit", block_ids: ["drive"] });
   addExpense(planDoc, "inn-fee", { amount_cents: 48000, basis: "total", kind_id: "lodging", block_ids: ["inn"] });
   addExpense(planDoc, "ticket", {
@@ -116,22 +103,13 @@ describe("每天花多少", () => {
 });
 
 describe("筛选对钱的影响", () => {
-  test("只看已确认的", () => {
-    nanxunMoney({ drive: "confirmed", zhangsm: "confirmed" });
-
-    const summary = moneySummary(plan(), { statusIds: ["confirmed"] });
-
-    expect(summary.totalCents).toBe(42560);
-    expect(summary.byKind.has("lodging")).toBe(false);
-  });
-
-  test("只看没勾的：看开销挂的块，不挂块的不受影响", () => {
+  test("只看没划掉的：看开销挂的块，不挂块的不受影响", () => {
     nanxunMoney();
     planDoc.getMap<Y.Map<unknown>>("blocks").get("drive")?.set("checked", true);
 
     const summary = moneySummary(plan(), { onlyUnchecked: true });
 
-    // 油费只挂在勾上的开车上：不算；民宿 48000 + 联票 20000 + 保险 12000（不挂块）
+    // 油费只挂在划掉的开车上：不算；民宿 48000 + 联票 20000 + 保险 12000（不挂块）
     expect(summary.byKind.has("transit")).toBe(false);
     expect(summary.totalCents).toBe(80000);
   });
@@ -166,18 +144,5 @@ describe("填写进度", () => {
     expect(progress.filledCount).toBe(2);
     expect(progress.blocksWithoutMoney).toBe(2);
     expect(plain(progress.unfilledByKind)).toEqual({ food: 1, lodging: 1 });
-  });
-});
-
-describe("还剩多少没定", () => {
-  test("按状态数块", () => {
-    ["p1", "p2", "p3"].forEach((id, index) =>
-      addBlock(planDoc, id, { start_base_id: "d1", start_minute: 540 + index * 60, duration_min: 30, status_id: "pending" }),
-    );
-    ["c1", "c2"].forEach((id, index) =>
-      addBlock(planDoc, id, { start_base_id: "d1", start_minute: 900 + index * 60, duration_min: 30, status_id: "confirmed" }),
-    );
-
-    expect(plain(statusCounts(plan()))).toEqual({ pending: 3, confirmed: 2 });
   });
 });

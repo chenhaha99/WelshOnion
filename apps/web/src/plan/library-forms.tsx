@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 /*
- * 类型、状态共用的几个小表单：改名、挑颜色、改层、删除确认、新建。
- * 两处用：安排表里的选择器（只用新建）、计划设置里的「类型和状态」（全用）。
+ * 类型用的几个小表单：改名、挑颜色、改层、删除确认、新建。
+ * 两处用：安排表里的选择器（只用新建）、计划设置里的「类型」（全用）。
  */
 
 /** 一排低饱和色块：新建和改颜色都从这里选，新建默认第一个。 */
@@ -19,13 +19,13 @@ export const SWATCHES = [
   "#9aa3ad",
 ] as const;
 
-/** 一项能改的东西：名字、颜色、层（只有类型有） */
+/** 一项能改的东西：名字、颜色、层 */
 export interface LibraryItem {
   id: string;
   name: string;
   color: string;
   builtin: boolean;
-  layer?: number;
+  layer: number;
 }
 
 /** 面板里原地展开的东西一出现就滚进可见范围：面板有最大高度，展开在底下的按钮会被藏在滚动区外面。 */
@@ -92,9 +92,7 @@ export function Swatches({ chosen, onPick }: { chosen: string; onPick: (color: s
 
 /** 改层的选项是现有类型用到的各层，从底到上，写明每层有哪些类型。 */
 export function LayerChoices({ options, onPick }: { options: LibraryItem[]; onPick: (layer: number) => void }) {
-  const layers = [...new Set(options.flatMap((option) => (option.layer === undefined ? [] : [option.layer])))].sort(
-    (a, b) => a - b,
-  );
+  const layers = [...new Set(options.map((option) => option.layer))].sort((a, b) => a - b);
   return (
     <div className="flex flex-col px-1 pb-2">
       {layers.map((layer) => (

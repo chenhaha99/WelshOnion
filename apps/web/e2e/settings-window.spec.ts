@@ -25,13 +25,13 @@ test("计划设置是居中的窗口：页顶四个图标 → 左边两块分开
 
   // 左边竖着两块，打开停在「基本」：出发日期这类不常改的在这儿，主版面上没有
   const sections = settings.getByRole("tablist", { name: "设置分块" });
-  await expect(sections.getByRole("tab")).toHaveText(["基本", "类型和状态"]);
+  await expect(sections.getByRole("tab")).toHaveText(["基本", "类型"]);
   await expect(sections.getByRole("tab", { name: "基本", selected: true })).toBeVisible();
   await expect(settings.getByLabel("出发日期")).toHaveValue("2026-10-01");
   await expect(settings.getByRole("group", { name: "类型的管理" })).toHaveCount(0);
 
-  // 切到「类型和状态」，把「游玩」改名
-  await sections.getByRole("tab", { name: "类型和状态" }).click();
+  // 切到「类型」，把「游玩」改名
+  await sections.getByRole("tab", { name: "类型", exact: true }).click();
   const kinds = settings.getByRole("group", { name: "类型的管理" });
   await expect(kinds.getByText("这个计划里 1 件在用").first()).toBeVisible();
   await kinds.getByRole("button", { name: "改名：游玩" }).click();

@@ -6,6 +6,7 @@ import {
   addExpense,
   addKind,
   deleteKind,
+  setBlockChecked,
   setBlockIndent,
   setBlockLayer,
   updateBlock,
@@ -49,8 +50,8 @@ function segmentOf(row: HTMLElement, title: string): HTMLElement {
 }
 
 function segmentData(segment: HTMLElement) {
-  const { from, to, track, lane, depth, pending } = segment.dataset;
-  return { from, to, track, lane, depth, pending };
+  const { from, to, track, lane, depth, checked } = segment.dataset;
+  return { from, to, track, lane, depth, checked };
 }
 
 /** 时间轴上面那条「没排时间」。 */
@@ -65,8 +66,8 @@ function chipNames(strip: HTMLElement): string[] {
   );
 }
 
-async function pressFilter(user: ReturnType<typeof userEvent.setup>, name: string): Promise<void> {
-  await user.click(within(await screen.findByRole("group", { name: "按状态筛选" })).getByRole("button", { name }));
+async function pressOnlyUnchecked(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
 }
 
 /** 「分组」里 name 这个按钮是不是按下的。 */
@@ -142,11 +143,12 @@ describe("块怎么画", () => {
     expect(segmentData(segmentOf(oct2, "民宿"))).toMatchObject({ track: "background", lane: "2", from: "0", to: "480" });
   });
 
-  it("颜色看类型、类型被删用灰色；待定虚线", async () => {
+  it("颜色看类型、类型被删用灰色；划掉的画成划掉的样子", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-      block(plan, library, { baseId: oct1!, kindId: "food", statusId: "confirmed", title: "午饭", minute: 720, duration: 60 });
+      const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+      setBlockChecked(plan, [lake], true);
+      block(plan, library, { baseId: oct1!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
       const camping = addKind(library, { name: "露营", color: "#6b8fb0" });
       if (!camping.ok) throw new Error("建类型失败");
       block(plan, library, { baseId: oct1!, kindId: camping.value.kindId, title: "营地", minute: 1080, duration: 120 });
@@ -156,23 +158,24 @@ describe("块怎么画", () => {
     const row = await timelineRow("10.1");
     const lake = segmentOf(row, "西湖");
     expect(lake.style.getPropertyValue("--kind-color")).toBe("#77a389");
-    expect(lake.dataset.pending).toBe("true");
+    expect(lake.dataset.checked).toBe("true");
     const lunch = segmentOf(row, "午饭");
     expect(lunch.style.getPropertyValue("--kind-color")).toBe("#c08d68");
-    expect(lunch.dataset.pending).toBe("false");
+    expect(lunch.dataset.checked).toBe("false");
     expect(segmentOf(row, "营地").style.getPropertyValue("--kind-color")).toBe("#9aa3ad");
   });
 
-  it("只看已确认的：只画通过筛选的块，重新分道", async () => {
+  it("只看没划掉的：只画通过筛选的块，重新分道", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-      block(plan, library, { baseId: oct1!, kindId: "sight", statusId: "confirmed", title: "游船", minute: 600, duration: 60 });
+      const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+      setBlockChecked(plan, [lake], true);
+      block(plan, library, { baseId: oct1!, kindId: "sight", title: "游船", minute: 600, duration: 60 });
     });
     expect(segmentData(segmentOf(await timelineRow("10.1"), "游船"))).toMatchObject({ lane: "2" });
 
-    await pressFilter(user, "已确认");
+    await pressOnlyUnchecked(user);
 
     await waitFor(async () => expect(within(await timeline()).queryByRole("button", { name: /^西湖 / })).toBeNull());
     expect(segmentData(segmentOf(await timelineRow("10.1"), "游船"))).toMatchObject({ lane: "1" });
@@ -180,40 +183,48 @@ describe("块怎么画", () => {
 });
 
 describe("没排时间的那一条", () => {
-  function listForOct1(plan: Y.Doc, library: Y.Doc): void {
+  /** 10.1：没排时间的「灵隐寺」（上午 2 小时）、「河坊街」（整天）、「宋城」（下午），排了时间的「西湖」；都是游玩。 */
+  function listForOct1(plan: Y.Doc, library: Y.Doc): { temple: string; street: string } {
     const [oct1] = daysFromOct1(plan, 1);
-    block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "morning", duration: 120 });
-    block(plan, library, { baseId: oct1!, kindId: "sight", title: "河坊街", slot: "day" });
-    block(plan, library, { baseId: oct1!, kindId: "sight", statusId: "confirmed", title: "宋城", slot: "afternoon" });
+    const temple = block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "morning", duration: 120 });
+    const street = block(plan, library, { baseId: oct1!, kindId: "sight", title: "河坊街", slot: "day" });
+    block(plan, library, { baseId: oct1!, kindId: "sight", title: "宋城", slot: "afternoon" });
     block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+    return { temple, street };
   }
 
-  it("按天、按整天上午下午晚上排，每件写日期；颜色和虚实同横条", async () => {
-    await openStoredPlan(listForOct1);
+  it("按天、按整天上午下午晚上排，每件写日期；颜色和划没划掉同横条", async () => {
+    await openStoredPlan((plan, library) => {
+      const { temple } = listForOct1(plan, library);
+      setBlockChecked(plan, [temple], true);
+    });
 
     await screen.findByRole("region", { name: "时间轴" });
-    expect(chipNames(tray())).toEqual(["河坊街 10.1 整天", "灵隐寺 10.1 上午 · 2 小时", "宋城 10.1 下午"]);
+    expect(chipNames(tray())).toEqual(["河坊街 10.1 整天", "灵隐寺 10.1 上午 · 2 小时 · 划掉了", "宋城 10.1 下午"]);
     const temple = within(tray())
-      .getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时" })
+      .getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时 · 划掉了" })
       .closest<HTMLElement>("[data-undated-chip]")!;
     expect(temple.style.getPropertyValue("--kind-color")).toBe("#77a389");
-    expect(temple.dataset.pending).toBe("true");
+    expect(temple.dataset.checked).toBe("true");
     const songcheng = within(tray())
       .getByRole("button", { name: "宋城 10.1 下午" })
       .closest<HTMLElement>("[data-undated-chip]")!;
-    expect(songcheng.dataset.pending).toBe("false");
+    expect(songcheng.dataset.checked).toBe("false");
   });
 
-  it("只看已确认的：条上也只剩通过筛选的", async () => {
+  it("只看没划掉的：条上也只剩没划掉的", async () => {
     const user = userEvent.setup();
-    await openStoredPlan(listForOct1);
+    await openStoredPlan((plan, library) => {
+      const { temple, street } = listForOct1(plan, library);
+      setBlockChecked(plan, [temple, street], true);
+    });
 
-    await pressFilter(user, "已确认");
+    await pressOnlyUnchecked(user);
 
     await waitFor(() => expect(chipNames(tray())).toEqual(["宋城 10.1 下午"]));
   });
 
-  it("点一下选中，快捷条上有类型、状态；详情从快捷条打开", async () => {
+  it("点一下选中，快捷条上有类型、没有状态；详情从快捷条打开", async () => {
     const user = userEvent.setup();
     await openStoredPlan(listForOct1);
 
@@ -223,13 +234,13 @@ describe("没排时间的那一条", () => {
 
     const bar = screen.getByRole("toolbar", { name: "「灵隐寺」的操作" });
     expect(within(bar).getByRole("button", { name: "类型：游玩" })).toBeTruthy();
-    expect(within(bar).getByRole("button", { name: "状态：待定" })).toBeTruthy();
+    expect(within(bar).queryByRole("button", { name: /^状态/ })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
 
     await user.click(within(bar).getByRole("button", { name: "详情…" }));
     const dialog = screen.getByRole("dialog", { name: "灵隐寺" });
     expect(within(dialog).getByLabelText("标题")).toHaveProperty("value", "灵隐寺");
-    // 类型、状态、时间都在快捷条上，气泡里不重复摆
+    // 类型、时间都在快捷条上，气泡里不重复摆
     expect(within(dialog).queryByRole("button", { name: "类型：游玩" })).toBeNull();
     expect(within(dialog).queryByRole("button", { name: "时间" })).toBeNull();
   });
@@ -282,8 +293,8 @@ describe("空的时候", () => {
     await waitFor(() => expect((document.activeElement as HTMLElement | null)?.getAttribute("aria-label")).toBe("加一件事"));
 
     await user.keyboard("西湖{Enter}");
-    // 加了第一件事，「只看」那一排才出来
-    await screen.findByRole("group", { name: "按状态筛选" });
+    // 加上了第一件事，「没排时间」那一条才出来
+    await screen.findByRole("group", { name: "没排时间" });
 
     const region = await timeline();
     expect(within(region).getByText(HINT)).toBeTruthy();
@@ -319,11 +330,12 @@ describe("空的时候", () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+      const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+      setBlockChecked(plan, [lake], true);
     });
     expect(within(await timeline()).queryByText(HINT)).toBeNull();
 
-    await pressFilter(user, "已确认");
+    await pressOnlyUnchecked(user);
 
     await waitFor(async () => expect(within(await timeline()).queryByRole("button", { name: /^西湖 / })).toBeNull());
     expect(within(await timeline()).queryByText(HINT)).toBeNull();
@@ -338,7 +350,6 @@ describe("点块看详情", () => {
       const inn = block(plan, library, {
         baseId: oct1!,
         kindId: "lodging",
-        statusId: "confirmed",
         title: "民宿",
         minute: 1320,
         duration: 600,
@@ -373,7 +384,7 @@ describe("点块看详情", () => {
     await user.click(screen.getByRole("button", { name: "详情…" }));
 
     const dialog = screen.getByRole("dialog", { name: "西湖" });
-    // 气泡里只有快捷条上没有的：标题、备注这些；时间、类型、状态、开销都在快捷条上
+    // 气泡里只有快捷条上没有的：标题、备注这些；时间、类型、开销都在快捷条上
     expect(within(dialog).getByLabelText("标题")).toHaveProperty("value", "西湖");
     expect(within(dialog).queryByRole("button", { name: "时间" })).toBeNull();
     expect(screen.queryByRole("button", { name: "在表里改" })).toBeNull();

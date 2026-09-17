@@ -58,8 +58,8 @@ function chipNames(container: HTMLElement): string[] {
   ].map((button) => button.getAttribute("aria-label") ?? "");
 }
 
-async function pressFilter(user: User, name: string): Promise<void> {
-  await user.click(within(await screen.findByRole("group", { name: "按状态筛选" })).getByRole("button", { name }));
+async function pressKind(user: User, name: string): Promise<void> {
+  await user.click(within(await screen.findByRole("group", { name: "按类型筛选" })).getByRole("button", { name }));
 }
 
 /** 在 container 里点「这天的操作」，再点菜单里的 item。 */
@@ -100,9 +100,13 @@ describe("在时间轴上加一件事", () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: oct1!, kindId: "sight", statusId: "confirmed", title: "西湖", minute: 540, duration: 180 });
+      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+      block(plan, library, { baseId: oct1!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
+      block(plan, library, { baseId: oct1!, kindId: "lodging", title: "民宿", minute: 1260, duration: 120 });
     });
-    await pressFilter(user, "已确认");
+    // 按下两个类型：新加的还是游玩，被筛掉
+    await pressKind(user, "住宿");
+    await pressKind(user, "餐饮");
 
     const row = await timelineRow("10.1");
     await user.type(await openAddBlock(user, row), "宋城{Enter}");
@@ -112,7 +116,7 @@ describe("在时间轴上加一件事", () => {
     expect(screen.queryByRole("group", { name: "没排时间" })).toBeNull();
 
     // 松开筛选：条上就有它了（点筛选时输入框当「点外面」收起来，那一句跟着没了）
-    await pressFilter(user, "已确认");
+    await pressKind(user, "全部类型");
     await waitFor(async () => expect(chipNames(await timeline())).toEqual(["宋城 10.1 整天"]));
     expect(screen.queryByText("刚加的「宋城」被筛掉了")).toBeNull();
   });

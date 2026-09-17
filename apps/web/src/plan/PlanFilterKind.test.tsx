@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { addBlock, addExpense, setBlockStatus, type AddBlockInput } from "@welshonion/core";
+import { addBlock, addExpense, setBlockChecked, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -12,6 +12,7 @@ import {
   daysFromOct1,
   moneyOverview,
   openDetails,
+  openOtherTab,
   openStoredPlan,
   showView,
 } from "./test-helpers";
@@ -23,10 +24,9 @@ afterEach(async () => {
 
 type User = ReturnType<typeof userEvent.setup>;
 
-function block(plan: Y.Doc, library: Y.Doc, input: AddBlockInput, statusId = "pending"): string {
+function block(plan: Y.Doc, library: Y.Doc, input: AddBlockInput): string {
   const result = addBlock(plan, library, input);
   if (!result.ok) throw new Error("建块失败");
-  if (statusId !== "pending") setBlockStatus(plan, library, [result.value.blockId], statusId);
   return result.value.blockId;
 }
 
@@ -50,6 +50,11 @@ function kindGroup(): HTMLElement {
 
 async function pressKind(user: User, name: string): Promise<void> {
   await user.click(within(await screen.findByRole("group", { name: "按类型筛选" })).getByRole("button", { name }));
+}
+
+/** 「只看没划掉的」：有划掉的事才出现。 */
+async function pressOnlyUnchecked(user: User): Promise<void> {
+  await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
 }
 
 async function filteredOutOf(day: string): Promise<string | null> {
@@ -128,17 +133,18 @@ describe("按类型筛选", () => {
     expect(within(tray).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["民宿 10.1 整天"]);
   });
 
-  it("和状态一起：两样都符合才显示", async () => {
+  it("和只看没划掉的一起：两样都符合才显示", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: oct1!, kindId: "lodging", title: "民宿", slot: "day" }, "confirmed");
-      block(plan, library, { baseId: oct1!, kindId: "lodging", title: "酒店", slot: "day" });
-      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" }, "confirmed");
+      block(plan, library, { baseId: oct1!, kindId: "lodging", title: "民宿", slot: "day" });
+      const hotel = block(plan, library, { baseId: oct1!, kindId: "lodging", title: "酒店", slot: "day" });
+      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
+      setBlockChecked(plan, [hotel], true);
     });
 
     await pressKind(user, "住宿");
-    await user.click(within(screen.getByRole("group", { name: "按状态筛选" })).getByRole("button", { name: "已确认" }));
+    await pressOnlyUnchecked(user);
 
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿"]));
     expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
@@ -194,7 +200,7 @@ describe("按类型筛选", () => {
     expect(within(kindGroup()).getByRole("button", { name: "住宿" }).getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("只按下住宿时加一件：建出来是住宿、待定，看得见", async () => {
+  it("只按下住宿时加一件：建出来是住宿、没划掉，看得见", async () => {
     const user = userEvent.setup();
     await openStoredPlan(threeKinds);
     await pressKind(user, "住宿");
@@ -205,21 +211,27 @@ describe("按类型筛选", () => {
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿", "酒店"]));
     const hotel = await blockRow("10.1", "酒店");
     expect(within(hotel).getByRole("button", { name: /^类型：/ }).getAttribute("aria-label")).toBe("类型：住宿");
-    expect(within(hotel).getByRole("button", { name: /^状态：/ }).getAttribute("aria-label")).toBe("状态：待定");
+    expect(hotel.dataset.checked).toBe("false");
     expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
   });
 
-  it("按下两个类型时加一件：还是游玩，被筛掉，写「包括刚加的」", async () => {
+  it("按下两个类型时加一件：建出来还是游玩、被筛掉，写「包括刚加的」，焦点还在「加一件事」", async () => {
     const user = userEvent.setup();
-    await openStoredPlan(threeKinds);
+    const planId = await openStoredPlan(threeKinds);
+    const other = await openOtherTab(planId);
     await pressKind(user, "住宿");
     await pressKind(user, "餐饮");
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿", "午饭"]));
 
-    await user.type(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");
+    const add = within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" });
+    await user.type(add, "河坊街{Enter}");
 
+    await waitFor(() =>
+      expect([...other.plan().blocks.values()].find((item) => item.title === "河坊街")?.kind.id).toBe("sight"),
+    );
     await waitFor(async () => expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件，包括刚加的「河坊街」"));
     expect(await blockTitles("10.1")).toEqual(["民宿", "午饭"]);
+    expect(document.activeElement).toBe(add);
   });
 });
 
@@ -288,5 +300,125 @@ describe("按类型筛选时的开销", () => {
 
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿"]));
     expect(screen.queryByText(/挂在被筛掉的事上/)).toBeNull();
+  });
+});
+
+describe("筛选作用到开销、占比和这天怎么样", () => {
+  it("开销的总览：挂在被筛掉的块上的开销不算，不属于任何一天不变", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
+      const lunch = block(plan, library, { baseId: oct1!, kindId: "sight", title: "午饭", slot: "day" });
+      setBlockChecked(plan, [lake], true);
+      money(plan, library, "门票", 30000, "sight", [lake]);
+      money(plan, library, "午饭钱", 12000, "sight", [lunch]);
+      money(plan, library, "签证", 60000, "other", []);
+    });
+
+    await pressOnlyUnchecked(user);
+    const overview = (await moneyOverview());
+    await waitFor(() =>
+      expect(overview.querySelector("[data-money-summary]")?.textContent).toBe("总额 ¥720 · 人均 ¥720 · 已填 2 / 共 2 笔"),
+    );
+    expect(within(overview).getByRole("button", { name: "不属于任何一天：¥600" })).toBeTruthy();
+  });
+
+  it("共用的开销显示在通过筛选的块上", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1, oct2] = daysFromOct1(plan, 2);
+      const first = block(plan, library, { baseId: oct1!, kindId: "lodging", title: "民宿", slot: "day" });
+      const second = block(plan, library, { baseId: oct2!, kindId: "lodging", title: "民宿", slot: "day" });
+      setBlockChecked(plan, [first], true);
+      money(plan, library, "民宿两晚", 50000, "lodging", [first, second]);
+    });
+
+    await pressOnlyUnchecked(user);
+    await waitFor(async () =>
+      expect((await blockRow("10.2", "民宿")).querySelector("[data-money-cell]")?.textContent).toBe("¥500"),
+    );
+  });
+
+  it("占比和这天怎么样", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+      block(plan, library, { baseId: oct1!, kindId: "food", title: "晚饭", minute: 1080, duration: 60 });
+      setBlockChecked(plan, [lake], true);
+    });
+
+    await pressOnlyUnchecked(user);
+    await waitFor(async () =>
+      expect((await dayRow("10.1")).querySelector("[data-day-facts]")?.textContent).toBe("18:00 起 · 19:00 收工"),
+    );
+    await showView("总览");
+    const card = screen.getByRole("region", { name: "占比" });
+    const time = within(card).getByRole("group", { name: "时间的占比" });
+    expect(within(time).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["餐饮 1 小时 · 100%"]);
+  });
+});
+
+describe("筛选开着时改块", () => {
+  /** 10.1：「西湖」「午饭」「灵隐寺」，都没排时间；「午饭」划掉了（有划掉的，「只看没划掉的」才出来）。 */
+  function threeThings(plan: Y.Doc, library: Y.Doc): void {
+    const [oct1] = daysFromOct1(plan, 1);
+    block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
+    const lunch = block(plan, library, { baseId: oct1!, kindId: "sight", title: "午饭", slot: "day" });
+    block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "day" });
+    setBlockChecked(plan, [lunch], true);
+  }
+
+  /** 列表里点这一行标题前面的「划掉」。 */
+  async function strike(user: User, title: string): Promise<void> {
+    await user.click(within(await blockRow("10.1", title)).getByRole("checkbox", { name: "划掉" }));
+  }
+
+  it("挨个划掉：这一行被筛掉，焦点落到下一行的「划掉」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(threeThings);
+
+    await pressOnlyUnchecked(user);
+    await strike(user, "西湖");
+    await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["灵隐寺"]));
+    expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
+    await waitFor(async () =>
+      expect(document.activeElement).toBe(
+        within(await blockRow("10.1", "灵隐寺")).getByRole("checkbox", { name: "划掉" }),
+      ),
+    );
+  });
+
+  it("最后一件也划掉了：焦点落到这天的菜单按钮", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(threeThings);
+
+    await pressOnlyUnchecked(user);
+    await strike(user, "西湖");
+    await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["灵隐寺"]));
+    await strike(user, "灵隐寺");
+    await waitFor(async () => expect(await blockTitles("10.1")).toEqual([]));
+    expect(await filteredOutOf("10.1")).toBe("筛掉了 3 件");
+    await waitFor(async () =>
+      expect(document.activeElement).toBe(within(await dayRow("10.1")).getByRole("button", { name: "这天的操作" })),
+    );
+  });
+
+  it("筛选变了就不再写「包括刚加的」", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(threeKinds);
+    // 新加的事没划掉，「只看没划掉的」挡不住它：按两个类型挡
+    await pressKind(user, "住宿");
+    await pressKind(user, "餐饮");
+    await user.type(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");
+    await waitFor(async () => expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件，包括刚加的「河坊街」"));
+
+    await user.click(within(kindGroup()).getByRole("button", { name: "全部类型" }));
+    await waitFor(async () => expect(await filteredOutOf("10.1")).toBeNull());
+    await pressKind(user, "住宿");
+    await pressKind(user, "餐饮");
+
+    await waitFor(async () => expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件"));
   });
 });

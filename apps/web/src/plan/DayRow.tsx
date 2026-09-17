@@ -16,7 +16,7 @@ interface DayRowProps {
   index: number;
   count: number;
   moneyCells: ReadonlyMap<string, MoneyCell>;
-  /** 按状态筛选；没开是 undefined */
+  /** 筛选；没开是 undefined */
   filter?: StatsFilter;
 }
 

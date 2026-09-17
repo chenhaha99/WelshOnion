@@ -15,14 +15,14 @@ test("复制计划：有块有开销的计划 → 列表里复制到明年 → �
   // 打开是时间轴：这份走查从安排表开始，先切到列表
   await showView(page, "列表");
 
-  // 源计划：10.1「西湖」已确认、挂 300 元
+  // 源计划：10.1「西湖」划掉了、挂 300 元
   const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const lake = table.locator("tr[data-block-id]").first();
   await table.getByRole("textbox", { name: "加一件事" }).fill("西湖");
   await page.keyboard.press("Enter");
-  await lake.getByRole("button", { name: /^状态：/ }).click();
-  await page.getByRole("dialog", { name: "选择状态" }).getByRole("button", { name: "已确认", exact: true }).click();
+  await lake.getByRole("checkbox", { name: "划掉" }).check();
+  await expect(lake).toHaveAttribute("data-checked", "true");
   await lake.getByRole("button", { name: "开销" }).click();
   await page.keyboard.type("300");
   await page.keyboard.press("Enter");
@@ -39,7 +39,7 @@ test("复制计划：有块有开销的计划 → 列表里复制到明年 → �
   await shot(page, "01-duplicate-form");
   await sourceCard.getByRole("button", { name: "复制" }).click();
 
-  // 进了新计划：日期平移，状态回到待定，开销还在
+  // 进了新计划：日期平移，划掉的恢复成没划掉，开销还在
   await expect(page.getByRole("button", { name: "关西 10 天 副本" })).toBeVisible();
   // 复制出来的计划没看过，打开是时间轴
   await showView(page, "列表");
@@ -48,7 +48,7 @@ test("复制计划：有块有开销的计划 → 列表里复制到明年 → �
   await expect(days.nth(2).locator("[data-day-label]")).toContainText("5.1");
   const copiedLake = page.getByRole("table", { name: /4\.29/ }).locator("tr[data-block-id]").first();
   await expect(copiedLake.getByRole("textbox", { name: "标题" })).toHaveValue("西湖");
-  await expect(copiedLake.getByRole("button", { name: "状态：待定" })).toBeVisible();
+  await expect(copiedLake).toHaveAttribute("data-checked", "false");
   await expect(copiedLake.locator("[data-money-cell]")).toHaveText("¥300");
   await shot(page, "02-copied-plan");
 

@@ -22,11 +22,13 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-/** 勾：一个对勾 */
-export function CheckIcon() {
+/** 划掉：一个 S 中间划一道 */
+export function StrikeIcon() {
   return (
     <Icon>
-      <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+      <path d="M11 3.5H6.5a2.25 2.25 0 0 0-1.5 3.9" />
+      <path d="M9.5 8a2.25 2.25 0 0 1 0 4.5H4.5" />
+      <path d="M2.5 8h11" />
     </Icon>
   );
 }

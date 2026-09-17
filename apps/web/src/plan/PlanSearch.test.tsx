@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
-import { addBlock, setBlockChecked, setBlockStatus, updateBlock, type AddBlockInput } from "@welshonion/core";
+import { addBlock, setBlockChecked, updateBlock, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -20,18 +20,18 @@ function block(plan: Y.Doc, library: Y.Doc, input: AddBlockInput): string {
 }
 
 /**
- * 三天：10.1「西湖」09:00 起 1 小时（已确认）、没排时间的「西湖边喝茶」；
- * 10.2「灵隐寺」09:00 起（长备注「记得带伞」）；10.3「西湖夜游」19:00 起 2 小时（待定）。
+ * 三天：10.1「西湖」09:00 起 1 小时、没排时间的「西湖边喝茶」（餐饮，别的都是游玩）；
+ * 10.2「灵隐寺」09:00 起（长备注「记得带伞」）；10.3「西湖夜游」19:00 起 2 小时，nightTourStruck 时划掉了。
  */
-async function threeDays(): Promise<void> {
+async function threeDays({ nightTourStruck = false } = {}): Promise<void> {
   await openStoredPlan((plan, library) => {
     const [oct1, oct2, oct3] = daysFromOct1(plan, 3);
-    const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 60 });
-    setBlockStatus(plan, library, [lake], "confirmed");
+    block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 60 });
     block(plan, library, { baseId: oct1!, kindId: "food", title: "西湖边喝茶", slot: "day" });
     const temple = block(plan, library, { baseId: oct2!, kindId: "sight", title: "灵隐寺", minute: 540, duration: 120 });
     updateBlock(plan, library, temple, { note: "记得带伞" });
-    block(plan, library, { baseId: oct3!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 120 });
+    const nightTour = block(plan, library, { baseId: oct3!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 120 });
+    if (nightTourStruck) setBlockChecked(plan, [nightTour], true);
   });
 }
 
@@ -127,8 +127,8 @@ describe("结果怎么列", () => {
 
   it("被筛掉的也列，写「筛掉了」", async () => {
     const user = userEvent.setup();
-    await threeDays();
-    await user.click(within(await screen.findByRole("group", { name: "按状态筛选" })).getByRole("button", { name: "已确认" }));
+    await threeDays({ nightTourStruck: true });
+    await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
 
     const panel = await search(user, "夜游");
 
@@ -193,12 +193,12 @@ describe("点结果跳过去", () => {
     await waitFor(() => expect(bar.getAttribute("aria-pressed")).toBe("true"));
   });
 
-  it("被筛掉的：先清掉筛选再选中", async () => {
+  it("被按类型筛掉的：先清掉筛选再选中", async () => {
     const user = userEvent.setup();
     await threeDays();
     await showView("时间轴");
-    const filter = await screen.findByRole("group", { name: "按状态筛选" });
-    await user.click(within(filter).getByRole("button", { name: "已确认" }));
+    const filter = await screen.findByRole("group", { name: "按类型筛选" });
+    await user.click(within(filter).getByRole("button", { name: "餐饮" }));
 
     const panel = await search(user, "夜游");
     await user.click(results(panel)[0]!);
@@ -208,7 +208,7 @@ describe("点结果跳过去", () => {
     await waitFor(() => expect(bar.getAttribute("aria-pressed")).toBe("true"));
   });
 
-  it("被「只看没勾的」挡住的：也清掉再选中", async () => {
+  it("被「只看没划掉的」挡住的：也清掉再选中", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -216,7 +216,7 @@ describe("点结果跳过去", () => {
       setBlockChecked(plan, [lake], true);
     });
     await showView("时间轴");
-    const onlyUnchecked = await screen.findByRole("button", { name: "只看没勾的" });
+    const onlyUnchecked = await screen.findByRole("button", { name: "只看没划掉的" });
     await user.click(onlyUnchecked);
 
     const panel = await search(user, "夜游");

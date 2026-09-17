@@ -2,7 +2,6 @@ import {
   fillProgress,
   moneySummary,
   passesFilter,
-  statusCounts,
   timeByKind,
   type LibraryView,
   type PlanView,
@@ -164,26 +163,9 @@ export function timeEmptyLabel(shares: TimeShares): string {
     : "还没有排了时间的事";
 }
 
-/** 「勾了 8 件，共 12 件」（按筛选算）；一件都没勾是 null。不写百分比、不叫完成率：勾的含义用户自己定。 */
+/** 「划掉 8 件，共 12 件」（按筛选算）；一件都没划掉是 null。不写百分比、不叫完成率：划掉的含义用户自己定。 */
 export function checkLine(plan: PlanView, filter?: StatsFilter): string | null {
   const blocks = [...plan.blocks.values()].filter((block) => passesFilter(block, filter));
   const checked = blocks.filter((block) => block.checked).length;
-  return checked === 0 ? null : `勾了 ${checked} 件，共 ${blocks.length} 件`;
-}
-
-/** 「4 件事：待定 2 · 已确认 1 · 已预订 1」：每个状态各有几件，按状态顺序，0 件的不写；不替用户决定哪个算「定了」。 */
-export function statusLine(plan: PlanView, library: LibraryView, filter?: StatsFilter): string {
-  const counts = statusCounts(plan, filter);
-  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
-  if (total === 0) return "还没有事";
-
-  const parts = [...library.statuses.values()]
-    .sort((a, b) => a.order - b.order)
-    .filter((status) => (counts.get(status.id) ?? 0) > 0)
-    .map((status) => `${status.name} ${counts.get(status.id)}`);
-  const deleted = [...counts]
-    .filter(([statusId]) => !library.statuses.has(statusId))
-    .reduce((sum, [, count]) => sum + count, 0);
-  if (deleted > 0) parts.push(`已删除的状态 ${deleted}`);
-  return `${total} 件事：${parts.join(" · ")}`;
+  return checked === 0 ? null : `划掉 ${checked} 件，共 ${blocks.length} 件`;
 }

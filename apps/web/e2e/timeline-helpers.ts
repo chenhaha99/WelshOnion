@@ -217,7 +217,7 @@ export function segment(row: Locator, title: string): Locator {
 /** 打开计划设置，切到某一块（默认「基本」），返回设置窗口。 */
 export async function openPlanSettings(
   page: Page,
-  section: "基本" | "类型和状态" = "基本",
+  section: "基本" | "类型" = "基本",
 ): Promise<Locator> {
   await page.getByRole("button", { name: "计划设置", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "计划设置" });

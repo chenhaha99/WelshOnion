@@ -6,7 +6,7 @@ import {
   moneySummary,
   readLibrary,
   readPlan,
-  setBlockStatus,
+  setBlockChecked,
   setDays,
   updateBlock,
   type PlanView,
@@ -152,12 +152,12 @@ describe("带筛选", () => {
     const plan = build((built) => {
       const lake = timed(built, built.oct1, "西湖", "sight", 540, 180);
       const dinner = timed(built, built.oct1, "晚饭", "food", 1080, 60);
-      setBlockStatus(built.plan, built.library, [dinner], "confirmed");
+      setBlockChecked(built.plan, [lake], true);
       money(built, 30000, [lake]);
       money(built, 4550, [dinner]);
     });
     expect(lineOf(plan, 0)).toBe("09:00 起 · 19:00 收工 · 花 ¥345.50");
-    expect(lineOf(plan, 0, { statusIds: ["confirmed"] })).toBe("18:00 起 · 19:00 收工 · 花 ¥45.50");
+    expect(lineOf(plan, 0, { onlyUnchecked: true })).toBe("18:00 起 · 19:00 收工 · 花 ¥45.50");
   });
 });
 

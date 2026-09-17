@@ -5,7 +5,7 @@ import {
   initPlanDoc,
   readLibrary,
   readPlan,
-  setBlockStatus,
+  setBlockChecked,
   setDays,
   setPlanSettings,
   type PlanView,
@@ -132,27 +132,27 @@ describe("开销格怎么显示", () => {
 });
 
 describe("带筛选", () => {
-  const confirmedOnly: StatsFilter = { statusIds: ["confirmed"] };
+  const onlyUnchecked: StatsFilter = { onlyUnchecked: true };
 
   it("共用的开销显示在通过筛选的块里表上最早的那块", () => {
-    const view = planWith(({ plan, library, block, expense }) => {
+    const view = planWith(({ plan, block, expense }) => {
       const firstNight = block(0, "民宿一", "lodging");
       const secondNight = block(1, "民宿二", "lodging");
-      setBlockStatus(plan, library, [secondNight], "confirmed");
+      setBlockChecked(plan, [firstNight], true);
       expense({ title: "民宿两晚", cents: 50000, blockIds: [firstNight, secondNight] });
     });
     expect(labelOf(view, "民宿一")).toBe("¥500");
-    expect(labelOf(view, "民宿二", confirmedOnly)).toBe("¥500");
+    expect(labelOf(view, "民宿二", onlyUnchecked)).toBe("¥500");
   });
 
   it("被筛掉的块不进开销格", () => {
-    const view = planWith(({ plan, library, block, expense }) => {
-      expense({ title: "门票", cents: 30000, blockIds: [block(0, "西湖")] });
-      const lunch = block(0, "午饭", "food");
-      setBlockStatus(plan, library, [lunch], "confirmed");
-      expense({ title: "面", cents: 12000, blockIds: [lunch] });
+    const view = planWith(({ plan, block, expense }) => {
+      const lake = block(0, "西湖");
+      setBlockChecked(plan, [lake], true);
+      expense({ title: "门票", cents: 30000, blockIds: [lake] });
+      expense({ title: "面", cents: 12000, blockIds: [block(0, "午饭", "food")] });
     });
-    const titles = [...moneyCells(view, confirmedOnly).keys()].map((id) => view.blocks.get(id)?.title);
+    const titles = [...moneyCells(view, onlyUnchecked).keys()].map((id) => view.blocks.get(id)?.title);
     expect(titles).toEqual(["午饭"]);
   });
 });
@@ -208,24 +208,24 @@ describe("挂在被筛掉的块上的开销", () => {
     expect(moneyOnHiddenBlocks(view, { kindIds: ["lodging"] })).toBe(30000);
   });
 
-  it("不筛、只按状态筛时是 0", () => {
-    const view = planWith(({ plan, library, block, expense }) => {
-      const lake = block(0, "西湖");
-      setBlockStatus(plan, library, [lake], "confirmed");
-      expense({ title: "门票", cents: 30000, blockIds: [lake, block(0, "灵隐寺")] });
+  it("不筛、只看没划掉的时是 0", () => {
+    const view = planWith(({ plan, block, expense }) => {
+      const temple = block(0, "灵隐寺");
+      setBlockChecked(plan, [temple], true);
+      expense({ title: "门票", cents: 30000, blockIds: [block(0, "西湖"), temple] });
+      // 挂的块全划掉了：这笔钱本身就不算，也不算挂在被筛掉的事上
+      expense({ title: "香火", cents: 1000, blockIds: [temple] });
     });
     expect(moneyOnHiddenBlocks(view)).toBe(0);
-    expect(moneyOnHiddenBlocks(view, { statusIds: ["confirmed"] })).toBe(0);
-    expect(moneyOnHiddenBlocks(view, { statusIds: ["pending"] })).toBe(0);
+    expect(moneyOnHiddenBlocks(view, { onlyUnchecked: true })).toBe(0);
   });
 
-  it("状态和类型一起：块的状态通过、类型没通过", () => {
-    const view = planWith(({ plan, library, block, expense }) => {
+  it("只看没划掉的和类型一起：块没划掉、类型没通过", () => {
+    const view = planWith(({ block, expense }) => {
       const hengdian = block(0, "横店", "sight");
-      setBlockStatus(plan, library, [hengdian], "confirmed");
       expense({ title: "住宿费", cents: 30000, blockIds: [hengdian], kindId: "lodging" });
     });
-    expect(moneyOnHiddenBlocks(view, { statusIds: ["confirmed"], kindIds: ["lodging"] })).toBe(30000);
+    expect(moneyOnHiddenBlocks(view, { onlyUnchecked: true, kindIds: ["lodging"] })).toBe(30000);
   });
 
   it("人均的按人数乘", () => {

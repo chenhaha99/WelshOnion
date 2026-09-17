@@ -26,14 +26,13 @@ function plain(map: ReadonlyMap<string, number>): Record<string, number> {
   return Object.fromEntries(map);
 }
 
-/** 横店（游玩，已确认）里套着午饭（餐饮，待定，层 3） */
+/** 横店（游玩）里套着午饭（餐饮，层 3） */
 function hengdianWithLunch() {
   addBlock(planDoc, "hengdian", {
     start_base_id: "d1",
     start_minute: 540,
     duration_min: 720,
     kind_id: "sight",
-    status_id: "confirmed",
   });
   addBlock(planDoc, "lunch", {
     start_base_id: "d1",
@@ -41,7 +40,6 @@ function hengdianWithLunch() {
     duration_min: 120,
     kind_id: "food",
     layer: 3,
-    status_id: "pending",
   });
 }
 
@@ -63,13 +61,7 @@ describe("统计前先按筛选条件去掉块", () => {
     expect(plain(occupiedMinutes(plan, lib, { kindIds: ["sight"] }))).toEqual({ hengdian: 720 });
   });
 
-  test("只看已确认的", () => {
-    const { lib, plan } = views();
-
-    expect(plain(occupiedMinutes(plan, lib, { statusIds: ["confirmed"] }))).toEqual({ hengdian: 720 });
-  });
-
-  test("只看没勾的", () => {
+  test("只看没划掉的", () => {
     planDoc.getMap<Y.Map<unknown>>("blocks").get("hengdian")?.set("checked", true);
     const { lib, plan } = views();
 

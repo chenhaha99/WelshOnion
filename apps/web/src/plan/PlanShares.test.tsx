@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { addBlock, addExpense, addStatus, setBlockStatus, updateKind } from "@welshonion/core";
+import { addBlock, addExpense, updateKind } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -34,7 +34,7 @@ function money(plan: Y.Doc, library: Y.Doc, kindId: string, cents: number | null
   if (!result.ok) throw new Error("建开销失败");
 }
 
-/** 占比卡片里的一块：「开销的占比」「时间的占比」「定没定」。 */
+/** 占比卡片里的一块：「开销的占比」「时间的占比」。 */
 async function part(name: string): Promise<HTMLElement> {
   await showView("总览");
   const card = await screen.findByRole("region", { name: "占比" });
@@ -64,6 +64,8 @@ describe("占比卡片", () => {
     const card = await screen.findByRole("region", { name: "占比" });
     const overview = (await moneyOverview());
     expect(overview.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 状态去掉了，不再写「定没定」
+    expect(within(card).queryByRole("group", { name: "定没定" })).toBeNull();
     // 时间轴、列表里都没有它们
     await showView("时间轴");
     expect(screen.queryByRole("region", { name: "占比" })).toBeNull();
@@ -207,28 +209,5 @@ describe("时间的占比", () => {
     const group = await part("时间的占比");
     expect(within(group).queryByRole("checkbox")).toBeNull();
     expect(legend(group)).toEqual(["停留 21 小时 · 88%", "游玩 3 小时 · 12%"]);
-  });
-});
-
-describe("各状态几件", () => {
-  it("含自建状态", async () => {
-    await openStoredPlan((plan, library) => {
-      const oct1 = oneDay(plan);
-      const booked = addStatus(library, { name: "已预订", color: "#6b8fb0" });
-      if (!booked.ok) throw new Error("建状态失败");
-      undated(plan, library, oct1, "西湖", "sight");
-      undated(plan, library, oct1, "灵隐寺", "sight");
-      setBlockStatus(plan, library, [undated(plan, library, oct1, "午饭", "food")], "confirmed");
-      setBlockStatus(plan, library, [undated(plan, library, oct1, "酒店", "lodging")], booked.value.statusId);
-    });
-    const group = await part("定没定");
-    expect(within(group).getByText("4 件事：待定 2 · 已确认 1 · 已预订 1")).toBeTruthy();
-  });
-
-  it("还没有事", async () => {
-    await openStoredPlan((plan) => {
-      oneDay(plan);
-    });
-    expect(within(await part("定没定")).getByText("还没有事")).toBeTruthy();
   });
 });

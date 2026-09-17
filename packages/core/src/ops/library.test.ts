@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { beforeEach, describe, expect, test } from "vitest";
 import { readLibrary } from "../read";
 import { initLibraryDoc } from "../schema";
-import { addKind, addPlace, addStatus, deleteKind, deleteStatus, updateKind, updatePlace, updateStatus } from "./library";
+import { addKind, addPlace, deleteKind, updateKind, updatePlace } from "./library";
 import type { OpResult } from "./result";
 
 let library: Y.Doc;
@@ -13,7 +13,6 @@ beforeEach(() => {
 });
 
 const kinds = () => library.getMap<Y.Map<unknown>>("kinds");
-const statuses = () => library.getMap<Y.Map<unknown>>("statuses");
 const places = () => library.getMap<Y.Map<unknown>>("places");
 
 function unwrap<T>(result: OpResult<T>): T {
@@ -73,32 +72,6 @@ describe("删除类型", () => {
   test("预设类型不能删", () => {
     expect(deleteKind(library, "stay")).toEqual({ ok: false, error: { code: "BUILTIN" } });
     expect(kinds().has("stay")).toBe(true);
-  });
-});
-
-describe("新建、修改、删除状态", () => {
-  test("新建「已预订」", () => {
-    const { statusId } = unwrap(addStatus(library, { name: "已预订", color: "#c08d68" }));
-
-    expect(statuses().get(statusId)?.toJSON()).toEqual({ name: "已预订", color: "#c08d68", builtin: false, order: 3 });
-  });
-
-  test("改状态颜色", () => {
-    updateStatus(library, "confirmed", { color: "#000000" });
-
-    expect(statuses().get("confirmed")?.get("color")).toBe("#000000");
-  });
-
-  test("预设状态不能删", () => {
-    expect(deleteStatus(library, "pending")).toEqual({ ok: false, error: { code: "BUILTIN" } });
-  });
-
-  test("删掉自定义状态", () => {
-    const { statusId } = unwrap(addStatus(library, { name: "已预订", color: "#c08d68" }));
-
-    deleteStatus(library, statusId);
-
-    expect(statuses().has(statusId)).toBe(false);
   });
 });
 

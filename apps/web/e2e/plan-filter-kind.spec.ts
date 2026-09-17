@@ -12,7 +12,7 @@ import {
 } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被筛掉的事上 → 和状态一起 → 全部类型 → 手机", async ({ page }) => {
+test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被筛掉的事上 → 和只看没划掉的一起 → 全部类型 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
@@ -44,12 +44,13 @@ test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被
   await showView(page, "列表");
   await shot(page, "01-lodging-only");
 
-  // 和状态一起：民宿还是待定，再按「已确认」，一件都不显示；取消状态
-  const statuses = page.getByRole("group", { name: "按状态筛选" });
-  await statuses.getByRole("button", { name: "已确认", exact: true }).click();
+  // 和只看没划掉的一起：把民宿划掉，再按「只看没划掉的」，一件都不显示；再按一下取消
+  await inn.getByRole("checkbox", { name: "划掉" }).check();
+  const onlyUnchecked = page.getByRole("button", { name: "只看没划掉的" });
+  await onlyUnchecked.click();
   await expect(rows).toHaveCount(0);
   await expect(table.locator("[data-filtered-out]")).toHaveText("筛掉了 3 件");
-  await statuses.getByRole("button", { name: "全部显示" }).click();
+  await onlyUnchecked.click();
   await expect(rows).toHaveCount(1);
 
   // 全部类型：都回来，上面那一句和开销格下面那一行都不见

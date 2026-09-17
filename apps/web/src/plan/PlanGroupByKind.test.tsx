@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { addBlock, addExpense, setBlockStatus } from "@welshonion/core";
+import { addBlock, addExpense, setBlockChecked } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -14,10 +14,9 @@ afterEach(async () => {
 
 type User = ReturnType<typeof userEvent.setup>;
 
-function dayBlock(plan: Y.Doc, library: Y.Doc, baseId: string, title: string, kindId: string, statusId = "pending"): string {
+function dayBlock(plan: Y.Doc, library: Y.Doc, baseId: string, title: string, kindId: string): string {
   const result = addBlock(plan, library, { baseId, kindId, title, slot: "day" });
   if (!result.ok) throw new Error("建块失败");
-  if (statusId !== "pending") setBlockStatus(plan, library, [result.value.blockId], statusId);
   return result.value.blockId;
 }
 
@@ -28,22 +27,23 @@ function money(plan: Y.Doc, library: Y.Doc, title: string, cents: number | null,
 
 /**
  * 10.1：「民宿」（住宿）挂 480 房费；「横店」（游玩）挂 300 住宿费（住宿）；「早茶」（餐饮）挂 30 早茶开销。
- * 10.2：「午饭」（餐饮）没挂开销；「西湖」（游玩，已确认）挂 60 门票。
- * 不挂块：20 订房服务费（住宿，最先建的）、600 签证（其他）。
+ * 10.2：「午饭」（餐饮）没挂开销；「西湖」（游玩）挂 60 门票。
+ * 不挂块：20 订房服务费（住宿，最先建的）、600 签证（其他）。返回每件事的 id，按标题。
  */
-function trip(plan: Y.Doc, library: Y.Doc): void {
+function trip(plan: Y.Doc, library: Y.Doc): Record<string, string> {
   const [oct1, oct2] = daysFromOct1(plan, 2);
   money(plan, library, "订房服务费", 2000, "lodging", []);
   const inn = dayBlock(plan, library, oct1!, "民宿", "lodging");
   const hengdian = dayBlock(plan, library, oct1!, "横店", "sight");
   const tea = dayBlock(plan, library, oct1!, "早茶", "food");
-  dayBlock(plan, library, oct2!, "午饭", "food");
-  const lake = dayBlock(plan, library, oct2!, "西湖", "sight", "confirmed");
+  const lunch = dayBlock(plan, library, oct2!, "午饭", "food");
+  const lake = dayBlock(plan, library, oct2!, "西湖", "sight");
   money(plan, library, "房费", 48000, "lodging", [inn]);
   money(plan, library, "住宿费", 30000, "lodging", [hengdian]);
   money(plan, library, "早茶钱", 3000, "food", [tea]);
   money(plan, library, "门票", 6000, "sight", [lake]);
   money(plan, library, "签证", 60000, "other", []);
+  return { 民宿: inn, 横店: hengdian, 早茶: tea, 午饭: lunch, 西湖: lake };
 }
 
 async function switchTo(user: User, name: "按天" | "按类型"): Promise<void> {
@@ -218,12 +218,16 @@ describe("按类型时的筛选", () => {
     expect(screen.queryByText(/挂在被筛掉的事上/)).toBeNull();
   });
 
-  it("按状态筛：开销看挂的块有没有通过，不挂块的照旧；空行看块的状态", async () => {
+  it("只看没划掉的：开销看挂的块有没有划掉，不挂块的照旧；空行看块划没划掉", async () => {
     const user = userEvent.setup();
-    await openStoredPlan(trip);
+    await openStoredPlan((plan, library) => {
+      const ids = trip(plan, library);
+      // 只留西湖没划掉
+      setBlockChecked(plan, ["民宿", "横店", "早茶", "午饭"].map((title) => ids[title]!), true);
+    });
     await switchTo(user, "按类型");
 
-    await user.click(within(screen.getByRole("group", { name: "按状态筛选" })).getByRole("button", { name: "已确认" }));
+    await user.click(screen.getByRole("button", { name: "只看没划掉的" }));
 
     await waitFor(() => expect(groups().map((group) => group.getAttribute("aria-label"))).toEqual(["住宿", "游玩", "其他"]));
     expect(rowsOf(groupOf("住宿"))).toEqual(["订房服务费"]);

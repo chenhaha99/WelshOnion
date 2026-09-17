@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("安排表：连着加几件事 → 改类型状态 → 排时间 → 缩进 → 删除再撤销", async ({ page }) => {
+test("安排表：连着加几件事 → 改类型、划掉一件 → 排时间 → 缩进 → 删除再撤销", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -33,9 +33,8 @@ test("安排表：连着加几件事 → 改类型状态 → 排时间 → 缩�
   // 选项旁边有「「餐饮」的操作」按钮，按名字找选项要精确匹配
   await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: "餐饮", exact: true }).click();
   await expect(rows.nth(0).getByRole("button", { name: "类型：餐饮" })).toBeVisible();
-  await rows.nth(1).getByRole("button", { name: /^状态：/ }).click();
-  await page.getByRole("dialog", { name: "选择状态" }).getByRole("button", { name: "已确认", exact: true }).click();
-  await expect(rows.nth(1)).toHaveAttribute("data-pending", "false");
+  await rows.nth(1).getByRole("checkbox", { name: "划掉" }).check();
+  await expect(rows.nth(1)).toHaveAttribute("data-checked", "true");
 
   // 给早茶排上 08:00 起 1 小时
   await rows.nth(0).getByRole("button", { name: "时间" }).click();

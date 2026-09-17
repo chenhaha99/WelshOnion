@@ -121,7 +121,8 @@ describe("时间轴上点一下选中", () => {
     await onePlanDay();
 
     await user.click(await blockButton("西湖"));
-    await user.click(screen.getByRole("button", { name: "已确认" }));
+    await user.click(within(quickBar("西湖")).getByRole("button", { name: "划掉" }));
+    await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
 
     await waitFor(() => expect(selectedTitles()).toEqual([]));
     expect(screen.queryByRole("toolbar", { name: "「西湖」的操作" })).toBeNull();
@@ -157,16 +158,15 @@ describe("时间轴上点一下选中", () => {
 });
 
 describe("选中后的快捷条", () => {
-  it("排上时间的有八个图标（第一个是「勾」），没排时间的少「复制」", async () => {
+  it("排上时间的有七个图标（第一个是「划掉」），没排时间的少「复制」", async () => {
     const user = userEvent.setup();
     await onePlanDay();
 
     await user.click(await blockButton("西湖"));
     expect(names(quickBar("西湖"))).toEqual([
-      "勾",
+      "划掉",
       "详情…",
       "类型：游玩",
-      "状态：待定",
       "时间：09:00–12:00",
       "开销：填开销",
       "复制",
@@ -175,10 +175,9 @@ describe("选中后的快捷条", () => {
 
     await user.click(await blockButton("灵隐寺"));
     expect(names(quickBar("灵隐寺"))).toEqual([
-      "勾",
+      "划掉",
       "详情…",
       "类型：游玩",
-      "状态：待定",
       "时间：上午 · 2 小时",
       "开销：填开销",
       "删除",
@@ -208,26 +207,11 @@ describe("选中后的快捷条", () => {
     const lake = await blockButton("西湖");
     await user.click(lake);
     await user.tab();
-    expect(document.activeElement).toBe(within(quickBar("西湖")).getByRole("button", { name: "勾" }));
+    expect(document.activeElement).toBe(within(quickBar("西湖")).getByRole("button", { name: "划掉" }));
 
     await user.keyboard("{Escape}");
     expect(selectedTitles()).toEqual([]);
     expect(document.activeElement).toBe(lake);
-  });
-
-  it("改状态：马上生效，焦点回到那个按钮，还选中着", async () => {
-    const user = userEvent.setup();
-    await onePlanDay();
-
-    await user.click(await blockButton("西湖"));
-    await user.click(within(quickBar("西湖")).getByRole("button", { name: "状态：待定" }));
-    await user.click(within(screen.getByRole("dialog", { name: "选择状态" })).getByRole("button", { name: "已确认" }));
-
-    const status = await waitFor(() => within(quickBar("西湖")).getByRole("button", { name: "状态：已确认" }));
-    expect(document.activeElement).toBe(status);
-    expect(selectedTitles()).toEqual(["西湖"]);
-    const segment = (await blockButton("西湖")).closest<HTMLElement>("[data-segment]")!;
-    expect(segment.dataset.pending).toBe("false");
   });
 
   it("改类型：横条换颜色", async () => {

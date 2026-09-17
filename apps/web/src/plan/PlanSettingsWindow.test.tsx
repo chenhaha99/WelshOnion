@@ -49,15 +49,19 @@ describe("计划设置是窗口", () => {
     expect(document.activeElement).toBe(opener);
   });
 
-  it("点窗口里面不会关", async () => {
+  it("点窗口里面不会关；「类型」那一块只管类型", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
 
     await user.click(await screen.findByRole("button", { name: "计划设置" }));
     const settings = screen.getByRole("dialog", { name: "计划设置" });
-    await user.click(within(settings).getByText("类型和状态"));
+    await user.click(within(settings).getByRole("tab", { name: "类型" }));
 
     expect(screen.getByRole("dialog", { name: "计划设置" })).toBeTruthy();
+    const section = within(settings).getByRole("region", { name: "类型" });
+    expect(within(section).getByRole("group", { name: "类型的管理" })).toBeTruthy();
+    expect(within(section).queryByRole("group", { name: "状态的管理" })).toBeNull();
+    expect(within(section).queryByText(/状态/)).toBeNull();
   });
 
   it("Esc 关掉，焦点回到点开它的地方（计划名）", async () => {

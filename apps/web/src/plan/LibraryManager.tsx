@@ -6,7 +6,7 @@ import type { PickerActions } from "./LibraryPicker";
 export type ManageActions = Omit<PickerActions, "onChoose">;
 
 interface LibraryManagerProps {
-  /** 「类型」或「状态」 */
+  /** 「类型」 */
   label: string;
   options: LibraryItem[];
   actions: ManageActions;
@@ -15,7 +15,7 @@ interface LibraryManagerProps {
 type Mode = { kind: "list" } | { kind: "create" } | { kind: "rename" | "recolor" | "relayer" | "delete"; id: string };
 
 /**
- * 计划设置里的「类型和状态」：一项一行，写着这个计划里有几件在用，能改名、改颜色、改层（只有类型）、删除（只有自建的），
+ * 计划设置里的「类型」：一项一行，写着这个计划里有几件在用，能改名、改颜色、改层、删除（只有自建的），
  * 末尾「+ 新建」。改的是资料库，所有计划共用（这句话由外面的设置写）。
  */
 export function LibraryManager({ label, options, actions }: LibraryManagerProps) {
@@ -68,16 +68,14 @@ export function LibraryManager({ label, options, actions }: LibraryManagerProps)
                 >
                   改颜色
                 </button>
-                {actions.onRelayer && (
-                  <button
-                    type="button"
-                    aria-label={`改层：${option.name}`}
-                    className="btn btn-ghost h-7 px-2"
-                    onClick={() => open("relayer", option.id)}
-                  >
-                    改层
-                  </button>
-                )}
+                <button
+                  type="button"
+                  aria-label={`改层：${option.name}`}
+                  className="btn btn-ghost h-7 px-2"
+                  onClick={() => open("relayer", option.id)}
+                >
+                  改层
+                </button>
                 {/* 预设的永远删不了：不摆一个灰的，免得让人去试 */}
                 {!option.builtin && (
                   <button
@@ -110,11 +108,11 @@ export function LibraryManager({ label, options, actions }: LibraryManagerProps)
                 }}
               />
             )}
-            {editing(option.id) === "relayer" && actions.onRelayer && (
+            {editing(option.id) === "relayer" && (
               <LayerChoices
                 options={options}
                 onPick={(layer) => {
-                  if (layer !== option.layer) actions.onRelayer?.(option.id, layer);
+                  if (layer !== option.layer) actions.onRelayer(option.id, layer);
                   backToList();
                 }}
               />

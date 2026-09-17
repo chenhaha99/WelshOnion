@@ -163,14 +163,13 @@ describe("打开和关掉详情气泡", () => {
 });
 
 describe("气泡里有什么", () => {
-  it("只有标题、备注、路程这些：类型、状态、时间、开销、复制到、删除都不在里面", async () => {
+  it("只有标题、备注、路程这些：类型、时间、开销、复制到、删除都不在里面", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 2);
       const inn = block(plan, library, {
         baseId: oct1!,
         kindId: "lodging",
-        statusId: "confirmed",
         title: "民宿",
         minute: 1320,
         duration: 600,
@@ -183,9 +182,10 @@ describe("气泡里有什么", () => {
 
     expect(within(panel).getByLabelText("标题")).toHaveProperty("value", "民宿");
     expect(within(panel).getByLabelText("短备注")).toHaveProperty("value", "湖景房");
-    for (const name of ["类型：住宿", "状态：已确认", "时间", "开销", "删除"]) {
+    for (const name of ["类型：住宿", "时间", "开销", "删除"]) {
       expect(within(panel).queryByRole("button", { name })).toBeNull();
     }
+    expect(within(panel).queryByRole("button", { name: /^状态/ })).toBeNull();
     expect(within(panel).queryByRole("combobox", { name: "复制到" })).toBeNull();
     expect(within(panel).queryByRole("group", { name: "这天从这件起往后推迟" })).toBeNull();
   });

@@ -12,11 +12,12 @@ afterEach(async () => {
   await releaseAll();
 });
 
-/** 10.1 有一件排上时间的「西湖」（待定）：「只看」那一排在，时间轴上有横条。 */
+/** 10.1 有排上时间的「西湖」（游玩）、「午饭」（餐饮）：用到两种类型，「按类型筛选」那一排在，时间轴上有横条。 */
 function lakeOnOct1(plan: Y.Doc, library: Y.Doc): void {
   const [oct1] = daysFromOct1(plan, 1);
-  const result = addBlock(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-  if (!result.ok) throw new Error("建块失败");
+  const lake = addBlock(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+  const lunch = addBlock(plan, library, { baseId: oct1!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
+  if (!lake.ok || !lunch.ok) throw new Error("建块失败");
 }
 
 async function viewSwitch(): Promise<HTMLElement> {
@@ -38,13 +39,13 @@ describe("时间轴和列表切换着看", () => {
     const timeline = screen.getByRole("region", { name: "时间轴" });
     expect(screen.queryByRole("list", { name: "日期列表" })).toBeNull();
     expect(screen.queryByRole("group", { name: "分组" })).toBeNull();
-    expect(screen.getByRole("group", { name: "按状态筛选" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "按类型筛选" })).toBeTruthy();
     // 出发日期、开销总览、占比都不在主版面上
     expect(screen.queryByLabelText("出发日期")).toBeNull();
     expect(screen.queryByRole("region", { name: "开销总览" })).toBeNull();
     expect(screen.queryByRole("region", { name: "占比" })).toBeNull();
     // 切换按钮在筛选和视图中间
-    expect(follows(screen.getByRole("group", { name: "按状态筛选" }), views)).toBe(true);
+    expect(follows(screen.getByRole("group", { name: "按类型筛选" }), views)).toBe(true);
     expect(follows(views, timeline)).toBe(true);
 
     await showView("总览");
@@ -78,7 +79,7 @@ describe("时间轴和列表切换着看", () => {
     expect(screen.getByRole("list", { name: "日期列表" })).toBeTruthy();
     expect(screen.getByRole("group", { name: "分组" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "时间轴" })).toBeNull();
-    expect(screen.getByRole("group", { name: "按状态筛选" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "按类型筛选" })).toBeTruthy();
     expect((await moneyOverview())).toBeTruthy();
     // 切视图不改计划：撤销还是灰的
     expect(screen.getByRole("button", { name: "撤销" })).toHaveProperty("disabled", true);
@@ -87,15 +88,15 @@ describe("时间轴和列表切换着看", () => {
   it("按下的筛选和分组：切到时间轴再切回来还在", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeOnOct1);
-    await user.click(within(await screen.findByRole("group", { name: "按状态筛选" })).getByRole("button", { name: "已确认" }));
+    await user.click(within(await screen.findByRole("group", { name: "按类型筛选" })).getByRole("button", { name: "游玩" }));
     await user.click(within(await viewSwitch()).getByRole("button", { name: "列表" }));
     await user.click(within(screen.getByRole("group", { name: "分组" })).getByRole("button", { name: "按类型" }));
 
     await user.click(within(await viewSwitch()).getByRole("button", { name: "时间轴" }));
     await user.click(within(await viewSwitch()).getByRole("button", { name: "列表" }));
 
-    const statuses = screen.getByRole("group", { name: "按状态筛选" });
-    expect(within(statuses).getByRole("button", { name: "已确认" }).getAttribute("aria-pressed")).toBe("true");
+    const kinds = screen.getByRole("group", { name: "按类型筛选" });
+    expect(within(kinds).getByRole("button", { name: "游玩" }).getAttribute("aria-pressed")).toBe("true");
     const grouping = screen.getByRole("group", { name: "分组" });
     expect(within(grouping).getByRole("button", { name: "按类型" }).getAttribute("aria-pressed")).toBe("true");
   });

@@ -5,7 +5,6 @@ import {
   moneyRowLabel,
   moneyShares,
   checkLine,
-  statusLine,
   timeEmptyLabel,
   timeRowLabel,
   timeShares,
@@ -26,7 +25,7 @@ interface ShareItem {
 }
 
 /**
- * 开销的总览下面的「占比」：开销、时间各一条按类型分段的条和说明，再写各状态几件。
+ * 开销的总览下面的「占比」：开销、时间各一条按类型分段的条和说明，再写划掉了几件。
  * 只摆事实，不判断多不多；「算上最底层的类型」只影响这张卡片，不存进计划。
  */
 export function SharesCard({ libraryView, plan, filter }: SharesCardProps) {
@@ -84,14 +83,7 @@ export function SharesCard({ libraryView, plan, filter }: SharesCardProps) {
         )}
       </div>
 
-      <div role="group" aria-label="定没定">
-        <p className="flex flex-wrap items-baseline gap-x-3">
-          <PartTitle>定没定</PartTitle>
-          <span className="text-sm text-ink tabular-nums">{statusLine(plan, libraryView, filter)}</span>
-        </p>
-      </div>
-
-      {/* 一件都没勾就不写这一行 */}
+      {/* 一件都没划掉就不写这一行 */}
       {checkLine(plan, filter) !== null && (
         <p className="text-sm text-ink tabular-nums">{checkLine(plan, filter)}</p>
       )}

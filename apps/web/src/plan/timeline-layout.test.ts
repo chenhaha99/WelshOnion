@@ -8,6 +8,7 @@ import {
   initPlanDoc,
   readLibrary,
   readPlan,
+  setBlockChecked,
   setBlockLayer,
   setDays,
   updateKind,
@@ -42,7 +43,6 @@ function build(dayCount: number, setup: (built: Built) => void): { plan: PlanVie
 interface TimedOptions {
   day?: number;
   kindId?: string;
-  statusId?: string;
 }
 
 function timed(built: Built, title: string, minute: number, duration: number, options: TimedOptions = {}): string {
@@ -52,7 +52,6 @@ function timed(built: Built, title: string, minute: number, duration: number, op
     title,
     minute,
     duration,
-    ...(options.statusId === undefined ? {} : { statusId: options.statusId }),
   });
   if (!result.ok) throw new Error("建块失败");
   return result.value.blockId;
@@ -147,10 +146,10 @@ describe("每个块画在哪几行", () => {
 
   it("只画通过筛选的块", () => {
     const view = build(1, (built) => {
-      timed(built, "西湖", 540, 180);
-      timed(built, "游船", 600, 60, { statusId: "confirmed" });
+      setBlockChecked(built.plan, [timed(built, "西湖", 540, 180)], true);
+      timed(built, "游船", 600, 60);
     });
-    expect(segmentTexts(view, { statusIds: ["confirmed"] })).toEqual(["游船 1 600–660"]);
+    expect(segmentTexts(view, { onlyUnchecked: true })).toEqual(["游船 1 600–660"]);
   });
 
   it("先按行、再按开始排", () => {

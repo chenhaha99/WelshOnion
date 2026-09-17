@@ -1,4 +1,5 @@
 import {
+  addBlock,
   createPlan as writePlanDocs,
   initPlanDoc,
   readLibrary,
@@ -44,6 +45,34 @@ describe("打开计划", () => {
 
     await expect(openPlan(library.doc, "nope", NOW)).rejects.toMatchObject({ code: "NOT_INITIALIZED" });
     expect(await storedDbNames()).not.toContain(planDbName("nope"));
+  });
+
+  it("版本 1 的计划：打开时每件事去掉 status_id，划掉的照旧，版本写成 2", async () => {
+    const library = track(await openLibrary());
+    await storeDoc(planDbName("p"), (doc) => {
+      // 模拟版本 1 存下的：照现在的样子建两件事，补上当时每件都有的 status_id，版本记成 1
+      initPlanDoc(doc, "p");
+      const days = setDays(doc, { startDate: "2026-10-01", count: 1, tz: "Asia/Shanghai" });
+      if (!days.ok) throw new Error("建天失败");
+      for (const [title, checked] of [["西湖", false], ["灵隐寺", true]] as const) {
+        const added = addBlock(doc, library.doc, { baseId: days.value.baseIds[0]!, kindId: "sight", title, slot: "day" });
+        if (!added.ok) throw new Error("建块失败");
+        const block = doc.getMap<Y.Map<unknown>>("blocks").get(added.value.blockId)!;
+        block.set("status_id", checked ? "confirmed" : "pending");
+        if (checked) block.set("checked", true);
+      }
+      doc.getMap("meta").set("schema", 1);
+    });
+
+    const opened = track(await openPlan(library.doc, "p", NOW));
+    const blocks = [...opened.doc.getMap<Y.Map<unknown>>("blocks").values()];
+    expect(blocks.some((block) => block.has("status_id"))).toBe(false);
+    const view = readPlan(opened.doc, readLibrary(library.doc));
+    expect(Object.fromEntries([...view.blocks.values()].map((block) => [block.title, block.checked]))).toEqual({
+      西湖: false,
+      灵隐寺: true,
+    });
+    expect(opened.doc.getMap("meta").get("schema")).toBe(2);
   });
 });
 

@@ -342,7 +342,7 @@ function DaySegment({ plan, item, place, showTitle, showDuration, money, dragVie
       data-track={item.track}
       data-lane={item.lane}
       data-depth={item.depth}
-      data-pending={block.status.id === "pending"}
+      data-checked={block.checked}
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
       data-lifted={lifted ? true : undefined}

@@ -23,7 +23,7 @@ function blockTitled(plan: PlanView, title: string) {
   return [...plan.blocks.values()].find((block) => block.title === title);
 }
 
-describe("改标题、类型、状态", () => {
+describe("改标题、类型", () => {
   it("改标题：回车就存下", async () => {
     const user = userEvent.setup();
     const planId = await openStoredPlan(oneDayWith("西湖"));
@@ -46,18 +46,5 @@ describe("改标题、类型、状态", () => {
 
     await waitFor(() => expect(blockTitled(other.plan(), "午饭")?.kind.id).toBe("food"));
     expect(within(await blockRow("10.1", "午饭")).getByRole("button", { name: "类型：餐饮" })).toBeTruthy();
-  });
-
-  it("改状态：已确认不再是虚线", async () => {
-    const user = userEvent.setup();
-    const planId = await openStoredPlan(oneDayWith("西湖"));
-    const other = await openOtherTab(planId);
-
-    expect((await blockRow("10.1", "西湖")).dataset.pending).toBe("true");
-    await user.click(within(await blockRow("10.1", "西湖")).getByRole("button", { name: /^状态：/ }));
-    await user.click(within(screen.getByRole("dialog", { name: "选择状态" })).getByRole("button", { name: "已确认" }));
-
-    await waitFor(() => expect(blockTitled(other.plan(), "西湖")?.status.id).toBe("confirmed"));
-    expect((await blockRow("10.1", "西湖")).dataset.pending).toBe("false");
   });
 });

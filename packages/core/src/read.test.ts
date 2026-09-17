@@ -31,7 +31,7 @@ function addBase(doc: Y.Doc, id: string, date: string, tz = "Asia/Shanghai", und
 function addBlock(doc: Y.Doc, id: string, fields: Fields) {
   const { note, place_ids, ...rest } = fields;
   const block = new Y.Map<unknown>(
-    Object.entries({ kind_id: "sight", status_id: "pending", title: id, created_by: "me", ...rest }),
+    Object.entries({ kind_id: "sight", title: id, created_by: "me", ...rest }),
   );
   block.set("place_ids", Y.Array.from((place_ids as string[] | undefined) ?? []));
   if (typeof note === "string") {
@@ -93,7 +93,7 @@ describe("读取只走一个入口，不存在的字段给 null", () => {
     expect(view.undated.get("d1")?.day).toEqual(["k1"]);
   });
 
-  test("勾：存的是 true 才算勾上", () => {
+  test("划掉：存的是 true 才算划掉", () => {
     const plan = newPlanDoc();
     addBase(plan, "d1", "2026-10-01");
     addBlock(plan, "k1", { start_base_id: "d1" });
@@ -103,6 +103,16 @@ describe("读取只走一个入口，不存在的字段给 null", () => {
     const view = read(plan, newLibraryDoc());
 
     expect(["k1", "k2", "k3"].map((id) => view.blocks.get(id)?.checked)).toEqual([false, true, false]);
+  });
+
+  test("事上没有状态，资料库里也没有", () => {
+    const plan = newPlanDoc();
+    const library = newLibraryDoc();
+    addBase(plan, "d1", "2026-10-01");
+    addBlock(plan, "k1", { start_base_id: "d1" });
+
+    expect(read(plan, library).blocks.get("k1")).not.toHaveProperty("status");
+    expect(readLibrary(library)).not.toHaveProperty("statuses");
   });
 
   test("长备注和数组", () => {
@@ -164,24 +174,13 @@ describe("费用跳过指不到的块", () => {
   });
 });
 
-describe("类型和状态指不到时标成已删除", () => {
+describe("类型指不到时标成已删除", () => {
   test("自定义类型被删了", () => {
     const plan = newPlanDoc();
     addBase(plan, "d1", "2026-10-01");
     addBlock(plan, "k1", { start_base_id: "d1", kind_id: "c-work" });
 
     expect(read(plan, newLibraryDoc()).blocks.get("k1")?.kind).toEqual({ id: "c-work", deleted: true });
-  });
-
-  test("状态还在", () => {
-    const plan = newPlanDoc();
-    addBase(plan, "d1", "2026-10-01");
-    addBlock(plan, "k1", { start_base_id: "d1", status_id: "pending" });
-
-    const status = read(plan, newLibraryDoc()).blocks.get("k1")?.status;
-
-    expect(status).toMatchObject({ id: "pending", name: "待定", deleted: false });
-    expect(status && !status.deleted ? status.color : null).toMatch(/^#[0-9a-f]{6}$/);
   });
 });
 

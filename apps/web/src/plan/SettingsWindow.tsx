@@ -16,12 +16,12 @@ import { Window } from "../app/Window";
 import { daysBetween } from "./day-labels";
 import { LibraryManager } from "./LibraryManager";
 import { parseYuan } from "./money";
-import { kindLibraryActions, statusLibraryActions } from "./pickers";
+import { kindLibraryActions } from "./pickers";
 
 /** 设置分几块，左边一列切换 */
 const SECTIONS = [
   { value: "basic", label: "基本" },
-  { value: "library", label: "类型和状态" },
+  { value: "library", label: "类型" },
 ] as const;
 
 type SectionName = (typeof SECTIONS)[number]["value"];
@@ -36,7 +36,7 @@ interface SettingsWindowProps {
 }
 
 /**
- * 计划设置窗口：左边一列分块（基本、类型和状态），右边是那一块的内容，每一栏回车或离开时保存。
+ * 计划设置窗口：左边一列分块（基本、类型），右边是那一块的内容，每一栏回车或离开时保存。
  * 不常改的都收在这里（名字、人数、出发日期、每公里成本、资料库），主版面只留筛选、切换和视图本身。
  * 窗口的样子（电脑上居中、手机上占满屏幕）见 Window。
  */
@@ -152,18 +152,13 @@ export function SettingsWindow({ doc, library, libraryView, plan, settings, onCl
           )}
 
           {section === "library" && (
-            <section aria-label="类型和状态" className="flex flex-col gap-4">
+            <section aria-label="类型" className="flex flex-col gap-4">
               {/* 只有一套资料库：不写清楚会以为是这个计划自己的 */}
               <p className="text-xs text-ink-muted">所有计划共用；改了名字和颜色，别的计划里也跟着变</p>
               <LibraryManager
                 label="类型"
                 options={[...libraryView.kinds.values()].sort(byOrder)}
                 actions={kindLibraryActions(library, (kindId) => countBlocksUsing(plan, { kindId }))}
-              />
-              <LibraryManager
-                label="状态"
-                options={[...libraryView.statuses.values()].sort(byOrder)}
-                actions={statusLibraryActions(library, (statusId) => countBlocksUsing(plan, { statusId }))}
               />
             </section>
           )}

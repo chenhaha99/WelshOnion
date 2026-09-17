@@ -1,8 +1,8 @@
 import * as Y from "yjs";
-import { PRESET_KINDS, PRESET_STATUSES } from "./presets";
+import { PRESET_KINDS } from "./presets";
 
 /** 代码支持的文档结构版本。计划文档和资料库文档各自在 meta.schema 里记版本。 */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export type DocumentErrorCode = "SCHEMA_TOO_NEW" | "NOT_INITIALIZED";
 
@@ -17,7 +17,10 @@ export class DocumentError extends Error {
 }
 
 const PLAN_TOP_LEVEL = ["meta", "plan", "bases", "blocks", "expenses"] as const;
-const LIBRARY_TOP_LEVEL = ["meta", "kinds", "statuses", "places", "plan_index"] as const;
+const LIBRARY_TOP_LEVEL = ["meta", "kinds", "places", "plan_index"] as const;
+
+/** 打开时迁移旧版本文档的事务来源：不是本地编辑，不进撤销。 */
+const MIGRATION_ORIGIN: object = Object.freeze({ source: "migration" });
 
 export function initPlanDoc(doc: Y.Doc, planId: string): void {
   doc.transact(() => {
@@ -62,29 +65,34 @@ export function seedLibrary(doc: Y.Doc): void {
         ]),
       );
     }
-
-    const statuses = doc.getMap<Y.Map<unknown>>("statuses");
-    for (const preset of PRESET_STATUSES) {
-      if (statuses.has(preset.id)) continue;
-      statuses.set(
-        preset.id,
-        new Y.Map<unknown>([
-          ["name", preset.name],
-          ["color", preset.color],
-          ["builtin", true],
-          ["order", preset.order],
-        ]),
-      );
-    }
   });
 }
 
+/** 版本比代码新就拒绝打开；比代码旧就先迁移成当前版本。 */
 export function openPlanDoc(doc: Y.Doc): void {
   checkSchemaVersion(doc, "计划文档");
+  if (doc.getMap("meta").get("schema") !== SCHEMA_VERSION) doc.transact(() => upgradePlanDoc(doc), MIGRATION_ORIGIN);
 }
 
 export function openLibraryDoc(doc: Y.Doc): void {
   checkSchemaVersion(doc, "资料库文档");
+  if (doc.getMap("meta").get("schema") !== SCHEMA_VERSION) doc.transact(() => upgradeLibraryDoc(doc), MIGRATION_ORIGIN);
+}
+
+/**
+ * 旧版本的计划文档改成当前版本，事务由调用方开。
+ * 1 → 2（2026-09-17 去掉了状态）：每件事删掉 status_id；checked 原样留下，就是「划掉」。
+ */
+export function upgradePlanDoc(doc: Y.Doc): void {
+  for (const block of doc.getMap<Y.Map<unknown>>("blocks").values()) block.delete("status_id");
+  doc.getMap("meta").set("schema", SCHEMA_VERSION);
+}
+
+/** 1 → 2：清空状态。顶层的 statuses 删不掉（Yjs 的顶层结构建了就一直在），只能留空。 */
+function upgradeLibraryDoc(doc: Y.Doc): void {
+  const statuses = doc.getMap("statuses");
+  for (const id of [...statuses.keys()]) statuses.delete(id);
+  doc.getMap("meta").set("schema", SCHEMA_VERSION);
 }
 
 function checkSchemaVersion(doc: Y.Doc, label: string): void {

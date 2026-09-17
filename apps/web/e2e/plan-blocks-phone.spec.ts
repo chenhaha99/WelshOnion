@@ -18,14 +18,13 @@ function controlsOf(row: Locator): Array<[string, Locator]> {
   return [
     ["标题", row.getByRole("textbox", { name: "标题" })],
     ["类型", row.getByRole("button", { name: /^类型：/ })],
-    ["状态", row.getByRole("button", { name: /^状态：/ })],
     ["时间", row.getByRole("button", { name: "时间" })],
     ["开销", row.getByRole("button", { name: "开销" })],
     ["这件事的操作", row.getByRole("button", { name: "这件事的操作" })],
   ];
 }
 
-test("手机上一个块一张卡：六个控件都在屏幕里、操作在标题那一行 → 缩进整张卡往右 → 开销的编辑区在屏幕里 → 电脑上还是一行", async ({ page }) => {
+test("手机上一个块一张卡：五个控件都在屏幕里、操作在标题那一行 → 缩进整张卡往右 → 开销的编辑区在屏幕里 → 电脑上还是一行", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1, { width: 390, height: 844 });
   const table = page.getByRole("table", { name: DAY1 });
@@ -42,7 +41,7 @@ test("手机上一个块一张卡：六个控件都在屏幕里、操作在标�
   await page.getByRole("menuitem", { name: "缩进" }).click();
   await expect((await rowOf(table, "灵隐寺")).locator("td").first()).toHaveAttribute("data-indent", "1");
 
-  // 390 像素：「西湖」的六个控件左右都在屏幕里，时间在标题下面；安排表和页面都不横着滚
+  // 390 像素：「西湖」的五个控件左右都在屏幕里，时间在标题下面；安排表和页面都不横着滚
   const lake = await rowOf(table, "西湖");
   for (const [name, control] of controlsOf(lake)) await expectInsideWidth(control, name, 390);
   const title = (await lake.getByRole("textbox", { name: "标题" }).boundingBox())!;

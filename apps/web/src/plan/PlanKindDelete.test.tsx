@@ -31,7 +31,7 @@ async function openKindPicker(user: User, title: string): Promise<HTMLElement> {
 
 /** 删除搬到了计划设置里：打开设置的「类型的管理」。 */
 async function openKindManager(user: User): Promise<HTMLElement> {
-  const settings = await openPlanSettings(user, "类型和状态");
+  const settings = await openPlanSettings(user, "类型");
   return within(settings).getByRole("group", { name: "类型的管理" });
 }
 

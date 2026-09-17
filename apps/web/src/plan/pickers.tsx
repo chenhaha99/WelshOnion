@@ -1,17 +1,12 @@
 import {
   addKind,
-  addStatus,
   deleteKind,
-  deleteStatus,
-  setBlockStatus,
   updateBlock,
   updateExpense,
   updateKind,
-  updateStatus,
   type BlockView,
   type ExpenseView,
   type KindView,
-  type StatusView,
 } from "@welshonion/core";
 import type * as Y from "yjs";
 import { LibraryPicker } from "./LibraryPicker";
@@ -40,7 +35,7 @@ interface KindPickerProps {
   /** 当前计划里有几个块在用这个类型 */
   countUsing: (kindId: string) => number;
   /** 快捷条上只画一个点，不写名字 */
-  compact?: "fill" | "ring";
+  compact?: boolean;
 }
 
 /** 块的类型选择器：选类型改块（进撤销）。 */
@@ -74,45 +69,6 @@ export function ExpenseKindPicker({ doc, library, expense, kinds, countUsing }: 
       options={kinds}
       onChoose={(kindId) => updateExpense(doc, library, expense.id, { kind_id: kindId })}
       {...kindLibraryActions(library, countUsing)}
-    />
-  );
-}
-
-interface StatusPickerProps {
-  doc: Y.Doc;
-  library: Y.Doc;
-  block: BlockView;
-  statuses: StatusView[];
-  /** 当前计划里有几个块在用这个状态 */
-  countUsing: (statusId: string) => number;
-  /** 快捷条上只画一个圈，不写名字 */
-  compact?: "fill" | "ring";
-}
-
-/** 状态这一半：和类型一样，只是没有层。 */
-export function statusLibraryActions(library: Y.Doc, countUsing: (statusId: string) => number) {
-  return {
-    onCreate: ({ name, color }: { name: string; color: string }) => {
-      const result = addStatus(library, { name, color });
-      return result.ok ? result.value.statusId : null;
-    },
-    onRename: (statusId: string, name: string) => updateStatus(library, statusId, { name }),
-    onRecolor: (statusId: string, color: string) => updateStatus(library, statusId, { color }),
-    onDelete: (statusId: string) => deleteStatus(library, statusId),
-    countUsing,
-  };
-}
-
-/** 块的状态选择器：和类型一样，只是没有层。 */
-export function StatusPicker({ doc, library, block, statuses, countUsing, compact }: StatusPickerProps) {
-  return (
-    <LibraryPicker
-      label="状态"
-      current={block.status}
-      options={statuses}
-      compact={compact}
-      onChoose={(statusId) => setBlockStatus(doc, library, [block.id], statusId)}
-      {...statusLibraryActions(library, countUsing)}
     />
   );
 }

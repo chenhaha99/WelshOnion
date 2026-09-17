@@ -202,7 +202,7 @@
   backdrop-filter: blur(24px) saturate(1.2);
 }
 
-/* 每天的安排表：一行一个块，左边一道类型颜色；待定的虚线、颜色点变淡 */
+/* 每天的安排表：一行一个块，左边一道类型颜色；划掉的虚线、变淡，标题划一道 */
 @utility block-table {
   border-collapse: separate;
   border-spacing: 0 0.25rem;
@@ -227,21 +227,18 @@
   & > td:last-child {
     border-radius: 0 0.5rem 0.5rem 0;
   }
-  &[data-pending="true"] > td:first-child {
+  &[data-checked="true"] > td:first-child {
     border-left-style: dashed;
+    border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
   }
-  &[data-pending="true"] .kind-dot {
+  &[data-checked="true"] .kind-dot {
     opacity: 0.45;
   }
-}
-
-@utility status-dot {
-  display: inline-block;
-  flex-shrink: 0;
-  width: 0.625rem;
-  height: 0.625rem;
-  border: 2px solid currentColor;
-  border-radius: 999px;
+  /* 正在改标题时不划：划线挡着看不清在改什么 */
+  &[data-checked="true"] > td:first-child .input-bare:not(:focus) {
+    color: var(--color-ink-muted);
+    text-decoration-line: line-through;
+  }
 }
 
 @utility timeline-money-slot {
@@ -333,14 +330,14 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  /* 按下的开关（「勾」）：底色填上 */
+  /* 按下的开关（「划掉」）：底色填上 */
   &[aria-pressed="true"] {
     background-color: color-mix(in srgb, var(--color-sage) 22%, white);
     color: var(--color-sage-deep);
   }
 }
 
-/* 列表里标题前面的勾选框 */
+/* 列表里标题前面「划掉」的勾选框 */
 @utility block-check {
   flex-shrink: 0;
   width: 1rem;
@@ -360,8 +357,8 @@
 
 /*
  * 安排表放不下时（外层宽不到 42rem，手机上一天的卡片里就是），一个块画成一张卡：
- * 第一行是标题，「这件事的操作」用 order 挪到它右边（排在最后时常常一个人占一行）；类型、状态、时间、钱按先后排在下面、放不下就换行；
- * 底色、圆角、类型色、待定虚线从第一格挪到整张卡，缩进整张卡往右；编辑区这些整行的 tr 满宽。
+ * 第一行是标题，「这件事的操作」用 order 挪到它右边（排在最后时常常一个人占一行）；类型、时间、钱按先后排在下面、放不下就换行；
+ * 底色、圆角、类型色、划掉的虚线从第一格挪到整张卡，缩进整张卡往右；编辑区这些整行的 tr 满宽。
  * 写在层外，才盖得过表格的固定列宽和最小宽度。
  */
 @container (width < 42rem) {
@@ -387,8 +384,9 @@
     border-radius: 0.5rem;
     background-color: rgb(255 255 255 / 0.5);
   }
-  .block-table > tbody > tr.block-row[data-pending="true"] {
+  .block-table > tbody > tr.block-row[data-checked="true"] {
     border-left-style: dashed;
+    border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
   }
   .block-table > tbody > tr.block-row > td {
     width: auto;
@@ -418,10 +416,8 @@
   }
 }
 
-/* 时间轴的横条：类型色的淡底和边；待定虚线、底色更淡；接着下一行的那头是平的 */
+/* 时间轴的横条：类型色的淡底和边；划掉的虚线、变淡、字上划一道；接着下一行的那头是平的 */
 @utility timeline-bar {
-  /* 勾的角标按它定位 */
-  position: relative;
   display: flex;
   /* 只有一行字时竖直居中；同时写标题和开销时贴上边（下面那条规则） */
   align-items: center;
@@ -447,10 +443,16 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  /* 新建的块默认待定，规划期满屏都是它：淡一点，但要一眼看得出块在哪 */
-  [data-pending="true"] > & {
+  /* 划掉的（你提的：虚线、变淡、字上划一道）：边、底色、字都换成淡的颜色，不整块半透明，选中的描边照样看得清 */
+  [data-checked="true"] > & {
     border-style: dashed;
-    background-color: color-mix(in srgb, var(--kind-color) 22%, white);
+    border-color: color-mix(in srgb, var(--kind-color) 60%, white);
+    background-color: color-mix(in srgb, var(--kind-color) 14%, white);
+    color: var(--color-ink-muted);
+    text-decoration-line: line-through;
+  }
+  [data-checked="true"] > &:hover {
+    background-color: color-mix(in srgb, var(--kind-color) 24%, white);
   }
   [data-continues-before="true"] > & {
     border-left-width: 0;
@@ -466,7 +468,6 @@
 
 /* 背景条（停留、住宿这类垫在下面的类型）：比横条薄、字小 */
 @utility timeline-strip {
-  position: relative;
   display: block;
   width: 100%;
   height: 100%;
@@ -489,9 +490,13 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  [data-pending="true"] > & {
+  /* 细条的字本来就淡、字又小：再淡就读不出来，只淡一点 */
+  [data-checked="true"] > & {
     border-style: dashed;
-    background-color: color-mix(in srgb, var(--kind-color) 12%, white);
+    border-color: color-mix(in srgb, var(--kind-color) 50%, white);
+    background-color: color-mix(in srgb, var(--kind-color) 10%, white);
+    color: color-mix(in srgb, var(--color-ink-muted) 85%, white);
+    text-decoration-line: line-through;
   }
   [data-continues-before="true"] > & {
     border-left-width: 0;
@@ -526,8 +531,13 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  [data-pending="true"] > &::before {
-    opacity: 0.5;
+  /* 划掉的：淡色虚线 */
+  [data-checked="true"] > &::before {
+    background: repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--kind-color) 60%, white) 0 3px,
+      transparent 3px 5px
+    );
   }
 }
 
@@ -586,9 +596,8 @@
   }
 }
 
-/* 时间轴右边「没排时间」栏里的一件：左边一道类型色，待定虚线；标题放不下就截断 */
+/* 时间轴右边「没排时间」栏里的一件：左边一道类型色，划掉的虚线、变淡、字上划一道；标题放不下就截断 */
 @utility timeline-chip {
-  position: relative;
   display: flex;
   align-items: center;
   width: 100%;
@@ -610,8 +619,11 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  [data-pending="true"] > & {
+  [data-checked="true"] > & {
     border-left-style: dashed;
+    border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
+    color: var(--color-ink-muted);
+    text-decoration-line: line-through;
   }
 }
 
@@ -732,6 +744,12 @@
   line-height: 0.875rem;
 }
 
+/* 划掉的块上那一行开销：它不在块的按钮里，划线传不过来，单独划 */
+[data-checked="true"] > [data-bar-money] .timeline-money {
+  color: var(--color-ink-muted);
+  text-decoration-line: line-through;
+}
+
 /* 标题和开销都写时：标题贴上边，下面那截留给开销 */
 [data-timeline-axis] [data-two-rows] > .timeline-bar {
   align-items: flex-start;
@@ -844,31 +862,12 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  [data-pending="true"] > &::before {
-    opacity: 0.5;
-  }
-}
-
-/*
- * 勾上的事：块的右上角一个勾的角标。块本身的颜色、虚实、大小、文字都不变（你同意的：勾的含义用户自己定，
- * 变淡、划掉就等于替用户把它定义成「做完了」）。放在按钮里面：横条截断标题用的是 overflow: clip，伸出去会被裁
- */
-[data-checked-mark] {
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 999px;
-  background-color: var(--color-sage-deep);
-  color: white;
-  pointer-events: none;
-  & > svg {
-    width: 0.5rem;
-    height: 0.5rem;
+  [data-checked="true"] > &::before {
+    background: repeating-linear-gradient(
+      to right,
+      color-mix(in srgb, var(--kind-color) 60%, white) 0 3px,
+      transparent 3px 5px
+    );
   }
 }
 

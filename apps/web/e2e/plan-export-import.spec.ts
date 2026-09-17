@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addBlocks, addMoney, DAY1, newPlan, rowOf, schedule } from "./timeline-helpers";
+import * as Y from "yjs";
+import { addBlocks, addMoney, DAY1, newPlan, rowOf, schedule, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 /** 列表里计划卡片的标题；面板开着时它的标题也是二级标题，不在列表项里，不算。 */
@@ -71,6 +72,86 @@ test("导出 → 删掉 → 空列表上导入恢复 → 再导入另存一份 �
   const phoneBox = (await wrong.boundingBox())!;
   expect([phoneBox.x, phoneBox.width]).toEqual([0, 390]);
   await shot(page, "04-phone-settings");
+
+  expect(errors).toEqual([]);
+});
+
+/**
+ * 旧版本（结构版本 1）导出的文件，照旧版本写的样子直接搭：资料库部分带状态，每件事有 status_id；
+ * 10.1「西湖」09:00 起 3 小时、已确认、勾上了，「灵隐寺」14:00 起 2 小时、待定。
+ */
+function oldVersionFile(): Buffer {
+  const doc = new Y.Doc();
+  doc.transact(() => {
+    doc.getMap("meta").set("schema", 1);
+    doc.getMap("meta").set("plan_id", "p-old");
+    const plan = doc.getMap("plan");
+    plan.set("name", "杭州（旧版本导出）");
+    plan.set("traveler_count", 1);
+    plan.set("base_currency", "CNY");
+    doc.getMap("bases").set(
+      "d1",
+      new Y.Map<unknown>([
+        ["date", "2026-10-01"],
+        ["tz", "Asia/Shanghai"],
+        ["undated", new Y.Array<string>()],
+      ]),
+    );
+    const blocks = doc.getMap<Y.Map<unknown>>("blocks");
+    for (const [id, title, minute, duration, statusId, checked] of [
+      ["k1", "西湖", 540, 180, "confirmed", true],
+      ["k2", "灵隐寺", 840, 120, "pending", false],
+    ] as const) {
+      const block = new Y.Map<unknown>([
+        ["start_base_id", "d1"],
+        ["start_minute", minute],
+        ["duration_min", duration],
+        ["kind_id", "sight"],
+        ["status_id", statusId],
+        ["title", title],
+        ["created_by", "me"],
+        ["place_ids", new Y.Array<string>()],
+      ]);
+      if (checked) block.set("checked", true);
+      blocks.set(id, block);
+    }
+    doc.getMap("expenses");
+  });
+  const file = {
+    format: "welshonion-plan",
+    version: 1,
+    exported_at: "2026-09-16T08:00:00.000Z",
+    plan: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
+    library: {
+      kinds: [{ id: "sight", name: "游玩", color: "#77a389", layer: 2, order: 5 }],
+      statuses: [
+        { id: "pending", name: "待定", color: "#9aa3ad", order: 1 },
+        { id: "confirmed", name: "已确认", color: "#77a389", order: 2 },
+      ],
+      places: [],
+    },
+  };
+  return Buffer.from(JSON.stringify(file));
+}
+
+test("导入旧版本导出的文件：状态不要了，勾上的是划掉的", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("/");
+  await (await openSettings(page))
+    .getByLabel("选择计划文件")
+    .setInputFiles({ name: "杭州.welshonion.json", mimeType: "application/json", buffer: oldVersionFile() });
+  await expect(page.getByRole("heading", { level: 1, name: "杭州（旧版本导出）" })).toBeVisible();
+
+  const table = page.getByRole("table", { name: DAY1 });
+  await expect(await rowOf(table, "西湖")).toHaveAttribute("data-checked", "true");
+  await expect(await rowOf(table, "灵隐寺")).toHaveAttribute("data-checked", "false");
+  await expect(table.getByRole("button", { name: /^状态/ })).toHaveCount(0);
+  await showView(page, "时间轴");
+  await expect(page.getByRole("region", { name: "时间轴" }).getByRole("button", { name: /^西湖 / })).toHaveAttribute(
+    "aria-label",
+    "西湖 09:00–12:00 · 划掉了",
+  );
+  await shot(page, "05-old-file-imported");
 
   expect(errors).toEqual([]);
 });

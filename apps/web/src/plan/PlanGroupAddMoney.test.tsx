@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { addBlock, addExpense, setBlockStatus } from "@welshonion/core";
+import { addBlock, addExpense, setBlockChecked } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -14,21 +14,21 @@ afterEach(async () => {
 
 type User = ReturnType<typeof userEvent.setup>;
 
-function dayBlock(plan: Y.Doc, library: Y.Doc, baseId: string, title: string, kindId: string, statusId = "pending"): string {
+function dayBlock(plan: Y.Doc, library: Y.Doc, baseId: string, title: string, kindId: string): string {
   const result = addBlock(plan, library, { baseId, kindId, title, slot: "day" });
   if (!result.ok) throw new Error("建块失败");
-  if (statusId !== "pending") setBlockStatus(plan, library, [result.value.blockId], statusId);
   return result.value.blockId;
 }
 
-/** 10.1「民宿」（住宿，已确认）挂 480 房费；10.2「酒店」（住宿）、「西湖」（游玩）没挂开销。 */
-function twoNights(plan: Y.Doc, library: Y.Doc): void {
+/** 10.1「民宿」（住宿）挂 480 房费；10.2「酒店」（住宿）、「西湖」（游玩）没挂开销。返回 10.2 那两件的 id。 */
+function twoNights(plan: Y.Doc, library: Y.Doc): { hotel: string; lake: string } {
   const [oct1, oct2] = daysFromOct1(plan, 2);
-  const inn = dayBlock(plan, library, oct1!, "民宿", "lodging", "confirmed");
-  dayBlock(plan, library, oct2!, "酒店", "lodging");
-  dayBlock(plan, library, oct2!, "西湖", "sight");
+  const inn = dayBlock(plan, library, oct1!, "民宿", "lodging");
+  const hotel = dayBlock(plan, library, oct2!, "酒店", "lodging");
+  const lake = dayBlock(plan, library, oct2!, "西湖", "sight");
   const result = addExpense(plan, library, { title: "房费", amountCents: 48000, kindId: "lodging", blockIds: [inn] });
   if (!result.ok) throw new Error("建开销失败");
+  return { hotel, lake };
 }
 
 async function byKind(user: User): Promise<void> {
@@ -116,10 +116,13 @@ describe("每组末尾加一笔", () => {
 
   it("挂到只列通过筛选的块", async () => {
     const user = userEvent.setup();
-    await openStoredPlan(twoNights);
+    await openStoredPlan((plan, library) => {
+      const { hotel, lake } = twoNights(plan, library);
+      setBlockChecked(plan, [hotel, lake], true);
+    });
     await byKind(user);
 
-    await user.click(within(screen.getByRole("group", { name: "按状态筛选" })).getByRole("button", { name: "已确认" }));
+    await user.click(screen.getByRole("button", { name: "只看没划掉的" }));
 
     await waitFor(() =>
       expect(optionTexts(within(addRowOf("住宿")).getByRole("combobox", { name: "挂到" }))).toEqual([

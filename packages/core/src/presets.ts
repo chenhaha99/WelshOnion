@@ -6,13 +6,6 @@ export interface PresetKind {
   order: number;
 }
 
-export interface PresetStatus {
-  id: string;
-  name: string;
-  color: string;
-  order: number;
-}
-
 // 颜色就是现在用的这组（外观定稿用了第一版）。播种只补缺的键、不覆盖已有的，以后换色也不会改掉已经存在的资料库。
 export const PRESET_KINDS: readonly PresetKind[] = [
   { id: "stay", name: "停留", color: "#8fa9bd", layer: 0, order: 1 },
@@ -22,9 +15,4 @@ export const PRESET_KINDS: readonly PresetKind[] = [
   { id: "sight", name: "游玩", color: "#77a389", layer: 2, order: 5 },
   { id: "shopping", name: "购物", color: "#b0947a", layer: 2, order: 6 },
   { id: "other", name: "其他", color: "#9aa3ad", layer: 2, order: 7 },
-];
-
-export const PRESET_STATUSES: readonly PresetStatus[] = [
-  { id: "pending", name: "待定", color: "#9aa3ad", order: 1 },
-  { id: "confirmed", name: "已确认", color: "#77a389", order: 2 },
 ];
