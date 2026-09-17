@@ -49,6 +49,8 @@ export function BlockPanel({ doc, library, libraryView, plan, block, anchor, onC
       estimatedHeight={280}
       onClose={onClose}
       initialFocus={(panel) => panel.querySelector<HTMLElement>("input")}
+      // 手机上从底部浮起：里面只剩标题、备注这几样，占满一屏太空
+      phone="sheet"
     >
       <CommitInput
         label="标题"

@@ -103,7 +103,7 @@ test("电脑上只在时间轴里：加事 → 拖上去排时间、快捷条挂
   expect(errors).toEqual([]);
 });
 
-test("手机上只在时间轴里：框下面加事 → 点开占满屏幕 → 快捷条上排时间 → 这天的菜单插一天", async ({ page }) => {
+test("手机上只在时间轴里：框下面加事 → 点开从底部浮起、点暗底关掉 → 快捷条上排时间 → 这天的菜单插一天", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 2, { width: 390, height: 844 });
@@ -117,18 +117,19 @@ test("手机上只在时间轴里：框下面加事 → 点开占满屏幕 → �
   const tray = timeline.getByRole("group", { name: "没排时间" });
   await expect(tray.getByRole("button", { name: "西湖 整天" })).toBeVisible();
 
-  // 点开详情：占满屏幕，里面只有标题这些；时间、开销在快捷条上，不在这里
+  // 点开详情：从屏幕底部浮起，左右铺满、贴着底边，上面至少露出两成屏幕；里面只有标题这些，时间、开销在快捷条上
   await openDetails(tray.getByRole("button", { name: "西湖 整天" }));
   const panel = page.getByRole("dialog", { name: "西湖" });
   const box = (await panel.boundingBox())!;
   expect(Math.round(box.x)).toBe(0);
-  expect(Math.round(box.y)).toBe(0);
   expect(Math.round(box.width)).toBe(390);
-  expect(Math.round(box.height)).toBe(844);
+  expect(Math.round(box.y + box.height)).toBe(844);
+  expect(box.y).toBeGreaterThanOrEqual(844 * 0.2 - 1);
   await expect(panel.getByLabel("标题")).toHaveValue("西湖");
   await expect(panel.getByRole("button", { name: "开销" })).toHaveCount(0);
   await shot(page, "03-phone-panel");
-  await panel.getByRole("button", { name: "关闭" }).click();
+  // 点上面露出来的暗底：关掉
+  await page.mouse.click(195, box.y / 2);
   await expect(panel).toBeHidden();
 
   // 快捷条上的「时间」：排上 09:00 起 1 小时（手机上条里的事拖不上竖轴，这是排时间的入口）

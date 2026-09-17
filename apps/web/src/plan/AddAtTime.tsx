@@ -42,7 +42,7 @@ export function AddAtTime({ doc, library, plan, filter, baseId, label, range, an
   }, [shown, addedBlock?.id]);
 
   return (
-    <AnchoredCard anchor={anchor} title="加一件事" estimatedHeight={150} onClose={onClose}>
+    <AnchoredCard anchor={anchor} title="加一件事" estimatedHeight={150} onClose={onClose} phone="sheet">
       <p className="text-sm text-ink-muted tabular-nums">{`${label} · ${time}`}</p>
       <input
         aria-label="加一件事"

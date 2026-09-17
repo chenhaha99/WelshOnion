@@ -193,6 +193,9 @@ describe("手机上按住空白处加一件事", () => {
 
     const card = await screen.findByRole("dialog", { name: "加一件事" });
     expect(within(card).getByText("第 1 天 · 10.1 周四 · 14:00–15:00")).toBeTruthy();
+    // 手机上从底部浮起，后面压着暗底
+    expect(card.dataset.sheet).toBe("true");
+    expect(document.querySelector("[data-card-backdrop]")).not.toBeNull();
   });
 
   it("轻点：不弹", async () => {

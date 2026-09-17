@@ -190,12 +190,13 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     }),
     [selected],
   );
-  // 点时间轴的空白处、页面别处就取消选中；点另一件事、快捷条、弹层里的不算（各自有事要做）
+  // 点时间轴的空白处、页面别处就取消选中；点另一件事、快捷条、弹层里的不算（各自有事要做），
+  // 手机上点底部浮起的卡片后面的暗底也不算（它和点「关闭」一样，只关卡片）
   useEffect(() => {
     if (selected === null) return;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
-      const keep = "[data-block-id], [data-quick-bar], [role='dialog'], [role='menu']";
+      const keep = "[data-block-id], [data-quick-bar], [role='dialog'], [role='menu'], [data-card-backdrop]";
       if (target instanceof Element && target.closest(keep)) return;
       setSelected(null);
     };

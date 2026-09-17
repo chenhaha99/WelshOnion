@@ -14,16 +14,28 @@ interface AnchoredCardProps {
   onClose: () => void;
   /** 打开时焦点放哪；不给（或找不到）就放第一个输入框，没有输入框就放在面板上 */
   initialFocus?: InitialFocus;
+  /** 手机上怎么摆：从底部浮起（后面压暗底，点暗底关掉），还是占满屏幕；不给是占满 */
+  phone?: "sheet" | "full";
   children: ReactNode;
 }
 
 /**
- * 贴着某个按钮弹出的气泡（不是抽屉）：电脑上浮在那个按钮下面（放不下就往上），手机上（宽不到 720 像素）占满屏幕。
+ * 贴着某个按钮弹出的气泡（不是抽屉）：电脑上浮在那个按钮下面（放不下就往上）；手机上（宽不到 720 像素）占满屏幕，
+ * 或者从屏幕底部浮起（最高八成屏幕高，后面压一层暗底，点暗底关掉）。
  * Esc、点外面、「关闭」关掉；页面滚动时跟着按钮走，按钮整个滚出屏幕就关掉。放在页面最外层，不会被会滚动的框裁掉。
  * 和弹层（Popover）共用同一份摆放算法（place-panel），区别是它贴的按钮在别处、开不开由外面定。
  */
-export function AnchoredCard({ anchor, title, estimatedHeight, onClose, initialFocus, children }: AnchoredCardProps) {
+export function AnchoredCard({
+  anchor,
+  title,
+  estimatedHeight,
+  onClose,
+  initialFocus,
+  phone = "full",
+  children,
+}: AnchoredCardProps) {
   const wide = useWideScreen();
+  const sheet = !wide && phone === "sheet";
   const [panel, setPanel] = useState<HTMLElement | null>(null);
   const panelRef = useRef<HTMLElement>(null);
   const [position, setPosition] = useState<CSSProperties | null>(null);
@@ -91,10 +103,13 @@ export function AnchoredCard({ anchor, title, estimatedHeight, onClose, initialF
       role="dialog"
       aria-label={title}
       tabIndex={-1}
+      data-sheet={sheet || undefined}
       className={
         wide
           ? "menu fixed z-30 flex w-80 flex-col overflow-y-auto outline-none"
-          : "drawer fixed inset-0 z-30 flex h-full w-full flex-col overflow-y-auto outline-none"
+          : sheet
+            ? "sheet fixed inset-x-0 bottom-0 z-30 flex max-h-[80dvh] flex-col overflow-y-auto outline-none"
+            : "drawer fixed inset-0 z-30 flex h-full w-full flex-col overflow-y-auto outline-none"
       }
       // 位置在 useLayoutEffect 里摆好（画出来之前），不用先藏起来——藏起来的元素拿不到焦点
       style={wide ? { ...position, maxWidth: `calc(100vw - ${VIEWPORT_MARGIN * 2}px)` } : undefined}
@@ -112,5 +127,12 @@ export function AnchoredCard({ anchor, title, estimatedHeight, onClose, initialF
     </section>
   );
 
-  return createPortal(card, document.body);
+  return createPortal(
+    <>
+      {/* 底部浮起时后面压一层暗底：点了关掉，也点不到后面的时间轴（点外面多半是想点别的事，关掉又选中别的容易乱） */}
+      {sheet && <div data-card-backdrop aria-hidden className="fixed inset-0 z-30 bg-ink/25" onClick={onClose} />}
+      {card}
+    </>,
+    document.body,
+  );
 }

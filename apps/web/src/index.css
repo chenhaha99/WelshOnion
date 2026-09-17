@@ -186,6 +186,15 @@
   backdrop-filter: blur(24px) saturate(1.2);
 }
 
+/* 手机上从底部浮起的卡片：上边两个角圆，下面让出系统手势条 */
+@utility sheet {
+  border-top: 1px solid rgb(255 255 255 / 0.8);
+  border-radius: 1rem 1rem 0 0;
+  background-color: rgb(253 253 252);
+  box-shadow: 0 -12px 40px rgb(47 58 69 / 0.16);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 @utility drawer {
   border-left: 1px solid rgb(255 255 255 / 0.8);
   background-color: rgb(255 255 255 / 0.8);
