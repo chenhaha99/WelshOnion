@@ -18,6 +18,7 @@ import { CopyIcon, DetailsIcon, StrikeIcon, TrashIcon } from "./icons";
 import type { MoneyCell } from "./money-cells";
 import { useOpenBlock } from "./open-block";
 import { KindPicker } from "./pickers";
+import { TagPicker } from "./TagPicker";
 import { useBlockSelection } from "./select-block";
 import type { CopyHandlers } from "./use-timeline-drag";
 
@@ -36,7 +37,7 @@ interface QuickBarProps {
 }
 
 /**
- * 选中一件事后浮出的快捷条：划掉、详情、类型、时间、开销、复制、删除。
+ * 选中一件事后浮出的快捷条：划掉、详情、类型、标签、时间、开销、复制、删除。
  * 「划掉」放第一个：含义由用户自己定（你提的），行中最常点，Tab 进来先到它。
  * 常改的几样在这里一两下就改完，不用开详情气泡；没排时间的事没有「复制」。
  * 已经排上时间的，在时间轴上拖着改更快（你提的「时间这类在时间轴操作会更好」）；
@@ -120,6 +121,7 @@ export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, co
         kinds={kinds}
         countUsing={(kindId) => countBlocksUsing(plan, { kindId })}
       />
+      <TagPicker compact doc={doc} library={library} block={block} tags={[...libraryView.tags.values()].sort(byOrder)} />
       <BlockTimeButton doc={doc} library={library} plan={plan} block={block} />
       <BlockMoney
         variant="bar"

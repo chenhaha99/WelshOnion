@@ -16,12 +16,14 @@ import { Window } from "../app/Window";
 import { daysBetween } from "./day-labels";
 import { LibraryManager } from "./LibraryManager";
 import { parseYuan } from "./money";
-import { kindLibraryActions } from "./pickers";
+import { firstUnusedColor } from "./library-forms";
+import { kindLibraryActions, tagLibraryActions } from "./pickers";
 
 /** 设置分几块，左边一列切换 */
 const SECTIONS = [
   { value: "basic", label: "基本" },
   { value: "library", label: "类型" },
+  { value: "tags", label: "标签" },
 ] as const;
 
 type SectionName = (typeof SECTIONS)[number]["value"];
@@ -36,7 +38,7 @@ interface SettingsWindowProps {
 }
 
 /**
- * 计划设置窗口：左边一列分块（基本、类型），右边是那一块的内容，每一栏回车或离开时保存。
+ * 计划设置窗口：左边一列分块（基本、类型、标签），右边是那一块的内容，每一栏回车或离开时保存。
  * 不常改的都收在这里（名字、人数、出发日期、每公里成本、资料库），主版面只留筛选、切换和视图本身。
  * 窗口的样子（电脑上居中、手机上占满屏幕）见 Window。
  */
@@ -159,6 +161,21 @@ export function SettingsWindow({ doc, library, libraryView, plan, settings, onCl
                 label="类型"
                 options={[...libraryView.kinds.values()].sort(byOrder)}
                 actions={kindLibraryActions(library, (kindId) => countBlocksUsing(plan, { kindId }))}
+              />
+            </section>
+          )}
+
+          {section === "tags" && (
+            <section aria-label="标签" className="flex flex-col gap-4">
+              <p className="text-xs text-ink-muted">所有计划共用；改了名字和颜色，别的计划里也跟着变</p>
+              <LibraryManager
+                label="标签"
+                options={[...libraryView.tags.values()].sort(byOrder).map((tag) => ({ ...tag, builtin: false }))}
+                actions={tagLibraryActions(library, (tagId) => countBlocksUsing(plan, { tagId }))}
+                createColor={firstUnusedColor([...libraryView.tags.values()])}
+                deleteNote={(usage) =>
+                  usage > 0 ? `这个计划里有 ${usage} 件事挂着，删了它们就不带这个标签了。` : "这个计划里没有事挂着。"
+                }
               />
             </section>
           )}

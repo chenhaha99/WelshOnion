@@ -1,9 +1,9 @@
 interface FilterChipsProps {
-  /** 这一排的读屏名：「按类型筛选」 */
+  /** 这一排的读屏名：「按类型筛选」「按标签筛选」 */
   label: string;
-  /** 前面写的字：「类型」 */
+  /** 前面写的字：「类型」「标签」 */
   lead: string;
-  /** 有按下的时，末尾清空按钮的字：「全部类型」 */
+  /** 有按下的时，末尾清空按钮的字：「全部类型」「全部标签」 */
   clearLabel: string;
   items: ReadonlyArray<{ id: string; name: string; color: string }>;
   /** 按下的 id */
@@ -11,7 +11,7 @@ interface FilterChipsProps {
   onChange: (next: string[]) => void;
 }
 
-/** 切换视图的按钮上面的一排筛选按钮：可以同时按下几个，都不按就是全都看；有按下时末尾一个清空按钮。 */
+/** 切换视图的按钮上面的一排筛选按钮：可以同时按下几个，都不按就是全都看；有按下时末尾一个清空按钮。类型、标签两排共用。 */
 export function FilterChips({ label, lead, clearLabel, items, selected, onChange }: FilterChipsProps) {
   return (
     <div role="group" aria-label={label} className="flex flex-wrap items-center gap-2 text-sm">

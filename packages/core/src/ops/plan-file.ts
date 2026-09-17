@@ -1,6 +1,6 @@
 /**
  * 计划文件：一个计划导出成一段 JSON 文本，读回来，再导进一份新的计划文档。
- * 计划整份编码进去（一个字段都不漏）；它用到的类型、地点写成普通对象，导入时按 id、名字、高德 poi_id 合并进本机资料库。
+ * 计划整份编码进去（一个字段都不漏）；它用到的类型、标签、地点写成普通对象，导入时按 id、名字、高德 poi_id 合并进本机资料库。
  */
 import * as Y from "yjs";
 import { readLibrary, type LibraryView } from "../read";
@@ -27,6 +27,13 @@ export interface FileKind {
   order: number;
 }
 
+export interface FileTag {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
+}
+
 export interface FilePlace {
   id: string;
   name: string;
@@ -42,7 +49,7 @@ export interface PlanFile {
   name: string;
   /** 整个计划文档编码后的样子 */
   plan: Uint8Array;
-  library: { kinds: FileKind[]; places: FilePlace[] };
+  library: { kinds: FileKind[]; tags: FileTag[]; places: FilePlace[] };
 }
 
 export interface ImportPlanOptions {
@@ -52,7 +59,7 @@ export interface ImportPlanOptions {
   now: string;
 }
 
-/** 导出：整个计划编码成 base64，加上它的块、钱用到、本机资料库里还在的类型、地点。计划索引不放。 */
+/** 导出：整个计划编码成 base64，加上它的块、钱用到、本机资料库里还在的类型、标签、地点。计划索引不放。 */
 export function exportPlan(library: Y.Doc, planDoc: Y.Doc, now: string): string {
   const used = usedLibraryIds(planDoc);
   const view = readLibrary(library);
@@ -60,6 +67,10 @@ export function exportPlan(library: Y.Doc, planDoc: Y.Doc, now: string): string 
     .filter((kind) => used.kinds.has(kind.id))
     .sort(byOrder)
     .map(({ id, name, color, layer, order }) => ({ id, name, color, layer, order }));
+  const tags = [...view.tags.values()]
+    .filter((tag) => used.tags.has(tag.id))
+    .sort(byOrder)
+    .map(({ id, name, color, order }) => ({ id, name, color, order }));
   const places = [...view.places.values()]
     .filter((place) => used.places.has(place.id))
     .sort((a, b) => compareIds(a.id, b.id))
@@ -70,7 +81,7 @@ export function exportPlan(library: Y.Doc, planDoc: Y.Doc, now: string): string 
     version: FILE_VERSION,
     exported_at: now,
     plan: encodeBase64(Y.encodeStateAsUpdate(planDoc)),
-    library: { kinds, places },
+    library: { kinds, tags, places },
   });
 }
 
@@ -110,7 +121,7 @@ export function parsePlanFile(text: string): OpResult<PlanFile> {
 
 /**
  * 导进一份空的计划文档：计划原样解进去（结构版本旧的顺手迁移），换计划 id（给了名字就换名字）；
- * 类型、地点合并进本机资料库，计划里 id 变了的引用改成本机的；最后写计划索引。不进撤销。
+ * 类型、标签、地点合并进本机资料库，计划里 id 变了的引用改成本机的；最后写计划索引。不进撤销。
  */
 export function importPlan(library: Y.Doc, target: Y.Doc, file: PlanFile, options: ImportPlanOptions): OpResult {
   const merge = planMerge(readLibrary(library), file.library);
@@ -122,15 +133,8 @@ export function importPlan(library: Y.Doc, target: Y.Doc, file: PlanFile, option
     if (options.name !== undefined) target.getMap("plan").set("name", options.name);
     for (const block of target.getMap<YMap>("blocks").values()) {
       remapField(block, "kind_id", merge.kindIds);
-      const placeIds = block.get("place_ids");
-      if (placeIds instanceof Y.Array) {
-        const current = placeIds.toArray() as string[];
-        const next = current.map((id) => merge.placeIds.get(id) ?? id);
-        if (next.some((id, index) => id !== current[index])) {
-          placeIds.delete(0, placeIds.length);
-          placeIds.insert(0, next);
-        }
-      }
+      remapList(block, "place_ids", merge.placeIds);
+      remapList(block, "tag_ids", merge.tagIds);
     }
     for (const expense of target.getMap<YMap>("expenses").values()) remapField(expense, "kind_id", merge.kindIds);
   });
@@ -147,6 +151,18 @@ export function importPlan(library: Y.Doc, target: Y.Doc, file: PlanFile, option
           ["layer", kind.layer],
           ["builtin", false],
           ["order", ++kindOrder],
+        ]),
+      );
+    }
+    const tags = library.getMap<YMap>("tags");
+    let tagOrder = merge.maxTagOrder;
+    for (const tag of merge.newTags) {
+      tags.set(
+        tag.id,
+        new Y.Map<unknown>([
+          ["name", tag.name],
+          ["color", tag.color],
+          ["order", ++tagOrder],
         ]),
       );
     }
@@ -169,29 +185,40 @@ export function importPlan(library: Y.Doc, target: Y.Doc, file: PlanFile, option
 interface Merge {
   /** 文件里的 id → 本机的 id，只记变了的 */
   kindIds: Map<string, string>;
+  tagIds: Map<string, string>;
   placeIds: Map<string, string>;
   newKinds: FileKind[];
+  newTags: FileTag[];
   newPlaces: FilePlace[];
   maxKindOrder: number;
+  maxTagOrder: number;
 }
 
 /**
- * 按导入前的本机资料库算怎么合并，不写文档。类型：先比 id，再比名字（同名几条取排序最靠前的）；
+ * 按导入前的本机资料库算怎么合并，不写文档。类型、标签：先比 id，再比名字（同名几条取排序最靠前的）；
  * 地点：先比 id，再比高德 poi_id，从不按名字。都对不上就新建，沿用文件里的 id。
  */
 function planMerge(local: LibraryView, file: PlanFile["library"]): Merge {
   const merge: Merge = {
     kindIds: new Map(),
+    tagIds: new Map(),
     placeIds: new Map(),
     newKinds: [],
+    newTags: [],
     newPlaces: [],
     maxKindOrder: maxOrder(local.kinds.values()),
+    maxTagOrder: maxOrder(local.tags.values()),
   };
 
   for (const kind of file.kinds) {
     const match = local.kinds.has(kind.id) ? kind.id : firstByName(local.kinds.values(), kind.name);
     if (match === null) merge.newKinds.push(kind);
     else if (match !== kind.id) merge.kindIds.set(kind.id, match);
+  }
+  for (const tag of file.tags) {
+    const match = local.tags.has(tag.id) ? tag.id : firstByName(local.tags.values(), tag.name);
+    if (match === null) merge.newTags.push(tag);
+    else if (match !== tag.id) merge.tagIds.set(tag.id, match);
   }
   for (const place of file.places) {
     const poiId = amapPoiId(place.providers);
@@ -207,13 +234,18 @@ function planMerge(local: LibraryView, file: PlanFile["library"]): Merge {
 }
 
 function usedLibraryIds(planDoc: Y.Doc) {
-  const used = { kinds: new Set<string>(), places: new Set<string>() };
+  const used = { kinds: new Set<string>(), tags: new Set<string>(), places: new Set<string>() };
   for (const block of planDoc.getMap<YMap>("blocks").values()) {
     const kindId = block.get("kind_id");
-    const placeIds = block.get("place_ids");
     if (typeof kindId === "string") used.kinds.add(kindId);
-    if (placeIds instanceof Y.Array) {
-      for (const id of placeIds.toArray()) if (typeof id === "string") used.places.add(id);
+    for (const [field, ids] of [
+      ["tag_ids", used.tags],
+      ["place_ids", used.places],
+    ] as const) {
+      const list = block.get(field);
+      if (list instanceof Y.Array) {
+        for (const id of list.toArray()) if (typeof id === "string") ids.add(id);
+      }
     }
   }
   for (const expense of planDoc.getMap<YMap>("expenses").values()) {
@@ -223,14 +255,22 @@ function usedLibraryIds(planDoc: Y.Doc) {
   return used;
 }
 
-/** 第 1 版文件里还有 statuses，不读。 */
+/** 第 1 版文件里还有 statuses，不读；还没有 tags，当成空的。 */
 function parseLibrary(value: unknown): PlanFile["library"] | null {
   if (!isObject(value) || !Array.isArray(value.kinds) || !Array.isArray(value.places)) return null;
+  const rawTags = value.tags ?? [];
+  if (!Array.isArray(rawTags)) return null;
   const kinds: FileKind[] = [];
   for (const item of value.kinds) {
     if (!isObject(item) || typeof item.id !== "string" || typeof item.name !== "string" || !isFiniteNumber(item.order)) return null;
     if (!validateField("color", item.color).ok || typeof item.layer !== "number" || !validateField("layer", item.layer).ok) return null;
     kinds.push({ id: item.id, name: item.name, color: item.color as string, layer: item.layer, order: item.order });
+  }
+  const tags: FileTag[] = [];
+  for (const item of rawTags) {
+    if (!isObject(item) || typeof item.id !== "string" || typeof item.name !== "string" || !isFiniteNumber(item.order)) return null;
+    if (!validateField("color", item.color).ok) return null;
+    tags.push({ id: item.id, name: item.name, color: item.color as string, order: item.order });
   }
   const places: FilePlace[] = [];
   for (const item of value.places) {
@@ -246,7 +286,7 @@ function parseLibrary(value: unknown): PlanFile["library"] | null {
       providers: item.providers,
     });
   }
-  return { kinds, places };
+  return { kinds, tags, places };
 }
 
 function remapField(entry: YMap, field: string, ids: ReadonlyMap<string, string>): void {
@@ -254,6 +294,17 @@ function remapField(entry: YMap, field: string, ids: ReadonlyMap<string, string>
   if (typeof id !== "string") return;
   const next = ids.get(id);
   if (next !== undefined) entry.set(field, next);
+}
+
+/** 数组里 id 变了的换成本机的；一个都没变就不写。 */
+function remapList(entry: YMap, field: string, ids: ReadonlyMap<string, string>): void {
+  const list = entry.get(field);
+  if (!(list instanceof Y.Array)) return;
+  const current = list.toArray() as string[];
+  const next = current.map((id) => ids.get(id) ?? id);
+  if (next.every((id, index) => id === current[index])) return;
+  list.delete(0, list.length);
+  list.insert(0, next);
 }
 
 function firstByName(entries: Iterable<{ id: string; name: string; order: number }>, name: string): string | null {

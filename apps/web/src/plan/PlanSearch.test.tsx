@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
-import { addBlock, setBlockChecked, updateBlock, type AddBlockInput } from "@welshonion/core";
+import { addBlock, addTag, setBlockChecked, setBlockTag, updateBlock, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -199,6 +199,28 @@ describe("点结果跳过去", () => {
     await showView("时间轴");
     const filter = await screen.findByRole("group", { name: "按类型筛选" });
     await user.click(within(filter).getByRole("button", { name: "餐饮" }));
+
+    const panel = await search(user, "夜游");
+    await user.click(results(panel)[0]!);
+
+    await waitFor(() => expect(within(filter).queryAllByRole("button", { pressed: true })).toEqual([]));
+    const bar = within(await timeline()).getByRole("button", { name: /^西湖夜游 / });
+    await waitFor(() => expect(bar.getAttribute("aria-pressed")).toBe("true"));
+  });
+
+  it("被按标签筛掉的：也清掉再选中", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      const must = addTag(library, { name: "必去", color: "#c08d68" });
+      if (!must.ok) throw new Error("建标签失败");
+      const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 60 });
+      setBlockTag(plan, library, [lake], must.value.tagId, true);
+      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 60 });
+    });
+    await showView("时间轴");
+    const filter = await screen.findByRole("group", { name: "按标签筛选" });
+    await user.click(within(filter).getByRole("button", { name: "必去" }));
 
     const panel = await search(user, "夜游");
     await user.click(results(panel)[0]!);

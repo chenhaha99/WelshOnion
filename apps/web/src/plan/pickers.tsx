@@ -1,9 +1,12 @@
 import {
   addKind,
+  addTag,
   deleteKind,
+  deleteTag,
   updateBlock,
   updateExpense,
   updateKind,
+  updateTag,
   type BlockView,
   type ExpenseView,
   type KindView,
@@ -23,6 +26,20 @@ export function kindLibraryActions(library: Y.Doc, countUsing: (kindId: string) 
     onRecolor: (kindId: string, color: string) => updateKind(library, kindId, { color }),
     onRelayer: (kindId: string, layer: number) => updateKind(library, kindId, { layer }),
     onDelete: (kindId: string) => deleteKind(library, kindId),
+    countUsing,
+  };
+}
+
+/** 标签这一半：新建、改名、改色、删除（没有层、没有预设）。选择器里的新建、计划设置里的管理共用；不进撤销。 */
+export function tagLibraryActions(library: Y.Doc, countUsing: (tagId: string) => number) {
+  return {
+    onCreate: ({ name, color }: { name: string; color: string }) => {
+      const result = addTag(library, { name, color });
+      return result.ok ? result.value.tagId : null;
+    },
+    onRename: (tagId: string, name: string) => updateTag(library, tagId, { name }),
+    onRecolor: (tagId: string, color: string) => updateTag(library, tagId, { color }),
+    onDelete: (tagId: string) => deleteTag(library, tagId),
     countUsing,
   };
 }

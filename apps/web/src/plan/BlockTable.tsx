@@ -9,12 +9,13 @@ import {
   type LibraryView,
   type PlanView,
   type StatsFilter,
+  type TagView,
 } from "@welshonion/core";
 import { useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
 import { Menu, type MenuItem } from "../app/Menu";
-import { AddBlock, addKindIdFor, useJustAdded } from "./AddBlock";
+import { AddBlock, addKindIdFor, addTagIdsFor, useJustAdded } from "./AddBlock";
 import { deleteBlockWithNotice, deleteLabel, undatedArrangeItems } from "./block-actions";
 import { blockTimeLabel } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
@@ -24,11 +25,12 @@ import { MoneyEditor } from "./MoneyEditor";
 import { moneyCellEmpty, moneyCellLabel, moneyCellNote, type MoneyCell } from "./money-cells";
 import { useOpenBlock } from "./open-block";
 import { KindPicker } from "./pickers";
+import { TagPicker } from "./TagPicker";
 import { TimeEditor } from "./TimeEditor";
 import { zoneTimeLabel } from "./zone-time";
 
 const DELETED_COLOR = "#9aa3ad";
-const COLUMN_COUNT = 5;
+const COLUMN_COUNT = 6;
 
 interface BlockTableProps {
   doc: Y.Doc;
@@ -104,6 +106,7 @@ export function BlockTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleIds]);
   const kinds = [...libraryView.kinds.values()].sort(byOrder);
+  const tags = [...libraryView.tags.values()].sort(byOrder);
   const countKindUsing = (kindId: string) => countBlocksUsing(plan, { kindId });
 
   return (
@@ -114,6 +117,7 @@ export function BlockTable({
           <tr>
             <th>标题</th>
             <th>类型</th>
+            <th>标签</th>
             <th>时间</th>
             <th>开销</th>
             <th>操作</th>
@@ -129,6 +133,7 @@ export function BlockTable({
               block={block}
               date={date}
               kinds={kinds}
+              tags={tags}
               followerCount={followersOf(plan, libraryView, block.id).length}
               countKindUsing={countKindUsing}
               moneyCell={moneyCells.get(block.id)}
@@ -149,6 +154,7 @@ export function BlockTable({
                 library={library}
                 baseId={baseId}
                 kindId={addKindIdFor(filter)}
+                tagIds={addTagIdsFor(filter)}
                 onAdded={justAdded.remember}
               />
             </td>
@@ -166,6 +172,8 @@ interface BlockRowProps {
   block: BlockView;
   date: string;
   kinds: KindView[];
+  /** 资料库里全部标签，按顺序 */
+  tags: TagView[];
   /** 删除时会被一起带走的块数 */
   followerCount: number;
   countKindUsing: (kindId: string) => number;
@@ -180,6 +188,7 @@ function BlockRow({
   block,
   date,
   kinds,
+  tags,
   followerCount,
   countKindUsing,
   moneyCell,
@@ -263,6 +272,9 @@ function BlockRow({
         </td>
         <td className="w-32">
           <KindPicker doc={doc} library={library} block={block} kinds={kinds} countUsing={countKindUsing} />
+        </td>
+        <td className="w-28">
+          <TagPicker doc={doc} library={library} block={block} tags={tags} />
         </td>
         <td className="w-40">
           <button

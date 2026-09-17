@@ -648,7 +648,14 @@ function Segment({
       onPointerMove={(event) => handlers.onPointerMove(event, item)}
       onClickCapture={handlers.onClickCapture}
     >
-      <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} checked={block.checked} className={buttonClass}>
+      <BlockButton
+        blockId={item.blockId}
+        name={`${block.title} ${time}`}
+        tags={block.tags}
+        tagDots={!point}
+        checked={block.checked}
+        className={buttonClass}
+      >
         {/* 写不下就截断加「…」，不写到块外面去（鼠标停上去的提示里有全名） */}
         {point || !showTitle ? null : <span data-bar-title>{block.title}</span>}
         {/* 时长写在标题右边；只开时长时它就是正文，靠左 */}

@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { beforeEach, describe, expect, test } from "vitest";
 import { readLibrary } from "../read";
 import { initLibraryDoc } from "../schema";
-import { addKind, addPlace, deleteKind, updateKind, updatePlace } from "./library";
+import { addKind, addPlace, addTag, deleteKind, deleteTag, updateKind, updatePlace, updateTag } from "./library";
 import type { OpResult } from "./result";
 
 let library: Y.Doc;
@@ -14,6 +14,7 @@ beforeEach(() => {
 
 const kinds = () => library.getMap<Y.Map<unknown>>("kinds");
 const places = () => library.getMap<Y.Map<unknown>>("places");
+const tags = () => library.getMap<Y.Map<unknown>>("tags");
 
 function unwrap<T>(result: OpResult<T>): T {
   if (!result.ok) throw new Error(result.error.code);
@@ -72,6 +73,45 @@ describe("删除类型", () => {
   test("预设类型不能删", () => {
     expect(deleteKind(library, "stay")).toEqual({ ok: false, error: { code: "BUILTIN" } });
     expect(kinds().has("stay")).toBe(true);
+  });
+});
+
+describe("新建、修改、删除标签", () => {
+  test("新建的排在最后", () => {
+    const { tagId: first } = unwrap(addTag(library, { name: "必去", color: "#c08d68" }));
+    const { tagId: second } = unwrap(addTag(library, { name: "下雨也能去", color: "#6b8fb0" }));
+
+    expect(tags().get(first)?.toJSON()).toEqual({ name: "必去", color: "#c08d68", order: 1 });
+    expect(tags().get(second)?.get("order")).toBe(2);
+  });
+
+  test("颜色不合法", () => {
+    expect(addTag(library, { name: "必去", color: "red" })).toEqual({
+      ok: false,
+      error: { code: "INVALID_FIELD", field: "color" },
+    });
+    expect(tags().size).toBe(0);
+  });
+
+  test("改名、改颜色", () => {
+    const { tagId } = unwrap(addTag(library, { name: "必去", color: "#c08d68" }));
+
+    expect(updateTag(library, tagId, { name: "一定要去", color: "#6b8fb0" }).ok).toBe(true);
+
+    expect(tags().get(tagId)?.toJSON()).toEqual({ name: "一定要去", color: "#6b8fb0", order: 1 });
+  });
+
+  test("改不存在的", () => {
+    expect(updateTag(library, "nope", { name: "x" })).toEqual({ ok: false, error: { code: "NOT_FOUND", id: "nope" } });
+  });
+
+  test("删掉：没有预设，都能删", () => {
+    const { tagId } = unwrap(addTag(library, { name: "必去", color: "#c08d68" }));
+
+    expect(deleteTag(library, tagId).ok).toBe(true);
+
+    expect(tags().has(tagId)).toBe(false);
+    expect(deleteTag(library, tagId)).toEqual({ ok: false, error: { code: "NOT_FOUND", id: tagId } });
   });
 });
 

@@ -19,7 +19,7 @@ export type { OpError, OpResult } from "./ops/result";
 export { createPlan, deletePlan, duplicatePlan, renamePlan, setPlanSettings, touchPlan } from "./ops/plan";
 export type { PlanSettingsPatch } from "./ops/plan";
 export { exportPlan, importPlan, parsePlanFile } from "./ops/plan-file";
-export type { FileKind, FilePlace, ImportPlanOptions, PlanFile } from "./ops/plan-file";
+export type { FileKind, FilePlace, FileTag, ImportPlanOptions, PlanFile } from "./ops/plan-file";
 export {
   addDayInTz,
   deleteDay,
@@ -42,6 +42,7 @@ export {
   resizeBlock,
   setBlockChecked,
   setBlockIndent,
+  setBlockTag,
   setBlockTimed,
   setBlockUndated,
   updateBlock,
@@ -60,8 +61,8 @@ export type { DropTarget } from "./ops/drag";
 export { addExpense, deleteExpense, linkExpense, unlinkExpense, updateExpense } from "./ops/expenses";
 export type { AddExpenseInput, ExpensePatch } from "./ops/expenses";
 export { backfillFuel, findFuelBackfill, fuelCostCents } from "./ops/fuel";
-export { addKind, addPlace, deleteKind, updateKind, updatePlace } from "./ops/library";
-export type { AddPlaceInput, KindPatch, PlacePatch, ProviderData } from "./ops/library";
+export { addKind, addPlace, addTag, deleteKind, deleteTag, updateKind, updatePlace, updateTag } from "./ops/library";
+export type { AddPlaceInput, KindPatch, PlacePatch, ProviderData, TagPatch } from "./ops/library";
 export { countBlocksUsing } from "./usage";
 export { expensePasses, passesFilter } from "./stats/filter";
 export type { StatsFilter } from "./stats/filter";
@@ -85,6 +86,7 @@ export type {
   PlanSummary,
   PlanView,
   Slot,
+  TagView,
   TransportMode,
   UndatedGroups,
 } from "./read";

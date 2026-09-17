@@ -2,7 +2,7 @@ import { addBlock, passesFilter, type PlanView, type StatsFilter } from "@welsho
 import { useEffect, useState } from "react";
 import type * as Y from "yjs";
 import { AnchoredCard } from "../app/AnchoredCard";
-import { addKindIdFor } from "./AddBlock";
+import { addKindIdFor, addTagIdsFor } from "./AddBlock";
 import { blockTimeLabel } from "./block-time";
 import type { MinuteRange } from "./timeline-drag";
 
@@ -24,7 +24,7 @@ interface AddAtTimeProps {
 
 /**
  * 在时间轴空白处点一下、拖出一段以后弹出的「加一件事」：写着哪天几点，填标题回车就建一件排在这一段的事
- * （没划掉，类型同「加一件事」跟着「类型」筛选）。Esc、点外面、「关闭」关掉，什么都不建。
+ * （没划掉，类型和标签同「加一件事」跟着筛选）。Esc、点外面、「关闭」关掉，什么都不建。
  * 建出来被筛选挡住时不关，清空输入框接着能加，写一句「刚加的「标题」被筛掉了」。
  */
 export function AddAtTime({ doc, library, plan, filter, baseId, label, range, anchor, onClose, onAdded }: AddAtTimeProps) {
@@ -58,6 +58,7 @@ export function AddAtTime({ doc, library, plan, filter, baseId, label, range, an
           const result = addBlock(doc, library, {
             baseId,
             kindId: addKindIdFor(filter),
+            tagIds: addTagIdsFor(filter),
             title: text,
             minute: range.from,
             duration: range.to - range.from,

@@ -29,11 +29,13 @@ function addBase(doc: Y.Doc, id: string, date: string, tz = "Asia/Shanghai", und
 }
 
 function addBlock(doc: Y.Doc, id: string, fields: Fields) {
-  const { note, place_ids, ...rest } = fields;
+  const { note, place_ids, tag_ids, ...rest } = fields;
   const block = new Y.Map<unknown>(
     Object.entries({ kind_id: "sight", title: id, created_by: "me", ...rest }),
   );
   block.set("place_ids", Y.Array.from((place_ids as string[] | undefined) ?? []));
+  // 不给就不写：和标签出现以前建的事一样
+  if (tag_ids !== undefined) block.set("tag_ids", Y.Array.from(tag_ids as string[]));
   if (typeof note === "string") {
     const text = new Y.Text();
     text.insert(0, note);
@@ -59,6 +61,17 @@ function addPlace(doc: Y.Doc, id: string) {
       ["lat", 30.2],
       ["lng", 120.2],
       ["providers", new Y.Map<unknown>()],
+    ]),
+  );
+}
+
+function addTag(doc: Y.Doc, id: string, name: string, order: number) {
+  doc.getMap("tags").set(
+    id,
+    new Y.Map<unknown>([
+      ["name", name],
+      ["color", "#c08d68"],
+      ["order", order],
     ]),
   );
 }
@@ -283,5 +296,38 @@ describe("计划摘要", () => {
 describe("计划索引对账", () => {
   test("两边各多一个", () => {
     expect(reconcilePlanIndex(["p1", "p2"], ["p2", "p3"])).toEqual({ remove: ["p1"], add: ["p3"] });
+  });
+});
+
+describe("标签跳过指不到的", () => {
+  test("按标签的顺序排，同一个存了两遍只算一个，被删的跳过", () => {
+    const plan = newPlanDoc();
+    const library = newLibraryDoc();
+    addTag(library, "t-rain", "下雨也能去", 2);
+    addTag(library, "t-must", "必去", 1);
+    addBase(plan, "d1", "2026-10-01");
+    addBlock(plan, "k1", { start_base_id: "d1", tag_ids: ["t-rain", "gone", "t-must", "t-rain"] });
+
+    const block = read(plan, library).blocks.get("k1");
+
+    expect(block?.tag_ids).toEqual(["t-must", "t-rain"]);
+    expect(block?.tags.map((tag) => tag.name)).toEqual(["必去", "下雨也能去"]);
+  });
+
+  test("标签出现以前建的事：没有这个键，读成没有标签", () => {
+    const plan = newPlanDoc();
+    addBase(plan, "d1", "2026-10-01");
+    addBlock(plan, "k1", { start_base_id: "d1" });
+
+    const block = read(plan, newLibraryDoc()).blocks.get("k1");
+
+    expect([block?.tag_ids, block?.tags]).toEqual([[], []]);
+  });
+
+  test("资料库里的标签", () => {
+    const library = newLibraryDoc();
+    addTag(library, "t-must", "必去", 1);
+
+    expect(readLibrary(library).tags.get("t-must")).toEqual({ id: "t-must", name: "必去", color: "#c08d68", order: 1 });
   });
 });

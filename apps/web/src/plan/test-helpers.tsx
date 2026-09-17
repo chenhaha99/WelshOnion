@@ -111,7 +111,7 @@ export async function moneyOverview(): Promise<HTMLElement> {
 /** 打开计划设置，切到某一块（默认「基本」），返回设置窗口。 */
 export async function openPlanSettings(
   user: UserEvent,
-  section: "基本" | "类型" = "基本",
+  section: "基本" | "类型" | "标签" = "基本",
 ): Promise<HTMLElement> {
   await user.click(await screen.findByRole("button", { name: "计划设置" }));
   const settings = await screen.findByRole("dialog", { name: "计划设置" });

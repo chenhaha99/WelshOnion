@@ -22,6 +22,13 @@ export interface KindView {
   order: number;
 }
 
+export interface TagView {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
+}
+
 export interface PlaceView {
   id: string;
   name: string;
@@ -43,6 +50,7 @@ export interface PlanIndexEntryView {
 
 export interface LibraryView {
   kinds: ReadonlyMap<string, KindView>;
+  tags: ReadonlyMap<string, TagView>;
   places: ReadonlyMap<string, PlaceView>;
   planIndex: ReadonlyMap<string, PlanIndexEntryView>;
 }
@@ -77,6 +85,9 @@ export interface BlockView {
   title: string;
   place_ids: string[];
   places: PlaceView[];
+  /** 挂着的标签：跳过指不到的，同一个只算一次，按标签的顺序；标签出现以前建的事没有这个键，读成空 */
+  tag_ids: string[];
+  tags: TagView[];
   subtitle: string | null;
   transport_mode: TransportMode | null;
   distance_m: number | null;
@@ -136,6 +147,11 @@ export function readLibrary(doc: Y.Doc): LibraryView {
     });
   }
 
+  const tags = new Map<string, TagView>();
+  for (const [id, map] of sortedEntries(doc.getMap<Record_>("tags"))) {
+    tags.set(id, { id, name: required(map, "name"), color: required(map, "color"), order: required(map, "order") });
+  }
+
   const places = new Map<string, PlaceView>();
   for (const [id, map] of sortedEntries(doc.getMap<Record_>("places"))) {
     const providers = map.get("providers");
@@ -162,7 +178,7 @@ export function readLibrary(doc: Y.Doc): LibraryView {
     });
   }
 
-  return { kinds, places, planIndex };
+  return { kinds, tags, places, planIndex };
 }
 
 export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
@@ -194,6 +210,12 @@ export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
       const place = library.places.get(placeId);
       return place ? [place] : [];
     });
+    const tags = [...new Set(stringList(map, "tag_ids"))]
+      .flatMap((tagId) => {
+        const tag = library.tags.get(tagId);
+        return tag ? [tag] : [];
+      })
+      .sort((a, b) => a.order - b.order || compareStrings(a.id, b.id));
     blocks.set(id, {
       id,
       start_base_id: startBaseId,
@@ -209,6 +231,8 @@ export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
       title: required(map, "title"),
       place_ids: places.map((place) => place.id),
       places,
+      tag_ids: tags.map((tag) => tag.id),
+      tags,
       subtitle: optional(map, "subtitle"),
       transport_mode: optional(map, "transport_mode"),
       distance_m: optional(map, "distance_m"),

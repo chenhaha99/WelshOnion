@@ -40,6 +40,8 @@ interface BlockBasics {
   kindId: string;
   title: string;
   placeIds?: string[];
+  /** 建出来就挂着的标签，都要在资料库里 */
+  tagIds?: string[];
   subtitle?: string;
   createdBy?: string;
 }
@@ -73,6 +75,8 @@ export function addBlock(planDoc: Y.Doc, library: Y.Doc, input: AddBlockInput): 
   const base = basesOf(planDoc).get(input.baseId);
   if (!base) return fail({ code: "NOT_FOUND", id: input.baseId });
   if (!library.getMap("kinds").has(input.kindId)) return fail({ code: "NOT_FOUND", id: input.kindId });
+  const missingTag = input.tagIds?.find((tagId) => !library.getMap("tags").has(tagId));
+  if (missingTag !== undefined) return fail({ code: "NOT_FOUND", id: missingTag });
 
   const blockId = newId();
   planDoc.transact(() => {
@@ -83,6 +87,8 @@ export function addBlock(planDoc: Y.Doc, library: Y.Doc, input: AddBlockInput): 
     block.set("title", input.title);
     block.set("created_by", input.createdBy ?? "me");
     block.set("place_ids", Y.Array.from(input.placeIds ?? []));
+    // 没挂也写一个空数组：两边同时挂标签时挂进同一个数组，不会一边把另一边的整个换掉
+    block.set("tag_ids", Y.Array.from(input.tagIds ?? []));
     if (input.subtitle !== undefined) block.set("subtitle", input.subtitle);
     if ("minute" in input) {
       block.set("start_minute", input.minute);
@@ -172,6 +178,44 @@ export function setBlockChecked(planDoc: Y.Doc, blockIds: readonly string[], che
   planDoc.transact(() => {
     for (const id of blockIds) {
       setOrDelete(blocks.get(id)!, "checked", checked ? true : null);
+    }
+  }, LOCAL_ORIGIN);
+  return done();
+}
+
+/**
+ * 给一批事挂上或摘下一个标签，一步撤销。挂上时标签要在资料库里，已经挂着的不再挂；摘下不管标签还在不在。
+ * 标签出现以前建的事没有 tag_ids，挂的时候再建；摘完留一个空数组。有事找不到就一件都不改。
+ */
+export function setBlockTag(
+  planDoc: Y.Doc,
+  library: Y.Doc,
+  blockIds: readonly string[],
+  tagId: string,
+  on: boolean,
+): OpResult {
+  const blocks = blocksOf(planDoc);
+  const absent = blockIds.find((id) => !blocks.has(id));
+  if (absent !== undefined) return fail({ code: "NOT_FOUND", id: absent });
+  if (on && !library.getMap("tags").has(tagId)) return fail({ code: "NOT_FOUND", id: tagId });
+
+  planDoc.transact(() => {
+    for (const id of blockIds) {
+      const block = blocks.get(id)!;
+      const stored = block.get("tag_ids");
+      if (!(stored instanceof Y.Array)) {
+        if (on) block.set("tag_ids", Y.Array.from([tagId]));
+        continue;
+      }
+      const tagIds = stored as Y.Array<string>;
+      const current = tagIds.toArray();
+      if (on) {
+        if (!current.includes(tagId)) tagIds.push([tagId]);
+      } else {
+        for (let index = current.length - 1; index >= 0; index--) {
+          if (current[index] === tagId) tagIds.delete(index, 1);
+        }
+      }
     }
   }, LOCAL_ORIGIN);
   return done();

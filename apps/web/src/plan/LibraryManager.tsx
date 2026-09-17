@@ -6,19 +6,23 @@ import type { PickerActions } from "./LibraryPicker";
 export type ManageActions = Omit<PickerActions, "onChoose">;
 
 interface LibraryManagerProps {
-  /** 「类型」 */
+  /** 「类型」或「标签」 */
   label: string;
   options: LibraryItem[];
   actions: ManageActions;
+  /** 新建时默认选的颜色；不给就是第一个色块 */
+  createColor?: string;
+  /** 删之前写的那句；不给就按类型写（在用的会写成「已删除的类型」） */
+  deleteNote?: (usage: number) => string;
 }
 
 type Mode = { kind: "list" } | { kind: "create" } | { kind: "rename" | "recolor" | "relayer" | "delete"; id: string };
 
 /**
- * 计划设置里的「类型」：一项一行，写着这个计划里有几件在用，能改名、改颜色、改层、删除（只有自建的），
+ * 计划设置里的「类型」「标签」：一项一行，写着这个计划里有几件在用，能改名、改颜色、改层（只有类型）、删除（只有自建的），
  * 末尾「+ 新建」。改的是资料库，所有计划共用（这句话由外面的设置写）。
  */
-export function LibraryManager({ label, options, actions }: LibraryManagerProps) {
+export function LibraryManager({ label, options, actions, createColor, deleteNote }: LibraryManagerProps) {
   const [mode, setMode] = useState<Mode>({ kind: "list" });
   const backToList = () => setMode({ kind: "list" });
   const editing = (id: string) => (mode.kind === "list" || mode.kind === "create" || mode.id !== id ? null : mode.kind);
@@ -68,14 +72,16 @@ export function LibraryManager({ label, options, actions }: LibraryManagerProps)
                 >
                   改颜色
                 </button>
-                <button
-                  type="button"
-                  aria-label={`改层：${option.name}`}
-                  className="btn btn-ghost h-7 px-2"
-                  onClick={() => open("relayer", option.id)}
-                >
-                  改层
-                </button>
+                {actions.onRelayer && (
+                  <button
+                    type="button"
+                    aria-label={`改层：${option.name}`}
+                    className="btn btn-ghost h-7 px-2"
+                    onClick={() => open("relayer", option.id)}
+                  >
+                    改层
+                  </button>
+                )}
                 {/* 预设的永远删不了：不摆一个灰的，免得让人去试 */}
                 {!option.builtin && (
                   <button
@@ -108,19 +114,21 @@ export function LibraryManager({ label, options, actions }: LibraryManagerProps)
                 }}
               />
             )}
-            {editing(option.id) === "relayer" && (
+            {editing(option.id) === "relayer" && actions.onRelayer && (
               <LayerChoices
                 options={options}
                 onPick={(layer) => {
-                  if (layer !== option.layer) actions.onRelayer(option.id, layer);
+                  if (layer !== option.layer) actions.onRelayer?.(option.id, layer);
                   backToList();
                 }}
               />
             )}
             {editing(option.id) === "delete" && (
               <DeleteConfirm
-                label={label}
-                usage={usage}
+                note={
+                  deleteNote?.(usage) ??
+                  (usage > 0 ? `这个计划里有 ${usage} 件事在用，删了它们会写成「已删除的${label}」。` : "这个计划里没有事在用。")
+                }
                 onConfirm={() => {
                   actions.onDelete(option.id);
                   backToList();
@@ -135,6 +143,7 @@ export function LibraryManager({ label, options, actions }: LibraryManagerProps)
       {mode.kind === "create" ? (
         <CreateForm
           label={label}
+          initialColor={createColor}
           onCreate={(input) => {
             if (actions.onCreate(input) !== null) backToList();
           }}

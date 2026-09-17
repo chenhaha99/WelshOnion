@@ -114,6 +114,18 @@ describe("筛选对钱的影响", () => {
     expect(summary.totalCents).toBe(80000);
   });
 
+  test("按标签筛：看开销挂的块，有一块带着就算；不挂块的不受影响", () => {
+    nanxunMoney();
+    library.getMap("tags").set("t-must", new Y.Map<unknown>([["name", "必去"], ["color", "#c08d68"], ["order", 1]]));
+    planDoc.getMap<Y.Map<unknown>>("blocks").get("zhangsm")?.set("tag_ids", Y.Array.from(["t-must"]));
+
+    const summary = moneySummary(plan(), { tagIds: ["t-must"] });
+
+    // 联票挂着小莲庄和张石铭旧宅，张石铭旧宅带着：20000；保险不挂块：12000；油费、房费挂的块都不带
+    expect(summary.totalCents).toBe(32000);
+    expect(summary.byKind.has("transit")).toBe(false);
+  });
+
   test("只看游玩类的钱", () => {
     nanxunMoney();
 

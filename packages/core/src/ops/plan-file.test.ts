@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc } from "../schema";
-import { addBlock, setBlockChecked, updateBlock, type AddBlockInput } from "./blocks";
+import { addBlock, setBlockChecked, setBlockTag, updateBlock, type AddBlockInput } from "./blocks";
 import { setDays } from "./days";
 import { setBlockLayer } from "./drag";
 import { addExpense } from "./expenses";
@@ -20,7 +20,7 @@ function newLibrary(): Y.Doc {
   return library;
 }
 
-/** 直接写一条自定义类型、地点，好指定 id 和顺序。 */
+/** 直接写一条自定义类型、标签、地点，好指定 id 和顺序。 */
 function putKind(library: Y.Doc, id: string, name: string, color: string, order: number, layer = 2) {
   library.getMap("kinds").set(
     id,
@@ -29,6 +29,17 @@ function putKind(library: Y.Doc, id: string, name: string, color: string, order:
       ["color", color],
       ["layer", layer],
       ["builtin", false],
+      ["order", order],
+    ]),
+  );
+}
+
+function putTag(library: Y.Doc, id: string, name: string, color: string, order: number) {
+  library.getMap("tags").set(
+    id,
+    new Y.Map<unknown>([
+      ["name", name],
+      ["color", color],
       ["order", order],
     ]),
   );
@@ -68,10 +79,12 @@ function exportAndParse(library: Y.Doc, planDoc: Y.Doc): PlanFile {
 }
 
 describe("导出一个计划", () => {
-  test("只放用到的类型、地点，不放计划索引", () => {
+  test("只放用到的类型、标签、地点，不放计划索引", () => {
     const library = newLibrary();
     putKind(library, "k-work", "工作", "#8a9bb5", 100);
     putKind(library, "k-hike", "徒步", "#9aa7c7", 101);
+    putTag(library, "t-must", "必去", "#c08d68", 1);
+    putTag(library, "t-rain", "下雨也能去", "#6b8fb0", 2);
     const { planDoc, baseIds } = newPlan(library);
     const meeting = block(planDoc, library, {
       baseId: baseIds[0]!,
@@ -81,14 +94,16 @@ describe("导出一个计划", () => {
       duration: 60,
     });
     addExpense(planDoc, library, { title: "午饭", amountCents: 5000, kindId: "food", blockIds: [meeting] });
+    setBlockTag(planDoc, library, [meeting], "t-must", true);
 
     const file = JSON.parse(exportPlan(library, planDoc, EXPORTED));
 
     expect(Object.keys(file)).toEqual(["format", "version", "exported_at", "plan", "library"]);
     expect(file).toMatchObject({ format: "welshonion-plan", version: 2, exported_at: EXPORTED });
-    expect(Object.keys(file.library)).toEqual(["kinds", "places"]);
+    expect(Object.keys(file.library)).toEqual(["kinds", "tags", "places"]);
     expect(file.library.kinds.map((kind: { id: string }) => kind.id)).toEqual(["food", "k-work"]);
     expect(file.library.kinds[1]).toEqual({ id: "k-work", name: "工作", color: "#8a9bb5", layer: 2, order: 100 });
+    expect(file.library.tags).toEqual([{ id: "t-must", name: "必去", color: "#c08d68", order: 1 }]);
     expect(file.library.places).toEqual([]);
   });
 
@@ -149,6 +164,7 @@ describe("读文件", () => {
     );
 
     expect(parsePlanFile(JSON.stringify(file))).toEqual(NOT_PLAN);
+    expect(parsePlanFile(JSON.stringify({ ...file, library: { ...file.library, kinds: [], tags: [{ id: "t", name: "必去", color: "blue", order: 1 }] } }))).toEqual(NOT_PLAN);
   });
 
   test("读出计划 id 和名字", () => {
@@ -242,6 +258,8 @@ describe("读第 1 版文件", () => {
       for (const entry of planDoc.getMap<Y.Map<unknown>>("blocks").values()) entry.set("status_id", "s-booked");
     });
     const file = JSON.parse(exportPlan(library, planDoc, EXPORTED));
+    // 第 1 版文件里还没有标签
+    delete file.library.tags;
     const statuses = [{ id: "s-booked", name: "已订", color: "#6f9a82", order: 100 }];
     const parsed = parsePlanFile(JSON.stringify({ ...file, version: 1, library: { ...file.library, statuses } }));
     if (!parsed.ok) throw new Error("读文件失败");
@@ -343,6 +361,30 @@ describe("导入时合并资料库", () => {
     const others = [...kinds.values()].filter((kind) => kind.id !== "k-a");
     expect(kinds.get("k-a")!.order).toBeGreaterThan(Math.max(...others.map((kind) => kind.order)));
     expect(onlyBlock(imported).kind.id).toBe("k-a");
+  });
+
+  test("标签：同名的用本机的，对不上的新建、排在最后；事上的 id 改成本机的", () => {
+    const file = fileUsing(
+      (library) => {
+        putTag(library, "t-a", "必去", "#8a9bb5", 1);
+        putTag(library, "t-b", "下雨也能去", "#6f9a82", 2);
+      },
+      (planDoc, library, dayId) => {
+        const lake = block(planDoc, library, { baseId: dayId, kindId: "sight", title: "西湖", minute: 540, duration: 60 });
+        setBlockTag(planDoc, library, [lake], "t-a", true);
+        setBlockTag(planDoc, library, [lake], "t-b", true);
+      },
+    );
+    const local = newLibrary();
+    putTag(local, "t-x", "必去", "#c08d68", 5);
+
+    const imported = importInto(local, file);
+
+    const tags = readLibrary(local).tags;
+    expect(tags.get("t-x")?.color).toBe("#c08d68");
+    expect(tags.has("t-a")).toBe(false);
+    expect(tags.get("t-b")).toMatchObject({ name: "下雨也能去", color: "#6f9a82", order: 6 });
+    expect(onlyBlock(imported).tag_ids).toEqual(["t-x", "t-b"]);
   });
 
   test("预设按 id：本机改过的名字不动，不多出一条", () => {

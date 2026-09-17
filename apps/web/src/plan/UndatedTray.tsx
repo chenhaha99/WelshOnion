@@ -74,7 +74,13 @@ export function UndatedTray({
               onPointerDown={(event) => onChipPointerDown(event, block.id)}
               onClickCapture={onChipClickCapture}
             >
-              <BlockButton blockId={block.id} name={`${block.title} ${time}`} checked={block.checked} className="timeline-chip">
+              <BlockButton
+                blockId={block.id}
+                name={`${block.title} ${time}`}
+                tags={block.tags}
+                checked={block.checked}
+                className="timeline-chip"
+              >
                 <span className="truncate">{block.title}</span>
                 <span className="ml-auto shrink-0 pl-1 text-[10px] text-ink-muted">{time}</span>
               </BlockButton>
@@ -175,6 +181,7 @@ export function UndatedStrip({
               <BlockButton
                 blockId={block.id}
                 name={`${block.title} ${monthDay(base.date)} ${time}`}
+                tags={block.tags}
                 checked={block.checked}
                 className="timeline-chip"
               >

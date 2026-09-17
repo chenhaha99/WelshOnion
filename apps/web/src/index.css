@@ -418,6 +418,8 @@
 
 /* 时间轴的横条：类型色的淡底和边；划掉的虚线、变淡、字上划一道；接着下一行的那头是平的 */
 @utility timeline-bar {
+  /* 标签的圆点按它定位 */
+  position: relative;
   display: flex;
   /* 只有一行字时竖直居中；同时写标题和开销时贴上边（下面那条规则） */
   align-items: center;
@@ -468,6 +470,7 @@
 
 /* 背景条（停留、住宿这类垫在下面的类型）：比横条薄、字小 */
 @utility timeline-strip {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
@@ -598,6 +601,7 @@
 
 /* 时间轴右边「没排时间」栏里的一件：左边一道类型色，划掉的虚线、变淡、字上划一道；标题放不下就截断 */
 @utility timeline-chip {
+  position: relative;
   display: flex;
   align-items: center;
   width: 100%;
@@ -760,6 +764,54 @@
 [data-timeline-tray="strip"] [data-undated-chip] > .timeline-chip {
   width: auto;
   max-width: 11rem;
+}
+
+/*
+ * 块上的标签（你提的：画在块的右上角，以颜色区分，鼠标停上去看名字）：一排小圆点，外圈白边和同色的底色分开。
+ * 按钮右边留出圆点那一截（--tag-space 由 BlockButton 按个数算），字先截断、不压在圆点上；细条和「没排时间」的一件竖直居中
+ */
+.block-tags {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--color-ink-muted);
+  font-size: 0.625rem;
+  line-height: 0.5rem;
+}
+/* 白边外面再描一道很淡的深色：浅色块上白边看不出来，和块同色的圆点就没了 */
+.tag-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border: 1.5px solid white;
+  border-radius: 999px;
+  box-shadow: 0 0 0 0.5px rgb(47 58 69 / 0.35);
+}
+.timeline-strip > .block-tags,
+.timeline-chip > .block-tags {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.timeline-bar:has(> .block-tags),
+.timeline-chip:has(> .block-tags) {
+  padding-right: calc(0.5rem + var(--tag-space));
+}
+.timeline-strip:has(> .block-tags) {
+  padding-right: calc(0.375rem + var(--tag-space));
+}
+/* 块窄到写不下开销，也就画不下圆点（竖排里的背景细条也是） */
+@container (max-width: 28px) {
+  .block-tags {
+    display: none;
+  }
+  .timeline-bar:has(> .block-tags) {
+    padding-right: 0.375rem;
+  }
+  .timeline-strip:has(> .block-tags) {
+    padding-right: 0.25rem;
+  }
 }
 
 /*

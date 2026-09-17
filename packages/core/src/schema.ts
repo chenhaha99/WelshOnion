@@ -17,7 +17,7 @@ export class DocumentError extends Error {
 }
 
 const PLAN_TOP_LEVEL = ["meta", "plan", "bases", "blocks", "expenses"] as const;
-const LIBRARY_TOP_LEVEL = ["meta", "kinds", "places", "plan_index"] as const;
+const LIBRARY_TOP_LEVEL = ["meta", "kinds", "tags", "places", "plan_index"] as const;
 
 /** 打开时迁移旧版本文档的事务来源：不是本地编辑，不进撤销。 */
 const MIGRATION_ORIGIN: object = Object.freeze({ source: "migration" });

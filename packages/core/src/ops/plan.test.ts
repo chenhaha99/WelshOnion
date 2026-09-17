@@ -3,9 +3,10 @@ import { describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc } from "../schema";
 import { addBase } from "../testing";
-import { addBlock, setBlockChecked } from "./blocks";
+import { addBlock, setBlockChecked, setBlockTag } from "./blocks";
 import { setDays } from "./days";
 import { addExpense } from "./expenses";
+import { addTag } from "./library";
 import { createPlanUndoManager } from "./origin";
 import { createPlan, deletePlan, duplicatePlan, renamePlan, setPlanSettings, touchPlan } from "./plan";
 
@@ -132,7 +133,7 @@ describe("删除计划", () => {
 describe("复制计划", () => {
   const LATER = "2026-09-15T09:00:00.000Z";
 
-  /** 「关西 10 天」：10-01 起 3 天；10-02 上 09:00 起 120 分钟、划掉了的「西湖」挂着 30000 分。 */
+  /** 「关西 10 天」：10-01 起 3 天；10-02 上 09:00 起 120 分钟、划掉了、带着「必去」的「西湖」挂着 30000 分。 */
   function kansai() {
     const { library, planDoc } = setup({ name: "关西 10 天" });
     const days = setDays(planDoc, { startDate: "2026-10-01", count: 3, tz: "Asia/Shanghai" });
@@ -141,6 +142,9 @@ describe("复制计划", () => {
     const lake = addBlock(planDoc, library, { baseId: oct2!, kindId: "sight", title: "西湖", minute: 540, duration: 120 });
     if (!lake.ok) throw new Error("建块失败");
     setBlockChecked(planDoc, [lake.value.blockId], true);
+    const must = addTag(library, { name: "必去", color: "#c08d68" });
+    if (!must.ok) throw new Error("建标签失败");
+    setBlockTag(planDoc, library, [lake.value.blockId], must.value.tagId, true);
     addExpense(planDoc, library, { title: "门票", amountCents: 30000, blockIds: [lake.value.blockId] });
     return { library, source: planDoc };
   }
@@ -165,6 +169,7 @@ describe("复制计划", () => {
     expect(view.bases.find((base) => base.id === lake.start_base_id)?.date).toBe("2027-04-30");
     expect(lake).toMatchObject({ start_minute: 540, duration_min: 120 });
     expect(lake.checked).toBe(false);
+    expect(lake.tags.map((tag) => tag.name)).toEqual(["必去"]);
     expect(target.getMap<Y.Map<unknown>>("blocks").get(lake.id)?.has("status_id")).toBe(false);
     expect([...view.expenses.values()].map((expense) => [expense.amount_cents, expense.block_ids])).toEqual([
       [30000, [lake.id]],

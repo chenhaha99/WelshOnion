@@ -11,7 +11,8 @@ export interface PickerActions {
   onCreate: (input: { name: string; color: string }) => string | null;
   onRename: (id: string, name: string) => void;
   onRecolor: (id: string, color: string) => void;
-  onRelayer: (id: string, layer: number) => void;
+  /** 不给就没有「改层」（标签没有层） */
+  onRelayer?: (id: string, layer: number) => void;
   onDelete: (id: string) => void;
   /** 当前计划里有几个块在用 */
   countUsing: (id: string) => number;

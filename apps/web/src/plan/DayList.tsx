@@ -1,4 +1,4 @@
-import { passesFilter, type KindView, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
+import { passesFilter, type KindView, type LibraryView, type PlanView, type StatsFilter, type TagView } from "@welshonion/core";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { blockFocusSelector } from "./block-actions";
@@ -66,17 +66,18 @@ interface OpenedBlock {
 }
 
 /**
- * 计划页的主体：一行筛选（按类型、只看没划掉的），下面「时间轴」「列表」「总览」三个视图切换着看。
+ * 计划页的主体：一行筛选（按类型、按标签、只看没划掉的），下面「时间轴」「列表」「总览」三个视图切换着看。
  * 列表视图是每天一个组头和它的安排表（或按类型分组）；总览视图是开销总览和占比。计划里至少有一天。
- * 按下了哪些类型、只看没划掉的、怎么分组只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、开销、占比和每一天；
+ * 按下了哪些类型、标签，只看没划掉的，怎么分组，只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、开销、占比和每一天；
  * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：几个视图打开的是同一个，切换视图面板留着。
  */
 export function DayList({ doc, library, libraryView, plan, planId, searchAnchor, onSearchClosed }: DayListProps) {
   const bases = plan.bases;
   const labels = dayRowLabels(bases);
 
-  // 类型删掉了，按下过的就不算了
+  // 类型、标签删掉了，按下过的就不算了
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   // 只看没划掉的（划掉的含义用户自己定；行中拿来看「还剩什么」）
   const [onlyUnchecked, setOnlyUnchecked] = useState(false);
   // 按天还是按类型分组，也只在这一页
@@ -150,13 +151,15 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   };
 
   const kindKey = selectedKinds.filter((id) => libraryView.kinds.has(id)).join(",");
+  const tagKey = selectedTags.filter((id) => libraryView.tags.has(id)).join(",");
   const filter = useMemo<StatsFilter | undefined>(() => {
-    if (kindKey === "" && !onlyUnchecked) return undefined;
+    if (kindKey === "" && tagKey === "" && !onlyUnchecked) return undefined;
     return {
       ...(kindKey === "" ? {} : { kindIds: kindKey.split(",") }),
+      ...(tagKey === "" ? {} : { tagIds: tagKey.split(",") }),
       ...(onlyUnchecked ? { onlyUnchecked: true as const } : {}),
     };
-  }, [kindKey, onlyUnchecked]);
+  }, [kindKey, tagKey, onlyUnchecked]);
   // 开销格的摘要整份算一次：共用的开销要看全计划才知道显示在哪块
   const cells = useMemo(() => moneyCells(plan, filter), [plan, filter]);
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
@@ -207,6 +210,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     const block = plan.blocks.get(blockId)!;
     if (!passesFilter(block, filter)) {
       setSelectedKinds([]);
+      setSelectedTags([]);
       setOnlyUnchecked(false);
     }
     if (view === "overview") showView("timeline");
@@ -226,13 +230,16 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const kinds = usedKinds(plan, libraryView, filter?.kindIds ?? []);
   // 只用到一种类型时按下去也筛不掉：那一排不出现；按下过就一直留着，不然取消不了
   const showKindFilter = kinds.length >= 2 || (filter?.kindIds?.length ?? 0) > 0;
+  // 标签是挂不挂的事：挂了一个就筛得出东西；一件都没挂、也没按下过就不出现
+  const tags = usedTags(plan, libraryView, filter?.tagIds ?? []);
+  const showTagFilter = tags.length > 0;
   // 一件划掉的都没有时按下去也筛不掉：不出现；按下过就留着
   const showCheckFilter = onlyUnchecked || [...plan.blocks.values()].some((block) => block.checked);
 
   return (
     <section className="flex flex-col gap-4">
       {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
-      {(showKindFilter || showCheckFilter) && (
+      {(showKindFilter || showTagFilter || showCheckFilter) && (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {showKindFilter && (
             <FilterChips
@@ -242,6 +249,16 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
               items={kinds}
               selected={filter?.kindIds ?? []}
               onChange={setSelectedKinds}
+            />
+          )}
+          {showTagFilter && (
+            <FilterChips
+              label="按标签筛选"
+              lead="标签"
+              clearLabel="全部标签"
+              items={tags}
+              selected={filter?.tagIds ?? []}
+              onChange={setSelectedTags}
             />
           )}
           {showCheckFilter && (
@@ -479,6 +496,16 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
 }
 
 /** 「类型」那一排：这个计划的块和开销用到的类型，加上按下的（没人用了也留着），按类型的顺序。 */
+/** 这个计划里挂着的标签（加上按下过的），按标签的顺序。 */
+function usedTags(plan: PlanView, libraryView: LibraryView, pressed: readonly string[]): TagView[] {
+  const ids = new Set<string>(pressed);
+  for (const block of plan.blocks.values()) for (const id of block.tag_ids) ids.add(id);
+  return [...ids]
+    .map((id) => libraryView.tags.get(id))
+    .filter((tag): tag is TagView => tag !== undefined)
+    .sort((a, b) => a.order - b.order);
+}
+
 function usedKinds(plan: PlanView, libraryView: LibraryView, pressed: readonly string[]): KindView[] {
   const ids = new Set<string>(pressed);
   for (const block of plan.blocks.values()) ids.add(block.kind.id);

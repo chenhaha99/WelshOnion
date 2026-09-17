@@ -285,6 +285,16 @@ describe("挪块时层怎么变", () => {
 });
 
 describe("复制块", () => {
+  test("标签照带", () => {
+    seedBlock(planDoc, "lake", { start_base_id: "d1", start_minute: 540, duration_min: 60, tag_ids: ["t-must"] });
+
+    const { blockId } = unwrap(duplicateBlock(planDoc, library, "lake", { baseId: "d2", minute: 540 }));
+
+    expect((planDoc.getMap<Y.Map<unknown>>("blocks").get(blockId)?.get("tag_ids") as Y.Array<string>).toArray()).toEqual([
+      "t-must",
+    ]);
+  });
+
   test("连里面的块一起复制", () => {
     hengdianDay();
 

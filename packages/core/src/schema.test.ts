@@ -11,7 +11,7 @@ import {
 } from "./schema";
 
 const PLAN_TOP_LEVEL = ["bases", "blocks", "expenses", "meta", "plan"];
-const LIBRARY_TOP_LEVEL = ["kinds", "meta", "places", "plan_index"];
+const LIBRARY_TOP_LEVEL = ["kinds", "meta", "places", "plan_index", "tags"];
 
 const EXPECTED_KINDS = [
   ["stay", "停留", 0, 1],
@@ -70,6 +70,8 @@ describe("资料库文档初始化", () => {
     expect(topLevelNames(doc)).toEqual(LIBRARY_TOP_LEVEL);
     expect(doc.getMap("meta").get("schema")).toBe(2);
     expect(doc.getMap("kinds").size).toBe(7);
+    // 标签不预设
+    expect(doc.getMap("tags").size).toBe(0);
   });
 });
 

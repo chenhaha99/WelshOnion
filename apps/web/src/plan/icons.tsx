@@ -33,6 +33,16 @@ export function StrikeIcon() {
   );
 }
 
+/** 标签：一个吊牌 */
+export function TagIcon() {
+  return (
+    <Icon>
+      <path d="M2.75 8.1V3.5a.75.75 0 0 1 .75-.75h4.6l5.15 5.15a.75.75 0 0 1 0 1.06l-4.54 4.54a.75.75 0 0 1-1.06 0Z" />
+      <circle cx="5.75" cy="5.75" r="1" />
+    </Icon>
+  );
+}
+
 /** 搜索：放大镜 */
 export function SearchIcon() {
   return (

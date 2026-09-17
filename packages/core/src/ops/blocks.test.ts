@@ -10,6 +10,7 @@ import {
   resizeBlock,
   setBlockChecked,
   setBlockIndent,
+  setBlockTag,
   setBlockTimed,
   setBlockUndated,
   updateBlock,
@@ -25,6 +26,21 @@ beforeEach(() => {
   planDoc = new Y.Doc();
   initPlanDoc(planDoc, "p1");
 });
+
+function putTag(id: string, name: string) {
+  library.getMap("tags").set(
+    id,
+    new Y.Map<unknown>([
+      ["name", name],
+      ["color", "#c08d68"],
+      ["order", library.getMap("tags").size + 1],
+    ]),
+  );
+}
+
+function tagsOf(id: string): string[] | undefined {
+  return (raw(id)?.get("tag_ids") as Y.Array<string> | undefined)?.toArray();
+}
 
 function raw(id: string) {
   return planDoc.getMap<Y.Map<unknown>>("blocks").get(id);
@@ -67,6 +83,8 @@ describe("新建块", () => {
     expect(block?.get("duration_min")).toBe(300);
     expect(block?.get("created_by")).toBe("me");
     expect((block?.get("place_ids") as Y.Array<string>).toArray()).toEqual([]);
+    // 新建就写一个空数组：两边同时挂标签时挂进同一个数组
+    expect(tagsOf(result.ok ? result.value.blockId : "")).toEqual([]);
     for (const key of ["slot", "layer", "indent", "status_id", "checked"]) {
       expect(block?.has(key), key).toBe(false);
     }
@@ -97,6 +115,21 @@ describe("新建块", () => {
     const id = result.ok ? result.value.blockId : "";
     expect(raw(id)?.has("slot")).toBe(false);
     expect(view().undated.get("d1")?.day).toEqual([id]);
+  });
+
+  test("带着标签建", () => {
+    putTag("t-must", "必去");
+
+    const result = addBlock(planDoc, library, { baseId: "d1", kindId: "sight", title: "西湖", slot: "day", tagIds: ["t-must"] });
+
+    expect(tagsOf(result.ok ? result.value.blockId : "")).toEqual(["t-must"]);
+  });
+
+  test("标签不存在", () => {
+    expect(
+      addBlock(planDoc, library, { baseId: "d1", kindId: "sight", title: "x", slot: "day", tagIds: ["nope"] }),
+    ).toEqual({ ok: false, error: { code: "NOT_FOUND", id: "nope" } });
+    expect(planDoc.getMap("blocks").size).toBe(0);
   });
 
   test("类型不存在", () => {
@@ -246,6 +279,59 @@ describe("批量划掉", () => {
       error: { code: "NOT_FOUND", id: "gone" },
     });
     expect(raw("k1")?.has("checked")).toBe(false);
+  });
+});
+
+describe("给一批事挂上、摘下一个标签", () => {
+  beforeEach(() => {
+    addBase(planDoc, "d1", "2026-10-01");
+    seedBlock(planDoc, "k1", { start_base_id: "d1", start_minute: 540, duration_min: 60, tag_ids: [] });
+    // 标签出现以前建的事：没有 tag_ids 这个键
+    seedBlock(planDoc, "k2", { start_base_id: "d1", start_minute: 660, duration_min: 60 });
+    putTag("t-must", "必去");
+  });
+
+  test("一次挂两件，一步撤销；以前建的事也能挂", () => {
+    const undo = createPlanUndoManager(planDoc);
+
+    expect(setBlockTag(planDoc, library, ["k1", "k2"], "t-must", true).ok).toBe(true);
+    expect([tagsOf("k1"), tagsOf("k2")]).toEqual([["t-must"], ["t-must"]]);
+
+    undo.undo();
+    expect([tagsOf("k1"), tagsOf("k2")]).toEqual([[], undefined]);
+  });
+
+  test("已经挂着的不再挂一遍", () => {
+    setBlockTag(planDoc, library, ["k1"], "t-must", true);
+
+    setBlockTag(planDoc, library, ["k1"], "t-must", true);
+
+    expect(tagsOf("k1")).toEqual(["t-must"]);
+  });
+
+  test("摘下留一个空数组；标签删掉了也照样摘", () => {
+    setBlockTag(planDoc, library, ["k1"], "t-must", true);
+    library.getMap("tags").delete("t-must");
+
+    expect(setBlockTag(planDoc, library, ["k1"], "t-must", false).ok).toBe(true);
+
+    expect(tagsOf("k1")).toEqual([]);
+  });
+
+  test("标签不存在就不挂", () => {
+    expect(setBlockTag(planDoc, library, ["k1"], "nope", true)).toEqual({
+      ok: false,
+      error: { code: "NOT_FOUND", id: "nope" },
+    });
+    expect(tagsOf("k1")).toEqual([]);
+  });
+
+  test("有事找不到就一件都不改", () => {
+    expect(setBlockTag(planDoc, library, ["k1", "gone"], "t-must", true)).toEqual({
+      ok: false,
+      error: { code: "NOT_FOUND", id: "gone" },
+    });
+    expect(tagsOf("k1")).toEqual([]);
   });
 });
 
