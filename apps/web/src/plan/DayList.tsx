@@ -12,12 +12,14 @@ import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
 import { OpenBlockContext, type OpenBlock } from "./open-block";
 import { readBlockText, saveBlockText } from "./plan-block-text-memory";
+import { readTimelineFullDay, saveTimelineFullDay } from "./plan-timeline-full-day-memory";
 import { readTimelineZoom, saveTimelineZoom, ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
 import { useWideScreen } from "../app/use-wide-screen";
 import { PlanSearch } from "./PlanSearch";
 import { SelectBlockContext, type BlockSelection } from "./select-block";
 import type { BlockText } from "./timeline-geometry";
+import { FULL_DAY, hourWindow } from "./timeline-window";
 import { SharesCard } from "./SharesCard";
 import { Timeline } from "./Timeline";
 
@@ -95,6 +97,14 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     setZoom(next);
     saveTimelineZoom(planId, next);
   };
+  // 横排横轴画哪几个钟点：没按「0–24 点」时折起没事的凌晨和深夜；按没按下也按计划记在这台设备上
+  const [fullDay, setFullDay] = useState(() => readTimelineFullDay(planId));
+  const showFullDay = (next: boolean) => {
+    setFullDay(next);
+    saveTimelineFullDay(planId, next);
+  };
+  const foldedHours = useMemo(() => hourWindow(plan, libraryView, false), [plan, libraryView]);
+  const foldable = foldedHours.from > FULL_DAY.from || foldedHours.to < FULL_DAY.to;
   const wide = useWideScreen();
   // 竖排看的是哪天（底座 id）：切到列表时时间轴卸掉，切回来接着看这天
   const shownDay = useRef<string | null>(null);
@@ -303,6 +313,23 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
                 </button>
               ))}
             </div>
+            {/* 0–24 点：按下是整天按真实比例画，没按下折起没事的凌晨和深夜（只有横排有） */}
+            {wide && (
+              <div className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur">
+                <button
+                  type="button"
+                  aria-pressed={fullDay}
+                  disabled={!foldable}
+                  title={foldable ? (fullDay ? "折起没事的凌晨和深夜" : "展开成 0–24 点") : "每个钟点都有事，没有折起的"}
+                  className={`inline-flex h-8 items-center rounded-full px-3 text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage disabled:cursor-default disabled:opacity-50 ${
+                    fullDay ? "bg-sage text-white" : "text-ink-muted enabled:hover:text-ink"
+                  }`}
+                  onClick={() => showFullDay(!fullDay)}
+                >
+                  0–24 点
+                </button>
+              </div>
+            )}
             {/* 横向放大：像剪辑软件那样拖着放大（只有横排有） */}
             {wide && (
               <div className="flex items-center gap-2 text-xs text-ink-muted">
@@ -343,6 +370,8 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
                 moneyCells={cells}
                 blockText={blockText}
                 zoom={zoom}
+                hours={fullDay ? FULL_DAY : foldedHours}
+                onExpandHours={() => showFullDay(true)}
                 shownDay={shownDay}
                 jump={jump}
               />

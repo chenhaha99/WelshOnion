@@ -22,6 +22,7 @@ import {
 } from "./timeline-drop";
 import { LANE_HEIGHT } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type RowLayout } from "./timeline-layout";
+import { FULL_DAY } from "./timeline-window";
 
 interface Built {
   plan: PlanView;
@@ -88,6 +89,7 @@ function wideContext(built: Built, excluded: string[], kindLayer = 2): HitContex
     axis: WIDE_AXIS,
     orientation: "wide",
     laneHeight: LANE_HEIGHT,
+    hours: FULL_DAY,
     excluded: new Set(excluded),
     kindLayer,
   };
@@ -107,6 +109,21 @@ describe("指针落在哪块的中间", () => {
     expect(ontoAt({ x: 600, y: 5 }, context)).toBeNull();
     expect(ontoAt({ x: 600, y: 23 }, context)).toBeNull();
     expect(ontoAt({ x: 1300, y: 14 }, context)).toBeNull();
+  });
+
+  it("横排折起时：按折起后的位置量", () => {
+    const built = build(2, day);
+    // 07:00–21:00 展开、两头各折 24 像素，横轴宽 888：展开的那段一分钟一像素，横店（08:00–20:00）画在 84–804
+    const context: HitContext = {
+      ...wideContext(built, [built.ids["游船"]!]),
+      axis: { ...WIDE_AXIS, width: 888 },
+      hours: { from: 420, to: 1260 },
+    };
+
+    expect(ontoAt({ x: 90, y: 14 }, context)).toBe(built.ids["横店"]);
+    expect(ontoAt({ x: 80, y: 14 }, context)).toBeNull();
+    expect(ontoAt({ x: 800, y: 14 }, context)).toBe(built.ids["横店"]);
+    expect(ontoAt({ x: 810, y: 14 }, context)).toBeNull();
   });
 
   it("类型层不同的不算", () => {

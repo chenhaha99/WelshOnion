@@ -270,15 +270,68 @@ export function center(rect: { x: number; y: number; width: number; height: numb
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
 }
 
-/** 这一行的横轴上，1 小时有多少像素。 */
+/**
+ * 按下「0–24 点」：横轴整天按比例画、不折。拖着跨过 24 点、挪到凌晨的走查先按它：
+ * 折起时块拖到凌晨，横轴会跟着伸缩，前面量好的「一小时多宽」就不对了。
+ */
+export async function showFullDay(page: Page): Promise<void> {
+  await showView(page, "时间轴");
+  const button = page.getByRole("button", { name: "0–24 点" });
+  // 已经按下就不点（点了会收回去）
+  if ((await button.getAttribute("aria-pressed")) !== "true") await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+}
+
+/** 横轴两头折起的那一截多宽（像素），同 src/plan/timeline-window.ts 的 FOLD_PX */
+const FOLD_PX = 24;
+
+/** 一行横轴：在屏幕上的位置，和展开的那段从第几分钟到第几分钟（没事的凌晨和深夜折在两头）。 */
+export interface AxisGeometry {
+  rect: { x: number; y: number; width: number; height: number };
+  from: number;
+  to: number;
+}
+
+export async function axisOf(row: Locator): Promise<AxisGeometry> {
+  const axis = row.locator("[data-timeline-axis]");
+  const rect = await box(axis);
+  const [from, to] = await Promise.all([axis.getAttribute("data-window-from"), axis.getAttribute("data-window-to")]);
+  return { rect, from: Number(from), to: Number(to) };
+}
+
+function foldWidths(axis: AxisGeometry): { before: number; after: number } {
+  return { before: axis.from > 0 ? FOLD_PX : 0, after: axis.to < 1440 ? FOLD_PX : 0 };
+}
+
+/** 这一行第几分钟离横轴左边多少像素（0–1440 以内）：两头折起的那一截各 24 像素，展开的那段按比例。同 timeline-window 的 axisPixel。 */
+export function axisX(axis: AxisGeometry, minute: number): number {
+  const { before, after } = foldWidths(axis);
+  const { width } = axis.rect;
+  if (minute < axis.from) return (before * minute) / axis.from;
+  if (minute > axis.to) return width - after + (after * (minute - axis.to)) / (1440 - axis.to);
+  return before + ((width - before - after) * (minute - axis.from)) / (axis.to - axis.from);
+}
+
+/** 反过来：离横轴左边 x 像素（横轴以内）是第几分钟。 */
+export function minuteAtX(axis: AxisGeometry, x: number): number {
+  const { before, after } = foldWidths(axis);
+  const { width } = axis.rect;
+  if (x < before) return (x / before) * axis.from;
+  if (x > width - after) return axis.to + ((x - (width - after)) / after) * (1440 - axis.to);
+  return axis.from + ((x - before) / (width - before - after)) * (axis.to - axis.from);
+}
+
+/** 这一行的横轴上，展开的那段里 1 小时有多少像素。 */
 export async function hourWidth(row: Locator): Promise<number> {
-  return (await box(row.locator("[data-timeline-axis]"))).width / 24;
+  const axis = await axisOf(row);
+  const { before, after } = foldWidths(axis);
+  return (axis.rect.width - before - after) / ((axis.to - axis.from) / 60);
 }
 
 /** 这一行横轴上某个时刻（分钟）、横轴竖着的正中间，在屏幕上的位置。 */
 export async function axisPoint(row: Locator, minute: number): Promise<Point> {
-  const axis = await box(row.locator("[data-timeline-axis]"));
-  return { x: axis.x + (minute / 1440) * axis.width, y: axis.y + axis.height / 2 };
+  const axis = await axisOf(row);
+  return { x: axis.rect.x + axisX(axis, minute), y: axis.rect.y + axis.rect.height / 2 };
 }
 
 /** 用鼠标从 from 拖到 to（分几步移动，会越过 4 像素的门槛）；release 为 false 时停在终点不松手。 */

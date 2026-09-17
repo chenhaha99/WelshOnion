@@ -1,7 +1,7 @@
 import type { PlanView } from "@welshonion/core";
 import type { CSSProperties } from "react";
 
-// 横排、竖排时间轴共用的画法：位置按一天 1440 分钟的百分比算，换方向时只是换成上下
+// 时间轴的画法：竖排的位置按一天 1440 分钟的百分比算；横排两头会折起，位置见 timeline-window。类型色两种都用
 
 export const MINUTES_PER_DAY = 1440;
 /** 类型被删了的块用这个灰色 */

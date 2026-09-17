@@ -17,6 +17,7 @@ import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
 import { daySegmentStyle, dayStripsWidth, HOUR_HEIGHT, laneHeight, LIFTED_Z_INDEX, type BlockText } from "./timeline-geometry";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
+import { FULL_DAY } from "./timeline-window";
 import { useTimelineDrag, type DragView, type SegmentHandlers } from "./use-timeline-drag";
 import { zoneTimeLabel } from "./zone-time";
 
@@ -94,6 +95,8 @@ export function DayTimeline({
     filter,
     day: index,
     laneHeight: laneHeight(blockText),
+    // 竖排不折：本来就能上下滚
+    hours: FULL_DAY,
     scroller,
     // 拖完选中拖的那一件（复制着拖的是复制出来的那一份）
     onDropped: (blockId) => selection.select(blockId, null),

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   addBlocks,
+  axisPoint,
   box,
   center,
   DAY1,
@@ -15,6 +16,7 @@ import {
   rowOf,
   schedule,
   segment,
+  showFullDay,
   timelineRow,
   timeOf,
   tray,
@@ -31,6 +33,8 @@ test("拖中间：点一下开详情 → 预览 → 挪 → 撤销重做 → 吸
   await schedule(page, day1Table, "夜宵", "22:00", "1");
   await pickKind(page, day1Table, "民宿", "住宿");
   await schedule(page, day1Table, "民宿", "22:00", "10");
+  // 这份要拖到下一天的凌晨：整天画，横轴不跟着伸缩
+  await showFullDay(page);
   const day1 = timelineRow(page, "10.1");
   const day2 = timelineRow(page, "10.2");
   const hour = await hourWidth(day1);
@@ -86,7 +90,7 @@ test("拖中间：点一下开详情 → 预览 → 挪 → 撤销重做 → 吸
   // 指针拖出横轴右边就进了右边的「没排时间」栏，所以跨午夜是往下一行拖
   const supper = center(await box(segment(day1, "夜宵")));
   const day2AxisNow = await box(day2.locator("[data-timeline-axis]"));
-  await drag(page, supper, { x: day2AxisNow.x + (90 / 1440) * day2AxisNow.width, y: day2AxisNow.y + day2AxisNow.height - 8 });
+  await drag(page, supper, { x: (await axisPoint(day2, 90)).x, y: day2AxisNow.y + day2AxisNow.height - 8 });
   await expect.poll(() => timeOf(day2Table, "夜宵")).toBe("01:00–02:00");
 
   // 拖跨午夜的块的后半段：整块一起挪

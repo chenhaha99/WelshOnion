@@ -528,6 +528,16 @@
   pointer-events: none;
 }
 
+/* 横轴两头折起的钟点：斜纹，点了展开 */
+@utility timeline-fold {
+  background-color: rgb(38 50 56 / 0.03);
+  background-image: repeating-linear-gradient(135deg, rgb(38 50 56 / 0.1) 0 1px, transparent 1px 5px);
+  cursor: pointer;
+  &:hover {
+    background-color: rgb(38 50 56 / 0.08);
+  }
+}
+
 /* 表格里的输入框和下拉：平时像文字，指上去、点进去才显出边框 */
 @utility input-bare {
   width: 100%;
@@ -671,6 +681,8 @@
    按钮剪掉溢出但不当滚动容器（clip），名字的 sticky 才以外面的框为准；不认识 clip 的浏览器照旧 hidden */
 /* 横排横条、背景条里的标题：一行写完，写不下截断加「…」；最宽由 max-width 定（借右边的空白） */
 [data-timeline-axis] [data-bar-title] {
+  /* 背景条的按钮不是 flex：标题照样按块排，截断才生效（压在折起那一截里的住宿只有十几像素宽） */
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

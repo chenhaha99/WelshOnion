@@ -41,6 +41,7 @@ import {
   type DropInput,
 } from "./timeline-drop";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
+import { minuteAtPixel, type HourWindow } from "./timeline-window";
 
 const MINUTES_PER_DAY = 1440;
 /** 按下后移动多少像素才算开始拖（也是「挪过」的门槛）；端点多宽；横条至少多宽才有端点（像素） */
@@ -140,6 +141,8 @@ interface TimelineDragOptions {
   day: number | null;
   /** 横排主轨每道多高（像素）：块上写不写开销不一样，量指针落在哪块上要用 */
   laneHeight: number;
+  /** 横排横轴展开的那段：指针换算时刻、量落在哪块上都按折起后的位置；竖排不看 */
+  hours: HourWindow;
   /** 竖排能上下滚的框：拖到框边时它自己滚；横排不给 */
   scroller?: RefObject<HTMLDivElement | null>;
   /** 松手写进计划以后：拖的那一件（复制的是复制出来的那一份）；外面用它接着选中 */
@@ -182,6 +185,7 @@ export function useTimelineDrag({
   filter,
   day,
   laneHeight,
+  hours,
   scroller,
   onDropped,
 }: TimelineDragOptions): TimelineDrag {
@@ -224,17 +228,17 @@ export function useTimelineDrag({
   /** 最近一次在时间轴里按下的是不是鼠标：手指长按弹出的系统菜单要拦，鼠标右键的不拦 */
   const lastPressByMouse = useRef(true);
   // 窗口上的监听、长按计时、每帧的滚动都经过这里读最新的计划
-  const latest = useRef({ doc, library, plan, libraryView, rows, filter, day, laneHeight });
+  const latest = useRef({ doc, library, plan, libraryView, rows, filter, day, laneHeight, hours });
   useEffect(() => {
-    latest.current = { doc, library, plan, libraryView, rows, filter, day, laneHeight };
+    latest.current = { doc, library, plan, libraryView, rows, filter, day, laneHeight, hours };
   });
 
   /**
    * 指针落在第几行、这一行第几分钟（不夹在 0–1440 里）。
-   * 横排：纵坐标找行（第一行上面算第一行，最后一行下面算最后一行），横坐标算分钟；竖排：行就是正在看的那一行，纵坐标算分钟。
+   * 横排：纵坐标找行（第一行上面算第一行，最后一行下面算最后一行），横坐标按折起后的位置算分钟；竖排：行就是正在看的那一行，纵坐标算分钟。
    */
   const spotAt = (clientX: number, clientY: number): PointerSpot => {
-    const { plan, day } = latest.current;
+    const { plan, day, hours } = latest.current;
     if (day !== null) {
       const axis = axisElements.current[day]!.getBoundingClientRect();
       return { row: day, minute: ((clientY - axis.top) / axis.height) * MINUTES_PER_DAY };
@@ -243,7 +247,7 @@ export function useTimelineDrag({
     let row = elements.findIndex((element) => element !== null && clientY < element.getBoundingClientRect().bottom);
     if (row === -1) row = elements.length - 1;
     const axis = axisElements.current[row]!.getBoundingClientRect();
-    return { row, minute: ((clientX - axis.left) / axis.width) * MINUTES_PER_DAY };
+    return { row, minute: minuteAtPixel(hours, clientX - axis.left, axis.width) };
   };
 
 /** 横排：指针落在时间轴上面那条「没排时间」里就是在条里（条是整个计划一条）。竖排没有条。 */
@@ -271,7 +275,7 @@ export function useTimelineDrag({
    * 只量指针所在那一行（竖排是正在看的那一天）：块画在哪按道、缩进、时间算，这一行的横轴在屏幕上的位置读 DOM。
    */
   const ontoAfterDrop = (next: Drag, previous: string | null): string | null => {
-    const { plan, libraryView, rows, filter, day, laneHeight } = latest.current;
+    const { plan, libraryView, rows, filter, day, laneHeight, hours } = latest.current;
     const row = day ?? next.now.row;
     const axis = axisElements.current[row]!.getBoundingClientRect();
     const excluded = new Set([next.blockId, ...next.followers]);
@@ -289,6 +293,7 @@ export function useTimelineDrag({
           axis,
           orientation: day === null ? "wide" : "day",
           laneHeight,
+          hours,
           excluded,
           kindLayer: kindLayer(dropped.blocks.get(next.blockId)!, libraryView),
         },

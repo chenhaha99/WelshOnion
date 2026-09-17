@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { DAY1, addBlocks, box, newPlan, schedule, segment, showView, timelineRow } from "./timeline-helpers";
+import { DAY1, addBlocks, box, newPlan, schedule, segment, showFullDay, timelineRow } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 test("窄块：一小时的事标题截断不外溢 → 鼠标提示写全名 → 拖动条放大到 200% 一小时宽一倍", async ({ page }) => {
@@ -8,7 +8,8 @@ test("窄块：一小时的事标题截断不外溢 → 鼠标提示写全名 �
   const table = page.getByRole("table", { name: DAY1 });
   await addBlocks(page, table, ["西湖漫步", "灵隐寺"]);
   await schedule(page, table, "西湖漫步", "09:00", "1");
-  await showView(page, "时间轴");
+  // 整天画时一小时最窄；没事的凌晨和深夜折起时一小时宽得写下四个字
+  await showFullDay(page);
   const day1 = timelineRow(page, "10.1");
   const lake = segment(day1, "西湖漫步");
   const title = lake.locator("[data-bar-title]");
@@ -27,7 +28,7 @@ test("窄块：一小时的事标题截断不外溢 → 鼠标提示写全名 �
 
   // 右边紧挨着下一件也一样：不占别人的地方
   await schedule(page, table, "灵隐寺", "10:00", "1");
-  await showView(page, "时间轴");
+  await showFullDay(page);
   const tight = await box(segment(day1, "西湖漫步").locator("[data-bar-title]"));
   expect(tight.width, "还是自己那么宽").toBeLessThanOrEqual(lakeBox.width + 1);
 

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { openDetails, quickBar, showView } from "./timeline-helpers";
+import { axisOf, minuteAtX, openDetails, quickBar, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 async function pickKind(page: Page, row: Locator, kind: string): Promise<void> {
@@ -23,11 +23,11 @@ function segment(row: Locator, title: string): Locator {
   return row.locator("[data-segment]").filter({ has: row.page().getByRole("button", { name: new RegExp(`^${title} `) }) });
 }
 
-/** 按屏幕上量到的位置，换算这段横条从这一行的第几分钟画到第几分钟。 */
+/** 按屏幕上量到的位置，换算这段横条从这一行的第几分钟画到第几分钟（两头折起的钟点按压缩的比例换算）。 */
 async function measuredMinutes(row: Locator, title: string): Promise<{ from: number; to: number }> {
-  const [box, axis] = await Promise.all([segment(row, title).boundingBox(), row.locator("[data-timeline-axis]").boundingBox()]);
-  const perMinute = axis!.width / 1440;
-  return { from: (box!.x - axis!.x) / perMinute, to: (box!.x + box!.width - axis!.x) / perMinute };
+  const axis = await axisOf(row);
+  const box = await segment(row, title).boundingBox();
+  return { from: minuteAtX(axis, box!.x - axis.rect.x), to: minuteAtX(axis, box!.x + box!.width - axis.rect.x) };
 }
 
 test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电脑和手机上的宽度", async ({ page }) => {

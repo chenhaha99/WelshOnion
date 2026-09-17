@@ -23,7 +23,7 @@ import { Popover } from "../app/Popover";
 import { PlusIcon } from "./icons";
 import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
-import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
+import { kindColor } from "./timeline-draw";
 import {
   GAP,
   laneHeight,
@@ -35,6 +35,16 @@ import {
   type BlockText,
 } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
+import {
+  axisOffset,
+  axisPixel,
+  foldWidths,
+  hourLines,
+  hourTicks,
+  offsetCss,
+  spanOffset,
+  type HourWindow,
+} from "./timeline-window";
 import { UndatedStrip } from "./UndatedTray";
 import { useTimelineDrag, type CopyHandlers, type DragView, type SegmentHandlers } from "./use-timeline-drag";
 import { zoneTimeLabel } from "./zone-time";
@@ -44,8 +54,6 @@ const ROW_COLUMNS = "grid grid-cols-[6.5rem_1fr] gap-x-3";
 /** 第一列：横向滚动时钉在左边，底色盖住从下面滚过去的横条 */
 // 钉住的第一列：往左盖住卡片那 8 像素的内边距（横向滚的块会画到那儿），自己再用 pl-2 把字推回原位
 const FIRST_COLUMN = "sticky -left-2 z-10 -ml-2 bg-white/85 pl-2 backdrop-blur-[2px]";
-
-const MINUTES_PER_DAY = 1440;
 
 /** 「块上写」的两个选项 */
 interface TimelineProps {
@@ -61,6 +69,10 @@ interface TimelineProps {
   blockText: BlockText;
   /** 横向放到百分之几（横排才有） */
   zoom: number;
+  /** 横排横轴展开的那段：没事的凌晨和深夜折起（按计划算，见 timeline-window） */
+  hours: HourWindow;
+  /** 点了折起的那一截：展开成 0–24 点 */
+  onExpandHours: () => void;
   /** 竖排看的是哪天（底座 id）：DayList 记着，切到列表再切回来接着看这天 */
   shownDay: { current: string | null };
   /** 搜索里点了一条：竖排翻到这天（seq 变了才算一次新的） */
@@ -80,6 +92,8 @@ export function Timeline({
   moneyCells,
   blockText,
   zoom,
+  hours,
+  onExpandHours,
   shownDay,
   jump,
 }: TimelineProps) {
@@ -143,6 +157,8 @@ export function Timeline({
           moneyCells={moneyCells}
           blockText={blockText}
           zoom={zoom}
+          hours={hours}
+          onExpandHours={onExpandHours}
         />
       ) : (
         <DayTimeline
@@ -174,10 +190,12 @@ interface WideTimelineProps {
   moneyCells: Map<string, MoneyCell>;
   blockText: BlockText;
   zoom: number;
+  hours: HourWindow;
+  onExpandHours: () => void;
 }
 
 /**
- * 横排：一天一行，横向 0–24 点按真实比例；上面横着一条「没排时间」，第一列（日期、这天的菜单、加一件事）钉在左边。
+ * 横排：一天一行，横向按真实比例画这趟用得着的钟点（没事的凌晨和深夜折成两头窄窄的一截，见 timeline-window）；上面横着一条「没排时间」，第一列（日期、这天的菜单、加一件事）钉在左边。
  * 类型层低的块画在行上方的细条里并在主轨后面铺淡色，其余的在主轨里分道，点横条选中它。
  * 拖动中画成松手后的样子，「没排时间」条照原来的计划（见 use-timeline-drag）。
  */
@@ -192,6 +210,8 @@ function WideTimeline({
   moneyCells,
   blockText,
   zoom,
+  hours,
+  onExpandHours,
 }: WideTimelineProps) {
   const selection = useBlockSelection();
   const lane = laneHeight(blockText);
@@ -205,6 +225,7 @@ function WideTimeline({
     filter,
     day: null,
     laneHeight: lane,
+    hours,
     onDropped: (blockId) => selection.select(blockId, null),
   });
   const shownPlan = drag.dropped?.plan ?? plan;
@@ -255,13 +276,14 @@ function WideTimeline({
         <div aria-hidden className={ROW_COLUMNS}>
           <span className={FIRST_COLUMN} />
           <div className="relative h-4">
-            {HOUR_TICKS.map((hour) => (
+            <FoldBands hours={hours} onExpand={onExpandHours} />
+            {hourTicks(hours).map((hour) => (
               <span
                 key={hour}
                 data-hour-tick
                 // 最右的「24」右对齐到 24 点那条线
-                className={`absolute ${hour === 24 ? "-translate-x-full" : "-translate-x-1/2"} text-[11px] leading-4 text-ink-muted tabular-nums`}
-                style={{ left: percent(hour * 60) }}
+                className={`pointer-events-none absolute ${hour === 24 ? "-translate-x-full" : "-translate-x-1/2"} text-[11px] leading-4 text-ink-muted tabular-nums`}
+                style={{ left: offsetCss(axisOffset(hours, hour * 60)) }}
               >
                 {hour}
               </span>
@@ -289,6 +311,8 @@ function WideTimeline({
               moneyCells={moneyCells}
               blockText={blockText}
               laneHeight={lane}
+              hours={hours}
+              onExpandHours={onExpandHours}
               quickBarBlock={index === barRow && selectedUndated === null ? selectedBlock! : null}
               copyHandlers={drag.copyHandlers}
             />
@@ -323,6 +347,8 @@ interface TimelineRowProps {
   blockText: BlockText;
   /** 主轨每道多高（像素） */
   laneHeight: number;
+  hours: HourWindow;
+  onExpandHours: () => void;
   /** 快捷条画在这一行时，是哪一件事；不画是 null */
   quickBarBlock: BlockView | null;
   copyHandlers: CopyHandlers;
@@ -346,6 +372,8 @@ function TimelineRow({
   moneyCells,
   blockText,
   laneHeight,
+  hours,
+  onExpandHours,
   quickBarBlock,
   copyHandlers,
 }: TimelineRowProps) {
@@ -418,24 +446,28 @@ function TimelineRow({
       <div
         ref={axisRef}
         data-timeline-axis
+        // 走查按这两个数换算位置
+        data-window-from={hours.from}
+        data-window-to={hours.to}
         className="relative"
         // 快捷条浮在上面、不占这一行的高度（你提的：选中不该把下面的时间轴顶下去）
         style={{ minHeight: wideAxisHeight(layout, laneHeight) }}
       >
-        {HOUR_LINES.map((hour) => (
+        {hourLines(hours).map((hour) => (
           <div
             key={hour}
             aria-hidden
             className={`absolute inset-y-0 w-px ${hour % 6 === 0 ? "bg-ink/12" : "bg-ink/5"}`}
-            style={{ left: percent(hour * 60) }}
+            style={{ left: offsetCss(axisOffset(hours, hour * 60)) }}
           />
         ))}
+        <FoldBands hours={hours} onExpand={onExpandHours} />
         {layout.background.map((item) => (
           <div
             key={`wash-${item.blockId}`}
             aria-hidden
             className="timeline-wash absolute bottom-0"
-            style={{ ...horizontal(item), top: wideStripsHeight(layout), ...kindColor(plan, item.blockId) }}
+            style={{ ...horizontal(item, hours), top: wideStripsHeight(layout), ...kindColor(plan, item.blockId) }}
           />
         ))}
         {[...layout.background, ...layout.main].map((item) => (
@@ -447,6 +479,7 @@ function TimelineRow({
             plan={plan}
             item={item}
             box={wideSegmentBox(item, layout, laneHeight)}
+            hours={hours}
             showTitle={blockText.title}
             showDuration={blockText.duration && item.track === "main"}
             showMoney={blockText.money && item.track === "main"}
@@ -456,7 +489,12 @@ function TimelineRow({
           />
         ))}
         {barSegment && (
-          <QuickBarAnchor key={barSegment.blockId} to={barSegment.to} top={wideAxisHeight(layout, laneHeight) + GAP}>
+          <QuickBarAnchor
+            key={barSegment.blockId}
+            to={barSegment.to}
+            hours={hours}
+            top={wideAxisHeight(layout, laneHeight) + GAP}
+          >
             {quickBar}
           </QuickBarAnchor>
         )}
@@ -482,6 +520,7 @@ interface SegmentProps {
   money: MoneyCell | undefined;
   /** 在这一行横轴里的上边和高度（像素） */
   box: { top: number; height: number };
+  hours: HourWindow;
   dragView: DragView | null;
   handlers: SegmentHandlers;
 }
@@ -498,6 +537,7 @@ function Segment({
   showDuration,
   showMoney,
   money,
+  hours,
   dragView,
   handlers,
 }: SegmentProps) {
@@ -532,7 +572,7 @@ function Segment({
       className="absolute"
       // 缩得越深的画得越靠上：谁压谁不看在页面里的先后；拿起来的块压在最上面
       style={{
-        ...horizontal(item),
+        ...horizontal(item, hours),
         ...box,
         zIndex: lifted ? LIFTED_Z_INDEX : 1 + item.depth,
         ...kindColor(plan, item.blockId),
@@ -567,8 +607,45 @@ function Segment({
   );
 }
 
-function horizontal(item: PlacedSegment): CSSProperties {
-  return { left: percent(item.from), width: percent(item.to - item.from) };
+function horizontal(item: PlacedSegment, hours: HourWindow): CSSProperties {
+  return { left: offsetCss(axisOffset(hours, item.from)), width: offsetCss(spanOffset(hours, item.from, item.to)) };
+}
+
+interface FoldBandsProps {
+  hours: HourWindow;
+  onExpand: () => void;
+}
+
+/**
+ * 折起的那一截：斜纹，折起的钟点按比例压在里面（住宿这类背景条照样画进来）。点了展开成 0–24 点：
+ * 给鼠标和手指的捷径，读屏和 Tab 走视图那一行的「0–24 点」按钮。
+ */
+function FoldBands({ hours, onExpand }: FoldBandsProps) {
+  const { before, after } = foldWidths(hours);
+  return (
+    <>
+      {before > 0 && (
+        <div
+          aria-hidden
+          data-fold="before"
+          title={`展开 0–${hours.from / 60} 点`}
+          className="timeline-fold absolute inset-y-0 left-0"
+          style={{ width: before }}
+          onClick={onExpand}
+        />
+      )}
+      {after > 0 && (
+        <div
+          aria-hidden
+          data-fold="after"
+          title={`展开 ${hours.to / 60}–24 点`}
+          className="timeline-fold absolute inset-y-0 right-0"
+          style={{ width: after }}
+          onClick={onExpand}
+        />
+      )}
+    </>
+  );
 }
 
 /** 快捷条画在哪一行：排上时间的贴点的那一段（跨午夜的点哪一段贴哪一段），点的那一行不在了就找第一段；没排时间的在它那天。 */
@@ -583,13 +660,14 @@ function quickBarRow(block: BlockView, rows: readonly RowLayout[], plan: PlanVie
 interface QuickBarAnchorProps {
   /** 贴着这一段的结束分钟（右边对齐它） */
   to: number;
+  hours: HourWindow;
   /** 在横轴里的上边（像素） */
   top: number;
   children: ReactNode;
 }
 
 /** 把快捷条摆在这一段的右下角：右边对齐这一段，伸出横轴左右边时贴着边放（横轴的宽度按 DOM 量）。 */
-function QuickBarAnchor({ to, top, children }: QuickBarAnchorProps) {
+function QuickBarAnchor({ to, hours, top, children }: QuickBarAnchorProps) {
   const box = useRef<HTMLDivElement>(null);
   const [left, setLeft] = useState(0);
   useLayoutEffect(() => {
@@ -598,9 +676,9 @@ function QuickBarAnchor({ to, top, children }: QuickBarAnchorProps) {
     if (!element || !axis) return;
     const axisWidth = axis.getBoundingClientRect().width;
     const width = element.getBoundingClientRect().width;
-    const right = (to / MINUTES_PER_DAY) * axisWidth;
+    const right = axisPixel(hours, to, axisWidth);
     setLeft(Math.max(0, Math.min(right - width, axisWidth - width)));
-  }, [to]);
+  }, [to, hours]);
   return (
     <div ref={box} className="absolute z-20" style={{ top, left }}>
       {children}

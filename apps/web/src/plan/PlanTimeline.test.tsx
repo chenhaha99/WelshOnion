@@ -86,8 +86,9 @@ describe("时间轴一天一行", () => {
         .getAllByRole("listitem")
         .map((row) => row.getAttribute("aria-label")),
     ).toEqual(["第 1 天 · 10.1 周四", "第 2 天 · 10.2 周五"]);
+    // 没事的凌晨和深夜默认折起（见 PlanTimelineFold.test）
     expect([...region.querySelectorAll("[data-hour-tick]")].map((tick) => tick.textContent)).toEqual(
-      ["0", "2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24"],
+      ["7", "8", "10", "12", "14", "16", "18", "20", "21"],
     );
   });
 });
@@ -101,6 +102,10 @@ describe("块怎么画", () => {
       block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "day" });
     });
 
+    // 按下「0–24 点」：按一天 1440 分钟平分，好算百分比
+    const user = userEvent.setup();
+    await timeline();
+    await user.click(screen.getByRole("button", { name: "0–24 点" }));
     const row = await timelineRow("10.1");
     expect(within(row).getByRole("button", { name: "西湖 09:00–12:00" })).toBeTruthy();
     const lake = segmentOf(row, "西湖");

@@ -22,6 +22,7 @@ import {
 } from "./timeline-drag";
 import { daySegmentPixels, MARKER_HIT, wideSegmentBox } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
+import { axisPixel, type HourWindow } from "./timeline-window";
 
 /*
  * 时间轴上拖拽松手后的事：松手调哪个操作、带什么参数（松手写入和拖动中画的样子共用这一份），
@@ -235,6 +236,8 @@ export interface HitContext {
   orientation: "wide" | "day";
   /** 横排主轨每道多高（像素）：块上写不写开销不一样 */
   laneHeight: number;
+  /** 横排横轴展开的那段（两头折起的钟点压在窄窄一截里）；竖排不看 */
+  hours: HourWindow;
   /** 不算的块：被拖的块、跟着它走的块，复制时还有复制出来的 */
   excluded: ReadonlySet<string>;
   /** 被拖块的类型层：只看类型层一样的块 */
@@ -251,9 +254,9 @@ export interface HitContext {
  * 竖排的列宽不随叠放变，还是按这一段自己的宽度取两边各 30%。
  */
 export function ontoAt(point: Point, context: HitContext): string | null {
-  const { plan, library, layout, axis, orientation, excluded, laneHeight } = context;
+  const { plan, library, layout, axis, orientation, excluded, laneHeight, hours } = context;
   const under = [...layout.background, ...layout.main]
-    .map((item, order) => ({ item, order, rect: segmentRect(item, layout, axis, orientation, laneHeight) }))
+    .map((item, order) => ({ item, order, rect: segmentRect(item, layout, axis, orientation, laneHeight, hours) }))
     .filter(({ item, rect }) => !excluded.has(item.blockId) && inside(point, rect))
     .sort((a, b) => b.item.depth - a.item.depth || b.order - a.order);
   for (const { item, rect } of under) {
@@ -269,17 +272,22 @@ export function ontoAt(point: Point, context: HitContext): string | null {
   return null;
 }
 
-/** 一段在屏幕上占的矩形，和 Timeline、DayTimeline 画的一样（timeline-geometry）；时长为 0 的沿时间方向放宽到 12 像素。 */
+/**
+ * 一段在屏幕上占的矩形，和 Timeline、DayTimeline 画的一样（timeline-geometry）；时长为 0 的沿时间方向放宽到 12 像素。
+ * 横排按折起后的位置量（timeline-window），竖排是整天按比例。
+ */
 function segmentRect(
   item: PlacedSegment,
   layout: RowLayout,
   axis: AxisRect,
   orientation: "wide" | "day",
   laneHeight: number,
+  hours: HourWindow,
 ): AxisRect {
-  const along = orientation === "wide" ? axis.width : axis.height;
-  const start = (item.from / MINUTES_PER_DAY) * along;
-  const length = ((item.to - item.from) / MINUTES_PER_DAY) * along;
+  const start =
+    orientation === "wide" ? axisPixel(hours, item.from, axis.width) : (item.from / MINUTES_PER_DAY) * axis.height;
+  const end = orientation === "wide" ? axisPixel(hours, item.to, axis.width) : (item.to / MINUTES_PER_DAY) * axis.height;
+  const length = end - start;
   const [from, size] = length === 0 ? [start - MARKER_HIT / 2, MARKER_HIT] : [start, length];
   if (orientation === "wide") {
     const { top, height } = wideSegmentBox(item, layout, laneHeight);
