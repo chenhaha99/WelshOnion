@@ -63,6 +63,8 @@ interface TimelineProps {
   zoom: number;
   /** 竖排看的是哪天（底座 id）：DayList 记着，切到列表再切回来接着看这天 */
   shownDay: { current: string | null };
+  /** 搜索里点了一条：竖排翻到这天（seq 变了才算一次新的） */
+  jump: { baseId: string; seq: number } | null;
 }
 
 /**
@@ -79,6 +81,7 @@ export function Timeline({
   blockText,
   zoom,
   shownDay,
+  jump,
 }: TimelineProps) {
   const section = useRef<HTMLElement>(null);
   const labels = dayRowLabels(plan.bases);
@@ -153,6 +156,7 @@ export function Timeline({
           labels={labels}
           filter={filter}
           shownDay={shownDay}
+          jump={jump}
         />
       )}
     </section>
@@ -243,7 +247,8 @@ function WideTimeline({
       <div
         data-timeline-scroll
         data-timeline-dragging={drag.dragView ? true : undefined}
-        className="-mx-2 overflow-x-auto px-2 pb-1"
+        className="-mx-2 overflow-x-auto px-2"
+        style={{ paddingBottom: QUICK_BAR_ROW_PX }}
       >
       {/* 横轴至少 62rem（每小时 30 像素），放大就按倍数加宽 */}
       <div className="pr-3" style={{ minWidth: `${(62 * zoom) / 100}rem` }}>

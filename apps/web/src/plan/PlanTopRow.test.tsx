@@ -18,7 +18,7 @@ async function topRow(): Promise<HTMLElement> {
 }
 
 describe("页顶那一行", () => {
-  it("一行里依次是返回、计划名、三个图标；计划名不另占一行", async () => {
+  it("一行里依次是返回、计划名、四个图标；计划名不另占一行", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
 
     const row = await topRow();
@@ -28,7 +28,7 @@ describe("页顶那一行", () => {
     expect(parts[1]!.getAttribute("role") ?? parts[1]!.tagName).toBe("H1");
     expect(parts[1]!.textContent).toBe("测试计划");
     expect(within(parts[2] as HTMLElement).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(
-      ["计划设置", "撤销", "重做"],
+      ["搜索", "计划设置", "撤销", "重做"],
     );
     // 页面上只有这一处写着计划名的标题
     expect(screen.getAllByRole("heading", { name: "测试计划" })).toHaveLength(1);

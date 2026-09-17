@@ -95,6 +95,30 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 改状�
   expect(errors).toEqual([]);
 });
 
+test("电脑上：选中最后一行的事，快捷条整个露出来，时间轴不会被撑得能竖着滚", async ({ page }) => {
+  const errors = watchErrors(page);
+  await newPlan(page, 2);
+  const day2Table = page.getByRole("table", { name: /10\.2 周五 的安排/ });
+  await addBlocks(page, day2Table, ["夜游"]);
+  await schedule(page, day2Table, "夜游", "19:00", "2");
+  await showView(page, "时间轴");
+  const scroller = page.locator("[data-timeline-scroll]");
+  const day2 = timelineRow(page, "10.2");
+
+  await segment(day2, "夜游").getByRole("button", { name: /^夜游 / }).click();
+  const bar = quickBar(page, "夜游");
+  await expect(bar).toBeVisible();
+
+  // 浮着的快捷条不能把横着滚的框撑高：撑高了框就能竖着滚，滚轮一推钟点那一行就滚没了，快捷条底边还会被裁掉
+  const sizes = await scroller.evaluate((element) => ({ scroll: element.scrollHeight, client: element.clientHeight }));
+  expect(sizes.scroll).toBeLessThanOrEqual(sizes.client);
+  const frame = (await scroller.boundingBox())!;
+  const barBox = (await bar.boundingBox())!;
+  expect(barBox.y + barBox.height).toBeLessThanOrEqual(frame.y + frame.height);
+
+  expect(errors).toEqual([]);
+});
+
 test("电脑上：点一下复制就地多一份；块上写开销，点金额就地改", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);

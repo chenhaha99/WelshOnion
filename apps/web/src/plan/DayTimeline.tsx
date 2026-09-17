@@ -38,6 +38,8 @@ interface DayTimelineProps {
   blockText: BlockText;
   /** 看的是哪天（底座 id），记在 DayList 里：切到列表时这里卸掉，切回来接着看这天 */
   shownDay: { current: string | null };
+  /** 搜索里点了一条：翻到这天（seq 变了才算一次新的） */
+  jump: { baseId: string; seq: number } | null;
 }
 
 /**
@@ -58,6 +60,7 @@ export function DayTimeline({
   moneyCells,
   blockText,
   shownDay,
+  jump,
 }: DayTimelineProps) {
   const now = useNow();
   const timeZone = useTimeZone();
@@ -68,6 +71,12 @@ export function DayTimeline({
     const shown = plan.bases.findIndex((item) => item.id === shownDay.current);
     return shown >= 0 ? shown : todayIndex;
   });
+  // 搜索跳过来：画的时候发现是新的一次就换天，和选中在同一次画出来，DayList 接着就找得到那件事
+  const [jumpSeen, setJumpSeen] = useState(jump?.seq ?? 0);
+  if (jump !== null && jump.seq !== jumpSeen) {
+    setJumpSeen(jump.seq);
+    setChosen(plan.bases.findIndex((item) => item.id === jump.baseId));
+  }
   // 计划里删了天、行数变少时，夹回最后一行
   const index = Math.min(chosen, plan.bases.length - 1);
   const base = plan.bases[index]!;

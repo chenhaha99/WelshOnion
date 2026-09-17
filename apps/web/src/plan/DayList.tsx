@@ -15,6 +15,7 @@ import { readBlockText, saveBlockText } from "./plan-block-text-memory";
 import { readTimelineZoom, saveTimelineZoom, ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
 import { useWideScreen } from "../app/use-wide-screen";
+import { PlanSearch } from "./PlanSearch";
 import { SelectBlockContext, type BlockSelection } from "./select-block";
 import type { BlockText } from "./timeline-geometry";
 import { SharesCard } from "./SharesCard";
@@ -48,6 +49,10 @@ interface DayListProps {
   plan: PlanView;
   /** 按计划记住上次看的是时间轴还是列表 */
   planId: string;
+  /** 搜索面板开着时贴着的按钮（页顶的「搜索」）；没开是 null */
+  searchAnchor: HTMLButtonElement | null;
+  /** 搜索面板关掉了（按了 Esc、点了外面，或者点了结果） */
+  onSearchClosed: () => void;
 }
 
 /** 详情面板开着哪件事：谁点开的（关掉后焦点回到它）、打开时焦点放哪 */
@@ -63,7 +68,7 @@ interface OpenedBlock {
  * 按下了哪些状态、类型、怎么分组只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、开销、占比和每一天；
  * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：几个视图打开的是同一个，切换视图面板留着。
  */
-export function DayList({ doc, library, libraryView, plan, planId }: DayListProps) {
+export function DayList({ doc, library, libraryView, plan, planId, searchAnchor, onSearchClosed }: DayListProps) {
   const bases = plan.bases;
   const labels = dayRowLabels(bases);
 
@@ -177,6 +182,29 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [selected]);
+  // 搜索里点了一条：跳到那件事。被筛选挡住先清筛选；总览切到时间轴、列表按类型分组切回按天（没有一件事一行）；
+  // 时间轴上选中它，手机竖排翻到它那天（DayTimeline 看 jump.seq 变了就换天）。画完再滚到屏幕中间、焦点放上去
+  const [jump, setJump] = useState<{ blockId: string; baseId: string; seq: number } | null>(null);
+  const jumpToBlock = (blockId: string) => {
+    const block = plan.blocks.get(blockId)!;
+    if (!passesFilter(block, filter)) {
+      setSelectedStatuses([]);
+      setSelectedKinds([]);
+    }
+    if (view === "overview") showView("timeline");
+    if (view === "list") setGrouping("day");
+    else setSelected({ blockId, baseId: null });
+    setOpened(null);
+    shownDay.current = block.start_base_id;
+    setJump({ blockId, baseId: block.start_base_id, seq: (jump?.seq ?? 0) + 1 });
+  };
+  useEffect(() => {
+    if (jump === null) return;
+    const target = document.querySelector<HTMLElement>(blockFocusSelector(jump.blockId))!;
+    target.scrollIntoView({ block: "center", inline: "center" });
+    target.focus();
+  }, [jump]);
+
   const statuses = [...libraryView.statuses.values()].sort((a, b) => a.order - b.order);
   const kinds = usedKinds(plan, libraryView, filter?.kindIds ?? []);
   // 一件事都没有时筛不掉任何东西、只有一种类型时按下去也筛不掉：那一排不出现；按下过就一直留着，不然取消不了
@@ -300,6 +328,7 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
                 blockText={blockText}
                 zoom={zoom}
                 shownDay={shownDay}
+                jump={jump}
               />
             ) : (
               <>
@@ -367,6 +396,21 @@ export function DayList({ doc, library, libraryView, plan, planId }: DayListProp
           block={openedBlock}
           anchor={opened.opener}
           onClose={closePanel}
+        />
+      )}
+      {searchAnchor && (
+        <PlanSearch
+          plan={plan}
+          filter={filter}
+          anchor={searchAnchor}
+          onClose={() => {
+            onSearchClosed();
+            searchAnchor.focus();
+          }}
+          onPick={(blockId) => {
+            onSearchClosed();
+            jumpToBlock(blockId);
+          }}
         />
       )}
     </section>

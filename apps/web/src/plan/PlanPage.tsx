@@ -7,7 +7,7 @@ import { openPlan, type PlanHandle } from "../storage/plans";
 import { AskDays } from "./AskDays";
 import { DayList } from "./DayList";
 import { DeletedNotice } from "./DeletedNotice";
-import { GearIcon, RedoIcon, UndoIcon } from "./icons";
+import { GearIcon, RedoIcon, SearchIcon, UndoIcon } from "./icons";
 import { SettingsWindow } from "./SettingsWindow";
 import { usePlanUndo } from "./use-plan-undo";
 
@@ -67,6 +67,8 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
   const plan = useMemo(() => readPlan(handle.doc, libraryView), [handle.doc, libraryView, planVersion]);
   const undo = usePlanUndo(handle.doc);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // 搜索面板贴着哪个按钮开（开着就是页顶的「搜索」）；面板画在 DayList 里，筛选和跳转要的状态在那儿
+  const [searchAnchor, setSearchAnchor] = useState<HTMLButtonElement | null>(null);
   // 关掉设置后焦点回到打开它的那个按钮：计划名或页顶的「计划设置」
   const settingsOpener = useRef<HTMLButtonElement | null>(null);
   const openSettings = (event: MouseEvent<HTMLButtonElement>) => {
@@ -108,8 +110,19 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
               {plan.plan.name}
             </button>
           </h1>
-          {/* 三个图标按钮：名字只在读屏名和鼠标提示里（你提的：右上角都换成图标） */}
+          {/* 图标按钮：名字只在读屏名和鼠标提示里（你提的：右上角都换成图标） */}
           <div className="flex justify-self-end gap-1">
+            {/* 一件事都没有时没东西可搜：不能点，但占着位置，别的图标不跳 */}
+            <button
+              type="button"
+              aria-label="搜索"
+              title="搜索"
+              className="btn btn-ghost px-2.5"
+              disabled={plan.blocks.size === 0}
+              onClick={(event) => setSearchAnchor(event.currentTarget)}
+            >
+              <SearchIcon />
+            </button>
             <button type="button" aria-label="计划设置" title="计划设置" className="btn btn-ghost px-2.5" onClick={openSettings}>
               <GearIcon />
             </button>
@@ -139,7 +152,15 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
         {plan.bases.length === 0 ? (
           <AskDays doc={handle.doc} />
         ) : (
-          <DayList doc={handle.doc} library={library} libraryView={libraryView} plan={plan} planId={handle.planId} />
+          <DayList
+            doc={handle.doc}
+            library={library}
+            libraryView={libraryView}
+            plan={plan}
+            planId={handle.planId}
+            searchAnchor={searchAnchor}
+            onSearchClosed={() => setSearchAnchor(null)}
+          />
         )}
 
         {settingsOpen && (

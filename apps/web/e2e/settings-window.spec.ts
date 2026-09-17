@@ -2,12 +2,13 @@ import { expect, test } from "@playwright/test";
 import { DAY1, addBlocks, newPlan } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("计划设置是居中的窗口：页顶三个图标 → 左边两块分开 → 点暗底关掉 → 在设置里改类型 → 手机上占满屏幕", async ({ page }) => {
+test("计划设置是居中的窗口：页顶四个图标 → 左边两块分开 → 点暗底关掉 → 在设置里改类型 → 手机上占满屏幕", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 2);
   await addBlocks(page, page.getByRole("table", { name: DAY1 }), ["西湖"]);
 
-  // 页顶三个图标：名字只在读屏名和提示里
+  // 页顶四个图标：名字只在读屏名和提示里
+  await expect(page.getByRole("button", { name: "搜索", exact: true })).toHaveText("");
   const settingsButton = page.getByRole("button", { name: "计划设置", exact: true });
   await expect(settingsButton).toHaveText("");
   await expect(page.getByRole("button", { name: "撤销" })).toHaveText("");
