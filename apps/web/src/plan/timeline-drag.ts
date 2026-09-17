@@ -6,6 +6,8 @@
 const MINUTES_PER_DAY = 1440;
 /** 拖拽吸附到几分钟 */
 const SNAP_MIN = 15;
+/** 点一下空白加的事多长（分钟） */
+const BLANK_ADD_MIN = 60;
 /** 框边自己滚：离边多少像素以内开始滚，正在边上时每帧滚多少像素 */
 const EDGE_ZONE_PX = 40;
 const EDGE_MAX_STEP_PX = 10;
@@ -78,6 +80,26 @@ export function undatedStartMinute(minute: number): number {
   return Math.min(Math.max(snap(minute), 0), MINUTES_PER_DAY - SNAP_MIN);
 }
 
+/** 在空白处加一件事：这一天从第几分钟到第几分钟。 */
+export interface MinuteRange {
+  from: number;
+  to: number;
+}
+
+/** 点一下空白：从点的钟点往前取到 15 分钟（点在 09:10 框从 09:00 起，指针在框里），画 1 小时；夹在 0–24 点里。 */
+export function blankClickRange(minute: number): MinuteRange {
+  const from = Math.min(Math.max(floorSnap(minute), 0), MINUTES_PER_DAY - SNAP_MIN);
+  return { from, to: Math.min(from + BLANK_ADD_MIN, MINUTES_PER_DAY) };
+}
+
+/** 在空白处拖出一段：按下和现在两个钟点，早的往前、晚的往后取到 15 分钟，至少 15 分钟；夹在 0–24 点里。 */
+export function blankDragRange(a: number, b: number): MinuteRange {
+  const inDay = (minute: number) => Math.min(Math.max(minute, 0), MINUTES_PER_DAY);
+  const from = Math.min(floorSnap(inDay(Math.min(a, b))), MINUTES_PER_DAY - SNAP_MIN);
+  const to = Math.max(Math.ceil(inDay(Math.max(a, b)) / SNAP_MIN) * SNAP_MIN, from + SNAP_MIN);
+  return { from, to };
+}
+
 /** 竖排里拖不换天：开始时刻夹在块开始那天（第 row 行）的 00:00–23:45。 */
 export function clampToDay(start: number, row: number): number {
   const dayStart = row * MINUTES_PER_DAY;
@@ -120,4 +142,9 @@ export function dragLabelPlace(
 /** 四舍五入到 15 分钟；加 0 把 -0 变成 0。 */
 function snap(minutes: number): number {
   return Math.round(minutes / SNAP_MIN) * SNAP_MIN + 0;
+}
+
+/** 往前取到 15 分钟。 */
+function floorSnap(minutes: number): number {
+  return Math.floor(minutes / SNAP_MIN) * SNAP_MIN + 0;
 }

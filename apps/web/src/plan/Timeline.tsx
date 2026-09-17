@@ -11,6 +11,7 @@ import {
 } from "react";
 import type * as Y from "yjs";
 import { useWideScreen } from "../app/use-wide-screen";
+import { AddAtTime } from "./AddAtTime";
 import { TimelineAddBlock } from "./AddBlock";
 import { blockTimeLabel, durationLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
@@ -46,7 +47,16 @@ import {
   type HourWindow,
 } from "./timeline-window";
 import { UndatedStrip } from "./UndatedTray";
-import { useTimelineDrag, type CopyHandlers, type DragView, type SegmentHandlers } from "./use-timeline-drag";
+import type { MinuteRange } from "./timeline-drag";
+import {
+  isBlankPress,
+  useTimelineDrag,
+  type BlankHandlers,
+  type BlankRange,
+  type CopyHandlers,
+  type DragView,
+  type SegmentHandlers,
+} from "./use-timeline-drag";
 import { zoneTimeLabel } from "./zone-time";
 
 /** 每行两栏：钉住的第一列（日期、这天的菜单、加一件事）和 0–24 点的横轴 */
@@ -215,6 +225,12 @@ function WideTimeline({
 }: WideTimelineProps) {
   const selection = useBlockSelection();
   const lane = laneHeight(blockText);
+  // 在空白处点了、拖出了一段：画着虚线框，贴着它弹「加一件事」；框关掉就没了
+  const [adding, setAdding] = useState<BlankRange | null>(null);
+  const [ghost, setGhost] = useState<HTMLDivElement | null>(null);
+  const addingBase = adding === null ? undefined : plan.bases[adding.row];
+  // 框开着时那一天被删了：关掉
+  if (adding !== null && addingBase === undefined) setAdding(null);
   // 拖完选中拖的那一件（复制着拖的是复制出来的那一份）
   const drag = useTimelineDrag({
     doc,
@@ -227,7 +243,10 @@ function WideTimeline({
     laneHeight: lane,
     hours,
     onDropped: (blockId) => selection.select(blockId, null),
+    onBlankRange: setAdding,
   });
+  // 正在拖出的一段先画；拖完弹框时画框贴着的那一段
+  const newRange = drag.blankRange ?? adding;
   const shownPlan = drag.dropped?.plan ?? plan;
   const shownRows = drag.dropped?.rows ?? rows;
   // 选中的那件旁边出快捷条；拖动中不画
@@ -315,12 +334,32 @@ function WideTimeline({
               onExpandHours={onExpandHours}
               quickBarBlock={index === barRow && selectedUndated === null ? selectedBlock! : null}
               copyHandlers={drag.copyHandlers}
+              newRange={newRange?.row === index ? newRange : null}
+              ghostRef={newRange?.row === index ? setGhost : undefined}
+              blankHandlers={drag.blankHandlers}
             />
           ))}
         </ol>
         </div>
       </div>
       {drag.pointerLabel && <DragLabel label={drag.pointerLabel} />}
+      {adding !== null && addingBase !== undefined && ghost !== null && (
+        <AddAtTime
+          doc={doc}
+          library={library}
+          plan={plan}
+          filter={filter}
+          baseId={addingBase.id}
+          label={labels[adding.row]!}
+          range={adding}
+          anchor={ghost}
+          onClose={() => setAdding(null)}
+          onAdded={(blockId) => {
+            setAdding(null);
+            selection.select(blockId, addingBase.id);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -352,6 +391,10 @@ interface TimelineRowProps {
   /** 快捷条画在这一行时，是哪一件事；不画是 null */
   quickBarBlock: BlockView | null;
   copyHandlers: CopyHandlers;
+  /** 在这一行空白处拖出的、弹「加一件事」贴着的那一段；没有是 null */
+  newRange: MinuteRange | null;
+  ghostRef: ((element: HTMLDivElement | null) => void) | undefined;
+  blankHandlers: BlankHandlers;
 }
 
 function TimelineRow({
@@ -376,6 +419,9 @@ function TimelineRow({
   onExpandHours,
   quickBarBlock,
   copyHandlers,
+  newRange,
+  ghostRef,
+  blankHandlers,
 }: TimelineRowProps) {
   const [dayNumber, ...rest] = label.split(" · ");
   // 排上时间的：快捷条贴着这一行里它那一段的右下角；没排时间的：画在栏里它自己下面
@@ -452,6 +498,10 @@ function TimelineRow({
         className="relative"
         // 快捷条浮在上面、不占这一行的高度（你提的：选中不该把下面的时间轴顶下去）
         style={{ minHeight: wideAxisHeight(layout, laneHeight) }}
+        // 空白处点一下、按住拖：加一件事
+        onPointerDown={(event) => {
+          if (isBlankPress(event.target)) blankHandlers.onPointerDown(event, index);
+        }}
       >
         {hourLines(hours).map((hour) => (
           <div
@@ -488,6 +538,19 @@ function TimelineRow({
             handlers={handlers}
           />
         ))}
+        {newRange && (
+          <div
+            ref={ghostRef}
+            data-new-range
+            className="timeline-new-range absolute inset-y-0"
+            style={{
+              left: offsetCss(axisOffset(hours, newRange.from)),
+              width: offsetCss(spanOffset(hours, newRange.from, newRange.to)),
+            }}
+          >
+            {blockTimeLabel({ start_minute: newRange.from, duration_min: newRange.to - newRange.from, slot: null }, base.date)}
+          </div>
+        )}
         {barSegment && (
           <QuickBarAnchor
             key={barSegment.blockId}

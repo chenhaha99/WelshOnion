@@ -528,6 +528,23 @@
   pointer-events: none;
 }
 
+/* 在空白处加一件事：按下、拖出来的那一段，弹「加一件事」时也留着；不挡指针 */
+@utility timeline-new-range {
+  z-index: 5;
+  overflow: hidden;
+  padding: 0.125rem 0.25rem;
+  border: 1.5px dashed var(--color-sage-deep);
+  border-radius: 0.375rem;
+  background-color: color-mix(in srgb, var(--color-sage) 16%, transparent);
+  color: var(--color-sage-deep);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* 横轴两头折起的钟点：斜纹，点了展开 */
 @utility timeline-fold {
   background-color: rgb(38 50 56 / 0.03);

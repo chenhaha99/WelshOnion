@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  blankClickRange,
+  blankDragRange,
   clampLinear,
   clampToDay,
   dragLabelPlace,
@@ -166,5 +168,36 @@ describe("松手后的时间写在哪", () => {
   it("上面放不下（离屏幕上边不到 8 像素）就放在指针下方 56 像素", () => {
     expect(dragLabelPlace({ x: 200, y: 84 }, size, 390)).toEqual({ left: 150, top: 8 });
     expect(dragLabelPlace({ x: 200, y: 70 }, size, 390)).toEqual({ left: 150, top: 126 });
+  });
+});
+
+describe("在空白处加一件事：从几点到几点", () => {
+  it("点一下：往前取到 15 分钟，1 小时", () => {
+    expect(blankClickRange(850)).toEqual({ from: 840, to: 900 });
+    expect(blankClickRange(840)).toEqual({ from: 840, to: 900 });
+    expect(blankClickRange(854.9)).toEqual({ from: 840, to: 900 });
+  });
+
+  it("点一下：夹在 0–24 点里", () => {
+    expect(blankClickRange(-20)).toEqual({ from: 0, to: 60 });
+    // 23:40：从 23:30 画到 24:00
+    expect(blankClickRange(1420)).toEqual({ from: 1410, to: 1440 });
+    expect(blankClickRange(1450)).toEqual({ from: 1425, to: 1440 });
+  });
+
+  it("拖：早的往前、晚的往后取到 15 分钟，往左往右一样", () => {
+    expect(blankDragRange(905, 1040)).toEqual({ from: 900, to: 1050 });
+    expect(blankDragRange(1040, 905)).toEqual({ from: 900, to: 1050 });
+  });
+
+  it("拖：至少 15 分钟，正好在 15 分钟上也是", () => {
+    expect(blankDragRange(850, 853)).toEqual({ from: 840, to: 855 });
+    expect(blankDragRange(840, 840)).toEqual({ from: 840, to: 855 });
+  });
+
+  it("拖：两头夹在 0–24 点里", () => {
+    expect(blankDragRange(60, -300)).toEqual({ from: 0, to: 60 });
+    expect(blankDragRange(1400, 1700)).toEqual({ from: 1395, to: 1440 });
+    expect(blankDragRange(1440, 1500)).toEqual({ from: 1425, to: 1440 });
   });
 });

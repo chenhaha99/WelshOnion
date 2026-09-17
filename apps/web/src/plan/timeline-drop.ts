@@ -38,8 +38,8 @@ const EDGE_RATIO = 0.3;
 
 /** 算松手后的事要用的拖拽状态。 */
 export interface DropInput {
-  /** 按住的是横条，还是「没排时间」栏里的一件（只能挪） */
-  source: "segment" | "chip";
+  /** 按住的是横条、「没排时间」栏里的一件（只能挪），还是横轴、竖轴上的空白处（拖出一段来加一件事，不走松手写入） */
+  source: "segment" | "chip" | "blank";
   blockId: string;
   mode: DragMode;
   alt: boolean;
@@ -76,6 +76,7 @@ export function placementOf(ontoId: string | null): { placement: Placement; onto
  * 开始时刻横排夹在计划里，竖排（day 是正在看的那一行）夹在块开始的那天。
  */
 export function dropAction(input: DropInput, plan: PlanView, day: number | null): DropAction | null {
+  if (input.source === "blank") return null;
   const block = plan.blocks.get(input.blockId);
   if (!block) return null;
   const blockId = block.id;

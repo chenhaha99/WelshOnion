@@ -18,7 +18,8 @@ import { daySegmentStyle, dayStripsWidth, HOUR_HEIGHT, laneHeight, LIFTED_Z_INDE
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { FULL_DAY } from "./timeline-window";
-import { useTimelineDrag, type DragView, type SegmentHandlers } from "./use-timeline-drag";
+import { isBlankPress, useTimelineDrag, type BlankRange, type DragView, type SegmentHandlers } from "./use-timeline-drag";
+import { AddAtTime } from "./AddAtTime";
 import { zoneTimeLabel } from "./zone-time";
 
 const noop = () => {};
@@ -86,6 +87,9 @@ export function DayTimeline({
 
   const scroller = useRef<HTMLDivElement>(null);
   const selection = useBlockSelection();
+  // 在空白处按住、点了：画着虚线框，弹「加一件事」；翻到别的天就不画
+  const [adding, setAdding] = useState<BlankRange | null>(null);
+  const [ghost, setGhost] = useState<HTMLDivElement | null>(null);
   const drag = useTimelineDrag({
     doc,
     library,
@@ -100,7 +104,10 @@ export function DayTimeline({
     scroller,
     // 拖完选中拖的那一件（复制着拖的是复制出来的那一份）
     onDropped: (blockId) => selection.select(blockId, null),
+    onBlankRange: setAdding,
   });
+  const openAdding = adding?.row === index ? adding : null;
+  const newRange = drag.blankRange ?? openAdding;
   // 只在打开、翻天时滚：改块、加块时这一行的 id 不变，不滚
   useLayoutEffect(() => {
     shownDay.current = base.id;
@@ -161,7 +168,15 @@ export function DayTimeline({
               </span>
             ))}
           </div>
-          <div ref={drag.axisRef(index)} data-day-axis className="relative">
+          <div
+            ref={drag.axisRef(index)}
+            data-day-axis
+            className="relative"
+            // 空白处按住 0.5 秒（鼠标点一下）、接着拖：加一件事
+            onPointerDown={(event) => {
+              if (isBlankPress(event.target)) drag.blankHandlers.onPointerDown(event, index);
+            }}
+          >
             {HOUR_LINES.map((hour) => (
               <div
                 key={hour}
@@ -191,6 +206,16 @@ export function DayTimeline({
                 handlers={drag.handlers}
               />
             ))}
+            {newRange && (
+              <div
+                ref={setGhost}
+                data-new-range
+                className="timeline-new-range absolute inset-x-0"
+                style={{ top: percent(newRange.from), height: percent(newRange.to - newRange.from) }}
+              >
+                {blockTimeLabel({ start_minute: newRange.from, duration_min: newRange.to - newRange.from, slot: null }, base.date)}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -238,6 +263,23 @@ export function DayTimeline({
           document.body,
         )}
       {drag.pointerLabel && <DragLabel label={drag.pointerLabel} />}
+      {openAdding !== null && ghost !== null && (
+        <AddAtTime
+          doc={doc}
+          library={library}
+          plan={plan}
+          filter={filter}
+          baseId={base.id}
+          label={labels[index]!}
+          range={openAdding}
+          anchor={ghost}
+          onClose={() => setAdding(null)}
+          onAdded={(blockId) => {
+            setAdding(null);
+            selection.select(blockId, base.id);
+          }}
+        />
+      )}
     </div>
   );
 }
