@@ -79,6 +79,8 @@ interface TimelineProps {
   blockText: BlockText;
   /** 横向放到百分之几（横排才有） */
   zoom: number;
+  /** 竖排每小时多高（像素，竖排才有） */
+  hourHeight: number;
   /** 横排横轴展开的那段：没事的凌晨和深夜折起（按计划算，见 timeline-window） */
   hours: HourWindow;
   /** 点了折起的那一截：展开成 0–24 点 */
@@ -102,6 +104,7 @@ export function Timeline({
   moneyCells,
   blockText,
   zoom,
+  hourHeight,
   hours,
   onExpandHours,
   shownDay,
@@ -181,6 +184,7 @@ export function Timeline({
           rows={rows}
           labels={labels}
           filter={filter}
+          hourHeight={hourHeight}
           shownDay={shownDay}
           jump={jump}
         />

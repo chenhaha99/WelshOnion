@@ -12,13 +12,14 @@ import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
 import { OpenBlockContext, type OpenBlock } from "./open-block";
 import { readBlockText, saveBlockText } from "./plan-block-text-memory";
+import { DAY_ZOOMS, readTimelineDayZoom, saveTimelineDayZoom, type DayZoom } from "./plan-timeline-day-zoom-memory";
 import { readTimelineFullDay, saveTimelineFullDay } from "./plan-timeline-full-day-memory";
 import { readTimelineZoom, saveTimelineZoom, ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
 import { useWideScreen } from "../app/use-wide-screen";
 import { PlanSearch } from "./PlanSearch";
 import { SelectBlockContext, type BlockSelection } from "./select-block";
-import type { BlockText } from "./timeline-geometry";
+import { HOUR_HEIGHT, type BlockText } from "./timeline-geometry";
 import { FULL_DAY, hourWindow } from "./timeline-window";
 import { SharesCard } from "./SharesCard";
 import { Timeline } from "./Timeline";
@@ -96,6 +97,12 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const setShownZoom = (next: number) => {
     setZoom(next);
     saveTimelineZoom(planId, next);
+  };
+  // 竖排（手机）每小时多高：三档，也按计划记在这台设备上
+  const [dayZoom, setDayZoom] = useState<DayZoom>(() => readTimelineDayZoom(planId));
+  const showDayZoom = (next: DayZoom) => {
+    setDayZoom(next);
+    saveTimelineDayZoom(planId, next);
   };
   // 横排横轴画哪几个钟点：没按「0–24 点」时折起没事的凌晨和深夜；按没按下也按计划记在这台设备上
   const [fullDay, setFullDay] = useState(() => readTimelineFullDay(planId));
@@ -292,12 +299,13 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
           ))}
         </div>
         {view === "timeline" && (
-          <div className="flex items-center gap-2">
+          // 放不下时整组换到下一行，不挤扁组里的按钮（手机上「块上写」和「竖向放大」加起来正好一屏宽）
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {/* 块上写标题、开销：两个开关各开各关（记在这台设备上） */}
             <div
               role="group"
               aria-label="块上写"
-              className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
+              className="flex shrink-0 rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
             >
               {BLOCK_TEXT_PARTS.map(({ value, label }) => (
                 <button
@@ -313,6 +321,28 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
                 </button>
               ))}
             </div>
+            {/* 竖向放大：三档按钮，手指一下点到（只有竖排有；手机上拖动条拖不准） */}
+            {!wide && (
+              <div
+                role="group"
+                aria-label="竖向放大"
+                className="flex shrink-0 rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
+              >
+                {DAY_ZOOMS.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={dayZoom === value}
+                    className={`inline-flex h-8 items-center rounded-full px-2 text-sm whitespace-nowrap tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+                      dayZoom === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
+                    }`}
+                    onClick={() => showDayZoom(value)}
+                  >
+                    {`${value}%`}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* 0–24 点：按下是整天按真实比例画，没按下折起没事的凌晨和深夜（只有横排有） */}
             {wide && (
               <div className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur">
@@ -370,6 +400,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
                 moneyCells={cells}
                 blockText={blockText}
                 zoom={zoom}
+                hourHeight={(HOUR_HEIGHT * dayZoom) / 100}
                 hours={fullDay ? FULL_DAY : foldedHours}
                 onExpandHours={() => showFullDay(true)}
                 shownDay={shownDay}

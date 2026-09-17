@@ -14,7 +14,7 @@ import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
 import { initialDayIndex, scrollMinute } from "./timeline-day";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
-import { daySegmentStyle, dayStripsWidth, HOUR_HEIGHT, laneHeight, LIFTED_Z_INDEX, type BlockText } from "./timeline-geometry";
+import { daySegmentStyle, dayStripsWidth, laneHeight, LIFTED_Z_INDEX, type BlockText } from "./timeline-geometry";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { FULL_DAY } from "./timeline-window";
@@ -38,6 +38,8 @@ interface DayTimelineProps {
   moneyCells: Map<string, MoneyCell>;
   /** 块上写标题，还是标题加开销 */
   blockText: BlockText;
+  /** 每小时多高（像素）：视图那一行的「竖向放大」定 */
+  hourHeight: number;
   /** 看的是哪天（底座 id），记在 DayList 里：切到列表时这里卸掉，切回来接着看这天 */
   shownDay: { current: string | null };
   /** 搜索里点了一条：翻到这天（seq 变了才算一次新的） */
@@ -61,6 +63,7 @@ export function DayTimeline({
   filter,
   moneyCells,
   blockText,
+  hourHeight,
   shownDay,
   jump,
 }: DayTimelineProps) {
@@ -108,14 +111,31 @@ export function DayTimeline({
   });
   const openAdding = adding?.row === index ? adding : null;
   const newRange = drag.blankRange ?? openAdding;
+  // 框正中间是第几分钟：滚动时记下，换档时照它滚回正中间（换档后再读 scrollTop，缩小时浏览器已经把它夹过了）
+  const centerMinute = useRef(0);
+  const rememberCenter = () => {
+    const box = scroller.current!;
+    centerMinute.current = ((box.scrollTop + box.clientHeight / 2) / hourHeight) * 60;
+  };
   // 只在打开、翻天时滚：改块、加块时这一行的 id 不变，不滚
   useLayoutEffect(() => {
     shownDay.current = base.id;
     // 现在的钟点按这一天底座自己的时区算，出境后改过时区的那天也对
     const nowMinute = (Date.parse(now()) - baseStartUtcMs(base.date, base.tz)) / 60_000;
-    scroller.current!.scrollTop = (scrollMinute(rows[index]!, base.date === today, nowMinute) / 60) * HOUR_HEIGHT;
+    scroller.current!.scrollTop = (scrollMinute(rows[index]!, base.date === today, nowMinute) / 60) * hourHeight;
+    rememberCenter();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base.id]);
+  // 换档：框正中间的钟点不变，到了头上、尾上就停在那儿
+  const shownHourHeight = useRef(hourHeight);
+  useLayoutEffect(() => {
+    if (shownHourHeight.current === hourHeight) return;
+    shownHourHeight.current = hourHeight;
+    const box = scroller.current!;
+    box.scrollTop = (centerMinute.current / 60) * hourHeight - box.clientHeight / 2;
+    rememberCenter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hourHeight]);
 
   // 拖动中画成松手后的样子；框下面的「没排时间」照原来的计划
   const shownPlan = drag.dropped?.plan ?? plan;
@@ -154,8 +174,13 @@ export function DayTimeline({
         </button>
       )}
       {/* 上下各留 8 像素：钟点的字以线为中心画，滚到整点时最上面那个字不被框切掉一半 */}
-      <div ref={scroller} data-day-scroll className="h-[28rem] overflow-y-auto rounded-lg border border-ink/5 py-2">
-        <div className="grid grid-cols-[2.5rem_1fr]" style={{ height: 24 * HOUR_HEIGHT }}>
+      <div
+        ref={scroller}
+        data-day-scroll
+        className="h-[28rem] overflow-y-auto rounded-lg border border-ink/5 py-2"
+        onScroll={rememberCenter}
+      >
+        <div className="grid grid-cols-[2.5rem_1fr]" style={{ height: 24 * hourHeight }}>
           <div aria-hidden className="relative">
             {HOUR_TICKS.map((hour) => (
               <span

@@ -32,7 +32,7 @@ export const GAP = 2;
 export const DEPTH_INSET = 4;
 /** 横排里套在里面的块每级往下让多少（像素）：一行字 16 加 2，外层块的标题就露在上面 */
 export const NEST_STEP = 18;
-/** 竖排：每小时多高、背景细条每条多宽（像素） */
+/** 竖排：放大 100% 时每小时多高、背景细条每条多宽（像素） */
 export const HOUR_HEIGHT = 48;
 export const STRIP_WIDTH = 12;
 /** 时长为 0 的块画成一条线，点和量都按这么宽（像素），同 index.css 的 timeline-marker、timeline-marker-h */
