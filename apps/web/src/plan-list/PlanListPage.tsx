@@ -3,10 +3,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LateNotice } from "../app/Notice";
 import { useLibrary, useNow } from "../app/services";
 import { useDocVersion } from "../app/use-doc-version";
+import { chipClass } from "../plan/FilterChips";
 import { reconcilePlans } from "../storage/plans";
 import { AppSettings } from "./AppSettings";
 import { NewPlan } from "./NewPlan";
 import { PlanCard } from "./PlanCard";
+import { PlansCalendar } from "./PlansCalendar";
+
+// 列表还是日历，记在这台设备上（和计划页记住看哪个视图一样，不进资料库）
+const VIEW_KEY = "welshonion.plan-list-view";
+const VIEWS = [
+  { value: "list", label: "列表" },
+  { value: "calendar", label: "日历" },
+] as const;
+type ListView = (typeof VIEWS)[number]["value"];
 
 export function PlanListPage() {
   const library = useLibrary();
@@ -15,6 +25,11 @@ export function PlanListPage() {
   const [reconciled, setReconciled] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsButton = useRef<HTMLButtonElement>(null);
+  const [view, setView] = useState<ListView>(() => (localStorage.getItem(VIEW_KEY) === "calendar" ? "calendar" : "list"));
+  const showView = (next: ListView) => {
+    setView(next);
+    localStorage.setItem(VIEW_KEY, next);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -80,11 +95,23 @@ export function PlanListPage() {
           <NewPlan label="新建计划" />
         </div>
       </header>
-      <ul className="flex flex-col gap-3">
-        {plans.map((plan) => (
-          <PlanCard key={plan.plan_id} plan={plan} currentYear={currentYear} />
+      {/* 列表是卡片，日历是月历（好几个计划放在一张月历里，你提的） */}
+      <div role="group" aria-label="计划怎么看" className="-mt-2 flex gap-2 text-sm">
+        {VIEWS.map(({ value, label }) => (
+          <button key={value} type="button" aria-pressed={view === value} className={chipClass(view === value)} onClick={() => showView(value)}>
+            {label}
+          </button>
         ))}
-      </ul>
+      </div>
+      {view === "list" ? (
+        <ul className="flex flex-col gap-3">
+          {plans.map((plan) => (
+            <PlanCard key={plan.plan_id} plan={plan} currentYear={currentYear} />
+          ))}
+        </ul>
+      ) : (
+        <PlansCalendar plans={plans} currentYear={currentYear} />
+      )}
       {settingsPanel}
     </main>
   );

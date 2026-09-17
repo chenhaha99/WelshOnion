@@ -833,3 +833,69 @@
     height: 0.5rem;
   }
 }
+
+/* 计划列表页的月历：一周一行，第一行写日期，下面每道一条计划横条 */
+.plans-calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  row-gap: 2px;
+  min-height: 3.5rem;
+  padding-block: 0.25rem;
+  border-top: 1px solid rgb(38 50 56 / 0.06);
+}
+
+.plans-calendar-day {
+  grid-row: 1;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  &[data-in-month="false"] {
+    color: rgb(38 50 56 / 0.3);
+  }
+  &[aria-current="date"] {
+    background-color: var(--color-sage-deep);
+    color: white;
+  }
+}
+
+.plans-calendar-bar {
+  display: block;
+  min-width: 0;
+  margin-inline: 2px;
+  padding-inline: 0.375rem;
+  overflow: hidden;
+  border: 1px solid var(--color-sage);
+  border-radius: 0.375rem;
+  background-color: color-mix(in srgb, var(--color-sage) 22%, white);
+  color: var(--color-ink);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  &:hover {
+    background-color: color-mix(in srgb, var(--color-sage) 34%, white);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 1px;
+  }
+  /* 这周之前就开始了、这周之后还有：那一头画平，贴着格子边 */
+  &[data-continues-before] {
+    margin-left: 0;
+    border-left-width: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  &[data-continues-after] {
+    margin-right: 0;
+    border-right-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}

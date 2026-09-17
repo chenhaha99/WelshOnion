@@ -41,6 +41,24 @@ export function SearchIcon() {
   );
 }
 
+/** 往前翻：向左的尖角 */
+export function PreviousIcon() {
+  return (
+    <Icon>
+      <path d="M10 3.5 5.5 8 10 12.5" />
+    </Icon>
+  );
+}
+
+/** 往后翻：向右的尖角 */
+export function NextIcon() {
+  return (
+    <Icon>
+      <path d="M6 3.5 10.5 8 6 12.5" />
+    </Icon>
+  );
+}
+
 /** 加一件事：一个加号 */
 export function PlusIcon() {
   return (
