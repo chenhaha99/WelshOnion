@@ -2,6 +2,7 @@ import {
   countBlocksUsing,
   duplicateBlock,
   followersOf,
+  setBlockChecked,
   type BlockView,
   type LibraryView,
   type PlanView,
@@ -13,7 +14,7 @@ import { blockFocusSelector, deleteBlockWithNotice, deleteLabel } from "./block-
 import { BlockMoney } from "./block-money";
 import { BlockTimeButton } from "./block-time-button";
 import { useNotifyDeleted } from "./DeletedNotice";
-import { CopyIcon, DetailsIcon, TrashIcon } from "./icons";
+import { CheckIcon, CopyIcon, DetailsIcon, TrashIcon } from "./icons";
 import type { MoneyCell } from "./money-cells";
 import { useOpenBlock } from "./open-block";
 import { KindPicker, StatusPicker } from "./pickers";
@@ -35,7 +36,8 @@ interface QuickBarProps {
 }
 
 /**
- * 选中一件事后浮出的快捷条：详情、类型、状态、时间、开销、复制、删除。
+ * 选中一件事后浮出的快捷条：勾、详情、类型、状态、时间、开销、复制、删除。
+ * 「勾」放第一个：含义由用户自己定（你提的），行中最常点，Tab 进来先到它。
  * 常改的几样在这里一两下就改完，不用开详情气泡；没排时间的事没有「复制」。
  * 已经排上时间的，在时间轴上拖着改更快（你提的「时间这类在时间轴操作会更好」）；
  * 「时间」按钮管的是拖不出来的那几样：排上时间、取消时间、换天、填时长。
@@ -92,6 +94,16 @@ export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, co
         }
       }}
     >
+      <button
+        type="button"
+        aria-label="勾"
+        title={block.checked ? "取消勾" : "勾上"}
+        aria-pressed={block.checked}
+        className="quick-button"
+        onClick={() => setBlockChecked(doc, [block.id], !block.checked)}
+      >
+        <CheckIcon />
+      </button>
       <button
         type="button"
         aria-label="详情…"

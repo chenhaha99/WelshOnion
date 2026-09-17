@@ -68,6 +68,13 @@ describe("统计前先按筛选条件去掉块", () => {
 
     expect(plain(occupiedMinutes(plan, lib, { statusIds: ["confirmed"] }))).toEqual({ hengdian: 720 });
   });
+
+  test("只看没勾的", () => {
+    planDoc.getMap<Y.Map<unknown>>("blocks").get("hengdian")?.set("checked", true);
+    const { lib, plan } = views();
+
+    expect(plain(occupiedMinutes(plan, lib, { onlyUnchecked: true }))).toEqual({ lunch: 120 });
+  });
 });
 
 describe("时间轴占用法", () => {

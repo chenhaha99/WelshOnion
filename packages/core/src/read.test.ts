@@ -93,6 +93,18 @@ describe("读取只走一个入口，不存在的字段给 null", () => {
     expect(view.undated.get("d1")?.day).toEqual(["k1"]);
   });
 
+  test("勾：存的是 true 才算勾上", () => {
+    const plan = newPlanDoc();
+    addBase(plan, "d1", "2026-10-01");
+    addBlock(plan, "k1", { start_base_id: "d1" });
+    addBlock(plan, "k2", { start_base_id: "d1", checked: true });
+    addBlock(plan, "k3", { start_base_id: "d1", checked: "yes" });
+
+    const view = read(plan, newLibraryDoc());
+
+    expect(["k1", "k2", "k3"].map((id) => view.blocks.get(id)?.checked)).toEqual([false, true, false]);
+  });
+
   test("长备注和数组", () => {
     const plan = newPlanDoc();
     const library = newLibraryDoc();

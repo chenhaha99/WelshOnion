@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
-import { addBlock, setBlockStatus, updateBlock, type AddBlockInput } from "@welshonion/core";
+import { addBlock, setBlockChecked, setBlockStatus, updateBlock, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -204,6 +204,25 @@ describe("点结果跳过去", () => {
     await user.click(results(panel)[0]!);
 
     await waitFor(() => expect(within(filter).queryAllByRole("button", { pressed: true })).toEqual([]));
+    const bar = within(await timeline()).getByRole("button", { name: /^西湖夜游 / });
+    await waitFor(() => expect(bar.getAttribute("aria-pressed")).toBe("true"));
+  });
+
+  it("被「只看没勾的」挡住的：也清掉再选中", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 60 });
+      setBlockChecked(plan, [lake], true);
+    });
+    await showView("时间轴");
+    const onlyUnchecked = await screen.findByRole("button", { name: "只看没勾的" });
+    await user.click(onlyUnchecked);
+
+    const panel = await search(user, "夜游");
+    await user.click(results(panel)[0]!);
+
+    await waitFor(() => expect(onlyUnchecked.getAttribute("aria-pressed")).toBe("false"));
     const bar = within(await timeline()).getByRole("button", { name: /^西湖夜游 / });
     await waitFor(() => expect(bar.getAttribute("aria-pressed")).toBe("true"));
   });

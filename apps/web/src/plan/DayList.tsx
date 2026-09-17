@@ -75,6 +75,8 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   // 状态、类型删掉了，按下过的就不算了
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
+  // 只看没勾的（勾的含义用户自己定；行中拿来看「还剩什么」）
+  const [onlyUnchecked, setOnlyUnchecked] = useState(false);
   // 按天还是按类型分组，也只在这一页
   const [grouping, setGrouping] = useState<"day" | "kind">("day");
   const pressedGrouping = useRef<HTMLButtonElement>(null);
@@ -134,12 +136,13 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const statusKey = selectedStatuses.filter((id) => libraryView.statuses.has(id)).join(",");
   const kindKey = selectedKinds.filter((id) => libraryView.kinds.has(id)).join(",");
   const filter = useMemo<StatsFilter | undefined>(() => {
-    if (statusKey === "" && kindKey === "") return undefined;
+    if (statusKey === "" && kindKey === "" && !onlyUnchecked) return undefined;
     return {
       ...(statusKey === "" ? {} : { statusIds: statusKey.split(",") }),
       ...(kindKey === "" ? {} : { kindIds: kindKey.split(",") }),
+      ...(onlyUnchecked ? { onlyUnchecked: true as const } : {}),
     };
-  }, [statusKey, kindKey]);
+  }, [statusKey, kindKey, onlyUnchecked]);
   // 开销格的摘要整份算一次：共用的开销要看全计划才知道显示在哪块
   const cells = useMemo(() => moneyCells(plan, filter), [plan, filter]);
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
@@ -190,6 +193,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     if (!passesFilter(block, filter)) {
       setSelectedStatuses([]);
       setSelectedKinds([]);
+      setOnlyUnchecked(false);
     }
     if (view === "overview") showView("timeline");
     if (view === "list") setGrouping("day");
@@ -210,11 +214,13 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   // 一件事都没有时筛不掉任何东西、只有一种类型时按下去也筛不掉：那一排不出现；按下过就一直留着，不然取消不了
   const showStatusFilter = plan.blocks.size > 0 || (filter?.statusIds?.length ?? 0) > 0;
   const showKindFilter = kinds.length >= 2 || (filter?.kindIds?.length ?? 0) > 0;
+  // 一件勾上的都没有时按下去也筛不掉：不出现；按下过就留着
+  const showCheckFilter = onlyUnchecked || [...plan.blocks.values()].some((block) => block.checked);
 
   return (
     <section className="flex flex-col gap-4">
       {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
-      {(showStatusFilter || showKindFilter) && (
+      {(showStatusFilter || showKindFilter || showCheckFilter) && (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {showStatusFilter && (
             <FilterChips
@@ -235,6 +241,16 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
               selected={filter?.kindIds ?? []}
               onChange={setSelectedKinds}
             />
+          )}
+          {showCheckFilter && (
+            <button
+              type="button"
+              aria-pressed={onlyUnchecked}
+              className={chipClass(onlyUnchecked)}
+              onClick={() => setOnlyUnchecked((value) => !value)}
+            >
+              只看没勾的
+            </button>
           )}
         </div>
       )}

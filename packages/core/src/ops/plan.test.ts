@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc } from "../schema";
 import { addBase } from "../testing";
-import { addBlock, setBlockStatus } from "./blocks";
+import { addBlock, setBlockChecked, setBlockStatus } from "./blocks";
 import { setDays } from "./days";
 import { addExpense } from "./expenses";
 import { createPlanUndoManager } from "./origin";
@@ -141,6 +141,7 @@ describe("复制计划", () => {
     const lake = addBlock(planDoc, library, { baseId: oct2!, kindId: "sight", title: "西湖", minute: 540, duration: 120 });
     if (!lake.ok) throw new Error("建块失败");
     setBlockStatus(planDoc, library, [lake.value.blockId], "confirmed");
+    setBlockChecked(planDoc, [lake.value.blockId], true);
     addExpense(planDoc, library, { title: "门票", amountCents: 30000, blockIds: [lake.value.blockId] });
     return { library, source: planDoc };
   }
@@ -165,6 +166,7 @@ describe("复制计划", () => {
     expect(view.bases.find((base) => base.id === lake.start_base_id)?.date).toBe("2027-04-30");
     expect(lake).toMatchObject({ start_minute: 540, duration_min: 120 });
     expect(lake.status.id).toBe("pending");
+    expect(lake.checked).toBe(false);
     expect([...view.expenses.values()].map((expense) => [expense.amount_cents, expense.block_ids])).toEqual([
       [30000, [lake.id]],
     ]);
@@ -186,6 +188,7 @@ describe("复制计划", () => {
     const view = readPlan(source, readLibrary(library));
     expect(view.bases.map((base) => base.date)).toEqual(["2026-10-01", "2026-10-02", "2026-10-03"]);
     expect([...view.blocks.values()].find((block) => block.title === "西湖")?.status.id).toBe("confirmed");
+    expect([...view.blocks.values()].find((block) => block.title === "西湖")?.checked).toBe(true);
   });
 
   test("没有天的计划", () => {

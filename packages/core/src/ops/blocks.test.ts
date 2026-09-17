@@ -8,6 +8,7 @@ import {
   deleteBlock,
   moveUndated,
   resizeBlock,
+  setBlockChecked,
   setBlockIndent,
   setBlockStatus,
   setBlockTimed,
@@ -239,6 +240,40 @@ describe("批量改状态", () => {
       error: { code: "NOT_FOUND", id: "booked" },
     });
     expect(raw("k1")?.get("status_id")).toBe("pending");
+  });
+});
+
+describe("批量勾", () => {
+  beforeEach(() => {
+    addBase(planDoc, "d1", "2026-10-01");
+    seedBlock(planDoc, "k1", { start_base_id: "d1", start_minute: 540, duration_min: 60 });
+    seedBlock(planDoc, "k2", { start_base_id: "d1", start_minute: 660, duration_min: 60 });
+  });
+
+  test("一次勾两个，一步撤销", () => {
+    const undo = createPlanUndoManager(planDoc);
+
+    expect(setBlockChecked(planDoc, ["k1", "k2"], true).ok).toBe(true);
+    expect([raw("k1")?.get("checked"), raw("k2")?.get("checked")]).toEqual([true, true]);
+
+    undo.undo();
+    expect([raw("k1")?.has("checked"), raw("k2")?.has("checked")]).toEqual([false, false]);
+  });
+
+  test("取消勾删掉键", () => {
+    setBlockChecked(planDoc, ["k1"], true);
+
+    expect(setBlockChecked(planDoc, ["k1"], false).ok).toBe(true);
+
+    expect(raw("k1")?.has("checked")).toBe(false);
+  });
+
+  test("有块找不到就一个都不改", () => {
+    expect(setBlockChecked(planDoc, ["k1", "gone"], true)).toEqual({
+      ok: false,
+      error: { code: "NOT_FOUND", id: "gone" },
+    });
+    expect(raw("k1")?.has("checked")).toBe(false);
   });
 });
 

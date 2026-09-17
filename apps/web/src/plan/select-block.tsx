@@ -26,8 +26,10 @@ export function useBlockSelection(): BlockSelection {
 
 interface BlockButtonProps {
   blockId: string;
-  /** 读屏名，也是鼠标停上去的提示：「西湖 09:00–12:00」 */
+  /** 读屏名，也是鼠标停上去的提示：「西湖 09:00–12:00」；勾上了末尾再加「 · 勾了」 */
   name: string;
+  /** 勾上了：右上角画一个勾的角标 */
+  checked: boolean;
   className: string;
   children: ReactNode;
 }
@@ -36,14 +38,16 @@ interface BlockButtonProps {
  * 时间轴上的一件事（横条、竖条、「没排时间」栏里的一件）：点一下选中它，再点一下取消；
  * 选中的按钮 aria-pressed 是 true（读屏报得出来），描边在 index.css 里按这个属性画。
  */
-export function BlockButton({ blockId, name, className, children }: BlockButtonProps) {
+export function BlockButton({ blockId, name, checked, className, children }: BlockButtonProps) {
   const selection = useBlockSelection();
   const selected = selection.selectedId === blockId;
+  // 勾的含义用户自己定：只加角标、块的颜色虚实文字都不动；读屏读不到角标，名字里写出来
+  const fullName = checked ? `${name} · 勾了` : name;
   return (
     <button
       type="button"
-      aria-label={name}
-      title={name}
+      aria-label={fullName}
+      title={fullName}
       aria-pressed={selected}
       className={className}
       onClick={(event) => selection.toggle(blockId, event.currentTarget.closest<HTMLElement>("[data-base-id]")?.dataset.baseId ?? null)}
@@ -63,6 +67,13 @@ export function BlockButton({ blockId, name, className, children }: BlockButtonP
       }}
     >
       {children}
+      {checked && (
+        <span data-checked-mark aria-hidden className="checked-mark">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+          </svg>
+        </span>
+      )}
     </button>
   );
 }

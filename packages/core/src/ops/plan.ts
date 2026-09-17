@@ -60,7 +60,11 @@ export function duplicatePlan(library: Y.Doc, source: Y.Doc, target: Y.Doc, opti
       const deltaDays = Math.round((Date.parse(`${options.startDate}T00:00:00Z`) - Date.parse(`${firstDate}T00:00:00Z`)) / 86_400_000);
       for (const base of bases) base.set("date", addDays(base.get("date") as string, deltaDays));
     }
-    for (const block of target.getMap<Y.Map<unknown>>("blocks").values()) block.set("status_id", "pending");
+    // 定没定、勾没勾都是那一趟的事
+    for (const block of target.getMap<Y.Map<unknown>>("blocks").values()) {
+      block.set("status_id", "pending");
+      block.delete("checked");
+    }
   });
   writeIndexEntry(library, target, options.now);
   return done();

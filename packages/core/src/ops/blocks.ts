@@ -188,6 +188,20 @@ export function setBlockStatus(
   return done();
 }
 
+/** 一组块一次勾上或取消勾，一步撤销：勾上存 true，取消勾删掉键。有块找不到就一个都不改。 */
+export function setBlockChecked(planDoc: Y.Doc, blockIds: readonly string[], checked: boolean): OpResult {
+  const blocks = blocksOf(planDoc);
+  const absent = blockIds.find((id) => !blocks.has(id));
+  if (absent !== undefined) return fail({ code: "NOT_FOUND", id: absent });
+
+  planDoc.transact(() => {
+    for (const id of blockIds) {
+      setOrDelete(blocks.get(id)!, "checked", checked ? true : null);
+    }
+  }, LOCAL_ORIGIN);
+  return done();
+}
+
 /** 只对未定时块有效。 */
 export function setBlockIndent(planDoc: Y.Doc, blockId: string, indent: number | null): OpResult {
   const invalid = firstInvalidField([["indent", indent]]);

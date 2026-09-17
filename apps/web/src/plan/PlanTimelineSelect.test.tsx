@@ -157,12 +157,13 @@ describe("时间轴上点一下选中", () => {
 });
 
 describe("选中后的快捷条", () => {
-  it("排上时间的有七个图标，没排时间的少「复制」", async () => {
+  it("排上时间的有八个图标（第一个是「勾」），没排时间的少「复制」", async () => {
     const user = userEvent.setup();
     await onePlanDay();
 
     await user.click(await blockButton("西湖"));
     expect(names(quickBar("西湖"))).toEqual([
+      "勾",
       "详情…",
       "类型：游玩",
       "状态：待定",
@@ -174,6 +175,7 @@ describe("选中后的快捷条", () => {
 
     await user.click(await blockButton("灵隐寺"));
     expect(names(quickBar("灵隐寺"))).toEqual([
+      "勾",
       "详情…",
       "类型：游玩",
       "状态：待定",
@@ -206,7 +208,7 @@ describe("选中后的快捷条", () => {
     const lake = await blockButton("西湖");
     await user.click(lake);
     await user.tab();
-    expect(document.activeElement).toBe(within(quickBar("西湖")).getByRole("button", { name: "详情…" }));
+    expect(document.activeElement).toBe(within(quickBar("西湖")).getByRole("button", { name: "勾" }));
 
     await user.keyboard("{Escape}");
     expect(selectedTitles()).toEqual([]);

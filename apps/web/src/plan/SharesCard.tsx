@@ -4,6 +4,7 @@ import {
   moneyNoteLabel,
   moneyRowLabel,
   moneyShares,
+  checkLine,
   statusLine,
   timeEmptyLabel,
   timeRowLabel,
@@ -89,6 +90,11 @@ export function SharesCard({ libraryView, plan, filter }: SharesCardProps) {
           <span className="text-sm text-ink tabular-nums">{statusLine(plan, libraryView, filter)}</span>
         </p>
       </div>
+
+      {/* 一件都没勾就不写这一行 */}
+      {checkLine(plan, filter) !== null && (
+        <p className="text-sm text-ink tabular-nums">{checkLine(plan, filter)}</p>
+      )}
     </section>
   );
 }

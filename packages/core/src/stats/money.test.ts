@@ -125,6 +125,17 @@ describe("筛选对钱的影响", () => {
     expect(summary.byKind.has("lodging")).toBe(false);
   });
 
+  test("只看没勾的：看开销挂的块，不挂块的不受影响", () => {
+    nanxunMoney();
+    planDoc.getMap<Y.Map<unknown>>("blocks").get("drive")?.set("checked", true);
+
+    const summary = moneySummary(plan(), { onlyUnchecked: true });
+
+    // 油费只挂在勾上的开车上：不算；民宿 48000 + 联票 20000 + 保险 12000（不挂块）
+    expect(summary.byKind.has("transit")).toBe(false);
+    expect(summary.totalCents).toBe(80000);
+  });
+
   test("只看游玩类的钱", () => {
     nanxunMoney();
 

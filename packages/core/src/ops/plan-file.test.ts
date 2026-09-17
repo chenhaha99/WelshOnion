@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc } from "../schema";
-import { addBlock, setBlockStatus, updateBlock, type AddBlockInput } from "./blocks";
+import { addBlock, setBlockChecked, setBlockStatus, updateBlock, type AddBlockInput } from "./blocks";
 import { setDays } from "./days";
 import { setBlockLayer } from "./drag";
 import { addExpense } from "./expenses";
@@ -177,13 +177,14 @@ describe("读文件", () => {
 });
 
 describe("导入到新的计划文档", () => {
-  /** 10.2：已确认的「西湖」备注「带伞」挂 30000 分门票，「明清宫苑」叠在「横店」上；10.1 上午两件没排时间的事。 */
+  /** 10.2：已确认、勾上了的「西湖」备注「带伞」挂 30000 分门票，「明清宫苑」叠在「横店」上；10.1 上午两件没排时间的事。 */
   function kansai() {
     const library = newLibrary();
     const { planDoc, baseIds } = newPlan(library);
     const [oct1, oct2, oct3] = baseIds;
     const lake = block(planDoc, library, { baseId: oct2!, kindId: "sight", title: "西湖", minute: 540, duration: 120 });
     setBlockStatus(planDoc, library, [lake], "confirmed");
+    setBlockChecked(planDoc, [lake], true);
     updateBlock(planDoc, library, lake, { note: "带伞" });
     addExpense(planDoc, library, { title: "门票", amountCents: 30000, blockIds: [lake] });
     const hengdian = block(planDoc, library, { baseId: oct2!, kindId: "sight", title: "横店", minute: 780, duration: 300 });
@@ -208,6 +209,7 @@ describe("导入到新的计划文档", () => {
     expect(imported.plan).toEqual(original.plan);
     expect(imported.bases).toEqual(original.bases);
     expect([...imported.blocks.values()]).toEqual([...original.blocks.values()]);
+    expect([...imported.blocks.values()].find((block) => block.title === "西湖")?.checked).toBe(true);
     expect([...imported.expenses.values()]).toEqual([...original.expenses.values()]);
     expect([...imported.undated.entries()]).toEqual([...original.undated.entries()]);
     expect(readLibrary(otherLibrary).planIndex.get("p9")).toMatchObject({

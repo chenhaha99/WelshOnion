@@ -22,6 +22,15 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
+/** 勾：一个对勾 */
+export function CheckIcon() {
+  return (
+    <Icon>
+      <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+    </Icon>
+  );
+}
+
 /** 搜索：放大镜 */
 export function SearchIcon() {
   return (

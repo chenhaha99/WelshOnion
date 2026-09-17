@@ -2,6 +2,7 @@ import {
   countBlocksUsing,
   followersOf,
   passesFilter,
+  setBlockChecked,
   updateBlock,
   type BlockView,
   type KindView,
@@ -243,17 +244,27 @@ function BlockRow({
         style={{ "--kind-color": color, "--indent": indent } as CSSProperties}
       >
         <td data-indent={indent}>
-          <CommitInput
-            label="标题"
-            showLabel={false}
-            value={block.title}
-            className="input-bare"
-            commit={(text) => {
-              // 清空不保存，恢复原标题
-              if (text !== "" && text !== block.title) updateBlock(doc, library, block.id, { title: text });
-              return null;
-            }}
-          />
+          {/* 勾在标题前面、同一格里（不另加一列：窄屏卡片按列的位置摆） */}
+          <div className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              aria-label="勾"
+              className="block-check"
+              checked={block.checked}
+              onChange={(event) => setBlockChecked(doc, [block.id], event.target.checked)}
+            />
+            <CommitInput
+              label="标题"
+              showLabel={false}
+              value={block.title}
+              className="input-bare min-w-0 flex-1"
+              commit={(text) => {
+                // 清空不保存，恢复原标题
+                if (text !== "" && text !== block.title) updateBlock(doc, library, block.id, { title: text });
+                return null;
+              }}
+            />
+          </div>
           {subtitleLine !== "" && (
             <p data-block-subtitle className="truncate px-2 text-xs text-ink-muted">
               {subtitleLine}

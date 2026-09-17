@@ -283,7 +283,7 @@ function DaySegment({ plan, item, place, showTitle, showDuration, money, dragVie
       onPointerDown={(event) => handlers.onPointerDown(event, item)}
       onClickCapture={handlers.onClickCapture}
     >
-      <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} className={buttonClass}>
+      <BlockButton blockId={item.blockId} name={`${block.title} ${time}`} checked={block.checked} className={buttonClass}>
         {/* 名字单独一段：竖排里竖条开头滚出框的上边时，名字贴着框的上边（见 index.css） */}
         {point || item.track === "background" || (!showTitle && !showDuration && money === undefined) ? null : (
           <span data-bar-title>
