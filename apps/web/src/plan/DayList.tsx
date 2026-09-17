@@ -165,9 +165,22 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
 
   // 选中的那件没了（删了、撤销掉了）、被筛掉了、切到了列表：取消选中
+  const filteredOutDay = useRef<string | null>(null);
   if (selected !== null && (view !== "timeline" || selectedBlock === undefined || !passesFilter(selectedBlock, filter))) {
+    if (view === "timeline" && selectedBlock !== undefined) filteredOutDay.current = selectedBlock.start_base_id;
     setSelected(null);
   }
+  // 在快捷条里改了类型、摘了标签，这件事被筛掉：快捷条和它上面的弹层一起没了，焦点落到这天的菜单（和从快捷条删掉一样）。
+  // 焦点还在别处（点的是筛选按钮）就不动
+  useEffect(() => {
+    const baseId = filteredOutDay.current;
+    if (baseId === null) return;
+    filteredOutDay.current = null;
+    requestAnimationFrame(() => {
+      if (document.activeElement !== null && document.activeElement !== document.body) return;
+      document.querySelector<HTMLElement>(`[data-base-id="${baseId}"] button[aria-label="这天的操作"]`)?.focus();
+    });
+  });
   const selection = useMemo<BlockSelection>(
     () => ({
       selectedId: selected?.blockId ?? null,

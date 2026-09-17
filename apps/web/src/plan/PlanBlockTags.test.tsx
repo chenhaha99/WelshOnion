@@ -203,6 +203,50 @@ describe("在快捷条和列表里挂上、摘下", () => {
     expect(within(picker).getByText("改名、改颜色、删除在计划设置里")).toBeTruthy();
   });
 
+  it("面板里新建一半取消：焦点回到「+ 新建标签」", async () => {
+    const user = userEvent.setup();
+    await oneDay();
+    await showView("时间轴");
+
+    await user.click(await blockButton("西湖"));
+    const picker = await openTagPicker(user, within(quickBar("西湖")).getByRole("button", { name: "标签：没有" }));
+    await user.click(within(picker).getByRole("button", { name: "+ 新建标签" }));
+    await user.click(within(picker).getByRole("button", { name: "取消" }));
+
+    await waitFor(() => expect(document.activeElement).toBe(within(picker).getByRole("button", { name: "+ 新建标签" })));
+  });
+
+  it("时间轴上摘掉以后被标签筛掉：快捷条和面板一起没了，焦点落到这天的菜单", async () => {
+    const user = userEvent.setup();
+    await oneDay({ tags: { 西湖: ["必去"] } });
+    await user.click(within(await screen.findByRole("group", { name: "按标签筛选" })).getByRole("button", { name: "必去" }));
+    await showView("时间轴");
+
+    await user.click(await blockButton("西湖"));
+    const picker = await openTagPicker(user, within(quickBar("西湖")).getByRole("button", { name: "标签：必去" }));
+    await user.click(within(picker).getByRole("button", { name: "必去" }));
+
+    await waitFor(async () => expect(within(await timeline()).queryByRole("button", { name: /^西湖 / })).toBeNull());
+    expect(screen.queryByRole("dialog", { name: "选择标签" })).toBeNull();
+    await waitFor(async () =>
+      expect(document.activeElement).toBe(within(await timeline()).getByRole("button", { name: "这天的操作" })),
+    );
+  });
+
+  it("列表里摘掉以后被标签筛掉：焦点落到下一行的「标签」", async () => {
+    const user = userEvent.setup();
+    await oneDay({ tags: { 西湖: ["必去"], 灵隐寺: ["必去"] } });
+    await user.click(within(await screen.findByRole("group", { name: "按标签筛选" })).getByRole("button", { name: "必去" }));
+
+    const picker = await openTagPicker(user, within(await blockRow("10.1", "西湖")).getByRole("button", { name: "标签：必去" }));
+    await user.click(within(picker).getByRole("button", { name: "必去" }));
+
+    await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["灵隐寺"]));
+    await waitFor(async () =>
+      expect(document.activeElement).toBe(within(await blockRow("10.1", "灵隐寺")).getByRole("button", { name: "标签：必去" })),
+    );
+  });
+
   it("列表里「类型」后面一列「标签」：没挂淡色写「加标签」，挂了写名字", async () => {
     const user = userEvent.setup();
     await oneDay();

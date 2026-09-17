@@ -1,5 +1,5 @@
 import { addTag, setBlockTag, type BlockView, type TagView } from "@welshonion/core";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type * as Y from "yjs";
 import { Popover } from "../app/Popover";
 import { TagIcon } from "./icons";
@@ -65,6 +65,7 @@ interface TagPanelProps {
 
 function TagPanel({ doc, library, block, tags }: TagPanelProps) {
   const [creating, setCreating] = useState(false);
+  const createButton = useRef<HTMLButtonElement>(null);
   const attached = new Set(block.tag_ids);
 
   return (
@@ -105,11 +106,15 @@ function TagPanel({ doc, library, block, tags }: TagPanelProps) {
               // 表单收起时焦点跟着没了：放到刚建的那一项上，接着能挂别的
               requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-tag-option="${tagId}"]`)?.focus());
             }}
-            onCancel={() => setCreating(false)}
+            onCancel={() => {
+              setCreating(false);
+              // 表单收起时焦点跟着没了：回到「+ 新建标签」
+              requestAnimationFrame(() => createButton.current?.focus());
+            }}
           />
         </Reveal>
       ) : (
-        <button type="button" className="menu-item text-sage-deep" onClick={() => setCreating(true)}>
+        <button ref={createButton} type="button" className="menu-item text-sage-deep" onClick={() => setCreating(true)}>
           + 新建标签
         </button>
       )}

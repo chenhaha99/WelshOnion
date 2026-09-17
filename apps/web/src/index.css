@@ -801,6 +801,15 @@
 .timeline-strip:has(> .block-tags) {
   padding-right: calc(0.375rem + var(--tag-space));
 }
+/* 竖排的竖条矮到写不下开销，也就画不下圆点（横排的块只按宽量，量不到高） */
+@container (max-height: 28px) {
+  .block-tags {
+    display: none;
+  }
+  .timeline-bar:has(> .block-tags) {
+    padding-right: 0.375rem;
+  }
+}
 /* 块窄到写不下开销，也就画不下圆点（竖排里的背景细条也是） */
 @container (max-width: 28px) {
   .block-tags {
