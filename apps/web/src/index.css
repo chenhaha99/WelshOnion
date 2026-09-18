@@ -12,9 +12,9 @@
 }
 
 @layer base {
-  /* 计划页切换视图的按钮贴在屏幕顶上：键盘挪焦点、滚到某个框时，别把框停在它底下 */
+  /* 计划页顶上那一块钉在屏幕顶上：键盘挪焦点、滚到某个框时，别把框停在它底下（--pinned-top 是这一块的高度，DayList 量出来写上） */
   html {
-    scroll-padding-top: 3.5rem;
+    scroll-padding-top: calc(var(--pinned-top, 0px) + 0.5rem);
   }
 
   body {
@@ -200,6 +200,44 @@
   background-color: rgb(255 255 255 / 0.8);
   box-shadow: -16px 0 48px rgb(47 58 69 / 0.12);
   backdrop-filter: blur(24px) saturate(1.2);
+}
+
+/*
+ * 计划页钉在顶上的那一块（页顶、筛选、切换按钮）：钉住时（DayList 标上 data-stuck）才有淡底色加磨砂，下面的东西从它底下滚过去；
+ * 没钉住时透明，和页面融在一起。左右伸进页面的边距，两头 1.5rem 淡出（不在页面宽的地方齐齐断开）；上边留 8 像素，钉住时页顶离屏幕上边 8 像素。
+ */
+@utility pinned-top {
+  margin-inline: -1.5rem;
+  padding: 0.5rem 1.5rem 0.625rem;
+  mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
+
+  &[data-stuck] {
+    background-color: rgb(246 244 239 / 0.8);
+    box-shadow: 0 1px 0 rgb(47 58 69 / 0.06);
+    backdrop-filter: blur(14px) saturate(1.1);
+  }
+}
+
+/* 手机上筛选不折行：一行放不下左右滑，钉住的那一块不长高（电脑上照旧放不下就折行） */
+@media (width < 720px) {
+  .filter-row,
+  .filter-row [role="group"] {
+    flex-wrap: nowrap;
+  }
+  .filter-row {
+    overflow-x: auto;
+    margin-inline: -1.5rem;
+    padding-inline: 1.5rem;
+    scrollbar-width: none;
+  }
+  .filter-row::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-row > *,
+  .filter-row [role="group"] > * {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
 }
 
 /*

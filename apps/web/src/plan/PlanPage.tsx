@@ -91,68 +91,75 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
     if (stale) touchPlan(library, handle.doc, now());
   }, [plan, library, handle, now]);
 
+  // 页顶那一行：有天时交给 DayList，和筛选、切换按钮合成一块、往下滚时钉在顶上（你提的：滚动后这些都该是不动的）。
+  // 三列，计划名在正中间（你提的）：用 grid，两边宽度不等也不会把名字推偏
+  const topRow = (
+    <div data-top-row className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      <div className="justify-self-start">
+        <BackToList />
+      </div>
+      <h1 className="justify-self-center text-lg font-medium text-ink">
+        <button
+          type="button"
+          title="计划设置"
+          className="max-w-[60vw] truncate rounded-lg hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
+          onClick={openSettings}
+        >
+          {plan.plan.name}
+        </button>
+      </h1>
+      {/* 图标按钮：名字只在读屏名和鼠标提示里（你提的：右上角都换成图标） */}
+      <div className="flex justify-self-end gap-1">
+        {/* 一件事都没有时没东西可搜：不能点，但占着位置，别的图标不跳 */}
+        <button
+          type="button"
+          aria-label="搜索"
+          title="搜索"
+          className="btn btn-ghost px-2.5"
+          disabled={plan.blocks.size === 0}
+          onClick={(event) => setSearchAnchor(event.currentTarget)}
+        >
+          <SearchIcon />
+        </button>
+        <button type="button" aria-label="计划设置" title="计划设置" className="btn btn-ghost px-2.5" onClick={openSettings}>
+          <GearIcon />
+        </button>
+        <button
+          type="button"
+          aria-label="撤销"
+          title="撤销"
+          className="btn btn-ghost px-2.5"
+          disabled={!undo.canUndo}
+          onClick={undo.undo}
+        >
+          <UndoIcon />
+        </button>
+        <button
+          type="button"
+          aria-label="重做"
+          title="重做"
+          className="btn btn-ghost px-2.5"
+          disabled={!undo.canRedo}
+          onClick={undo.redo}
+        >
+          <RedoIcon />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <DeletedNotice undo={undo}>
       {/* 放宽到 1152 像素：时间线的 24 小时要放得下（每小时至少 30 像素） */}
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
-        {/* 三列，计划名在正中间（你提的）：用 grid，两边宽度不等也不会把名字推偏 */}
-        <div data-top-row className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <div className="justify-self-start">
-            <BackToList />
-          </div>
-          <h1 className="justify-self-center text-lg font-medium text-ink">
-            <button
-              type="button"
-              title="计划设置"
-              className="max-w-[60vw] truncate rounded-lg hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
-              onClick={openSettings}
-            >
-              {plan.plan.name}
-            </button>
-          </h1>
-          {/* 图标按钮：名字只在读屏名和鼠标提示里（你提的：右上角都换成图标） */}
-          <div className="flex justify-self-end gap-1">
-            {/* 一件事都没有时没东西可搜：不能点，但占着位置，别的图标不跳 */}
-            <button
-              type="button"
-              aria-label="搜索"
-              title="搜索"
-              className="btn btn-ghost px-2.5"
-              disabled={plan.blocks.size === 0}
-              onClick={(event) => setSearchAnchor(event.currentTarget)}
-            >
-              <SearchIcon />
-            </button>
-            <button type="button" aria-label="计划设置" title="计划设置" className="btn btn-ghost px-2.5" onClick={openSettings}>
-              <GearIcon />
-            </button>
-            <button
-              type="button"
-              aria-label="撤销"
-              title="撤销"
-              className="btn btn-ghost px-2.5"
-              disabled={!undo.canUndo}
-              onClick={undo.undo}
-            >
-              <UndoIcon />
-            </button>
-            <button
-              type="button"
-              aria-label="重做"
-              title="重做"
-              className="btn btn-ghost px-2.5"
-              disabled={!undo.canRedo}
-              onClick={undo.redo}
-            >
-              <RedoIcon />
-            </button>
-          </div>
-        </div>
-
         {plan.bases.length === 0 ? (
-          <AskDays doc={handle.doc} />
+          <>
+            {topRow}
+            <AskDays doc={handle.doc} />
+          </>
         ) : (
           <DayList
+            top={topRow}
             doc={handle.doc}
             library={library}
             libraryView={libraryView}

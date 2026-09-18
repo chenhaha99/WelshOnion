@@ -1,5 +1,5 @@
 import { passesFilter, type KindView, type LibraryView, type PlanView, type StatsFilter, type TagView } from "@welshonion/core";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type * as Y from "yjs";
 import { blockFocusSelector } from "./block-actions";
 import { BlockPanel } from "./BlockPanel";
@@ -38,10 +38,12 @@ const BLOCK_TEXT_PARTS = [
   { value: "money", label: "开销" },
 ] as const;
 
-/** 切换视图的按钮贴在屏幕顶上时，离上边多少像素 */
-const VIEWS_STICKY_TOP = 8;
+/** 顶上那一块（页顶、筛选、切换按钮）钉在屏幕顶上时，离上边多少像素 */
+const PINNED_TOP = 0;
 
 interface DayListProps {
+  /** 页顶那一行（返回、计划名、搜索、设置、撤销、重做）：放进钉在顶上的那一块 */
+  top: ReactNode;
   doc: Y.Doc;
   library: Y.Doc;
   libraryView: LibraryView;
@@ -67,7 +69,7 @@ interface OpenedBlock {
  * 按下了哪些类型、标签，只看没划掉的，只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间线、开销、占比和每一天；
  * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：几个视图打开的是同一个，切换视图面板留着。
  */
-export function DayList({ doc, library, libraryView, plan, planId, searchAnchor, onSearchClosed }: DayListProps) {
+export function DayList({ top, doc, library, libraryView, plan, planId, searchAnchor, onSearchClosed }: DayListProps) {
   const bases = plan.bases;
   const labels = dayRowLabels(bases);
 
@@ -114,21 +116,40 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const wide = useWideScreen();
   // 竖排看的是哪天（底座 id）：切到日程时时间线卸掉，切回来接着看这天
   const shownDay = useRef<string | null>(null);
-  // 零高度的标记放在切换按钮本来的位置：按钮贴在顶上时，靠它量出按钮不贴顶该在哪
+  // 零高度的标记放在顶上那一块本来的位置：这一块钉在顶上时，靠它量出不钉住该在哪
   const viewsMarker = useRef<HTMLDivElement>(null);
+  // 钉在顶上的那一块：量它多高，写进页面的 --pinned-top——下面视图的最小高度、滚动时顶上留的边都按它算。
+  // 标记滚出屏幕上边就是钉住了，这时才给这一块标上 data-stuck、上底色：没钉住时它和页面融在一起，不是一块浮着的板子。
+  // 直接改属性、不走 state：钉上、松开不用重画整个计划
+  const pinnedTop = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const block = pinnedTop.current!;
+    const root = document.documentElement;
+    const measure = () => root.style.setProperty("--pinned-top", `${block.offsetHeight}px`);
+    measure();
+    const resize = new ResizeObserver(measure);
+    resize.observe(block);
+    const stuck = new IntersectionObserver(([marker]) => block.toggleAttribute("data-stuck", !marker!.isIntersecting));
+    stuck.observe(viewsMarker.current!);
+    return () => {
+      resize.disconnect();
+      stuck.disconnect();
+      root.style.removeProperty("--pinned-top");
+    };
+  }, []);
   const [viewClicks, setViewClicks] = useState(0);
   const showView = (next: PlanViewName) => {
     setView(next);
     savePlanView(planId, next);
     setViewClicks((count) => count + 1);
   };
-  // 点了切换按钮（按下的那个也算），按钮一直留在原处：
-  // - 按钮在它本来的位置（没贴顶）：不滚。上面只剩页顶和筛选两行，新视图就在按钮下面（你提的：「维持不动就行」）
-  // - 按钮贴在顶上（往下滚过了）：滚到新视图从开头露出来，按钮照旧贴顶。不滚的话，新视图停在刚才滚到的地方，看的是中间一截
-  // 画完新视图再量：标记跑到贴顶位置上面就是贴顶了。新视图比一屏短时浏览器先把滚动夹小，下面至少一屏高的框让它正好夹到贴顶
+  // 点了切换按钮（按下的那个也算），顶上那一块一直留在原处：
+  // - 这一块在它本来的位置（页面在最上面，没钉住）：不滚，新视图就在它下面（你提的：「维持不动就行」）
+  // - 这一块钉在顶上（往下滚过了）：滚到新视图从开头露出来，紧挨着它下面。不滚的话，新视图停在刚才滚到的地方，看的是中间一截
+  // 画完新视图再量：标记跑到钉住的位置上面就是钉住了。新视图比一屏短时浏览器先把滚动夹小，下面至少一屏高的框让它正好夹到钉住
   useLayoutEffect(() => {
     if (viewClicks === 0) return;
-    const offset = viewsMarker.current!.getBoundingClientRect().top - VIEWS_STICKY_TOP;
+    const offset = viewsMarker.current!.getBoundingClientRect().top - PINNED_TOP;
     if (offset < 0) window.scrollBy(0, offset);
   }, [viewClicks]);
 
@@ -264,176 +285,183 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const showCheckFilter = onlyUnchecked || [...plan.blocks.values()].some((block) => block.checked);
 
   return (
-    <section className="flex flex-col gap-4">
-      {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
-      {(showKindFilter || showTagFilter || showCheckFilter) && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          {showKindFilter && (
-            <FilterChips
-              label="按类型筛选"
-              lead="类型"
-              clearLabel="全部类型"
-              items={kinds}
-              selected={filter?.kindIds ?? []}
-              onChange={setSelectedKinds}
-            />
-          )}
-          {showTagFilter && (
-            <FilterChips
-              label="按标签筛选"
-              lead="标签"
-              clearLabel="全部标签"
-              marker="ribbon"
-              items={tags}
-              selected={filter?.tagIds ?? []}
-              onChange={setSelectedTags}
-            />
-          )}
-          {showCheckFilter && (
-            <button
-              type="button"
-              aria-pressed={onlyUnchecked}
-              className={chipClass(onlyUnchecked)}
-              onClick={() => setOnlyUnchecked((value) => !value)}
-            >
-              只看没划掉的
-            </button>
-          )}
-        </div>
-      )}
-      {/* -mb-4 抵掉标记后面那道间距，切换按钮还在原来的位置 */}
+    // -mt-2 抵掉顶上那一块上边留的 8 像素：页面在最上面时页顶还在原处，和还没加天时一样
+    <section className="-mt-2 flex flex-col gap-4">
+      {/* -mb-4 抵掉标记后面那道间距，顶上那一块还在原来的位置 */}
       <div ref={viewsMarker} aria-hidden className="-mb-4" />
-      {/* 往下滚时贴在屏幕顶上：日程多长都不用滚回来切换。右边是只在时间线上有意义的两样（你提的：放到这一行，居右） */}
-      <div
-        data-view-row
-        className="sticky z-20 flex flex-wrap items-center justify-between gap-2"
-        style={{ top: VIEWS_STICKY_TOP }}
-      >
-        <div
-          role="group"
-          aria-label="视图"
-          className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
-        >
-          {VIEWS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={view === value}
-              className={`inline-flex h-8 items-center rounded-full px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
-                view === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
-              }`}
-              onClick={() => showView(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {view === "timeline" && (
-          // 放不下时整组换到下一行，不挤扁组里的按钮（手机上「块上写」和「竖向放大」加起来正好一屏宽）
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {/* 块上写标题、开销：两个开关各开各关（记在这台设备上） */}
-            <div
-              role="group"
-              aria-label="块上写"
-              className="flex shrink-0 rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
-            >
-              {BLOCK_TEXT_PARTS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={blockText[value]}
-                  className={`inline-flex h-8 items-center rounded-full px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
-                    blockText[value] ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
-                  }`}
-                  onClick={() => toggleBlockText(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {/* 竖向放大：三档按钮，手指一下点到（只有竖排有；手机上拖动条拖不准） */}
-            {!wide && (
-              <div
-                role="group"
-                aria-label="竖向放大"
-                className="flex shrink-0 rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
+      {/*
+        页顶、筛选、切换按钮合成一块，往下滚时整块钉在屏幕顶上：滚到哪都点得到（你提的：滚动后这些都该是不动的）。
+        钉住时有淡底色和磨砂，下面的东西从它底下滚过去；手机上筛选不折行、左右滑，这一块不长高（见 index.css 的 pinned-top、filter-row）
+      */}
+      <div ref={pinnedTop} data-pinned-top className="pinned-top sticky z-20 flex flex-col gap-3" style={{ top: PINNED_TOP }}>
+        {top}
+        {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
+        {(showKindFilter || showTagFilter || showCheckFilter) && (
+          <div data-filter-row className="filter-row flex flex-wrap items-center gap-x-5 gap-y-2">
+            {showKindFilter && (
+              <FilterChips
+                label="按类型筛选"
+                lead="类型"
+                clearLabel="全部类型"
+                items={kinds}
+                selected={filter?.kindIds ?? []}
+                onChange={setSelectedKinds}
+              />
+            )}
+            {showTagFilter && (
+              <FilterChips
+                label="按标签筛选"
+                lead="标签"
+                clearLabel="全部标签"
+                marker="ribbon"
+                items={tags}
+                selected={filter?.tagIds ?? []}
+                onChange={setSelectedTags}
+              />
+            )}
+            {showCheckFilter && (
+              <button
+                type="button"
+                aria-pressed={onlyUnchecked}
+                className={chipClass(onlyUnchecked)}
+                onClick={() => setOnlyUnchecked((value) => !value)}
               >
-                {DAY_ZOOMS.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={dayZoom === value}
-                    className={`inline-flex h-8 items-center rounded-full px-2 text-sm whitespace-nowrap tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
-                      dayZoom === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
-                    }`}
-                    onClick={() => showDayZoom(value)}
-                  >
-                    {`${value}%`}
-                  </button>
-                ))}
-              </div>
-            )}
-            {/* 0–24 点：按下是整天按真实比例画，没按下折起没事的凌晨和深夜（只有横排有） */}
-            {wide && (
-              <div className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur">
-                <button
-                  type="button"
-                  aria-pressed={fullDay}
-                  disabled={!foldable}
-                  title={foldable ? (fullDay ? "折起没事的凌晨和深夜" : "展开成 0–24 点") : "每个钟点都有事，没有折起的"}
-                  className={`inline-flex h-8 items-center rounded-full px-3 text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage disabled:cursor-default disabled:opacity-50 ${
-                    fullDay ? "bg-sage text-white" : "text-ink-muted enabled:hover:text-ink"
-                  }`}
-                  onClick={() => showFullDay(!fullDay)}
-                >
-                  0–24 点
-                </button>
-              </div>
-            )}
-            {/* 横向放大：像剪辑软件那样拖着放大（只有横排有） */}
-            {wide && (
-              <div className="flex items-center gap-2 text-xs text-ink-muted">
-                <input
-                  type="range"
-                  aria-label="横向放大"
-                  aria-valuetext={`${zoom}%`}
-                  title={`横向放大 ${zoom}%`}
-                  className="timeline-zoom"
-                  min={ZOOM_MIN}
-                  max={ZOOM_MAX}
-                  step={10}
-                  value={zoom}
-                  onChange={(event) => setShownZoom(Number(event.target.value))}
-                />
-                <span className="w-10 text-right tabular-nums">{`${zoom}%`}</span>
-              </div>
-            )}
-            {/* 文字行数：横条中间写标题的那一区写几行，上下的书签栏、附件栏不变（只有横排有；竖条的高度就是时长） */}
-            {wide && (
-              <div className="flex items-center gap-2 text-xs text-ink-muted">
-                <input
-                  type="range"
-                  aria-label="文字行数"
-                  aria-valuetext={`${titleLines} 行`}
-                  title={blockText.title ? `块上的标题写 ${titleLines} 行` : "关着「标题」时块上不写字"}
-                  className="timeline-lines"
-                  min={TITLE_LINES_MIN}
-                  max={TITLE_LINES_MAX}
-                  step={1}
-                  value={titleLines}
-                  disabled={!blockText.title}
-                  onChange={(event) => setShownTitleLines(Number(event.target.value))}
-                />
-                <span className="w-8 text-right tabular-nums">{`${titleLines} 行`}</span>
-              </div>
+                只看没划掉的
+              </button>
             )}
           </div>
         )}
+        {/* 右边是只在时间线上有意义的两样（你提的：放到这一行，居右） */}
+        <div data-view-row className="flex flex-wrap items-center justify-between gap-2">
+          <div
+            role="group"
+            aria-label="视图"
+            className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
+          >
+            {VIEWS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={view === value}
+                className={`inline-flex h-8 items-center rounded-full px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+                  view === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
+                }`}
+                onClick={() => showView(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {view === "timeline" && (
+            // 放不下时整组换到下一行，不挤扁组里的按钮（手机上「块上写」和「竖向放大」加起来正好一屏宽）
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {/* 块上写标题、开销：两个开关各开各关（记在这台设备上） */}
+              <div
+                role="group"
+                aria-label="块上写"
+                className="flex shrink-0 rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
+              >
+                {BLOCK_TEXT_PARTS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={blockText[value]}
+                    className={`inline-flex h-8 items-center rounded-full px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+                      blockText[value] ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
+                    }`}
+                    onClick={() => toggleBlockText(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* 竖向放大：三档按钮，手指一下点到（只有竖排有；手机上拖动条拖不准） */}
+              {!wide && (
+                <div
+                  role="group"
+                  aria-label="竖向放大"
+                  className="flex shrink-0 rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
+                >
+                  {DAY_ZOOMS.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={dayZoom === value}
+                      className={`inline-flex h-8 items-center rounded-full px-2 text-sm whitespace-nowrap tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
+                        dayZoom === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
+                      }`}
+                      onClick={() => showDayZoom(value)}
+                    >
+                      {`${value}%`}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* 0–24 点：按下是整天按真实比例画，没按下折起没事的凌晨和深夜（只有横排有） */}
+              {wide && (
+                <div className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur">
+                  <button
+                    type="button"
+                    aria-pressed={fullDay}
+                    disabled={!foldable}
+                    title={foldable ? (fullDay ? "折起没事的凌晨和深夜" : "展开成 0–24 点") : "每个钟点都有事，没有折起的"}
+                    className={`inline-flex h-8 items-center rounded-full px-3 text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage disabled:cursor-default disabled:opacity-50 ${
+                      fullDay ? "bg-sage text-white" : "text-ink-muted enabled:hover:text-ink"
+                    }`}
+                    onClick={() => showFullDay(!fullDay)}
+                  >
+                    0–24 点
+                  </button>
+                </div>
+              )}
+              {/* 横向放大：像剪辑软件那样拖着放大（只有横排有） */}
+              {wide && (
+                <div className="flex items-center gap-2 text-xs text-ink-muted">
+                  <input
+                    type="range"
+                    aria-label="横向放大"
+                    aria-valuetext={`${zoom}%`}
+                    title={`横向放大 ${zoom}%`}
+                    className="timeline-zoom"
+                    min={ZOOM_MIN}
+                    max={ZOOM_MAX}
+                    step={10}
+                    value={zoom}
+                    onChange={(event) => setShownZoom(Number(event.target.value))}
+                  />
+                  <span className="w-10 text-right tabular-nums">{`${zoom}%`}</span>
+                </div>
+              )}
+              {/* 文字行数：横条中间写标题的那一区写几行，上下的书签栏、附件栏不变（只有横排有；竖条的高度就是时长） */}
+              {wide && (
+                <div className="flex items-center gap-2 text-xs text-ink-muted">
+                  <input
+                    type="range"
+                    aria-label="文字行数"
+                    aria-valuetext={`${titleLines} 行`}
+                    title={blockText.title ? `块上的标题写 ${titleLines} 行` : "关着「标题」时块上不写字"}
+                    className="timeline-lines"
+                    min={TITLE_LINES_MIN}
+                    max={TITLE_LINES_MAX}
+                    step={1}
+                    value={titleLines}
+                    disabled={!blockText.title}
+                    onChange={(event) => setShownTitleLines(Number(event.target.value))}
+                  />
+                  <span className="w-8 text-right tabular-nums">{`${titleLines} 行`}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       <OpenBlockContext.Provider value={openBlock}>
         <SelectBlockContext.Provider value={selection}>
-          {/* 至少一屏高（减去切换按钮 42 像素、贴顶的 8、间距 16、页面底边 32）：视图比一屏短时，贴着顶切过来照样贴顶 */}
-          <div className="flex min-h-[calc(100dvh-6.125rem)] flex-col gap-4">
+          {/*
+            至少一屏高（减去钉住那一块、间距 16、页面底边 32）：视图比一屏短时，钉着切过来照样钉住、视图从开头露出来。
+            单独一层（isolate）：时间线里浮着的快捷条这些层次再高也只在视图里比，滚到钉住那一块底下时被盖住
+          */}
+          <div className="isolate flex min-h-[calc(100dvh-var(--pinned-top,8rem)-3rem)] flex-col gap-4">
             {view === "overview" ? (
               <>
                 <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
