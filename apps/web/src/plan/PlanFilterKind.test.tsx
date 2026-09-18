@@ -370,7 +370,7 @@ describe("筛选开着时改块", () => {
     setBlockChecked(plan, [lunch], true);
   }
 
-  /** 日程里点这一行标题前面的「划掉」。 */
+  /** 日程里点这一行竖线上的「划掉」。 */
   async function strike(user: User, title: string): Promise<void> {
     await user.click(within(await blockRow("10.1", title)).getByRole("checkbox", { name: "划掉" }));
   }

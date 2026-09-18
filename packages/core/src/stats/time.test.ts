@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc, initPlanDoc } from "../schema";
 import { addBase, addBlock } from "../testing";
-import { busyMinutes, dayFacts, occupiedMinutes, timeByKind, unscheduledMinutes } from "./time";
+import { busyMinutes, dayFacts, freeGaps, occupiedMinutes, timeByKind, unscheduledMinutes } from "./time";
 
 let library: Y.Doc;
 let planDoc: Y.Doc;
@@ -245,5 +245,68 @@ describe("这天排了多久", () => {
     const { plan } = views();
 
     expect(busyMinutes(plan, "d1", { kindIds: ["sight"] })).toBe(180);
+  });
+});
+
+describe("这天的空档", () => {
+  function timed(id: string, kind: string, start: number, duration: number, baseId = "d1") {
+    addBlock(planDoc, id, { start_base_id: baseId, start_minute: start, duration_min: duration, kind_id: kind });
+  }
+
+  test("中间空了一个半小时", () => {
+    timed("drive", "transit", 480, 180);
+    timed("lunch", "food", 750, 60);
+    const { plan } = views();
+
+    expect(freeGaps(plan, "d1", 30)).toEqual([{ from: 660, to: 750 }]);
+  });
+
+  test("叠在一起的按最晚结束算", () => {
+    timed("lake", "sight", 540, 180);
+    timed("tea", "food", 600, 30);
+    timed("tower", "sight", 780, 60);
+    const { plan } = views();
+
+    expect(freeGaps(plan, "d1", 30)).toEqual([{ from: 720, to: 780 }]);
+  });
+
+  test("停留不算、住宿算", () => {
+    timed("stay", "stay", 0, 4320);
+    timed("lunch", "food", 720, 60);
+    timed("inn", "lodging", 1260, 600);
+    const { plan } = views();
+
+    expect(freeGaps(plan, "d1", 30)).toEqual([{ from: 780, to: 1260 }]);
+  });
+
+  test("时长为 0 的隔开两段", () => {
+    timed("dinner", "food", 1080, 60);
+    timed("leave", "transit", 1200, 0);
+    timed("train", "transit", 1260, 120);
+    const { plan } = views();
+
+    expect(freeGaps(plan, "d1", 30)).toEqual([
+      { from: 1140, to: 1200 },
+      { from: 1200, to: 1260 },
+    ]);
+  });
+
+  test("不到 N 分钟不算，正好 N 分钟算", () => {
+    timed("lake", "sight", 540, 180);
+    timed("lunch", "food", 740, 60);
+    timed("tower", "sight", 830, 60);
+    const { plan } = views();
+
+    expect(freeGaps(plan, "d1", 30)).toEqual([{ from: 800, to: 830 }]);
+  });
+
+  test("别的天、没排时间的不算；不看筛选", () => {
+    timed("lake", "sight", 540, 180);
+    timed("other-day", "sight", 780, 60, "d2");
+    addBlock(planDoc, "maybe", { start_base_id: "d1", duration_min: 60, slot: "day" });
+    timed("lunch", "food", 840, 60);
+    const { plan } = views();
+
+    expect(freeGaps(plan, "d1", 30)).toEqual([{ from: 720, to: 840 }]);
   });
 });

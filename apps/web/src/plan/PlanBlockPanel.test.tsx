@@ -306,6 +306,6 @@ describe("没排时间的上移、下移、缩进", () => {
     await waitFor(() => expect(buttonIn(panelOf("西湖"), "取消缩进")).toBeTruthy());
     const chip = thing(screen.getByRole("group", { name: "没排时间" }), "西湖").closest<HTMLElement>("[data-undated-chip]")!;
     expect(chip.style.marginLeft).toBe("12px");
-    expect((await blockRow("10.1", "西湖")).querySelector("td")?.dataset.indent).toBe("1");
+    expect((await blockRow("10.1", "西湖")).querySelector<HTMLElement>("[data-indent]")?.dataset.indent).toBe("1");
   });
 });

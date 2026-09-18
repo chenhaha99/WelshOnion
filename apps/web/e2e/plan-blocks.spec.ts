@@ -47,7 +47,7 @@ test("安排表：连着加几件事 → 改类型、划掉一件 → 排时间 
 
   await rows.nth(2).getByRole("button", { name: "这件事的操作" }).click();
   await page.getByRole("menuitem", { name: "缩进" }).click();
-  await expect(rows.nth(2).locator("td").first()).toHaveAttribute("data-indent", "1");
+  await expect(rows.nth(2).locator("[data-indent]")).toHaveAttribute("data-indent", "1");
   await shot(page, "02-arranged");
 
   await rows.nth(1).getByRole("button", { name: "时间" }).click();

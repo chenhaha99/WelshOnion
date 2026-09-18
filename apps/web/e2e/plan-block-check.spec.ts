@@ -68,13 +68,13 @@ test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小�
   await page.keyboard.press("Escape");
   await shot(page, "01-struck-bar");
 
-  // 日程里划掉「河坊街」：标题前面的勾选框；这一行左边一道变虚线，标题划一道
+  // 日程里划掉「河坊街」：竖线上的圆圈；卡片左边一道变虚线，标题划一道
   await showView(page, "日程");
   const street = await rowOf(day1Table, "河坊街");
   await street.getByRole("checkbox", { name: "划掉" }).check();
   await expect(street).toHaveAttribute("data-checked", "true");
   await expect((await rowOf(day1Table, "西湖")).getByRole("checkbox", { name: "划掉" })).toBeChecked();
-  expect(await street.locator("td").first().evaluate((node) => getComputedStyle(node).borderLeftStyle)).toBe("dashed");
+  expect(await street.locator(".schedule-card").evaluate((node) => getComputedStyle(node).borderLeftStyle)).toBe("dashed");
   expect(
     await street.getByRole("textbox", { name: "标题" }).evaluate((node) => getComputedStyle(node).textDecorationLine),
   ).toBe("line-through");

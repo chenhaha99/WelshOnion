@@ -53,7 +53,7 @@ describe("没排时间的块排顺序、缩进、换格子", () => {
   it("缩进再取消", async () => {
     const user = userEvent.setup();
     await openStoredPlan(oneDayWith({ title: "西湖", slot: "day" }, { title: "灵隐寺", slot: "day" }));
-    const indentOf = async () => (await blockRow("10.1", "灵隐寺")).querySelector("td")?.dataset.indent;
+    const indentOf = async () => (await blockRow("10.1", "灵隐寺")).querySelector<HTMLElement>("[data-indent]")?.dataset.indent;
 
     await chooseInBlockMenu(user, "灵隐寺", "缩进");
     await waitFor(async () => expect(await indentOf()).toBe("1"));

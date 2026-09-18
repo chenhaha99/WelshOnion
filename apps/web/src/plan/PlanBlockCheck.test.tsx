@@ -69,7 +69,7 @@ describe("在哪划掉", () => {
     await waitFor(async () => expect(struck(await blockButton("西湖"))).toBe(false));
   });
 
-  it("日程里：标题前面的勾选框", async () => {
+  it("日程里：竖线上的圆圈", async () => {
     const user = userEvent.setup();
     await oneDay();
 

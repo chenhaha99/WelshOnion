@@ -109,6 +109,28 @@ export function busyMinutes(plan: PlanView, baseId: string, filter?: StatsFilter
   return sum;
 }
 
+/**
+ * 这天的空档（这天 0 点起的分钟）：这天开始的、排上时间的块按开始时刻从早到晚，记着到这时为止最晚的结束，
+ * 下一块开始比它晚至少 minMinutes 分钟就是一段。停留不算（一盖就是一整天、好几天），住宿算；
+ * 时长为 0 的块也算一个时刻；第一块之前、最后一块之后不算。不看筛选：筛掉的块那段时间并不空。
+ */
+export function freeGaps(plan: PlanView, baseId: string, minMinutes: number): Array<{ from: number; to: number }> {
+  const spans: Array<[number, number]> = [];
+  for (const block of plan.blocks.values()) {
+    if (block.start_base_id !== baseId || block.start_minute === null || block.kind.id === "stay") continue;
+    spans.push([block.start_minute, block.start_minute + (block.duration_min ?? 0)]);
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+
+  const gaps: Array<{ from: number; to: number }> = [];
+  let covered: number | null = null;
+  for (const [from, to] of spans) {
+    if (covered !== null && from - covered >= minMinutes) gaps.push({ from: covered, to: from });
+    covered = covered === null ? to : Math.max(covered, to);
+  }
+  return gaps;
+}
+
 /** 这天的实际情况：自驾时长和距离、几点起和几点收工、生效的时间预算。 */
 export function dayFacts(plan: PlanView, baseId: string, filter?: StatsFilter): DayFacts {
   let driveMinutes = 0;

@@ -202,43 +202,144 @@
   backdrop-filter: blur(24px) saturate(1.2);
 }
 
-/* 每天的安排表：一行一个块，左边一道类型颜色；划掉的虚线、变淡，标题划一道 */
-@utility block-table {
-  border-collapse: separate;
-  border-spacing: 0 0.25rem;
-  & td {
-    padding: 0.125rem 0.375rem;
-    vertical-align: middle;
+/*
+ * 日程的时刻表：三列——开始时刻、竖线（线上的圆圈是「划掉」）、一件事一张卡片。
+ * 竖线是第二列每一格画一段，上下接起来成一根；卡片左边一道类型色，划掉的虚线、变淡、标题划一道。
+ */
+@utility schedule {
+  border-collapse: collapse;
+  table-layout: fixed;
+  /* 格子默认不留边距；放在 :where 里不加权重，各列、各行自己的边距（schedule-time 这些）才压得住它 */
+  :where(&) > tbody > tr > td {
+    padding: 0;
+    vertical-align: top;
   }
 }
 
-@utility block-row {
-  & > td {
-    background-color: rgb(255 255 255 / 0.5);
+@utility schedule-col-time {
+  width: 3.25rem;
+}
+
+@utility schedule-col-rail {
+  width: 1.5rem;
+}
+
+/* 开始时刻、圆圈和卡片第一行（时间按钮）对齐在同一条水平线上 */
+@utility schedule-time {
+  padding: 1rem 0.375rem 0 0;
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@utility schedule-rail {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(50% - 1px);
+    width: 2px;
+    background-color: color-mix(in srgb, var(--color-sage) 28%, transparent);
   }
-  /* 标题格：缩进一级往右多留 1.5rem（--indent 在 tr 上） */
-  & > td[data-indent] {
-    padding-left: calc(0.375rem + var(--indent) * 1.5rem);
+}
+
+/* 竖线上的圆圈：就是「划掉」的勾选框，划掉了填满、打勾 */
+@utility schedule-check {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  margin: 1.125rem auto 0;
+  appearance: none;
+  border: 1.5px solid color-mix(in srgb, var(--color-ink) 35%, transparent);
+  border-radius: 999px;
+  background-color: white;
+  cursor: pointer;
+  &:checked {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--color-ink) 40%, white)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      center / 0.625rem no-repeat;
   }
-  & > td:first-child {
-    border-left: 3px solid var(--kind-color);
-    border-radius: 0.5rem 0 0 0.5rem;
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 2px;
   }
-  & > td:last-child {
-    border-radius: 0 0.5rem 0.5rem 0;
+}
+
+@utility schedule-card {
+  margin: 0.25rem 0 0.25rem calc(var(--indent, 0) * 1rem);
+  padding: 0.25rem 0.375rem 0.375rem 0.375rem;
+  border-left: 3px solid var(--kind-color);
+  border-radius: 0.625rem;
+  background-color: rgb(255 255 255 / 0.55);
+  /* 卡片里的按钮按字宽、上下留得少一点；只有标题占满一行 */
+  & .input-bare {
+    width: auto;
+    padding-block: 0.125rem;
   }
-  &[data-checked="true"] > td:first-child {
+  & .schedule-title {
+    width: 100%;
+  }
+  [data-checked="true"] > td > & {
     border-left-style: dashed;
     border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
   }
-  &[data-checked="true"] .kind-dot {
+  [data-checked="true"] > td > & .kind-dot {
     opacity: 0.45;
   }
   /* 正在改标题时不划：划线挡着看不清在改什么 */
-  &[data-checked="true"] > td:first-child .input-bare:not(:focus) {
+  [data-checked="true"] > td > & .schedule-title:not(:focus) {
     color: var(--color-ink-muted);
     text-decoration-line: line-through;
   }
+}
+
+/* 事和事之间的空档：一行虚线框，点了在那个钟点加一件事 */
+@utility schedule-gap {
+  width: 100%;
+  margin: 0.25rem 0;
+  padding: 0.25rem 0.625rem;
+  border: 1px dashed rgb(47 58 69 / 0.15);
+  border-radius: 0.625rem;
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  &:hover {
+    border-color: var(--color-sage);
+    color: var(--color-sage-deep);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 1px;
+  }
+}
+
+@utility schedule-gap-row {
+  & > .schedule-time {
+    padding-top: 0.5rem;
+    color: var(--color-ink-muted);
+    font-size: 0.75rem;
+  }
+}
+
+@utility schedule-heading {
+  & > td {
+    padding-top: 0.5rem;
+    color: var(--color-ink-muted);
+    font-size: 0.75rem;
+  }
+}
+
+/* 时间、开销的编辑区：电脑上对着卡片那一列，窄的时候占满整行（编辑区要宽） */
+@utility schedule-editor {
+  padding: 0.125rem 0 0.25rem 4.75rem;
 }
 
 /* 附件栏里的开销：排在最右，能点（附件栏本身不接指针，点在别处就是点块） */
@@ -341,16 +442,6 @@
   }
 }
 
-/* 日程里标题前面「划掉」的勾选框 */
-@utility block-check {
-  flex-shrink: 0;
-  width: 1rem;
-  height: 1rem;
-  margin-left: 0.25rem;
-  accent-color: var(--color-sage);
-  cursor: pointer;
-}
-
 @utility kind-dot {
   display: inline-block;
   flex-shrink: 0;
@@ -360,62 +451,66 @@
 }
 
 /*
- * 安排表放不下时（外层宽不到 42rem，手机上一天的卡片里就是），一个块画成一张卡：
- * 第一行是标题，「这件事的操作」用 order 挪到它右边（排在最后时常常一个人占一行）；类型、时间、钱按先后排在下面、放不下就换行；
- * 底色、圆角、类型色、划掉的虚线从第一格挪到整张卡，缩进整张卡往右；编辑区这些整行的 tr 满宽。
- * 写在层外，才盖得过表格的固定列宽和最小宽度。
+ * 日程里的一天：电脑上（这天的卡片宽 40rem 起）组头在左边一列，「第 1 天」大字、下面日期、再下面「这天的操作」；
+ * 窄的时候组头在上面一行。中间的「 · 」在电脑上看不见（读屏照读）。
  */
-@container (width < 42rem) {
-  .block-table,
-  .block-table > tbody {
+@utility day-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@utility day-side {
+  display: flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+@container (width >= 40rem) {
+  .day-layout {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: 0 1rem;
+  }
+  .day-side {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    padding-top: 0.375rem;
+  }
+  .day-number {
     display: block;
-    min-width: 0;
+    color: var(--color-sage-deep);
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.3;
   }
-  .block-table > tbody > tr {
+  .day-sep {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .day-date {
     display: block;
-    margin-block: 0.25rem;
+    color: var(--color-ink-muted);
+    font-size: 0.8125rem;
   }
-  .block-table > tbody > tr > td {
-    display: block;
+}
+
+/* 窄的时候开始时刻那一列窄一点；编辑区占满整行，钱的编辑区里类型那一格和「加一笔」窄一点，一笔钱的类型、金额、人均或总价放得进一行 */
+@container (width < 40rem) {
+  .schedule-col-time {
+    width: 2.75rem;
   }
-  .block-table > tbody > tr.block-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-left: calc(var(--indent) * 1rem);
-    padding-block: 0.125rem;
-    border-left: 3px solid var(--kind-color);
-    border-radius: 0.5rem;
-    background-color: rgb(255 255 255 / 0.5);
+  .schedule-editor {
+    padding-left: 0;
   }
-  .block-table > tbody > tr.block-row[data-checked="true"] {
-    border-left-style: dashed;
-    border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
-  }
-  .block-table > tbody > tr.block-row > td {
-    width: auto;
-    border: 0;
-    border-radius: 0;
-    background-color: transparent;
-  }
-  /* 标题格占第一行，右边留 3.5rem 给「这件事的操作」；再往后的格子挤不进这一行，只能换行 */
-  .block-table > tbody > tr.block-row > td:first-child {
-    flex: 1 0 calc(100% - 3.5rem);
-    padding-left: 0.375rem;
-  }
-  .block-table > tbody > tr.block-row > td:last-child {
-    order: 1;
-    align-self: flex-start;
-  }
-  .block-table > tbody > tr.block-row > td:not(:first-child):not(:last-child) {
-    order: 2;
-  }
-  .block-table > tbody > tr.block-row > td:not(:first-child) .input-bare {
-    width: auto;
-  }
-  /* 钱的编辑区：类型那一格和「加一笔」窄一点，一笔钱的类型、金额、人均或总价放得进一行，上下的金额框还对得齐 */
-  .block-table [data-kind-cell],
-  .block-table [data-draft-lead] {
+  .schedule [data-kind-cell],
+  .schedule [data-draft-lead] {
     width: 6rem;
   }
 }

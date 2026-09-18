@@ -66,7 +66,7 @@ export type { AddPlaceInput, KindPatch, PlacePatch, ProviderData, TagPatch } fro
 export { countBlocksUsing } from "./usage";
 export { expensePasses, passesFilter } from "./stats/filter";
 export type { StatsFilter } from "./stats/filter";
-export { busyMinutes, dayFacts, occupiedMinutes, timeByKind, unscheduledMinutes } from "./stats/time";
+export { busyMinutes, dayFacts, freeGaps, occupiedMinutes, timeByKind, unscheduledMinutes } from "./stats/time";
 export type { DayFacts, TimeByKindOptions } from "./stats/time";
 export { expenseTotalCents, fillProgress, moneySummary } from "./stats/money";
 export type { FillProgress, MoneySummary } from "./stats/money";
