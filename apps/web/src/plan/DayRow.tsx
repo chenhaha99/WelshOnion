@@ -60,7 +60,7 @@ export function DayRow({ doc, library, libraryView, plan, base, label, index, co
 }
 
 /** 各项用「 · 」隔开；手机上放不下时只在项和项之间换行，一项不拆开。 */
-function Parts({ parts }: { parts: string[] }) {
+export function Parts({ parts }: { parts: string[] }) {
   return parts.map((part, index) => (
     <Fragment key={index}>
       {index > 0 && " · "}

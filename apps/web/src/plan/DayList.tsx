@@ -5,6 +5,7 @@ import { blockFocusSelector } from "./block-actions";
 import { BlockPanel } from "./BlockPanel";
 import { dayRowLabels } from "./day-labels";
 import { DayRow } from "./DayRow";
+import { DaysCard } from "./DaysCard";
 import { FilterChips, chipClass } from "./FilterChips";
 import { KindGroups } from "./KindGroups";
 import { formatYuan } from "./money";
@@ -68,7 +69,7 @@ interface OpenedBlock {
 
 /**
  * 计划页的主体：一行筛选（按类型、按标签、只看没划掉的），下面「时间轴」「列表」「总览」三个视图切换着看。
- * 列表视图是每天一个组头和它的安排表（或按类型分组）；总览视图是开销总览和占比。计划里至少有一天。
+ * 列表视图是每天一个组头和它的安排表（或按类型分组）；总览视图是开销总览、每天和占比。计划里至少有一天。
  * 按下了哪些类型、标签，只看没划掉的，怎么分组，只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、开销、占比和每一天；
  * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：几个视图打开的是同一个，切换视图面板留着。
  */
@@ -227,8 +228,9 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [selected]);
   // 搜索里点了一条：跳到那件事。被筛选挡住先清筛选；总览切到时间轴、列表按类型分组切回按天（没有一件事一行）；
-  // 时间轴上选中它，手机竖排翻到它那天（DayTimeline 看 jump.seq 变了就换天）。画完再滚到屏幕中间、焦点放上去
-  const [jump, setJump] = useState<{ blockId: string; baseId: string; seq: number } | null>(null);
+  // 时间轴上选中它，手机竖排翻到它那天（DayTimeline 看 jump.seq 变了就换天）。画完再滚到屏幕中间、焦点放上去。
+  // 总览「每天」里点了一天的日期（blockId 是 null）：切到时间轴、竖排翻到那天，焦点放到那天的「这天的操作」
+  const [jump, setJump] = useState<{ blockId: string | null; baseId: string; seq: number } | null>(null);
   const jumpToBlock = (blockId: string) => {
     const block = plan.blocks.get(blockId)!;
     if (!passesFilter(block, filter)) {
@@ -243,8 +245,20 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     shownDay.current = block.start_base_id;
     setJump({ blockId, baseId: block.start_base_id, seq: (jump?.seq ?? 0) + 1 });
   };
+  const jumpToDay = (baseId: string) => {
+    showView("timeline");
+    shownDay.current = baseId;
+    setJump({ blockId: null, baseId, seq: (jump?.seq ?? 0) + 1 });
+  };
   useEffect(() => {
     if (jump === null) return;
+    if (jump.blockId === null) {
+      // 切视图那一下已经把时间轴摆好了（贴着顶就从开头露出来）：那天的按钮看得见就不再滚
+      const menu = document.querySelector<HTMLElement>(`[data-base-id="${jump.baseId}"] button[aria-label="这天的操作"]`)!;
+      menu.scrollIntoView({ block: "nearest" });
+      menu.focus({ preventScroll: true });
+      return;
+    }
     const target = document.querySelector<HTMLElement>(blockFocusSelector(jump.blockId))!;
     target.scrollIntoView({ block: "center", inline: "center" });
     target.focus();
@@ -433,6 +447,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
             {view === "overview" ? (
               <>
                 <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
+                <DaysCard plan={plan} labels={labels} cells={cells} filter={filter} onJump={jumpToDay} />
                 <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
               </>
             ) : view === "timeline" ? (

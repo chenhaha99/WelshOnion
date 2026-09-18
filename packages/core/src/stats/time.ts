@@ -86,6 +86,29 @@ export function unscheduledMinutes(plan: PlanView, baseId: string, filter?: Stat
   return sum;
 }
 
+/**
+ * 这天排了多久（分钟）：这天开始的、排上时间、时长大于 0 的块盖住的时间段并起来的总长，叠在一起的只算一次；
+ * 停留、住宿不算（同几点起收工）。跨午夜的整段算开始那天。
+ */
+export function busyMinutes(plan: PlanView, baseId: string, filter?: StatsFilter): number {
+  const spans: Array<[number, number]> = [];
+  for (const block of filteredBlocks(plan, filter)) {
+    if (block.start_base_id !== baseId || block.start_minute === null || BACKGROUND_KIND_IDS.has(block.kind.id)) continue;
+    const duration = block.duration_min ?? 0;
+    if (duration > 0) spans.push([block.start_minute, block.start_minute + duration]);
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+
+  let sum = 0;
+  let covered = -Infinity;
+  for (const [from, to] of spans) {
+    if (to <= covered) continue;
+    sum += to - Math.max(from, covered);
+    covered = to;
+  }
+  return sum;
+}
+
 /** 这天的实际情况：自驾时长和距离、几点起和几点收工、生效的时间预算。 */
 export function dayFacts(plan: PlanView, baseId: string, filter?: StatsFilter): DayFacts {
   let driveMinutes = 0;

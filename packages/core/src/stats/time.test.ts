@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc, initPlanDoc } from "../schema";
 import { addBase, addBlock } from "../testing";
-import { dayFacts, occupiedMinutes, timeByKind, unscheduledMinutes } from "./time";
+import { busyMinutes, dayFacts, occupiedMinutes, timeByKind, unscheduledMinutes } from "./time";
 
 let library: Y.Doc;
 let planDoc: Y.Doc;
@@ -205,4 +205,45 @@ describe("这天的实际情况", () => {
     expect(dayFacts(plan, "d1")).toMatchObject({ firstStartMinute: 540, lastEndMinute: 960 });
   });
 
+});
+
+describe("这天排了多久", () => {
+  /** 西湖、午饭叠了半小时，开车隔开；停留、住宿垫在下面 */
+  function lakeDay() {
+    addBlock(planDoc, "lake", { start_base_id: "d1", start_minute: 540, duration_min: 180, kind_id: "sight" });
+    addBlock(planDoc, "lunch", { start_base_id: "d1", start_minute: 690, duration_min: 60, kind_id: "food" });
+    addBlock(planDoc, "drive", { start_base_id: "d1", start_minute: 840, duration_min: 120, kind_id: "transit" });
+    addBlock(planDoc, "inn", { start_base_id: "d1", start_minute: 1200, duration_min: 600, kind_id: "lodging" });
+    addBlock(planDoc, "stay", { start_base_id: "d1", start_minute: 0, duration_min: 1440, kind_id: "stay" });
+  }
+
+  test("叠在一起的只算一次，停留、住宿不算", () => {
+    lakeDay();
+    const { plan } = views();
+
+    expect(busyMinutes(plan, "d1")).toBe(330);
+  });
+
+  test("没排时间的、时长是 0 的不算", () => {
+    addBlock(planDoc, "maybe", { start_base_id: "d1", duration_min: 90, slot: "day" });
+    addBlock(planDoc, "meet", { start_base_id: "d1", start_minute: 600, duration_min: 0 });
+    const { plan } = views();
+
+    expect(busyMinutes(plan, "d1")).toBe(0);
+  });
+
+  test("跨午夜的整段算开始那天", () => {
+    addBlock(planDoc, "night", { start_base_id: "d1", start_minute: 1380, duration_min: 120 });
+    const { plan } = views();
+
+    expect(busyMinutes(plan, "d1")).toBe(120);
+    expect(busyMinutes(plan, "d2")).toBe(0);
+  });
+
+  test("筛掉的不算", () => {
+    lakeDay();
+    const { plan } = views();
+
+    expect(busyMinutes(plan, "d1", { kindIds: ["sight"] })).toBe(180);
+  });
 });

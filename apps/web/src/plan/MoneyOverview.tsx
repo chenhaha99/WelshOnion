@@ -20,7 +20,7 @@ interface MoneyOverviewProps {
 }
 
 /**
- * 切换视图的按钮上面的开销的总览（时间轴、列表两个视图都有）：总额、人均、已填几笔、还有几个块没挂开销，任何时候都显示（渐进），按筛选算；
+ * 「总览」视图最上面的开销总览：总额、人均、已填几笔、还有几个块没挂开销，任何时候都显示（渐进），按筛选算；
  * 旁边「不属于任何一天」点开增删改不挂块的开销（签证、保险）。
  */
 export function MoneyOverview({ doc, library, libraryView, plan, filter }: MoneyOverviewProps) {

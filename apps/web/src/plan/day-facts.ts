@@ -42,7 +42,7 @@ export function dayFactsParts(
 }
 
 /** 这天安排表里各块的开销格加起来：一笔开销只算在它的显示块（挂的块里表上最早那块）上，所以正好是整笔算进这天的开销。 */
-function dayMoney(
+export function dayMoney(
   plan: PlanView,
   baseId: string,
   cells: ReadonlyMap<string, MoneyCell>,
@@ -59,7 +59,7 @@ function dayMoney(
 }
 
 /** 「800 米」「32 公里」「162.5 公里」：不到 1 公里写米，否则公里最多一位小数。 */
-function distanceLabel(meters: number): string {
+export function distanceLabel(meters: number): string {
   if (meters < 1000) return `${meters} 米`;
   return `${Math.round(meters / 100) / 10} 公里`;
 }

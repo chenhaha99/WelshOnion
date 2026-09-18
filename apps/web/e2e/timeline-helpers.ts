@@ -50,7 +50,7 @@ async function pressedView(page: Page): Promise<ViewName> {
   return (await page.getByRole("group", { name: "视图" }).getByRole("button", { pressed: true }).innerText()) as ViewName;
 }
 
-/** 切到「时间轴」或「列表」视图；已经是就不点。点了页面会滚到切换按钮贴在顶上。 */
+/** 切到「时间轴」「列表」或「总览」视图；已经是就不点。切换按钮贴着顶时，点了页面滚到新视图的开头；没贴顶不滚。 */
 export async function showView(page: Page, name: ViewName): Promise<void> {
   if ((await pressedView(page)) === name) return;
   const views = page.getByRole("group", { name: "视图" });
