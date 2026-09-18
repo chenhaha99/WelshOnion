@@ -3,8 +3,8 @@ import { blocksOfDay } from "./day-blocks";
 import { dateWithWeekday } from "./day-labels";
 import { formatYuan } from "./money";
 
-/** 整个行程里块的先后：按天的顺序，把每天安排表的顺序接起来。 */
-export function tripOrderOf(plan: PlanView): Map<string, number> {
+/** 整个行程里块的先后：按天的顺序，把每天时刻表的顺序接起来。 */
+function tripOrderOf(plan: PlanView): Map<string, number> {
   const order = new Map<string, number>();
   for (const base of plan.bases) {
     for (const block of blocksOfDay(plan, base.id)) order.set(block.id, order.size);
@@ -13,13 +13,13 @@ export function tripOrderOf(plan: PlanView): Map<string, number> {
 }
 
 /** 「10.1 周四 民宿」：块开始那天加标题。 */
-export function blockLabeller(plan: PlanView): (block: BlockView) => string {
+function blockLabeller(plan: PlanView): (block: BlockView) => string {
   const dates = new Map(plan.bases.map((base) => [base.id, base.date]));
   return (block) => `${dateWithWeekday(dates.get(block.start_base_id)!)} ${block.title}`;
 }
 
 /** 「挂在 10.1 周四 民宿、10.2 周五 民宿」，按行程的先后；一块都不挂写「不属于任何一天」。 */
-export function attachedLabel(
+function attachedLabel(
   expense: ExpenseView,
   plan: PlanView,
   tripOrder: ReadonlyMap<string, number>,

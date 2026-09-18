@@ -9,7 +9,7 @@ import {
   type KindView,
   type PlanView,
 } from "@welshonion/core";
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
 import { useNotifyDeleted } from "./DeletedNotice";
@@ -122,17 +122,15 @@ interface ExpenseRowProps {
   expense: ExpenseView;
   kinds: KindView[];
   countKindUsing: (kindId: string) => number;
-  /** 在哪块的编辑区里；不属于任何一天的开销、按类型分组时给 null */
+  /** 在哪块的编辑区里；不属于任何一天的编辑区给 null */
   blockId: string | null;
-  /** 按类型分组时写「挂在 10.1 周四 民宿」或「不属于任何一天」；按天时不给 */
-  blocksLabel?: string;
 }
 
 /**
- * 一笔开销一行：类型、金额、人均或总价、说明，共用时能从这件事拿掉，删除这笔。按天的编辑区、按类型分组共用。
+ * 一笔开销一行：类型、金额、人均或总价、说明，共用时能从这件事拿掉，删除这笔。块的编辑区、不属于任何一天的编辑区共用。
  * 分两组：类型、金额、人均或总价一组，说明往后一组；放不下时第二组整个换到下一行，不会把「总价」和金额拆开。
  */
-export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId, blocksLabel }: ExpenseRowProps) {
+function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId }: ExpenseRowProps) {
   const notifyDeleted = useNotifyDeleted();
   const shared = blockId !== null && expense.block_ids.length > 1;
   return (
@@ -187,11 +185,6 @@ export function ExpenseRow({ doc, library, expense, kinds, countKindUsing, block
             }}
           />
         </div>
-        {blocksLabel !== undefined && (
-          <span data-expense-blocks className="text-xs text-ink-muted">
-            {blocksLabel}
-          </span>
-        )}
         {shared && blockId !== null && (
           <>
             <span className="text-xs text-ink-muted">也挂在别的事上</span>
@@ -236,12 +229,6 @@ interface DraftRowProps {
   blockId: string | null;
   defaultKindId: string;
   autoFocus: boolean;
-  /** 前面那一截字：默认「加一笔」；按类型分组的空行写块 */
-  lead?: ReactNode;
-  /** 给了就多一个「挂到」下拉：第一项「不属于任何一天」，建出来挂在选的块上（这时不看 blockId） */
-  blockChoices?: ReadonlyArray<{ id: string; label: string }>;
-  /** 给了就多一个「类型」下拉，默认选 defaultKindId */
-  kindChoices?: ReadonlyArray<{ id: string; name: string }>;
 }
 
 /**
@@ -249,27 +236,12 @@ interface DraftRowProps {
  * 只在离开整行时提交，免得填完金额跳去填说明时先建出一笔、填完说明又建一笔。
  * 按 Esc 是不要了：清空，接着焦点离开也不建。
  */
-export function DraftRow({
-  doc,
-  library,
-  blockId,
-  defaultKindId,
-  autoFocus,
-  lead,
-  blockChoices,
-  kindChoices,
-}: DraftRowProps) {
+function DraftRow({ doc, library, blockId, defaultKindId, autoFocus }: DraftRowProps) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [target, setTarget] = useState("");
-  const [kindId, setKindId] = useState(defaultKindId);
   const [error, setError] = useState<string | null>(null);
   // 按了 Esc、还没再填字：这时焦点离开不建（编辑区收起时焦点会回到打开它的按钮）
   const discarding = useRef(false);
-  // 筛选变了、选过的块或类型不在选项里了：块回到「不属于任何一天」，类型换成第一个，免得建出来看不见
-  const chosenTarget = blockChoices?.some((choice) => choice.id === target) ? target : "";
-  const chosenKind =
-    kindChoices && !kindChoices.some((kind) => kind.id === kindId) ? (kindChoices[0]?.id ?? defaultKindId) : kindId;
 
   const submit = () => {
     const amountText = amount.trim();
@@ -280,17 +252,14 @@ export function DraftRow({
       setError(AMOUNT_ERROR);
       return;
     }
-    const attachTo = blockChoices ? chosenTarget : (blockId ?? "");
     addExpense(doc, library, {
       title: noteText,
       amountCents: parsed.cents,
-      blockIds: attachTo === "" ? [] : [attachTo],
-      kindId: kindChoices ? chosenKind : defaultKindId,
+      blockIds: blockId === null ? [] : [blockId],
+      kindId: defaultKindId,
     });
     setAmount("");
     setNote("");
-    // 挂到不留着上一次的选择：连着加时容易挂错块；类型留着，方便连着加同一类
-    setTarget("");
     setError(null);
   };
 
@@ -322,22 +291,8 @@ export function DraftRow({
         }}
       >
         <span data-draft-lead className="w-28 pl-1 text-xs text-ink-muted">
-          {lead ?? "加一笔"}
+          加一笔
         </span>
-        {kindChoices && (
-          <select
-            aria-label="类型"
-            className="input h-8"
-            value={chosenKind}
-            onChange={(event) => setKindId(event.target.value)}
-          >
-            {kindChoices.map((kind) => (
-              <option key={kind.id} value={kind.id}>
-                {kind.name}
-              </option>
-            ))}
-          </select>
-        )}
         <input
           aria-label="新一笔的金额"
           placeholder="金额（元）"
@@ -363,21 +318,6 @@ export function DraftRow({
           }}
           onKeyDown={submitOnEnter}
         />
-        {blockChoices && (
-          <select
-            aria-label="挂到"
-            className="input h-8 max-w-full"
-            value={chosenTarget}
-            onChange={(event) => setTarget(event.target.value)}
-          >
-            <option value="">不属于任何一天</option>
-            {blockChoices.map((choice) => (
-              <option key={choice.id} value={choice.id}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-        )}
       </div>
       {error && <p className="pl-1 text-sm text-danger">{error}</p>}
     </div>

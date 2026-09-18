@@ -7,7 +7,6 @@ import { dayRowLabels } from "./day-labels";
 import { DayRow } from "./DayRow";
 import { DaysCard } from "./DaysCard";
 import { FilterChips, chipClass } from "./FilterChips";
-import { KindGroups } from "./KindGroups";
 import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
@@ -39,11 +38,6 @@ const BLOCK_TEXT_PARTS = [
   { value: "money", label: "开销" },
 ] as const;
 
-const GROUPINGS = [
-  { value: "day", label: "按天" },
-  { value: "kind", label: "按类型" },
-] as const;
-
 /** 切换视图的按钮贴在屏幕顶上时，离上边多少像素 */
 const VIEWS_STICKY_TOP = 8;
 
@@ -69,8 +63,8 @@ interface OpenedBlock {
 
 /**
  * 计划页的主体：一行筛选（按类型、按标签、只看没划掉的），下面「时间线」「日程」「总览」三个视图切换着看。
- * 日程视图是每天一个组头和它的安排表（或按类型分组）；总览视图是开销总览、每天和占比。计划里至少有一天。
- * 按下了哪些类型、标签，只看没划掉的，怎么分组，只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间线、开销、占比和每一天；
+ * 日程视图是每天一个组头和它的时刻表；总览视图是开销总览、每天和占比。计划里至少有一天。
+ * 按下了哪些类型、标签，只看没划掉的，只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间线、开销、占比和每一天；
  * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：几个视图打开的是同一个，切换视图面板留着。
  */
 export function DayList({ doc, library, libraryView, plan, planId, searchAnchor, onSearchClosed }: DayListProps) {
@@ -82,9 +76,6 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   // 只看没划掉的（划掉的含义用户自己定；行中拿来看「还剩什么」）
   const [onlyUnchecked, setOnlyUnchecked] = useState(false);
-  // 按天还是按类型分组，也只在这一页
-  const [grouping, setGrouping] = useState<"day" | "kind">("day");
-  const pressedGrouping = useRef<HTMLButtonElement>(null);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
   // 时间线的块上写标题、开销（各开各关）：也按计划记在这台设备上
@@ -227,7 +218,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [selected]);
-  // 搜索里点了一条：跳到那件事。被筛选挡住先清筛选；总览切到时间线、日程按类型分组切回按天（没有一件事一行）；
+  // 搜索里点了一条：跳到那件事。被筛选挡住先清筛选；总览切到时间线；
   // 时间线上选中它，手机竖排翻到它那天（DayTimeline 看 jump.seq 变了就换天）。画完再滚到屏幕中间、焦点放上去。
   // 总览「每天」里点了一天的日期（blockId 是 null）：切到时间线、竖排翻到那天，焦点放到那天的「这天的操作」
   const [jump, setJump] = useState<{ blockId: string | null; baseId: string; seq: number } | null>(null);
@@ -239,8 +230,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
       setOnlyUnchecked(false);
     }
     if (view === "overview") showView("timeline");
-    if (view === "list") setGrouping("day");
-    else setSelected({ blockId, baseId: null });
+    if (view !== "list") setSelected({ blockId, baseId: null });
     setOpened(null);
     shownDay.current = block.start_base_id;
     setJump({ blockId, baseId: block.start_base_id, seq: (jump?.seq ?? 0) + 1 });
@@ -469,55 +459,29 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
               />
             ) : (
               <>
-                <div role="group" aria-label="分组" className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="text-ink-muted">分组</span>
-                  {GROUPINGS.map(({ value, label }) => (
-                    <button
-                      key={value}
-                      ref={grouping === value ? pressedGrouping : undefined}
-                      type="button"
-                      aria-pressed={grouping === value}
-                      className={chipClass(grouping === value)}
-                      onClick={() => setGrouping(value)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {/* 按天、又按类型筛时，开销算进了总览、表里却找不到它挂的块：写出来，表和总览才对得上。按类型分组时开销都在组里 */}
-                {grouping === "day" && hiddenCents > 0 && (
+                {/* 按类型筛时，开销算进了总览、时刻表里却找不到它挂的块：写出来，时刻表和总览才对得上 */}
+                {hiddenCents > 0 && (
                   <p data-hidden-money className="text-sm text-ink-muted">
                     {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的事上`}
                   </p>
                 )}
-                {grouping === "day" ? (
-                  <ol aria-label="日期列表" className="flex flex-col gap-3">
-                    {bases.map((base, index) => (
-                      <DayRow
-                        key={base.id}
-                        doc={doc}
-                        library={library}
-                        libraryView={libraryView}
-                        plan={plan}
-                        base={base}
-                        label={labels[index]!}
-                        index={index}
-                        count={bases.length}
-                        moneyCells={cells}
-                        filter={filter}
-                      />
-                    ))}
-                  </ol>
-                ) : (
-                  <KindGroups
-                    doc={doc}
-                    library={library}
-                    libraryView={libraryView}
-                    plan={plan}
-                    filter={filter}
-                    onEmptyFocus={() => pressedGrouping.current?.focus()}
-                  />
-                )}
+                <ol aria-label="日期列表" className="flex flex-col gap-3">
+                  {bases.map((base, index) => (
+                    <DayRow
+                      key={base.id}
+                      doc={doc}
+                      library={library}
+                      libraryView={libraryView}
+                      plan={plan}
+                      base={base}
+                      label={labels[index]!}
+                      index={index}
+                      count={bases.length}
+                      moneyCells={cells}
+                      filter={filter}
+                    />
+                  ))}
+                </ol>
               </>
             )}
           </div>

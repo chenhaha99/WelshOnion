@@ -38,7 +38,6 @@ describe("时间线和日程切换着看", () => {
     expect(pressedView()).toBe("时间线");
     const timeline = screen.getByRole("region", { name: "时间线" });
     expect(screen.queryByRole("list", { name: "日期列表" })).toBeNull();
-    expect(screen.queryByRole("group", { name: "分组" })).toBeNull();
     expect(screen.getByRole("group", { name: "按类型筛选" })).toBeTruthy();
     // 出发日期、开销总览、占比都不在主版面上
     expect(screen.queryByLabelText("出发日期")).toBeNull();
@@ -69,7 +68,7 @@ describe("时间线和日程切换着看", () => {
     expect(screen.queryByRole("group", { name: "块上写" })).toBeNull();
   });
 
-  it("切到日程：只有日期列表和分组；筛选、开销的总览、占比还在", async () => {
+  it("切到日程：只有日期列表，没有「分组」；筛选、开销的总览、占比还在", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeOnOct1);
 
@@ -77,7 +76,8 @@ describe("时间线和日程切换着看", () => {
 
     expect(pressedView()).toBe("日程");
     expect(screen.getByRole("list", { name: "日期列表" })).toBeTruthy();
-    expect(screen.getByRole("group", { name: "分组" })).toBeTruthy();
+    // 「按类型」分组撤掉了（你提的：按类型用上面的筛选）
+    expect(screen.queryByRole("group", { name: "分组" })).toBeNull();
     expect(screen.queryByRole("region", { name: "时间线" })).toBeNull();
     expect(screen.getByRole("group", { name: "按类型筛选" })).toBeTruthy();
     expect((await moneyOverview())).toBeTruthy();
@@ -85,20 +85,17 @@ describe("时间线和日程切换着看", () => {
     expect(screen.getByRole("button", { name: "撤销" })).toHaveProperty("disabled", true);
   });
 
-  it("按下的筛选和分组：切到时间线再切回来还在", async () => {
+  it("按下的筛选：切到时间线再切回来还在", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeOnOct1);
     await user.click(within(await screen.findByRole("group", { name: "按类型筛选" })).getByRole("button", { name: "游玩" }));
     await user.click(within(await viewSwitch()).getByRole("button", { name: "日程" }));
-    await user.click(within(screen.getByRole("group", { name: "分组" })).getByRole("button", { name: "按类型" }));
 
     await user.click(within(await viewSwitch()).getByRole("button", { name: "时间线" }));
     await user.click(within(await viewSwitch()).getByRole("button", { name: "日程" }));
 
     const kinds = screen.getByRole("group", { name: "按类型筛选" });
     expect(within(kinds).getByRole("button", { name: "游玩" }).getAttribute("aria-pressed")).toBe("true");
-    const grouping = screen.getByRole("group", { name: "分组" });
-    expect(within(grouping).getByRole("button", { name: "按类型" }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("记住这个计划上次看的：回到计划列表再打开，还是时间线", async () => {

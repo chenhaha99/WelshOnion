@@ -77,7 +77,7 @@ test("手机上切换视图：打开是时间线 → 页面在最上面时点切
 
   // 贴在顶上时点按下的「日程」：按钮不动，日程回到开头
   await clickInPlace(page, views.getByRole("button", { name: "日程" }));
-  await expectPinned(page, page.getByRole("group", { name: "分组" }));
+  await expectPinned(page, page.getByRole("list", { name: "日期列表" }));
 
   // 贴在顶上时切到时间线：按钮不动，时间线从开头露出来（不停在日程滚到的地方）
   await page.getByRole("table", { name: DAY3 }).evaluate((element) => element.scrollIntoView({ block: "start" }));

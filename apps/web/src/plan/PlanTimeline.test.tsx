@@ -70,11 +70,6 @@ async function pressOnlyUnchecked(user: ReturnType<typeof userEvent.setup>): Pro
   await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
 }
 
-/** 「分组」里 name 这个按钮是不是按下的。 */
-function groupingPressed(name: string): string | null {
-  return within(screen.getByRole("group", { name: "分组" })).getByRole("button", { name }).getAttribute("aria-pressed");
-}
-
 const HINT = "排上时间的事会画在这里：把上面没排时间的事拖到时间线上，或者点开它排时间";
 
 describe("时间线一天一行", () => {

@@ -165,21 +165,6 @@ describe("点结果跳过去", () => {
     await waitFor(() => expect(document.activeElement).toBe(menu));
   });
 
-  it("日程按类型分组时：切回按天，焦点在那一行的「这件事的操作」上", async () => {
-    const user = userEvent.setup();
-    await threeDays();
-    await showView("日程");
-    const grouping = await screen.findByRole("group", { name: "分组" });
-    await user.click(within(grouping).getByRole("button", { name: "按类型" }));
-
-    const panel = await search(user, "夜游");
-    await user.click(results(panel)[0]!);
-
-    await waitFor(() => expect(within(grouping).getByRole("button", { name: "按天", pressed: true })).toBeTruthy());
-    const menu = within(await blockRow("10.3", "西湖夜游")).getByRole("button", { name: "这件事的操作" });
-    await waitFor(() => expect(document.activeElement).toBe(menu));
-  });
-
   it("在总览：切到时间线并选中", async () => {
     const user = userEvent.setup();
     await threeDays();
