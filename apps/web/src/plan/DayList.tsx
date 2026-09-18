@@ -7,6 +7,7 @@ import { dayRowLabels } from "./day-labels";
 import { DayRow } from "./DayRow";
 import { DaysCard } from "./DaysCard";
 import { FilterChips, chipClass } from "./FilterChips";
+import { CollapseIcon, ExpandIcon, PinIcon } from "./icons";
 import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { MoneyOverview } from "./MoneyOverview";
@@ -24,6 +25,7 @@ import { HOUR_HEIGHT, type BlockText } from "./timeline-geometry";
 import { FULL_DAY, hourWindow } from "./timeline-window";
 import { SharesCard } from "./SharesCard";
 import { Timeline } from "./Timeline";
+import { useTopPeek } from "./use-top-peek";
 
 const VIEWS = [
   { value: "timeline", label: "时间线" },
@@ -38,11 +40,11 @@ const BLOCK_TEXT_PARTS = [
   { value: "money", label: "开销" },
 ] as const;
 
-/** 顶上那一块（页顶、筛选、切换按钮）钉在屏幕顶上时，离上边多少像素 */
+/** 页顶那一行钉在屏幕顶上时，离上边多少像素 */
 const PINNED_TOP = 0;
 
 interface DayListProps {
-  /** 页顶那一行（返回、计划名、搜索、设置、撤销、重做）：放进钉在顶上的那一块 */
+  /** 页顶那一行（返回、计划名、搜索、设置、撤销、重做）：往下滚时钉在屏幕顶上，下面接着筛选和切换按钮 */
   top: ReactNode;
   doc: Y.Doc;
   library: Y.Doc;
@@ -116,25 +118,38 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   const wide = useWideScreen();
   // 竖排看的是哪天（底座 id）：切到日程时时间线卸掉，切回来接着看这天
   const shownDay = useRef<string | null>(null);
-  // 零高度的标记放在顶上那一块本来的位置：这一块钉在顶上时，靠它量出不钉住该在哪
+  // 零高度的标记放在页顶那一行本来的位置：页顶那一行钉在顶上时，靠它量出不钉住该在哪
   const viewsMarker = useRef<HTMLDivElement>(null);
-  // 钉在顶上的那一块：量它多高，写进页面的 --pinned-top——下面视图的最小高度、滚动时顶上留的边都按它算。
-  // 标记滚出屏幕上边就是钉住了，这时才给这一块标上 data-stuck、上底色：没钉住时它和页面融在一起，不是一块浮着的板子。
-  // 直接改属性、不走 state：钉上、松开不用重画整个计划
-  const pinnedTop = useRef<HTMLDivElement>(null);
+  // 顶上两截（你提的：要 B，折叠）：页顶那一行（topBar）往下滚时钉在屏幕顶上；筛选和切换按钮（topDrawer）平时跟着页面滚走，
+  // 鼠标移上来、固定了、键盘走进来时钉在页顶那一行下面。钉没钉住、弹没弹出来直接改 topArea 上的属性，不走 state：不用重画整个计划
+  const topArea = useRef<HTMLElement>(null);
+  const topBar = useRef<HTMLDivElement>(null);
+  const topDrawer = useRef<HTMLDivElement>(null);
+  // 固定（你提的：如果点击，就是固定住）：不记住，重新打开计划是收起的
+  const [topPinned, setTopPinned] = useState(false);
+  const peek = useTopPeek(topArea, topDrawer);
   useLayoutEffect(() => {
-    const block = pinnedTop.current!;
+    const area = topArea.current!;
+    const bar = topBar.current!;
+    const drawer = topDrawer.current!;
     const root = document.documentElement;
-    const measure = () => root.style.setProperty("--pinned-top", `${block.offsetHeight}px`);
+    // 两截多高写进页面：弹出来那截钉在 --top-bar 下面；视图的最小高度按 --top-area 算；滚动时顶上留多少（--stuck-top）CSS 按固不固定算
+    const measure = () => {
+      root.style.setProperty("--top-bar", `${bar.offsetHeight}px`);
+      root.style.setProperty("--top-area", `${bar.offsetHeight + drawer.offsetHeight}px`);
+    };
     measure();
     const resize = new ResizeObserver(measure);
-    resize.observe(block);
-    const stuck = new IntersectionObserver(([marker]) => block.toggleAttribute("data-stuck", !marker!.isIntersecting));
+    resize.observe(bar);
+    resize.observe(drawer);
+    // 标记滚出屏幕上边就是钉住了：这时页顶那一行才上底色，筛选和切换按钮才收起。没钉住时和页面融在一起，不是一块浮着的板子
+    const stuck = new IntersectionObserver(([marker]) => area.toggleAttribute("data-stuck", !marker!.isIntersecting));
     stuck.observe(viewsMarker.current!);
     return () => {
       resize.disconnect();
       stuck.disconnect();
-      root.style.removeProperty("--pinned-top");
+      root.style.removeProperty("--top-bar");
+      root.style.removeProperty("--top-area");
     };
   }, []);
   const [viewClicks, setViewClicks] = useState(0);
@@ -143,9 +158,10 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
     savePlanView(planId, next);
     setViewClicks((count) => count + 1);
   };
-  // 点了切换按钮（按下的那个也算），顶上那一块一直留在原处：
-  // - 这一块在它本来的位置（页面在最上面，没钉住）：不滚，新视图就在它下面（你提的：「维持不动就行」）
-  // - 这一块钉在顶上（往下滚过了）：滚到新视图从开头露出来，紧挨着它下面。不滚的话，新视图停在刚才滚到的地方，看的是中间一截
+  // 点了切换按钮（按下的那个也算）：
+  // - 页顶那一行在它本来的位置（页面在最上面，没钉住）：不滚，新视图就在切换按钮下面（你提的：「维持不动就行」）
+  // - 页顶那一行钉在顶上（往下滚过了）：滚到标记在屏幕上边——页顶、筛选、切换按钮都回到原处，新视图从开头露出来。
+  //   不滚的话，新视图停在刚才滚到的地方，看的是中间一截
   // 画完新视图再量：标记跑到钉住的位置上面就是钉住了。新视图比一屏短时浏览器先把滚动夹小，下面至少一屏高的框让它正好夹到钉住
   useLayoutEffect(() => {
     if (viewClicks === 0) return;
@@ -285,16 +301,32 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   const showCheckFilter = onlyUnchecked || [...plan.blocks.values()].some((block) => block.checked);
 
   return (
-    // -mt-2 抵掉顶上那一块上边留的 8 像素：页面在最上面时页顶还在原处，和还没加天时一样
-    <section className="-mt-2 flex flex-col gap-4">
-      {/* -mb-4 抵掉标记后面那道间距，顶上那一块还在原来的位置 */}
+    // -mt-2 抵掉页顶那一行上边留的 8 像素：页面在最上面时页顶还在原处，和还没加天时一样
+    <section ref={topArea} data-top-pinned={topPinned || undefined} className="-mt-2 flex flex-col gap-4">
+      {/* -mb-4 抵掉标记后面那道间距，页顶那一行还在原来的位置 */}
       <div ref={viewsMarker} aria-hidden className="-mb-4" />
       {/*
-        页顶、筛选、切换按钮合成一块，往下滚时整块钉在屏幕顶上：滚到哪都点得到（你提的：滚动后这些都该是不动的）。
-        钉住时有淡底色和磨砂，下面的东西从它底下滚过去；手机上筛选不折行、左右滑，这一块不长高（见 index.css 的 pinned-top、filter-row）
+        页顶那一行：往下滚时钉在屏幕顶上，成一张和每天一样宽、一样料的玻璃卡片（见 index.css 的 top-bar）。
+        鼠标移上来，下面的筛选和切换按钮弹出来；触屏上没有鼠标，收起时下面挂「展开」，点了等于固定
       */}
-      <div ref={pinnedTop} data-pinned-top className="pinned-top sticky z-20 flex flex-col gap-3" style={{ top: PINNED_TOP }}>
+      <div ref={topBar} data-top-bar className="top-bar" {...peek}>
         {top}
+        <button
+          type="button"
+          data-top-expand
+          aria-label="展开筛选和视图"
+          className="top-tab"
+          onClick={() => setTopPinned(true)}
+        >
+          <ExpandIcon />
+          展开
+        </button>
+      </div>
+      {/*
+        筛选和切换按钮：平时是普通的一截，往下滚就从页顶那一行底下滚走（收起）；
+        弹出来、固定了钉在页顶那一行下面，连成一张（见 index.css 的 top-drawer）
+      */}
+      <div ref={topDrawer} data-top-drawer className="top-drawer flex flex-col gap-3" {...peek}>
         {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
         {(showKindFilter || showTagFilter || showCheckFilter) && (
           <div data-filter-row className="filter-row flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -454,14 +486,28 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
             </div>
           )}
         </div>
+        {/*
+          右下角挂着：弹出来时「固定」，固定了「收起」（你提的：如果点击，就是固定住）。点筛选、切换按钮不算固定：
+          选完一挪开鼠标它就让开，正好看结果。同一个按钮换字，键盘按了焦点还在它上面
+        */}
+        <button
+          type="button"
+          data-top-pin
+          aria-label={topPinned ? "收起筛选和视图" : "固定筛选和视图"}
+          className="top-tab"
+          onClick={() => setTopPinned((pinned) => !pinned)}
+        >
+          {topPinned ? <CollapseIcon /> : <PinIcon />}
+          {topPinned ? "收起" : "固定"}
+        </button>
       </div>
       <OpenBlockContext.Provider value={openBlock}>
         <SelectBlockContext.Provider value={selection}>
           {/*
-            至少一屏高（减去钉住那一块、间距 16、页面底边 32）：视图比一屏短时，钉着切过来照样钉住、视图从开头露出来。
-            单独一层（isolate）：时间线里浮着的快捷条这些层次再高也只在视图里比，滚到钉住那一块底下时被盖住
+            至少一屏高（减去顶上两截、间距 16、页面底边 32）：视图比一屏短时，钉着切过来照样滚得到、视图从开头露出来。
+            单独一层（isolate）：时间线里浮着的快捷条、日程停住的「第几天」层次再高也只在视图里比，滚到顶上两截底下时被盖住
           */}
-          <div className="isolate flex min-h-[calc(100dvh-var(--pinned-top,8rem)-3rem)] flex-col gap-4">
+          <div className="isolate flex min-h-[calc(100dvh-var(--top-area,8rem)-3rem)] flex-col gap-4">
             {view === "overview" ? (
               <>
                 <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />

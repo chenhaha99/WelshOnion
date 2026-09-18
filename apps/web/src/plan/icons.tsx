@@ -152,3 +152,32 @@ export function TrashIcon() {
     </Icon>
   );
 }
+
+/** 固定：一枚图钉 */
+export function PinIcon() {
+  return (
+    <Icon>
+      <path d="M5.5 2.5h5" />
+      <path d="M6.5 2.5V6L4.5 9h7l-2-3V2.5" />
+      <path d="M8 9v4.5" />
+    </Icon>
+  );
+}
+
+/** 展开：向下的尖角 */
+export function ExpandIcon() {
+  return (
+    <Icon>
+      <path d="M3.5 6 8 10.5 12.5 6" />
+    </Icon>
+  );
+}
+
+/** 收起：向上的尖角 */
+export function CollapseIcon() {
+  return (
+    <Icon>
+      <path d="M3.5 10 8 5.5 12.5 10" />
+    </Icon>
+  );
+}

@@ -1,5 +1,5 @@
-import { expect, test, type Locator } from "@playwright/test";
-import { DAY1, addBlocks, newPlan, pickKind, rowOf, schedule } from "./timeline-helpers";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { DAY1, DAY2, DAY3, addBlocks, newPlan, pickKind, rowOf, schedule } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
 /** 时刻表里从上到下每一行：事写标题，空档写它那一行的字。 */
@@ -74,6 +74,59 @@ test("电脑上的时刻表：左边开始时刻、竖线串起来、空档写�
     await lunch.getByRole("textbox", { name: "标题" }).evaluate((node) => getComputedStyle(node).textDecorationLine),
   ).toBe("line-through");
   await shot(page, "02-desktop-added-struck");
+
+  expect(errors).toEqual([]);
+});
+
+async function edges(locator: Locator): Promise<{ top: number; bottom: number }> {
+  const found = (await locator.boundingBox())!;
+  return { top: found.y, bottom: found.y + found.height };
+}
+
+/** 这天的组头（「第 1 天」、日期、「这天的操作」）。 */
+function dayHead(page: Page, table: Locator): Locator {
+  return page.getByRole("list", { name: "日期列表" }).locator(":scope > li", { has: table }).locator("[data-day-side]");
+}
+
+/** 离页顶那一行下边多远（组头停住时是十几像素）。 */
+async function belowBar(page: Page, locator: Locator): Promise<number> {
+  return (await edges(locator)).top - (await edges(page.locator("[data-top-bar]"))).bottom;
+}
+
+test("日程往下滚：「第几天」停在页顶那一行下面，滚完这天跟着走（电脑、手机）", async ({ page }) => {
+  const errors = watchErrors(page);
+  await newPlan(page, 3, { width: 1280, height: 800 });
+  const day1 = page.getByRole("table", { name: DAY1 });
+  const day2 = page.getByRole("table", { name: DAY2 });
+  await addBlocks(page, day1, ["一", "二", "三", "四", "五", "六", "七", "八"]);
+  await addBlocks(page, day2, ["九", "十", "十一", "十二"]);
+  await addBlocks(page, page.getByRole("table", { name: DAY3 }), ["十三", "十四", "十五", "十六"]);
+  await page.mouse.move(640, 600);
+
+  // 电脑上：滚到 10.1 的第 6 件在屏幕上边，左边「第 1 天」停在页顶那一行下面
+  await (await rowOf(day1, "六")).evaluate((row) => row.scrollIntoView({ block: "start" }));
+  const label1 = dayHead(page, day1).locator("[data-day-label]");
+  expect(await belowBar(page, label1), "「第 1 天」离页顶那一行").toBeGreaterThanOrEqual(0);
+  expect(await belowBar(page, label1), "「第 1 天」离页顶那一行").toBeLessThanOrEqual(24);
+  await expect(label1).toContainText("第 1 天");
+  await shot(page, "03-desktop-day-stays", { screen: true });
+
+  // 滚到 10.2：「第 1 天」跟着 10.1 滚走，「第 2 天」停住
+  await day2.evaluate((table) => table.scrollIntoView({ block: "start" }));
+  expect((await edges(label1)).bottom, "「第 1 天」滚走了").toBeLessThanOrEqual((await edges(page.locator("[data-top-bar]"))).bottom + 1);
+  const label2 = dayHead(page, day2).locator("[data-day-label]");
+  expect(await belowBar(page, label2), "「第 2 天」离页顶那一行").toBeGreaterThanOrEqual(0);
+  expect(await belowBar(page, label2), "「第 2 天」离页顶那一行").toBeLessThanOrEqual(24);
+
+  // 手机上：组头是一条白底圆角的条，停在页顶那一行下面、盖在时刻表上面
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.mouse.move(195, 600);
+  await (await rowOf(day1, "六")).evaluate((row) => row.scrollIntoView({ block: "start" }));
+  const head1 = dayHead(page, day1);
+  expect(await belowBar(page, head1), "「第 1 天」那一条离页顶那一行").toBeGreaterThanOrEqual(0);
+  expect(await belowBar(page, head1), "「第 1 天」那一条离页顶那一行").toBeLessThanOrEqual(24);
+  await expect(head1, "那一条有底色").not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await shot(page, "04-phone-day-stays", { screen: true });
 
   expect(errors).toEqual([]);
 });

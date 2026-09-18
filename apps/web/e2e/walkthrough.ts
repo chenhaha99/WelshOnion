@@ -16,14 +16,20 @@ export function watchErrors(page: Page): string[] {
  * 刚滚过页面（比如 focus() 把按钮滚进屏幕）时，弹层要在下一帧检查按钮是否滚出了屏幕；
  * 这一帧要是正好落在截图里，就会量到假尺寸，把开着的弹层关掉。先把排着的帧跑完，再截。
  *
- * 整页截图有时还会让窗口失焦、截完补发滚动，页面上正在进行的事会被打断，所以这两种时候只截当前屏幕：
+ * 整页截图有时还会让窗口失焦、截完补发滚动，页面上正在进行的事会被打断，所以这几种时候只截当前屏幕：
  * - 页面上开着对话框、菜单：截完弹层会被关掉（接着点弹层里的按钮就找不到）
  * - 鼠标按着拖（传 dragging，页面里看不出来）：拖拽在失焦时放弃，接着松手就什么都不落
+ * - 要看往下滚以后这一屏的样子（传 screen）：钉在顶上、停住的东西整页截看不出来；
+ *   鼠标停着、靠悬停弹出来的东西，整页排版时从鼠标底下挪走，截完就收回去了
  */
-export async function shot(page: Page, name: string, { dragging = false }: { dragging?: boolean } = {}): Promise<void> {
+export async function shot(
+  page: Page,
+  name: string,
+  { dragging = false, screen = false }: { dragging?: boolean; screen?: boolean } = {},
+): Promise<void> {
   await page.evaluate(
     () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
   );
   const popoverOpen = await page.evaluate(() => document.querySelector('[role="dialog"], [role="menu"]') !== null);
-  await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: !dragging && !popoverOpen });
+  await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: !dragging && !screen && !popoverOpen });
 }
