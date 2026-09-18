@@ -20,7 +20,7 @@ import {
   type DropInput,
   type HitContext,
 } from "./timeline-drop";
-import { LANE_HEIGHT } from "./timeline-geometry";
+import { BLOCK_TEXT_DEFAULT, barZones, wideMetrics } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type RowLayout } from "./timeline-layout";
 import { FULL_DAY } from "./timeline-window";
 
@@ -88,7 +88,7 @@ function wideContext(built: Built, excluded: string[], kindLayer = 2): HitContex
     layout: built.rows[0]!,
     axis: WIDE_AXIS,
     orientation: "wide",
-    laneHeight: LANE_HEIGHT,
+    metrics: wideMetrics(barZones(BLOCK_TEXT_DEFAULT, 1, false)),
     hours: FULL_DAY,
     excluded: new Set(excluded),
     kindLayer,

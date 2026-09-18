@@ -241,21 +241,20 @@
   }
 }
 
+/* 附件栏里的开销：排在最右，能点（附件栏本身不接指针，点在别处就是点块） */
 @utility timeline-money-slot {
-  position: absolute;
-  inset-inline: 1px;
-  bottom: 1px;
-  z-index: 2;
   height: 0.875rem;
+  pointer-events: auto;
 }
 
-/* 块上写钱时横条下面那一行：点它就地改金额 */
+/* 块上附件栏里写着的开销：点它就地改金额 */
 @utility timeline-money {
   display: block;
-  width: 100%;
+  max-width: 100%;
   height: 100%;
   overflow: hidden;
-  padding-inline: 0.375rem;
+  text-overflow: ellipsis;
+  padding-inline: 0.125rem;
   border-radius: 0.25rem;
   color: var(--color-ink-muted);
   font-size: 0.6875rem;
@@ -273,17 +272,6 @@
   }
 }
 
-/* 块上只写开销、不写标题：这一行就是正文，占满块、竖直居中、左对齐 */
-@utility timeline-money-solo {
-  top: 1px;
-  display: flex;
-  align-items: center;
-  height: auto;
-  & .timeline-money {
-    text-align: left;
-  }
-}
-
 @utility timeline-money-empty {
   color: var(--color-ink-muted);
 }
@@ -293,6 +281,22 @@
   height: 1rem;
   accent-color: var(--color-sage);
   cursor: pointer;
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 2px;
+  }
+}
+
+/* 文字行数：只有四档，比横向放大短 */
+@utility timeline-lines {
+  width: 4rem;
+  height: 1rem;
+  accent-color: var(--color-sage);
+  cursor: pointer;
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
   &:focus-visible {
     outline: 2px solid var(--color-sage);
     outline-offset: 2px;
@@ -418,7 +422,7 @@
 
 /* 时间轴的横条：类型色的淡底和边；划掉的虚线、变淡、字上划一道；接着下一行的那头是平的 */
 @utility timeline-bar {
-  /* 标签的圆点按它定位 */
+  /* 标签的书签、竖条里的附件栏按它定位 */
   position: relative;
   display: flex;
   /* 只有一行字时竖直居中；同时写标题和开销时贴上边（下面那条规则） */
@@ -719,11 +723,8 @@
 }
 
 /* 窄屏竖排：竖条的字靠上；接着前一天、后一天的那头（上、下）是平的，横排是左、右 */
-/* 竖排里名字单独一段（data-bar-title）：竖条开头滚出框的上边时，名字贴着框的上边。
-   按钮剪掉溢出但不当滚动容器（clip），名字的 sticky 才以外面的框为准；不认识 clip 的浏览器照旧 hidden */
-/* 横排横条、背景条里的标题：一行写完，写不下截断加「…」；最宽由 max-width 定（借右边的空白） */
-[data-timeline-axis] [data-bar-title] {
-  /* 背景条的按钮不是 flex：标题照样按块排，截断才生效（压在折起那一截里的住宿只有十几像素宽） */
+/* 背景细条里的标题：只写一行，写不下截断加「…」。按钮不是 flex：标题照样按块排，截断才生效（压在折起那一截里的住宿只有十几像素宽） */
+.timeline-strip > [data-bar-title] {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -731,33 +732,76 @@
   white-space: nowrap;
 }
 
-/* 块上的时长：标题右边一小截淡色数字（只开时长时它就是正文，靠左） */
-[data-timeline-axis] [data-bar-duration] {
+/*
+ * 横条、竖条分上中下三区（你提的）：上面书签栏（挂标签的书签），中间标题，最下面附件栏（时长、开销，靠右）。
+ * 哪几区有由外框的 data-tag-bar、data-foot 定，标题写几行由外框的 --title-lines 定；块多高由 timeline-geometry 算好。
+ * 书签栏 12、上边没有书签栏时留 2；附件栏 16、没有附件栏时下边留 4。
+ */
+[data-segment] > .timeline-bar {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding-top: 0.125rem;
+  padding-bottom: 0.25rem;
+}
+[data-segment][data-tag-bar] > .timeline-bar {
+  padding-top: 0.75rem;
+}
+[data-segment][data-foot] > .timeline-bar {
+  padding-bottom: 1rem;
+}
+/* 标题：写不下就换行，写满行数还放不下，最后一行截断加「…」 */
+.timeline-bar > [data-bar-title] {
+  display: -webkit-box;
   flex-shrink: 0;
-  padding-left: 0.25rem;
-  color: var(--color-ink-muted);
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--title-lines, 1);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
-[data-day-axis] [data-bar-duration] {
+/* 附件栏：时长、开销靠右，开销在最右（你提的）；字小、淡色。
+   从右往左排（DOM 里先开销后时长），一行只有 14 像素高、多出来的切掉：两样放不下时时长整个换到下一行看不见，不留半截；只剩开销也放不下就截断加「…」。
+   横条上它在按钮外面（开销能点，按钮里不能再放按钮），不接指针：点在时长上就是点块、拖块 */
+.timeline-foot {
+  position: absolute;
+  inset-inline: 1px;
+  bottom: 1px;
+  z-index: 2;
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  justify-content: flex-start;
+  column-gap: 0.25rem;
+  height: 0.875rem;
+  padding-inline: 0.25rem;
+  overflow: hidden;
   color: var(--color-ink-muted);
   font-size: 0.6875rem;
   font-variant-numeric: tabular-nums;
   line-height: 0.875rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.timeline-foot > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 竖条上它在按钮里面（开销只写不点）：贴着按钮的内边 */
+.timeline-bar > .timeline-foot {
+  inset-inline: 0;
+  bottom: 0;
 }
 
-/* 划掉的块上那一行开销：它不在块的按钮里，划线传不过来，单独划 */
-[data-checked="true"] > [data-bar-money] .timeline-money {
+/* 划掉的块上的附件栏：横条上它不在块的按钮里、竖条上它单独摆在按钮最下面，划线都传不过来，单独划 */
+[data-checked="true"] .timeline-foot,
+[data-checked="true"] .timeline-foot .timeline-money {
   color: var(--color-ink-muted);
   text-decoration-line: line-through;
-}
-
-/* 标题和开销都写时：标题贴上边，下面那截留给开销 */
-[data-timeline-axis] [data-two-rows] > .timeline-bar {
-  align-items: flex-start;
-  padding-top: 0.125rem;
 }
 
 /* 时间轴上面那条里的一件：按字宽（竖排那一栏里是占满一行），太长就截断 */
@@ -767,56 +811,39 @@
 }
 
 /*
- * 块上的标签（你提的：画在块的右上角，以颜色区分，鼠标停上去看名字）：一排小圆点，外圈白边和同色的底色分开。
- * 按钮右边留出圆点那一截（--tag-space 由 BlockButton 按个数算），字先截断、不压在圆点上；细条和「没排时间」的一件竖直居中
+ * 块上的标签（你提的：像挂上面的书签，以颜色区分，鼠标停上去看名字）：一排小书签从块的上边挂下来，靠右。
+ * 横条、竖条上它们在书签栏里，标题在下面，不会压字；只有一行的细条、「没排时间」的一件，右边留出书签那一截（--tag-space 由 BlockButton 按个数算）
  */
 .block-tags {
   position: absolute;
-  top: 3px;
-  right: 3px;
+  top: 0;
+  right: 4px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
   color: var(--color-ink-muted);
   font-size: 0.625rem;
-  line-height: 0.5rem;
+  line-height: 0.6875rem;
 }
-/* 白边外面再描一道很淡的深色：浅色块上白边看不出来，和块同色的圆点就没了 */
-.tag-dot {
-  width: 0.625rem;
-  height: 0.625rem;
-  border: 1.5px solid white;
-  border-radius: 999px;
-  box-shadow: 0 0 0 0.5px rgb(47 58 69 / 0.35);
+/* 书签：白边外面再描一道很淡的深色，浅色块上白边看不出来，和块同色的书签就没了 */
+.tag-ribbon {
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 0.5px rgb(47 58 69 / 0.6));
 }
-.timeline-strip > .block-tags,
-.timeline-chip > .block-tags {
-  top: 50%;
-  transform: translateY(-50%);
-}
-.timeline-bar:has(> .block-tags),
-.timeline-chip:has(> .block-tags) {
-  padding-right: calc(0.5rem + var(--tag-space));
+.timeline-strip > .block-tags {
+  right: 3px;
 }
 .timeline-strip:has(> .block-tags) {
   padding-right: calc(0.375rem + var(--tag-space));
 }
-/* 竖排的竖条矮到写不下开销，也就画不下圆点（横排的块只按宽量，量不到高） */
-@container (max-height: 28px) {
-  .block-tags {
-    display: none;
-  }
-  .timeline-bar:has(> .block-tags) {
-    padding-right: 0.375rem;
-  }
+.timeline-chip:has(> .block-tags) {
+  padding-right: calc(0.5rem + var(--tag-space));
 }
-/* 块窄到写不下开销，也就画不下圆点（竖排里的背景细条也是） */
+/* 块窄到写不下开销，也就挂不下书签（竖排里的背景细条也是）；附件栏也不写 */
 @container (max-width: 28px) {
-  .block-tags {
+  .block-tags,
+  [data-bar-foot] {
     display: none;
-  }
-  .timeline-bar:has(> .block-tags) {
-    padding-right: 0.375rem;
   }
   .timeline-strip:has(> .block-tags) {
     padding-right: 0.25rem;
@@ -836,50 +863,22 @@
   outline-offset: -2px;
 }
 
+/* 竖排里标题单独一段：竖条开头滚出框的上边时，标题贴着框的上边。
+   按钮剪掉溢出但不当滚动容器（clip），标题的 sticky 才以外面的框为准；不认识 clip 的浏览器照旧 hidden */
 [data-day-axis] [data-segment] > .timeline-bar {
-  display: flex;
-  align-items: flex-start;
-  padding-top: 0.125rem;
   overflow: clip;
 }
-
-[data-day-axis] [data-bar-title] {
-  display: flex;
+[data-day-axis] .timeline-bar > [data-bar-title] {
   position: sticky;
   top: 0;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* 竖条里标题下面那一行钱 */
-[data-day-axis] [data-bar-money-text] {
-  overflow: hidden;
-  color: var(--color-ink-muted);
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 0.875rem;
-  white-space: nowrap;
-}
-
-/* 块窄到（竖条是矮到）写不下钱，就只写标题 */
+/* 块窄到写不下开销就不写（量的是外框的宽） */
 [data-segment] {
   container-type: inline-size;
 }
 [data-day-axis] [data-segment] {
   container-type: size;
-}
-@container (max-width: 28px) {
-  [data-bar-money],
-  [data-bar-money-text] {
-    display: none;
-  }
-}
-@container (max-height: 34px) {
-  [data-bar-money-text] {
-    display: none;
-  }
 }
 
 [data-day-axis] [data-segment] > .timeline-bar,

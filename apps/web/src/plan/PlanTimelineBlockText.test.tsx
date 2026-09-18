@@ -54,7 +54,7 @@ function durationText(segment: HTMLElement): HTMLElement | null {
   return segment.querySelector<HTMLElement>("[data-bar-duration]");
 }
 
-/** 横轴那一层的最小高度：背景细条 16 + 主轨每道 28（或写开销时 40）。 */
+/** 横轴那一层的最小高度：背景细条 16 + 主轨每道 28（或开着时长、开销时 40）。 */
 function axisHeight(): string {
   return document.querySelector<HTMLElement>("[data-timeline-axis]")!.style.minHeight;
 }
@@ -121,18 +121,19 @@ describe("块上写标题、开销：两个开关各开各关", () => {
     expect((await segmentOf("西湖")).dataset).toMatchObject({ from: "540", to: "720" });
   });
 
-  it("开「时长」：块上标题右边写时长，一道还是 28 像素", async () => {
+  it("开「时长」：时长写在最下面的附件栏里，一道 40 像素", async () => {
     const user = userEvent.setup();
     await dayWithMoney();
 
     await toggle(user, "时长");
 
     await waitFor(async () => expect(durationText(await segmentOf("西湖"))?.textContent).toBe("3 小时"));
+    expect(durationText(await segmentOf("西湖"))?.closest("[data-bar-foot]")).not.toBeNull();
     expect(titleText(await segmentOf("西湖"))?.textContent).toBe("西湖");
-    expect(axisHeight()).toBe("44px");
+    expect(axisHeight()).toBe("56px");
   });
 
-  it("时长和开销一起：第一行标题加时长，第二行开销，一道 40 像素", async () => {
+  it("时长和开销一起：上面标题，最下面一行时长和开销，一道 40 像素", async () => {
     const user = userEvent.setup();
     await dayWithMoney();
 
@@ -234,7 +235,7 @@ describe("块上写标题、开销：两个开关各开各关", () => {
     expect(pressed("开销")).toBe("false");
   });
 
-  it("手机上竖条里标题下面写开销", async () => {
+  it("手机上竖条最下面的附件栏里写开销", async () => {
     stubNarrowScreen();
     const user = userEvent.setup();
     await dayWithMoney();
@@ -242,6 +243,7 @@ describe("块上写标题、开销：两个开关各开各关", () => {
     await toggle(user, "开销");
 
     await waitFor(async () => expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥300"));
-    expect(titleText(await segmentOf("西湖"))?.textContent).toContain("西湖");
+    expect(moneyLine(await segmentOf("西湖"))?.closest("[data-bar-foot]")).not.toBeNull();
+    expect(titleText(await segmentOf("西湖"))?.textContent).toBe("西湖");
   });
 });

@@ -14,12 +14,12 @@ test("窄块：一小时的事标题截断不外溢 → 鼠标提示写全名 �
   const lake = segment(day1, "西湖漫步");
   const title = lake.locator("[data-bar-title]");
 
-  // 一小时的块写不下四个字：截断加「…」，标题不伸出块外（右边空着也不伸）
+  // 一小时的块写不下四个字：只写一行时换到下一行的字截掉、加「…」，标题不伸出块外（右边空着也不伸）
   const lakeBox = await box(lake);
   const titleBox = await box(title);
   expect(titleBox.x + titleBox.width, "标题不伸出块外").toBeLessThanOrEqual(lakeBox.x + lakeBox.width + 1);
   expect(
-    await title.evaluate((element) => element.scrollWidth > element.clientWidth),
+    await title.evaluate((element) => element.scrollHeight > element.clientHeight),
     "写不下，截断",
   ).toBe(true);
   // 看全名：鼠标停上去的提示

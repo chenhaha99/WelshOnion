@@ -1,5 +1,6 @@
 import type { TagView } from "@welshonion/core";
 import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
+import { TagRibbon } from "./tag-ribbon";
 
 /**
  * 时间轴上选中的是哪一件：DayList 拿着，横条、竖条、「没排时间」栏里的一件都从这里读。
@@ -29,10 +30,10 @@ interface BlockButtonProps {
   blockId: string;
   /** 读屏名，也是鼠标停上去的提示：「西湖 09:00–12:00」；后面再加标签名和「划掉了」 */
   name: string;
-  /** 挂着的标签：块上画一排圆点，读屏名里写出名字 */
+  /** 挂着的标签：块上挂一排书签，读屏名里写出名字 */
   tags: readonly TagView[];
-  /** 画不画圆点：时长为 0 的竖线（横线）上没地方 */
-  tagDots?: boolean;
+  /** 画不画书签：时长为 0 的竖线（横线）上没地方，竖条矮得放不下书签栏时也不画 */
+  tagMarks?: boolean;
   /** 划掉了没有：样子由外面那一层的 data-checked 画 */
   checked: boolean;
   className: string;
@@ -43,13 +44,13 @@ interface BlockButtonProps {
  * 时间轴上的一件事（横条、竖条、「没排时间」栏里的一件）：点一下选中它，再点一下取消；
  * 选中的按钮 aria-pressed 是 true（读屏报得出来），描边在 index.css 里按这个属性画。
  */
-export function BlockButton({ blockId, name, tags, tagDots = true, checked, className, children }: BlockButtonProps) {
+export function BlockButton({ blockId, name, tags, tagMarks = true, checked, className, children }: BlockButtonProps) {
   const selection = useBlockSelection();
   const selected = selection.selectedId === blockId;
-  // 圆点和划掉的样子（虚线、变淡、划一道）读屏看不到，名字里写出来：「西湖 09:00–12:00 · 必去、下雨也能去 · 划掉了」
+  // 书签和划掉的样子（虚线、变淡、划一道）读屏看不到，名字里写出来：「西湖 09:00–12:00 · 必去、下雨也能去 · 划掉了」
   const tagNames = tags.map((tag) => tag.name).join("、");
   const fullName = [name, tagNames, checked ? "划掉了" : ""].filter((part) => part !== "").join(" · ");
-  const dots = tagDots && tags.length > 0;
+  const marks = tagMarks && tags.length > 0;
   return (
     <button
       type="button"
@@ -57,8 +58,8 @@ export function BlockButton({ blockId, name, tags, tagDots = true, checked, clas
       title={fullName}
       aria-pressed={selected}
       className={className}
-      // 右边留出圆点那一截，字不压在圆点上（见 index.css 的 block-tags）
-      style={dots ? ({ "--tag-space": `${tagSpacePx(tags.length)}px` } as CSSProperties) : undefined}
+      // 只有一行的细条、「没排时间」的一件：右边留出书签那一截，字不压在书签上（见 index.css 的 block-tags）
+      style={marks ? ({ "--tag-space": `${tagSpacePx(tags.length)}px` } as CSSProperties) : undefined}
       onClick={(event) => selection.toggle(blockId, event.currentTarget.closest<HTMLElement>("[data-base-id]")?.dataset.baseId ?? null)}
       onKeyDown={(event) => {
         if (!selected) return;
@@ -76,27 +77,27 @@ export function BlockButton({ blockId, name, tags, tagDots = true, checked, clas
       }}
     >
       {children}
-      {dots && <BlockTags tags={tags} />}
+      {marks && <BlockTags tags={tags} />}
     </button>
   );
 }
 
-/** 最多画 3 个圆点，4 个以上画 2 个加「+N」 */
-const MAX_DOTS = 3;
-/** 一个圆点连白边 10 像素，圆点之间隔 2 像素；「+N」大约 12 像素 */
+/** 最多挂 3 条书签，4 个以上挂 2 条加「+N」 */
+const MAX_MARKS = 3;
+/** 一条书签 8 像素宽，书签之间隔 2 像素；「+N」大约 12 像素 */
 function tagSpacePx(count: number): number {
-  return count > MAX_DOTS ? 2 * 10 + 2 + 2 + 12 : count * 10 + (count - 1) * 2;
+  return count > MAX_MARKS ? 2 * 8 + 2 + 2 + 12 : count * 8 + (count - 1) * 2;
 }
 
-/** 块上的一排标签圆点，按标签的顺序；鼠标停上去写名字（读屏名里已经写了，圆点对读屏隐藏）。 */
+/** 块上的一排书签，从块的上边挂下来、靠右，按标签的顺序；鼠标停上去写名字（读屏名里已经写了，书签对读屏隐藏）。 */
 function BlockTags({ tags }: { tags: readonly TagView[] }) {
-  const shown = tags.length > MAX_DOTS ? tags.slice(0, 2) : tags;
+  const shown = tags.length > MAX_MARKS ? tags.slice(0, 2) : tags;
   return (
     <span data-block-tags aria-hidden title={tags.map((tag) => tag.name).join("、")} className="block-tags">
       {shown.map((tag) => (
-        <span key={tag.id} data-tag-dot className="tag-dot" style={{ backgroundColor: tag.color }} />
+        <TagRibbon key={tag.id} color={tag.color} />
       ))}
-      {tags.length > MAX_DOTS && <span>+{tags.length - 2}</span>}
+      {tags.length > MAX_MARKS && <span>+{tags.length - 2}</span>}
     </span>
   );
 }

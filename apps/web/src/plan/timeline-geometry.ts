@@ -1,12 +1,11 @@
+import { kindLayer, type LibraryView, type PlanView } from "@welshonion/core";
 import type { CSSProperties } from "react";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 
 // 横条、竖条画在哪：画（Timeline、DayTimeline）和拖动中量指针落在哪块上（timeline-drop）共用这一份
 
-/** 横排：背景条每条多高；主轨每道多高——块上只写标题时 28，标题下面还写开销时 40（像素） */
+/** 横排：背景条每条多高（像素） */
 export const STRIP_HEIGHT = 16;
-export const LANE_HEIGHT = 28;
-export const LANE_HEIGHT_WITH_MONEY = 40;
 
 /** 块上写什么：标题、时长、开销三个开关，各自能开能关。按计划记在这台设备上（plan-block-text-memory）。 */
 export interface BlockText {
@@ -18,20 +17,91 @@ export interface BlockText {
 /** 没选过就是只写标题。 */
 export const BLOCK_TEXT_DEFAULT: BlockText = { title: true, duration: false, money: false };
 
-/** 块上写几行：标题和时长挤第一行，开销占第二行。 */
-export function blockTextRows(blockText: BlockText): number {
-  return (blockText.title || blockText.duration ? 1 : 0) + (blockText.money ? 1 : 0);
+/**
+ * 横条、竖条分上中下三区（你提的：上面一行是书签栏，中间是标题，最下面是附件栏），各多高（像素）：
+ * 书签栏是书签 11 加下面空 1；标题一行 16；附件栏是上面空 2 加一行 14。
+ * 没有书签栏时上边留 2，没有附件栏时下边留 4；块的上下边框各 1。
+ */
+export const TAG_BAR = 12;
+export const TITLE_LINE = 16;
+export const FOOT_BAR = 16;
+const TOP_PAD = 2;
+const BOTTOM_PAD = 4;
+const BORDERS = 2;
+/** 横条最矮多高：一行字那么高，好点、好拖 */
+const MIN_BAR = 24;
+/** 套在里面的块每级最少往下让多少：一行字 16 加 2（关掉标题时外层块也还有一截点得着） */
+const MIN_NEST = 18;
+
+/** 块分哪几区：有没有书签栏、标题写几行（0 是不写标题）、有没有附件栏（时长、开销）。 */
+export interface BarZones {
+  tagBar: boolean;
+  lines: number;
+  foot: boolean;
 }
 
-/** 这种写法下主轨每道多高（像素）：要写两行才变高。 */
-export function laneHeight(blockText: BlockText): number {
-  return blockTextRows(blockText) > 1 ? LANE_HEIGHT_WITH_MONEY : LANE_HEIGHT;
+/**
+ * 横排的块怎么分区：哪一区一定没东西就不占地方（AI 推的）——没有横条挂着标签就没有书签栏（tagBar 由外面按 planHasBarTags 算），
+ * 「时长」「开销」都关就没有附件栏，「标题」关掉就不写字（行数拉动条不管用）。
+ */
+export function barZones(blockText: BlockText, titleLines: number, tagBar: boolean): BarZones {
+  return { tagBar, lines: blockText.title ? titleLines : 0, foot: blockText.duration || blockText.money };
 }
+
+/** 书签栏（或上边留的空）有多高 */
+function topHeight(zones: BarZones): number {
+  return zones.tagBar ? TAG_BAR : TOP_PAD;
+}
+
+/** 这样分区的横条多高（像素）。 */
+export function barHeight(zones: BarZones): number {
+  return Math.max(MIN_BAR, BORDERS + topHeight(zones) + zones.lines * TITLE_LINE + (zones.foot ? FOOT_BAR : BOTTOM_PAD));
+}
+
+/** 横排主轨：每道多高、套在里面的每级往下让多少（像素）。画和拖动中量指针落在哪块上都用它。 */
+export interface WideMetrics {
+  lane: number;
+  nest: number;
+}
+
+/** 每道是横条高加上下各留 2；套在里面的往下让出外层块的书签栏和标题那几行，外层块的书签和整段标题都露在上面。 */
+export function wideMetrics(zones: BarZones): WideMetrics {
+  return {
+    lane: barHeight(zones) + 2 * GAP,
+    nest: Math.max(MIN_NEST, topHeight(zones) + zones.lines * TITLE_LINE),
+  };
+}
+
+/**
+ * 这个计划里有没有画成横条（竖排是竖条）的事挂着标签：排上了时间、有时长、画在主轨上（类型层是资料库里最上层）。
+ * 有才给横条、竖条留书签栏；背景细条、时长为 0 的竖线挂着标签不算，它们不画书签栏。
+ * 看整个计划、不看筛选，点筛选时版面不上下跳。
+ */
+export function planHasBarTags(plan: PlanView, library: LibraryView): boolean {
+  const topLayer = Math.max(...[...library.kinds.values()].map((kind) => kind.layer));
+  for (const block of plan.blocks.values()) {
+    if (block.start_minute === null || !block.duration_min || block.tag_ids.length === 0) continue;
+    if (kindLayer(block, library) >= topLayer) return true;
+  }
+  return false;
+}
+
+/**
+ * 竖排一根竖条怎么分区：竖条的高度就是时长，中间的标题能写几整行写几行（至少一行）。
+ * 放不下「书签栏 + 一行字」就不要书签栏（书签也不画），放不下附件栏就不要附件栏。
+ */
+export function dayBarZones(heightPx: number, blockText: BlockText, tagBar: boolean): BarZones {
+  const title = blockText.title ? TITLE_LINE : 0;
+  const withTagBar = tagBar && heightPx >= BORDERS + TAG_BAR + title + BOTTOM_PAD;
+  const top = withTagBar ? TAG_BAR : TOP_PAD;
+  const foot = (blockText.duration || blockText.money) && heightPx >= BORDERS + top + title + FOOT_BAR;
+  const room = heightPx - BORDERS - top - (foot ? FOOT_BAR : BOTTOM_PAD);
+  return { tagBar: withTagBar, lines: blockText.title ? Math.max(1, Math.floor(room / TITLE_LINE)) : 0, foot };
+}
+
 /** 块和块之间留多少（像素），横排竖排一样；竖排里叠在上面的块每级往右缩多少 */
 export const GAP = 2;
 export const DEPTH_INSET = 4;
-/** 横排里套在里面的块每级往下让多少（像素）：一行字 16 加 2，外层块的标题就露在上面 */
-export const NEST_STEP = 18;
 /** 竖排：放大 100% 时每小时多高、背景细条每条多宽（像素） */
 export const HOUR_HEIGHT = 48;
 export const STRIP_WIDTH = 12;
@@ -53,34 +123,34 @@ export function wideStripsHeight(layout: RowLayout): number {
 }
 
 /**
- * 横排第 lane 道有多高：本来的道高，加上这道里最深缩几级（每级让出一行字）。
+ * 横排第 lane 道有多高：本来的道高，加上这道里最深缩几级（每级让出外层块的书签栏和标题）。
  * 只有套着块的那一道变高：别的道不动，指针底下的块就不会因为别处套了东西而挪位置。
  */
-export function wideLaneHeight(layout: RowLayout, base: number, lane: number): number {
-  return base + (layout.laneDepths[lane - 1] ?? 0) * NEST_STEP;
+export function wideLaneHeight(layout: RowLayout, metrics: WideMetrics, lane: number): number {
+  return metrics.lane + (layout.laneDepths[lane - 1] ?? 0) * metrics.nest;
 }
 
 /** 横排第 lane 道的上边离横轴顶多远（像素）：背景细条，加上它前面几道。 */
-export function wideLaneTop(layout: RowLayout, base: number, lane: number): number {
+export function wideLaneTop(layout: RowLayout, metrics: WideMetrics, lane: number): number {
   let top = wideStripsHeight(layout);
-  for (let before = 1; before < lane; before++) top += wideLaneHeight(layout, base, before);
+  for (let before = 1; before < lane; before++) top += wideLaneHeight(layout, metrics, before);
   return top;
 }
 
 /** 横排一行的横轴至少多高：背景细条加主轨的每一道。 */
-export function wideAxisHeight(layout: RowLayout, base: number): number {
-  return wideLaneTop(layout, base, layout.laneCount + 1);
+export function wideAxisHeight(layout: RowLayout, metrics: WideMetrics): number {
+  return wideLaneTop(layout, metrics, layout.laneCount + 1);
 }
 
 /**
  * 横排一段在这一行横轴里的上边和高度（像素）：背景块在上方的细条里；
- * 主轨在细条下面分道，套在里面的每级往下让一行字、底边对齐（外层块的标题露在上面）。
+ * 主轨在细条下面分道，套在里面的每级往下让出外层块的书签栏和标题、底边对齐。
  */
-export function wideSegmentBox(item: PlacedSegment, layout: RowLayout, base: number): { top: number; height: number } {
+export function wideSegmentBox(item: PlacedSegment, layout: RowLayout, metrics: WideMetrics): { top: number; height: number } {
   if (item.track === "background") return { top: (item.lane - 1) * STRIP_HEIGHT, height: STRIP_HEIGHT - GAP };
   return {
-    top: wideLaneTop(layout, base, item.lane) + GAP + item.depth * NEST_STEP,
-    height: wideLaneHeight(layout, base, item.lane) - 2 * GAP - item.depth * NEST_STEP,
+    top: wideLaneTop(layout, metrics, item.lane) + GAP + item.depth * metrics.nest,
+    height: wideLaneHeight(layout, metrics, item.lane) - 2 * GAP - item.depth * metrics.nest,
   };
 }
 

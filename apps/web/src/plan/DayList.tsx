@@ -15,6 +15,7 @@ import { readBlockText, saveBlockText } from "./plan-block-text-memory";
 import { DAY_ZOOMS, readTimelineDayZoom, saveTimelineDayZoom, type DayZoom } from "./plan-timeline-day-zoom-memory";
 import { readTimelineFullDay, saveTimelineFullDay } from "./plan-timeline-full-day-memory";
 import { readTimelineZoom, saveTimelineZoom, ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
+import { readTitleLines, saveTitleLines, TITLE_LINES_MAX, TITLE_LINES_MIN } from "./plan-title-lines-memory";
 import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memory";
 import { useWideScreen } from "../app/use-wide-screen";
 import { PlanSearch } from "./PlanSearch";
@@ -99,6 +100,12 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     saveTimelineZoom(planId, next);
   };
   // 竖排（手机）每小时多高：三档，也按计划记在这台设备上
+  // 横条上的标题写几行（你提的：跟横向放大一样的上下维度拉动条）：也按计划记在这台设备上
+  const [titleLines, setTitleLines] = useState(() => readTitleLines(planId));
+  const setShownTitleLines = (next: number) => {
+    setTitleLines(next);
+    saveTitleLines(planId, next);
+  };
   const [dayZoom, setDayZoom] = useState<DayZoom>(() => readTimelineDayZoom(planId));
   const showDayZoom = (next: DayZoom) => {
     setDayZoom(next);
@@ -269,6 +276,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
               label="按标签筛选"
               lead="标签"
               clearLabel="全部标签"
+              marker="ribbon"
               items={tags}
               selected={filter?.tagIds ?? []}
               onChange={setSelectedTags}
@@ -393,6 +401,25 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
                 <span className="w-10 text-right tabular-nums">{`${zoom}%`}</span>
               </div>
             )}
+            {/* 文字行数：横条中间写标题的那一区写几行，上下的书签栏、附件栏不变（只有横排有；竖条的高度就是时长） */}
+            {wide && (
+              <div className="flex items-center gap-2 text-xs text-ink-muted">
+                <input
+                  type="range"
+                  aria-label="文字行数"
+                  aria-valuetext={`${titleLines} 行`}
+                  title={blockText.title ? `块上的标题写 ${titleLines} 行` : "关着「标题」时块上不写字"}
+                  className="timeline-lines"
+                  min={TITLE_LINES_MIN}
+                  max={TITLE_LINES_MAX}
+                  step={1}
+                  value={titleLines}
+                  disabled={!blockText.title}
+                  onChange={(event) => setShownTitleLines(Number(event.target.value))}
+                />
+                <span className="w-8 text-right tabular-nums">{`${titleLines} 行`}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -415,6 +442,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
                 moneyCells={cells}
                 blockText={blockText}
                 zoom={zoom}
+                titleLines={titleLines}
                 hourHeight={(HOUR_HEIGHT * dayZoom) / 100}
                 hours={fullDay ? FULL_DAY : foldedHours}
                 onExpandHours={() => showFullDay(true)}

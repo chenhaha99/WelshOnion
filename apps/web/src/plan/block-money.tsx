@@ -14,18 +14,16 @@ interface BlockMoneyProps {
   block: BlockView;
   /** 这件事的开销格摘要（按筛选算过）；一笔开销都没挂是 undefined */
   moneyCell: MoneyCell | undefined;
-  /** 快捷条上的「¥」，还是块上写着开销的那一行 */
+  /** 快捷条上的「¥」，还是块上附件栏里写着的开销 */
   variant: "bar" | "line";
-  /** 块上只写开销、不写标题：这一行就是块的正文，占满块、字竖直居中 */
-  solo?: boolean;
 }
 
 /**
- * 改这件事的开销，两处共用：快捷条上的「¥」、块上写着开销的那一行。
+ * 改这件事的开销，两处共用：快捷条上的「¥」、块上附件栏里写着的开销。
  * 点了贴着按钮弹出完整的开销编辑区（和列表里点开销格展开的是同一套）：每笔一行能改类型、金额、人均或总价、说明，
  * 末尾一行空的填了才建，下面还能挂上已有的一笔。你提的：以前只弹一个填金额的小框，「现在太简单」。
  */
-export function BlockMoney({ doc, library, libraryView, plan, block, moneyCell, variant, solo = false }: BlockMoneyProps) {
+export function BlockMoney({ doc, library, libraryView, plan, block, moneyCell, variant }: BlockMoneyProps) {
   const selection = useBlockSelection();
   const text = moneyCellLabel(moneyCell);
   const label = `开销：${text}`;
@@ -66,13 +64,9 @@ export function BlockMoney({ doc, library, libraryView, plan, block, moneyCell, 
     </Popover>
   );
 
-  // 块上那一行：点它同时选中这件事（拖它还是拖整块，按下照样传给外面的横条）
+  // 块上附件栏里的开销：点它同时选中这件事（拖它还是拖整块，按下照样传给外面的横条）
   return line ? (
-    <span
-      data-bar-money
-      className={solo ? "timeline-money-slot timeline-money-solo" : "timeline-money-slot"}
-      onPointerDown={() => selection.select(block.id, null)}
-    >
+    <span data-bar-money className="timeline-money-slot" onPointerDown={() => selection.select(block.id, null)}>
       {button}
     </span>
   ) : (

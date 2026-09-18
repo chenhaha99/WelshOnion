@@ -4,6 +4,7 @@ import type * as Y from "yjs";
 import { Popover } from "../app/Popover";
 import { TagIcon } from "./icons";
 import { CreateForm, firstUnusedColor, Reveal } from "./library-forms";
+import { TagRibbon } from "./tag-ribbon";
 
 const OPTION_HEIGHT_PX = 36;
 
@@ -41,14 +42,14 @@ export function TagPicker({ doc, library, block, tags, compact = false }: TagPic
   );
 }
 
-/** 列表里按钮上的字：一排圆点，后面是名字（写不下截断加「…」）；一个没挂淡色写「加标签」。 */
+/** 列表里按钮上的字：一排书签，后面是名字（写不下截断加「…」）；一个没挂淡色写「加标签」。 */
 function TagNames({ tags }: { tags: readonly TagView[] }) {
   if (tags.length === 0) return <span className="text-ink-muted/60">加标签</span>;
   return (
     <>
       <span aria-hidden className="flex shrink-0 items-center gap-0.5">
         {tags.map((tag) => (
-          <span key={tag.id} className="kind-dot" style={{ backgroundColor: tag.color }} />
+          <TagRibbon key={tag.id} color={tag.color} />
         ))}
       </span>
       <span className="min-w-0 truncate">{tags.map((tag) => tag.name).join("、")}</span>
@@ -81,7 +82,7 @@ function TagPanel({ doc, library, block, tags }: TagPanelProps) {
             className="menu-item flex items-center gap-2"
             onClick={() => setBlockTag(doc, library, [block.id], tag.id, !on)}
           >
-            <span className="kind-dot" aria-hidden style={{ backgroundColor: tag.color }} />
+            <TagRibbon color={tag.color} />
             <span className="flex-1 text-left">{tag.name}</span>
             {on && (
               <span aria-hidden className="text-sage-deep">

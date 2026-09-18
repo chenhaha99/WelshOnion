@@ -14,7 +14,16 @@ import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
 import { initialDayIndex, scrollMinute } from "./timeline-day";
 import { HOUR_LINES, HOUR_TICKS, kindColor, percent } from "./timeline-draw";
-import { daySegmentStyle, dayStripsWidth, laneHeight, LIFTED_Z_INDEX, type BlockText } from "./timeline-geometry";
+import {
+  barZones,
+  dayBarZones,
+  daySegmentStyle,
+  dayStripsWidth,
+  LIFTED_Z_INDEX,
+  planHasBarTags,
+  wideMetrics,
+  type BlockText,
+} from "./timeline-geometry";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { FULL_DAY } from "./timeline-window";
@@ -93,6 +102,8 @@ export function DayTimeline({
   // 在空白处按住、点了：画着虚线框，弹「加一件事」；翻到别的天就不画
   const [adding, setAdding] = useState<BlankRange | null>(null);
   const [ghost, setGhost] = useState<HTMLDivElement | null>(null);
+  // 这个计划里有竖条挂着标签：竖条留书签栏（按拖之前的计划算，拖动中不跳）
+  const tagBar = planHasBarTags(plan, libraryView);
   const drag = useTimelineDrag({
     doc,
     library,
@@ -101,7 +112,8 @@ export function DayTimeline({
     rows,
     filter,
     day: index,
-    laneHeight: laneHeight(blockText),
+    // 竖排不量道高（竖条按列排），给一份不用的
+    metrics: wideMetrics(barZones(blockText, 1, false)),
     // 竖排不折：本来就能上下滚
     hours: FULL_DAY,
     scroller,
@@ -224,8 +236,9 @@ export function DayTimeline({
                 plan={shownPlan}
                 item={item}
                 place={daySegmentStyle(item, layout)}
-                showTitle={blockText.title}
-                showDuration={blockText.duration && item.track === "main"}
+                blockText={blockText}
+                tagBar={tagBar}
+                hourHeight={hourHeight}
                 money={blockText.money && item.track === "main" ? moneyCells.get(item.blockId) : undefined}
                 dragView={drag.dragView}
                 handlers={drag.handlers}
@@ -314,24 +327,32 @@ interface DaySegmentProps {
   item: PlacedSegment;
   /** 横向的位置：第几列、多宽 */
   place: CSSProperties;
-  /** 块上要不要写标题 */
-  showTitle: boolean;
-  /** 块上要不要写时长 */
-  showDuration: boolean;
+  /** 块上写标题、时长、开销（各开各关） */
+  blockText: BlockText;
+  /** 这个计划里有竖条挂着标签：竖条留书签栏 */
+  tagBar: boolean;
+  /** 每小时多高（像素）：竖条多高就是时长乘它，按高度分区 */
+  hourHeight: number;
   /** 块上写开销时这件事的开销格摘要；不写开销时是 undefined */
   money: MoneyCell | undefined;
   dragView: DragView | null;
   handlers: SegmentHandlers;
 }
 
-/** 一段竖条：外框放位置、data 属性和拖拽的监听（和横排一样），里面的按钮点一下选中。背景细条太窄，不写字。 */
-function DaySegment({ plan, item, place, showTitle, showDuration, money, dragView, handlers }: DaySegmentProps) {
+/**
+ * 一段竖条：外框放位置、data 属性和拖拽的监听（和横排一样），里面的按钮点一下选中。背景细条太窄，不写字。
+ * 竖条和横条一样分上中下三区，只是中间写几行看竖条多高（竖条的高度就是时长），放不下的区就不要（见 dayBarZones）。
+ */
+function DaySegment({ plan, item, place, blockText, tagBar, hourHeight, money, dragView, handlers }: DaySegmentProps) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
+  const bar = !point && item.track === "main";
   const buttonClass = point ? "timeline-marker-h" : item.track === "background" ? "timeline-strip" : "timeline-bar";
   const lifted = dragView?.liftedId === item.blockId;
   const time = zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date);
+  const zones = dayBarZones(((item.to - item.from) / 60) * hourHeight, blockText, tagBar);
+  const duration = blockText.duration && block.duration_min !== null ? durationLabel(block.duration_min) : null;
 
   return (
     <div
@@ -346,10 +367,18 @@ function DaySegment({ plan, item, place, showTitle, showDuration, money, dragVie
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
       data-lifted={lifted ? true : undefined}
+      data-tag-bar={bar && zones.tagBar ? true : undefined}
+      data-foot={bar && zones.foot ? true : undefined}
       data-follower={dragView?.followers.includes(item.blockId) ? true : undefined}
       data-drop-target={dragView?.ontoId === item.blockId ? true : undefined}
       className="absolute"
-      style={{ ...vertical(item), ...place, zIndex: lifted ? LIFTED_Z_INDEX : 1 + item.depth, ...kindColor(plan, item.blockId) }}
+      style={{
+        ...vertical(item),
+        ...place,
+        zIndex: lifted ? LIFTED_Z_INDEX : 1 + item.depth,
+        ...kindColor(plan, item.blockId),
+        ...(bar ? ({ "--title-lines": String(zones.lines) } as CSSProperties) : {}),
+      }}
       onPointerDown={(event) => handlers.onPointerDown(event, item)}
       onClickCapture={handlers.onClickCapture}
     >
@@ -357,19 +386,17 @@ function DaySegment({ plan, item, place, showTitle, showDuration, money, dragVie
         blockId={item.blockId}
         name={`${block.title} ${time}`}
         tags={block.tags}
-        tagDots={!point}
+        tagMarks={bar && zones.tagBar}
         checked={block.checked}
         className={buttonClass}
       >
-        {/* 名字单独一段：竖排里竖条开头滚出框的上边时，名字贴着框的上边（见 index.css） */}
-        {point || item.track === "background" || (!showTitle && !showDuration && money === undefined) ? null : (
-          <span data-bar-title>
-            {showTitle && <span className="truncate">{block.title}</span>}
-            {showDuration && block.duration_min !== null && (
-              <span data-bar-duration>{durationLabel(block.duration_min)}</span>
-            )}
-            {/* 块上写开销时标题下面再写一行；竖条不够高时被框裁掉 */}
+        {/* 标题单独一段：竖条开头滚出框的上边时，标题贴着框的上边（见 index.css） */}
+        {bar && blockText.title && <span data-bar-title>{block.title}</span>}
+        {bar && zones.foot && (
+          <span data-bar-foot className="timeline-foot">
+            {/* 从右往左排：先开销（最右）、再时长 */}
             {money !== undefined && <span data-bar-money-text>{moneyCellLabel(money)}</span>}
+            {duration !== null && <span data-bar-duration>{duration}</span>}
           </span>
         )}
       </BlockButton>

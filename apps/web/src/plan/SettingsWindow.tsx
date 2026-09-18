@@ -170,6 +170,7 @@ export function SettingsWindow({ doc, library, libraryView, plan, settings, onCl
               <p className="text-xs text-ink-muted">所有计划共用；改了名字和颜色，别的计划里也跟着变</p>
               <LibraryManager
                 label="标签"
+                marker="ribbon"
                 options={[...libraryView.tags.values()].sort(byOrder).map((tag) => ({ ...tag, builtin: false }))}
                 actions={tagLibraryActions(library, (tagId) => countBlocksUsing(plan, { tagId }))}
                 createColor={firstUnusedColor([...libraryView.tags.values()])}

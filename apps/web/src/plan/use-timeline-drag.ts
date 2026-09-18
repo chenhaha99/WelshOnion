@@ -48,6 +48,7 @@ import {
   placementOf,
   type DropInput,
 } from "./timeline-drop";
+import type { WideMetrics } from "./timeline-geometry";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { minuteAtPixel, type HourWindow } from "./timeline-window";
 
@@ -175,8 +176,8 @@ interface TimelineDragOptions {
   filter: StatsFilter | undefined;
   /** 竖排正在看第几行；横排是 null */
   day: number | null;
-  /** 横排主轨每道多高（像素）：块上写不写开销不一样，量指针落在哪块上要用 */
-  laneHeight: number;
+  /** 横排主轨每道多高、套在里面的往下让多少（像素）：量指针落在哪块上要用；竖排不看 */
+  metrics: WideMetrics;
   /** 横排横轴展开的那段：指针换算时刻、量落在哪块上都按折起后的位置；竖排不看 */
   hours: HourWindow;
   /** 竖排能上下滚的框：拖到框边时它自己滚；横排不给 */
@@ -225,7 +226,7 @@ export function useTimelineDrag({
   rows,
   filter,
   day,
-  laneHeight,
+  metrics,
   hours,
   scroller,
   onDropped,
@@ -274,9 +275,9 @@ export function useTimelineDrag({
   /** 最近一次在时间轴里按下的是不是鼠标：手指长按弹出的系统菜单要拦，鼠标右键的不拦 */
   const lastPressByMouse = useRef(true);
   // 窗口上的监听、长按计时、每帧的滚动都经过这里读最新的计划
-  const latest = useRef({ doc, library, plan, libraryView, rows, filter, day, laneHeight, hours, onBlankRange });
+  const latest = useRef({ doc, library, plan, libraryView, rows, filter, day, metrics, hours, onBlankRange });
   useEffect(() => {
-    latest.current = { doc, library, plan, libraryView, rows, filter, day, laneHeight, hours, onBlankRange };
+    latest.current = { doc, library, plan, libraryView, rows, filter, day, metrics, hours, onBlankRange };
   });
 
   /**
@@ -321,7 +322,7 @@ export function useTimelineDrag({
    * 只量指针所在那一行（竖排是正在看的那一天）：块画在哪按道、缩进、时间算，这一行的横轴在屏幕上的位置读 DOM。
    */
   const ontoAfterDrop = (next: Drag, previous: string | null): string | null => {
-    const { plan, libraryView, rows, filter, day, laneHeight, hours } = latest.current;
+    const { plan, libraryView, rows, filter, day, metrics, hours } = latest.current;
     const row = day ?? next.now.row;
     const axis = axisElements.current[row]!.getBoundingClientRect();
     const excluded = new Set([next.blockId, ...next.followers]);
@@ -338,7 +339,7 @@ export function useTimelineDrag({
           layout: droppedRow(dropped, libraryView, filter, row, day === null ? rows[row]! : null),
           axis,
           orientation: day === null ? "wide" : "day",
-          laneHeight,
+          metrics,
           hours,
           excluded,
           kindLayer: kindLayer(dropped.blocks.get(next.blockId)!, libraryView),

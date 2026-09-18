@@ -29,7 +29,7 @@ async function box(locator: Locator) {
   return (await locator.boundingBox())!;
 }
 
-test("电脑上：快捷条里新建两个标签挂上 → 块的右上角两个圆点、字不压着 → 列表里挂 → 按标签筛 → 设置里改色、删除", async ({ page }) => {
+test("电脑上：快捷条里新建两个标签挂上 → 块的上边挂着两条书签、标题在书签下面 → 列表里挂 → 按标签筛 → 设置里改色、删除", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 1);
@@ -51,18 +51,18 @@ test("电脑上：快捷条里新建两个标签挂上 → 块的右上角两个
   await expect(quickBar(page, "西湖边走一整圈").getByRole("button", { name: "标签：必去、下雨也能去" })).toBeVisible();
   await page.keyboard.press("Escape");
 
-  // 块的右上角两个圆点，鼠标停上去写名字；标题截断在圆点左边，不压在圆点上
+  // 块的上边挂着两条书签、靠右，鼠标停上去写名字；标题在书签栏下面，不和书签同一行
   const dots = lake.locator("[data-block-tags]");
-  await expect(dots.locator("[data-tag-dot]")).toHaveCount(2);
+  await expect(dots.locator("[data-tag-ribbon]")).toHaveCount(2);
   await expect(dots).toHaveAttribute("title", "必去、下雨也能去");
   await expect(lake).toHaveAttribute("aria-label", "西湖边走一整圈 09:00–11:00 · 必去、下雨也能去");
   const barBox = await box(lake);
   const dotsBox = await box(dots);
   expect(barBox.x + barBox.width - (dotsBox.x + dotsBox.width)).toBeLessThan(6);
-  expect(dotsBox.y - barBox.y).toBeLessThan(6);
+  expect(dotsBox.y - barBox.y).toBeLessThanOrEqual(1.5);
   const titleBox = await box(lake.locator("[data-bar-title]"));
-  expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(dotsBox.x);
-  await shot(page, "02-dots-on-bar");
+  expect(titleBox.y).toBeGreaterThanOrEqual(dotsBox.y + dotsBox.height - 0.5);
+  await shot(page, "02-ribbons-on-bar");
 
   // 列表里「灵隐寺」那一行的「标签」列：挂上「必去」
   const temple = await rowOf(table, "灵隐寺");
@@ -82,7 +82,7 @@ test("电脑上：快捷条里新建两个标签挂上 → 块的右上角两个
   await tags.getByRole("button", { name: "全部标签" }).click();
   await expect(segment(day1, "灵隐寺")).toHaveCount(1);
 
-  // 设置里：改「必去」的颜色，块上的圆点跟着变；删「下雨也能去」，西湖只剩一个圆点
+  // 设置里：改「必去」的颜色，块上的书签跟着变；删「下雨也能去」，西湖只剩一条书签
   const settings = await openPlanSettings(page, "标签");
   const manager = settings.getByRole("group", { name: "标签的管理" });
   await expect(manager.getByText("这个计划里 2 件在用")).toBeVisible();
@@ -94,15 +94,15 @@ test("电脑上：快捷条里新建两个标签挂上 → 块的右上角两个
   await manager.getByRole("button", { name: "删除", exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(settings).toBeHidden();
-  await expect(dots.locator("[data-tag-dot]")).toHaveCount(1);
-  expect(await dots.locator("[data-tag-dot]").evaluate((node) => getComputedStyle(node).backgroundColor)).toBe(
+  await expect(dots.locator("[data-tag-ribbon]")).toHaveCount(1);
+  expect(await dots.locator("[data-tag-ribbon]").evaluate((node) => getComputedStyle(node).color)).toBe(
     "rgb(111, 163, 160)",
   );
 
   expect(errors).toEqual([]);
 });
 
-test("手机上：竖条选中，底部快捷条里挂标签，竖条右上角出圆点", async ({ page }) => {
+test("手机上：竖条选中，底部快捷条里挂标签，竖条上边挂着书签", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 1, { width: 390, height: 844 });
@@ -125,12 +125,12 @@ test("手机上：竖条选中，底部快捷条里挂标签，竖条右上角�
   await page.keyboard.press("Escape");
 
   const dots = lake.locator("[data-block-tags]");
-  await expect(dots.locator("[data-tag-dot]")).toHaveCount(1);
+  await expect(dots.locator("[data-tag-ribbon]")).toHaveCount(1);
   const barBox = await box(lake);
   const dotsBox = await box(dots);
   expect(barBox.x + barBox.width - (dotsBox.x + dotsBox.width)).toBeLessThan(6);
   expect(dotsBox.y - barBox.y).toBeLessThan(6);
-  await shot(page, "06-phone-dots");
+  await shot(page, "06-phone-ribbons");
 
   expect(errors).toEqual([]);
 });

@@ -26,14 +26,18 @@ import { QuickBar } from "./QuickBar";
 import { BlockButton, useBlockSelection } from "./select-block";
 import { kindColor } from "./timeline-draw";
 import {
+  barZones,
   GAP,
-  laneHeight,
   LIFTED_Z_INDEX,
+  planHasBarTags,
   QUICK_BAR_ROW_PX,
   wideAxisHeight,
+  wideMetrics,
   wideSegmentBox,
   wideStripsHeight,
+  type BarZones,
   type BlockText,
+  type WideMetrics,
 } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
 import {
@@ -79,6 +83,8 @@ interface TimelineProps {
   blockText: BlockText;
   /** 横向放到百分之几（横排才有） */
   zoom: number;
+  /** 横条上的标题写几行（横排才有） */
+  titleLines: number;
   /** 竖排每小时多高（像素，竖排才有） */
   hourHeight: number;
   /** 横排横轴展开的那段：没事的凌晨和深夜折起（按计划算，见 timeline-window） */
@@ -104,6 +110,7 @@ export function Timeline({
   moneyCells,
   blockText,
   zoom,
+  titleLines,
   hourHeight,
   hours,
   onExpandHours,
@@ -170,6 +177,7 @@ export function Timeline({
           moneyCells={moneyCells}
           blockText={blockText}
           zoom={zoom}
+          titleLines={titleLines}
           hours={hours}
           onExpandHours={onExpandHours}
         />
@@ -204,6 +212,7 @@ interface WideTimelineProps {
   moneyCells: Map<string, MoneyCell>;
   blockText: BlockText;
   zoom: number;
+  titleLines: number;
   hours: HourWindow;
   onExpandHours: () => void;
 }
@@ -224,11 +233,14 @@ function WideTimeline({
   moneyCells,
   blockText,
   zoom,
+  titleLines,
   hours,
   onExpandHours,
 }: WideTimelineProps) {
   const selection = useBlockSelection();
-  const lane = laneHeight(blockText);
+  // 块分上中下三区：按拖之前的计划算，拖一件挂着标签的事进时间轴时版面不在拖动中跳
+  const zones = barZones(blockText, titleLines, planHasBarTags(plan, libraryView));
+  const metrics = wideMetrics(zones);
   // 在空白处点了、拖出了一段：画着虚线框，贴着它弹「加一件事」；框关掉就没了
   const [adding, setAdding] = useState<BlankRange | null>(null);
   const [ghost, setGhost] = useState<HTMLDivElement | null>(null);
@@ -244,7 +256,7 @@ function WideTimeline({
     rows,
     filter,
     day: null,
-    laneHeight: lane,
+    metrics,
     hours,
     onDropped: (blockId) => selection.select(blockId, null),
     onBlankRange: setAdding,
@@ -333,7 +345,8 @@ function WideTimeline({
               libraryView={libraryView}
               moneyCells={moneyCells}
               blockText={blockText}
-              laneHeight={lane}
+              metrics={metrics}
+              zones={zones}
               hours={hours}
               onExpandHours={onExpandHours}
               quickBarBlock={index === barRow && selectedUndated === null ? selectedBlock! : null}
@@ -388,8 +401,10 @@ interface TimelineRowProps {
   libraryView: LibraryView;
   moneyCells: Map<string, MoneyCell>;
   blockText: BlockText;
-  /** 主轨每道多高（像素） */
-  laneHeight: number;
+  /** 主轨每道多高、套在里面的往下让多少（像素） */
+  metrics: WideMetrics;
+  /** 横条分哪几区 */
+  zones: BarZones;
   hours: HourWindow;
   onExpandHours: () => void;
   /** 快捷条画在这一行时，是哪一件事；不画是 null */
@@ -418,7 +433,8 @@ function TimelineRow({
   libraryView,
   moneyCells,
   blockText,
-  laneHeight,
+  metrics,
+  zones,
   hours,
   onExpandHours,
   quickBarBlock,
@@ -501,7 +517,7 @@ function TimelineRow({
         data-window-to={hours.to}
         className="relative"
         // 快捷条浮在上面、不占这一行的高度（你提的：选中不该把下面的时间轴顶下去）
-        style={{ minHeight: wideAxisHeight(layout, laneHeight) }}
+        style={{ minHeight: wideAxisHeight(layout, metrics) }}
         // 空白处点一下、按住拖：加一件事
         onPointerDown={(event) => {
           if (isBlankPress(event.target)) blankHandlers.onPointerDown(event, index);
@@ -532,7 +548,8 @@ function TimelineRow({
             libraryView={libraryView}
             plan={plan}
             item={item}
-            box={wideSegmentBox(item, layout, laneHeight)}
+            box={wideSegmentBox(item, layout, metrics)}
+            zones={zones}
             hours={hours}
             showTitle={blockText.title}
             showDuration={blockText.duration && item.track === "main"}
@@ -560,7 +577,7 @@ function TimelineRow({
             key={barSegment.blockId}
             to={barSegment.to}
             hours={hours}
-            top={wideAxisHeight(layout, laneHeight) + GAP}
+            top={wideAxisHeight(layout, metrics) + GAP}
           >
             {quickBar}
           </QuickBarAnchor>
@@ -577,22 +594,28 @@ interface SegmentProps {
   libraryView: LibraryView;
   plan: PlanView;
   item: PlacedSegment;
+  /** 这一段在横轴里的上边和高度 */
+  box: { top: number; height: number };
+  /** 主轨横条分哪几区（背景细条、时长为 0 的竖线不分区） */
+  zones: BarZones;
   /** 块上要不要写标题 */
   showTitle: boolean;
   /** 块上要不要写时长 */
   showDuration: boolean;
-  /** 块上要不要写开销那一行 */
+  /** 块上要不要写开销 */
   showMoney: boolean;
-  /** 这件事的开销格摘要 */
+  /** 这件事的开销格摘要（按筛选算过） */
   money: MoneyCell | undefined;
-  /** 在这一行横轴里的上边和高度（像素） */
-  box: { top: number; height: number };
   hours: HourWindow;
   dragView: DragView | null;
   handlers: SegmentHandlers;
 }
 
-/** 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点一下选中；块上写开销时下面还有写着开销的那一行。 */
+/**
+ * 一段横条：外框放位置、data 属性和拖拽的监听，里面的按钮点一下选中。
+ * 主轨的横条分上中下三区（你提的）：上面书签栏挂着标签的书签（靠右），中间标题（写几行由拉动条定），
+ * 最下面附件栏写时长和开销（靠右，开销在最右；从右往左排，所以先开销后时长）。附件栏在按钮外面：开销能点，按钮里不能再放按钮。
+ */
 function Segment({
   doc,
   library,
@@ -600,6 +623,7 @@ function Segment({
   plan,
   item,
   box,
+  zones,
   showTitle,
   showDuration,
   showMoney,
@@ -611,9 +635,11 @@ function Segment({
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
   const point = item.from === item.to;
+  const bar = !point && item.track === "main";
   const buttonClass = point ? "timeline-marker" : item.track === "background" ? "timeline-strip" : "timeline-bar";
   const lifted = dragView?.liftedId === item.blockId;
   const time = zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date);
+  const duration = showDuration && block.duration_min !== null ? durationLabel(block.duration_min) : null;
 
   return (
     <div
@@ -628,8 +654,9 @@ function Segment({
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
       data-lifted={lifted ? true : undefined}
-      // 标题和开销都写：标题贴上边，下面留给开销那一行（见 index.css）
-      data-two-rows={(showTitle || showDuration) && showMoney && !point ? true : undefined}
+      // 三区里有哪几区：按钮上下留多少由 index.css 照这两个属性定
+      data-tag-bar={bar && zones.tagBar ? true : undefined}
+      data-foot={bar && zones.foot ? true : undefined}
       // 指针在「没排时间」栏里时时间轴不重排：被拖的横条留在原处变淡
       data-dragging={
         dragView && dragView.liftedId === null && !dragView.copying && dragView.blockId === item.blockId ? true : undefined
@@ -643,6 +670,7 @@ function Segment({
         ...box,
         zIndex: lifted ? LIFTED_Z_INDEX : 1 + item.depth,
         ...kindColor(plan, item.blockId),
+        ...(bar ? ({ "--title-lines": String(zones.lines) } as CSSProperties) : {}),
       }}
       onPointerDown={(event) => handlers.onPointerDown(event, item)}
       onPointerMove={(event) => handlers.onPointerMove(event, item)}
@@ -652,30 +680,28 @@ function Segment({
         blockId={item.blockId}
         name={`${block.title} ${time}`}
         tags={block.tags}
-        tagDots={!point}
+        tagMarks={!point}
         checked={block.checked}
         className={buttonClass}
       >
-        {/* 写不下就截断加「…」，不写到块外面去（鼠标停上去的提示里有全名） */}
+        {/* 写不下就换行，写满行数还放不下截断加「…」（鼠标停上去的提示里有全名）；细条只写一行 */}
         {point || !showTitle ? null : <span data-bar-title>{block.title}</span>}
-        {/* 时长写在标题右边；只开时长时它就是正文，靠左 */}
-        {point || !showDuration || block.duration_min === null ? null : (
-          <span data-bar-duration className={showTitle ? "ml-auto" : undefined}>
-            {durationLabel(block.duration_min)}
-          </span>
-        )}
       </BlockButton>
-      {showMoney && !point && (
-        <BlockMoney
-          variant="line"
-          solo={!showTitle && !showDuration}
-          doc={doc}
-          library={library}
-          libraryView={libraryView}
-          plan={plan}
-          block={block}
-          moneyCell={money}
-        />
+      {bar && zones.foot && (
+        <span data-bar-foot className="timeline-foot">
+          {showMoney && (
+            <BlockMoney
+              variant="line"
+              doc={doc}
+              library={library}
+              libraryView={libraryView}
+              plan={plan}
+              block={block}
+              moneyCell={money}
+            />
+          )}
+          {duration !== null && <span data-bar-duration>{duration}</span>}
+        </span>
       )}
     </div>
   );

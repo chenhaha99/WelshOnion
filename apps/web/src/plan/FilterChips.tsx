@@ -1,3 +1,5 @@
+import { TagRibbon } from "./tag-ribbon";
+
 interface FilterChipsProps {
   /** 这一排的读屏名：「按类型筛选」「按标签筛选」 */
   label: string;
@@ -9,10 +11,12 @@ interface FilterChipsProps {
   /** 按下的 id */
   selected: readonly string[];
   onChange: (next: string[]) => void;
+  /** 每个按钮前面的记号：类型是圆点，标签是书签 */
+  marker?: "dot" | "ribbon";
 }
 
 /** 切换视图的按钮上面的一排筛选按钮：可以同时按下几个，都不按就是全都看；有按下时末尾一个清空按钮。类型、标签两排共用。 */
-export function FilterChips({ label, lead, clearLabel, items, selected, onChange }: FilterChipsProps) {
+export function FilterChips({ label, lead, clearLabel, items, selected, onChange, marker = "dot" }: FilterChipsProps) {
   return (
     <div role="group" aria-label={label} className="flex flex-wrap items-center gap-2 text-sm">
       <span className="text-ink-muted">{lead}</span>
@@ -26,7 +30,11 @@ export function FilterChips({ label, lead, clearLabel, items, selected, onChange
             className={chipClass(pressed)}
             onClick={() => onChange(pressed ? selected.filter((id) => id !== item.id) : [...selected, item.id])}
           >
-            <span aria-hidden="true" className="kind-dot" style={{ backgroundColor: item.color }} />
+            {marker === "ribbon" ? (
+              <TagRibbon color={item.color} />
+            ) : (
+              <span aria-hidden="true" className="kind-dot" style={{ backgroundColor: item.color }} />
+            )}
             {item.name}
           </button>
         );

@@ -82,8 +82,9 @@ function tagsOn(button: HTMLElement): HTMLElement | null {
   return button.querySelector<HTMLElement>("[data-block-tags]");
 }
 
-function dotColors(button: HTMLElement): string[] {
-  return [...button.querySelectorAll<HTMLElement>("[data-tag-dot]")].map((dot) => dot.style.backgroundColor);
+/** 块上挂着的书签，从左到右各是什么颜色。 */
+function ribbonColors(button: HTMLElement): string[] {
+  return [...button.querySelectorAll<SVGElement>("[data-tag-ribbon]")].map((ribbon) => ribbon.style.color);
 }
 
 function quickBar(title: string): HTMLElement {
@@ -96,37 +97,37 @@ async function openTagPicker(user: User, trigger: HTMLElement): Promise<HTMLElem
 }
 
 describe("块上画出标签", () => {
-  it("横条上一排圆点，按标签的顺序；鼠标停上去写名字；读屏名在时间后面写标签名", async () => {
+  it("横条上一排书签，按标签的顺序；鼠标停上去写名字；读屏名在时间后面写标签名", async () => {
     await oneDay({ tags: { 西湖: ["下雨也能去", "必去"] } });
     await showView("时间轴");
 
     const lake = await blockButton("西湖");
     expect(tagsOn(lake)?.getAttribute("title")).toBe("必去、下雨也能去");
-    expect(dotColors(lake)).toEqual(["#c08d68", "#6b8fb0"]);
+    expect(ribbonColors(lake)).toEqual(["#c08d68", "#6b8fb0"]);
     expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 必去、下雨也能去");
     expect(tagsOn(await blockButton("灵隐寺"))).toBeNull();
   });
 
-  it("4 个以上画 2 个圆点加「+N」", async () => {
+  it("4 个以上画 2 条书签加「+N」", async () => {
     await oneDay({ extraTags: ["带老人", "要预约"], tags: { 西湖: ["必去", "下雨也能去", "带老人", "要预约"] } });
     await showView("时间轴");
 
     const lake = await blockButton("西湖");
-    expect(dotColors(lake)).toHaveLength(2);
+    expect(ribbonColors(lake)).toHaveLength(2);
     expect(tagsOn(lake)?.textContent).toBe("+2");
     expect(tagsOn(lake)?.getAttribute("title")).toBe("必去、下雨也能去、带老人、要预约");
   });
 
-  it("划掉了的：读屏名先写标签，再写划掉了；圆点照画", async () => {
+  it("划掉了的：读屏名先写标签，再写划掉了；书签照画", async () => {
     await oneDay({ tags: { 西湖: ["必去"] }, struck: ["西湖"] });
     await showView("时间轴");
 
     const lake = await blockButton("西湖");
     expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 必去 · 划掉了");
-    expect(dotColors(lake)).toHaveLength(1);
+    expect(ribbonColors(lake)).toHaveLength(1);
   });
 
-  it("时长为 0 的竖线不画圆点，读屏名照样写", async () => {
+  it("时长为 0 的竖线不画书签，读屏名照样写", async () => {
     await oneDay({ tags: { 看潮: ["必去"] } });
     await showView("时间轴");
 
@@ -140,8 +141,29 @@ describe("块上画出标签", () => {
     await oneDay({ tags: { 西湖: ["必去"], 河坊街: ["下雨也能去"] } });
     await showView("时间轴");
 
-    expect(dotColors(await blockButton("西湖"))).toEqual(["#c08d68"]);
-    expect(dotColors(await blockButton("河坊街"))).toEqual(["#6b8fb0"]);
+    expect(ribbonColors(await blockButton("西湖"))).toEqual(["#c08d68"]);
+    expect(ribbonColors(await blockButton("河坊街"))).toEqual(["#6b8fb0"]);
+  });
+});
+
+describe("别处的标签也画成书签，类型还是圆点", () => {
+  it("筛选按钮、列表的标签列、选择面板、设置里", async () => {
+    const user = userEvent.setup();
+    await oneDay({ tags: { 西湖: ["必去"] } });
+
+    const tagChips = await screen.findByRole("group", { name: "按标签筛选" });
+    expect(within(tagChips).getByRole("button", { name: "必去" }).querySelector("[data-tag-ribbon]")).not.toBeNull();
+    expect(screen.getByRole("group", { name: "按类型筛选" }).querySelector("[data-tag-ribbon]")).toBeNull();
+
+    const listButton = within(await blockRow("10.1", "西湖")).getByRole("button", { name: "标签：必去" });
+    expect(ribbonColors(listButton)).toEqual(["#c08d68"]);
+    const picker = await openTagPicker(user, listButton);
+    expect(ribbonColors(within(picker).getByRole("button", { name: "下雨也能去" }))).toEqual(["#6b8fb0"]);
+    await user.keyboard("{Escape}");
+
+    const settings = await openPlanSettings(user, "标签");
+    const manager = within(settings).getByRole("group", { name: "标签的管理" });
+    expect(manager.querySelectorAll("[data-tag-ribbon]")).toHaveLength(2);
   });
 });
 
@@ -166,7 +188,7 @@ describe("在快捷条和列表里挂上、摘下", () => {
       expect(within(quickBar("西湖")).getByRole("button", { name: "标签：必去、下雨也能去" })).toBeTruthy(),
     );
     expect(screen.getByRole("dialog", { name: "选择标签" })).toBe(picker);
-    expect(dotColors(await blockButton("西湖"))).toHaveLength(2);
+    expect(ribbonColors(await blockButton("西湖"))).toHaveLength(2);
 
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "选择标签" })).toBeNull());
@@ -299,7 +321,7 @@ describe("在设置里管标签", () => {
     await showView("时间轴");
     const lake = await blockButton("西湖");
     expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 一定要去");
-    expect(dotColors(lake)).toEqual(["#6fa3a0"]);
+    expect(ribbonColors(lake)).toEqual(["#6fa3a0"]);
   });
 });
 

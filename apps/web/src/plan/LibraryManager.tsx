@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CreateForm, DeleteConfirm, LayerChoices, RenameForm, Swatches, type LibraryItem } from "./library-forms";
 import type { PickerActions } from "./LibraryPicker";
+import { TagRibbon } from "./tag-ribbon";
 
 /** 管理这一半的动作：选一个不算（设置里不选） */
 export type ManageActions = Omit<PickerActions, "onChoose">;
@@ -14,6 +15,8 @@ interface LibraryManagerProps {
   createColor?: string;
   /** 删之前写的那句；不给就按类型写（在用的会写成「已删除的类型」） */
   deleteNote?: (usage: number) => string;
+  /** 每一行前面的记号：类型是圆点，标签是书签 */
+  marker?: "dot" | "ribbon";
 }
 
 type Mode = { kind: "list" } | { kind: "create" } | { kind: "rename" | "recolor" | "relayer" | "delete"; id: string };
@@ -22,7 +25,7 @@ type Mode = { kind: "list" } | { kind: "create" } | { kind: "rename" | "recolor"
  * 计划设置里的「类型」「标签」：一项一行，写着这个计划里有几件在用，能改名、改颜色、改层（只有类型）、删除（只有自建的），
  * 末尾「+ 新建」。改的是资料库，所有计划共用（这句话由外面的设置写）。
  */
-export function LibraryManager({ label, options, actions, createColor, deleteNote }: LibraryManagerProps) {
+export function LibraryManager({ label, options, actions, createColor, deleteNote, marker = "dot" }: LibraryManagerProps) {
   const [mode, setMode] = useState<Mode>({ kind: "list" });
   const backToList = () => setMode({ kind: "list" });
   const editing = (id: string) => (mode.kind === "list" || mode.kind === "create" || mode.id !== id ? null : mode.kind);
@@ -52,7 +55,11 @@ export function LibraryManager({ label, options, actions, createColor, deleteNot
         return (
           <div key={option.id} data-item={option.id} className="flex flex-col">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-1 py-1 hover:bg-white/60">
-              <span className="kind-dot" aria-hidden style={{ backgroundColor: option.color }} />
+              {marker === "ribbon" ? (
+                <TagRibbon color={option.color} />
+              ) : (
+                <span className="kind-dot" aria-hidden style={{ backgroundColor: option.color }} />
+              )}
               <span className="min-w-16 flex-1 text-ink">{option.name}</span>
               <span className="text-xs text-ink-muted">{usage > 0 ? `这个计划里 ${usage} 件在用` : "没有在用的"}</span>
               <div className="flex items-center">
