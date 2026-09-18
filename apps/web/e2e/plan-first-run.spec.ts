@@ -12,9 +12,9 @@ async function expectOnScreen(locator: Locator, name: string, width: number, hei
 }
 
 const EMPTY_PLAN = "还没有事。加了事、排上时间，就会画在这里";
-const NOT_TIMED = "排上时间的事会画在这里：把上面没排时间的事拖到时间轴上，或者点开它排时间";
+const NOT_TIMED = "排上时间的事会画在这里：把上面没排时间的事拖到时间线上，或者点开它排时间";
 
-test("电脑上新计划的第一屏：是时间轴、看得见「加第一件事」、没有筛选那一行、最右的刻度不伸出横轴→ 点了焦点到时间轴第 1 天的「加一件事」→ 加一件换回原来那句 → 列表里第 1 天的「加一件事」也在第一屏 → 页顶「计划设置」", async ({
+test("电脑上新计划的第一屏：是时间线、看得见「加第一件事」、没有筛选那一行、最右的刻度不伸出横轴→ 点了焦点到时间线第 1 天的「加一件事」→ 加一件换回原来那句 → 日程里第 1 天的「加一件事」也在第一屏 → 页顶「计划设置」", async ({
   page,
 }) => {
   const errors = watchErrors(page);
@@ -23,9 +23,9 @@ test("电脑上新计划的第一屏：是时间轴、看得见「加第一件�
   const views = page.getByRole("group", { name: "视图" });
   const add = page.getByRole("table", { name: /10\.1 周四 的安排/ }).getByRole("textbox", { name: "加一件事" });
 
-  // 打开是时间轴，「加第一件事」在第一屏
-  await expect(views.getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  // 打开是时间线，「加第一件事」在第一屏
+  await expect(views.getByRole("button", { name: "时间线", pressed: true })).toBeVisible();
+  const timeline = page.getByRole("region", { name: "时间线" });
   const addFirst = timeline.getByRole("button", { name: "加第一件事" });
   await expect(timeline.getByText(EMPTY_PLAN, { exact: true })).toBeVisible();
   await expectOnScreen(addFirst, "加第一件事", 1280, 800);
@@ -37,20 +37,20 @@ test("电脑上新计划的第一屏：是时间轴、看得见「加第一件�
   const axis = (await timeline.locator("[data-timeline-axis]").first().boundingBox())!;
   expect(tick.x + tick.width).toBeLessThanOrEqual(axis.x + axis.width + 0.5);
 
-  // 点「加第一件事」：还是时间轴，弹出 10.1 那一行的「加一件事」，焦点在框里、整个在屏幕里
+  // 点「加第一件事」：还是时间线，弹出 10.1 那一行的「加一件事」，焦点在框里、整个在屏幕里
   await addFirst.click();
-  await expect(views.getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
+  await expect(views.getByRole("button", { name: "时间线", pressed: true })).toBeVisible();
   const timelineAdd = page.getByRole("dialog", { name: "加一件事" }).getByRole("textbox", { name: "加一件事" });
   await expect(timelineAdd).toBeFocused();
-  await expectOnScreen(timelineAdd, "时间轴 10.1 的「加一件事」", 1280, 800);
+  await expectOnScreen(timelineAdd, "时间线 10.1 的「加一件事」", 1280, 800);
   await page.keyboard.type("西湖");
   await page.keyboard.press("Enter");
   await expect(timeline.getByText(NOT_TIMED, { exact: true })).toBeVisible();
   await expect(timeline.getByRole("group", { name: "没排时间" }).first().getByRole("button", { name: "西湖 10.1 整天" })).toBeVisible();
   await expect(addFirst).toHaveCount(0);
 
-  // 切到列表：第 1 天的「加一件事」也在第一屏
-  await views.getByRole("button", { name: "列表" }).click();
+  // 切到日程：第 1 天的「加一件事」也在第一屏
+  await views.getByRole("button", { name: "日程" }).click();
   await page.evaluate(() => window.scrollTo(0, 0));
   await expectOnScreen(add, "10.1 的「加一件事」", 1280, 800);
 
@@ -66,7 +66,7 @@ test("电脑上新计划的第一屏：是时间轴、看得见「加第一件�
   expect(errors).toEqual([]);
 });
 
-test("手机上新计划的第一屏：是时间轴，「加第一件事」「计划设置」都在第一屏 → 点了框下面的「加一件事」拿到焦点、在屏幕里 → 列表里第 1 天的「加一件事」也在第一屏", async ({
+test("手机上新计划的第一屏：是时间线，「加第一件事」「计划设置」都在第一屏 → 点了框下面的「加一件事」拿到焦点、在屏幕里 → 日程里第 1 天的「加一件事」也在第一屏", async ({
   page,
 }) => {
   const errors = watchErrors(page);
@@ -75,22 +75,22 @@ test("手机上新计划的第一屏：是时间轴，「加第一件事」「�
   const views = page.getByRole("group", { name: "视图" });
   const add = page.getByRole("table", { name: /10\.1 周四 的安排/ }).getByRole("textbox", { name: "加一件事" });
 
-  await expect(views.getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
-  const addFirst = page.getByRole("region", { name: "时间轴" }).getByRole("button", { name: "加第一件事" });
+  await expect(views.getByRole("button", { name: "时间线", pressed: true })).toBeVisible();
+  const addFirst = page.getByRole("region", { name: "时间线" }).getByRole("button", { name: "加第一件事" });
   await expectOnScreen(addFirst, "加第一件事", 390, 844);
   await expectOnScreen(page.getByRole("button", { name: "计划设置", exact: true }), "计划设置", 390, 844);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: test.info().outputPath("03-phone-first-screen.png") });
 
-  const timelineAdd = page.getByRole("region", { name: "时间轴" }).getByRole("textbox", { name: "加一件事" });
+  const timelineAdd = page.getByRole("region", { name: "时间线" }).getByRole("textbox", { name: "加一件事" });
   await addFirst.click();
-  await expect(views.getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
+  await expect(views.getByRole("button", { name: "时间线", pressed: true })).toBeVisible();
   await expect(timelineAdd).toBeFocused();
-  await expectOnScreen(timelineAdd, "时间轴上的「加一件事」", 390, 844);
+  await expectOnScreen(timelineAdd, "时间线上的「加一件事」", 390, 844);
   await page.screenshot({ path: test.info().outputPath("04-phone-after-click.png") });
 
-  // 切到列表：第 1 天的「加一件事」也在第一屏
-  await views.getByRole("button", { name: "列表" }).click();
+  // 切到日程：第 1 天的「加一件事」也在第一屏
+  await views.getByRole("button", { name: "日程" }).click();
   await page.evaluate(() => window.scrollTo(0, 0));
   await expectOnScreen(add, "10.1 的「加一件事」", 390, 844);
 

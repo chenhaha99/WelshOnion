@@ -53,7 +53,7 @@ function results(panel: HTMLElement): HTMLElement[] {
 }
 
 async function timeline(): Promise<HTMLElement> {
-  return screen.findByRole("region", { name: "时间轴" });
+  return screen.findByRole("region", { name: "时间线" });
 }
 
 describe("打开搜索", () => {
@@ -137,10 +137,10 @@ describe("结果怎么列", () => {
 });
 
 describe("点结果跳过去", () => {
-  it("时间轴上：面板关掉，选中它，焦点在它的横条上", async () => {
+  it("时间线上：面板关掉，选中它，焦点在它的横条上", async () => {
     const user = userEvent.setup();
     await threeDays();
-    await showView("时间轴");
+    await showView("时间线");
 
     const panel = await search(user, "夜游");
     await user.click(results(panel)[0]!);
@@ -152,23 +152,23 @@ describe("点结果跳过去", () => {
     await waitFor(() => expect(document.activeElement).toBe(bar));
   });
 
-  it("列表里：还是列表，焦点在那一行的「这件事的操作」上", async () => {
+  it("日程里：还是日程，焦点在那一行的「这件事的操作」上", async () => {
     const user = userEvent.setup();
     await threeDays();
-    await showView("列表");
+    await showView("日程");
 
     const panel = await search(user, "夜游");
     await user.click(results(panel)[0]!);
 
-    expect(pressedView()).toBe("列表");
+    expect(pressedView()).toBe("日程");
     const menu = within(await blockRow("10.3", "西湖夜游")).getByRole("button", { name: "这件事的操作" });
     await waitFor(() => expect(document.activeElement).toBe(menu));
   });
 
-  it("列表按类型分组时：切回按天，焦点在那一行的「这件事的操作」上", async () => {
+  it("日程按类型分组时：切回按天，焦点在那一行的「这件事的操作」上", async () => {
     const user = userEvent.setup();
     await threeDays();
-    await showView("列表");
+    await showView("日程");
     const grouping = await screen.findByRole("group", { name: "分组" });
     await user.click(within(grouping).getByRole("button", { name: "按类型" }));
 
@@ -180,7 +180,7 @@ describe("点结果跳过去", () => {
     await waitFor(() => expect(document.activeElement).toBe(menu));
   });
 
-  it("在总览：切到时间轴并选中", async () => {
+  it("在总览：切到时间线并选中", async () => {
     const user = userEvent.setup();
     await threeDays();
     await showView("总览");
@@ -188,7 +188,7 @@ describe("点结果跳过去", () => {
     const panel = await search(user, "夜游");
     await user.click(results(panel)[0]!);
 
-    await waitFor(() => expect(pressedView()).toBe("时间轴"));
+    await waitFor(() => expect(pressedView()).toBe("时间线"));
     const bar = within(await timeline()).getByRole("button", { name: /^西湖夜游 / });
     await waitFor(() => expect(bar.getAttribute("aria-pressed")).toBe("true"));
   });
@@ -196,7 +196,7 @@ describe("点结果跳过去", () => {
   it("被按类型筛掉的：先清掉筛选再选中", async () => {
     const user = userEvent.setup();
     await threeDays();
-    await showView("时间轴");
+    await showView("时间线");
     const filter = await screen.findByRole("group", { name: "按类型筛选" });
     await user.click(within(filter).getByRole("button", { name: "餐饮" }));
 
@@ -218,7 +218,7 @@ describe("点结果跳过去", () => {
       setBlockTag(plan, library, [lake], must.value.tagId, true);
       block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 60 });
     });
-    await showView("时间轴");
+    await showView("时间线");
     const filter = await screen.findByRole("group", { name: "按标签筛选" });
     await user.click(within(filter).getByRole("button", { name: "必去" }));
 
@@ -237,7 +237,7 @@ describe("点结果跳过去", () => {
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 60 });
       setBlockChecked(plan, [lake], true);
     });
-    await showView("时间轴");
+    await showView("时间线");
     const onlyUnchecked = await screen.findByRole("button", { name: "只看没划掉的" });
     await user.click(onlyUnchecked);
 
@@ -252,7 +252,7 @@ describe("点结果跳过去", () => {
   it("没排时间的：选中「没排时间」条上那一件，焦点在它上面", async () => {
     const user = userEvent.setup();
     await threeDays();
-    await showView("时间轴");
+    await showView("时间线");
 
     const panel = await search(user, "喝茶");
     await user.click(results(panel)[0]!);
@@ -266,7 +266,7 @@ describe("点结果跳过去", () => {
     stubNarrowScreen();
     const user = userEvent.setup();
     await threeDays();
-    await showView("时间轴");
+    await showView("时间线");
     const region = await timeline();
     await waitFor(() => expect(region.querySelector("[data-timeline-day]")?.textContent).toContain("10.1"));
 
@@ -283,7 +283,7 @@ describe("只用键盘搜", () => {
   it("↓ 进结果、↓ 下一条、Enter 跳过去", async () => {
     const user = userEvent.setup();
     await threeDays();
-    await showView("时间轴");
+    await showView("时间线");
 
     const panel = await search(user, "西湖");
     await user.keyboard("{ArrowDown}");

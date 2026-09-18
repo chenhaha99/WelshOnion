@@ -5,7 +5,7 @@ import type { PointerLabel } from "./use-timeline-drag";
 
 /**
  * 拖动中松手后的时间，写在指针上方（手指按着的地方看不见）。
- * 放在页面最外层：时间轴卡片有背景模糊，fixed 的元素放在卡片里会按卡片定位。量到字的大小后在画出来之前摆好。
+ * 放在页面最外层：时间线卡片有背景模糊，fixed 的元素放在卡片里会按卡片定位。量到字的大小后在画出来之前摆好。
  */
 export function DragLabel({ label }: { label: PointerLabel }) {
   const element = useRef<HTMLDivElement>(null);

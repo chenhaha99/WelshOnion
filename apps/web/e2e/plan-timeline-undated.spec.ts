@@ -23,7 +23,7 @@ import { shot, watchErrors } from "./walkthrough";
 
 // 规格里几个场景各放一天，免得互相挡住：落点在别的块上会变成叠上去
 
-test("从栏里拖到时间轴上：没填时长给 1 小时 → 撤销 → 用填过的时长、按着 Alt 也不复制 → Esc → 叠到横条上", async ({
+test("从栏里拖到时间线上：没填时长给 1 小时 → 撤销 → 用填过的时长、按着 Alt 也不复制 → Esc → 叠到横条上", async ({
   page,
 }) => {
   const errors = watchErrors(page);
@@ -39,7 +39,7 @@ test("从栏里拖到时间轴上：没填时长给 1 小时 → 撤销 → 用�
   const day2 = timelineRow(page, "10.2");
   const day3 = timelineRow(page, "10.3");
   const label = page.locator("[data-drag-label]");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   // 条上是整个计划没排时间的事：10.1 的两件，加上 10.3 还没排的明清宫苑
   await expect(tray(page).getByRole("button")).toHaveText([/河坊街/, /灵隐寺/, /明清宫苑/]);
 
@@ -142,7 +142,7 @@ test("拖进条里变回没排时间：按开始时刻进格子 → 留在原来
   expect(errors).toEqual([]);
 });
 
-test("条里的一件：拖到时间轴上晃一下再拖回条里 → 什么都不变", async ({ page }) => {
+test("条里的一件：拖到时间线上晃一下再拖回条里 → 什么都不变", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page);
   const day1Table = page.getByRole("table", { name: DAY1 });
@@ -150,7 +150,7 @@ test("条里的一件：拖到时间轴上晃一下再拖回条里 → 什么都
   await keepUndated(page, day1Table, "灵隐寺", "上午", "2");
   const day1 = timelineRow(page, "10.1");
 
-  // 拖到时间轴上晃一下，再拖回条里：条不描边，松手后什么都不变
+  // 拖到时间线上晃一下，再拖回条里：条不描边，松手后什么都不变
   const start = center(await box(chip(page, "灵隐寺")));
   await drag(page, start, await axisPoint(day1, 10 * 60), { release: false });
   await page.mouse.move(start.x, start.y, { steps: 8 });
@@ -158,7 +158,7 @@ test("条里的一件：拖到时间轴上晃一下再拖回条里 → 什么都
   await page.mouse.up();
   expect(await timeOf(day1Table, "灵隐寺")).toBe("上午 · 2 小时");
   await expect(chip(page, "灵隐寺")).toHaveCount(1);
-  await page.getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
+  await page.getByRole("region", { name: "时间线" }).scrollIntoViewIfNeeded();
   await shot(page, "01-back-to-tray");
 
   expect(errors).toEqual([]);

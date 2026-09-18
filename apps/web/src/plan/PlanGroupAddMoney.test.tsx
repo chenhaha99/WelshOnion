@@ -32,7 +32,7 @@ function twoNights(plan: Y.Doc, library: Y.Doc): { hotel: string; lake: string }
 }
 
 async function byKind(user: User): Promise<void> {
-  await showView("列表");
+  await showView("日程");
   await user.click(within(await screen.findByRole("group", { name: "分组" })).getByRole("button", { name: "按类型" }));
 }
 

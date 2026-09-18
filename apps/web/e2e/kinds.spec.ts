@@ -13,8 +13,8 @@ test("类型：选择器里新建并用上 → 设置里改色、删除 → 键�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
-  // 打开是时间轴：这份走查从安排表开始，先切到列表
-  await showView(page, "列表");
+  // 打开是时间线：这份走查从安排表开始，先切到日程
+  await showView(page, "日程");
 
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const rows = table.locator("tr[data-block-id]");

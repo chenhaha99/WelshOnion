@@ -29,7 +29,7 @@ async function box(locator: Locator) {
   return (await locator.boundingBox())!;
 }
 
-test("电脑上：快捷条里新建两个标签挂上 → 块的上边挂着两条书签、标题在书签下面 → 列表里挂 → 按标签筛 → 设置里改色、删除", async ({ page }) => {
+test("电脑上：快捷条里新建两个标签挂上 → 块的上边挂着两条书签、标题在书签下面 → 日程里挂 → 按标签筛 → 设置里改色、删除", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 1);
@@ -37,7 +37,7 @@ test("电脑上：快捷条里新建两个标签挂上 → 块的上边挂着两
   await addBlocks(page, table, ["西湖边走一整圈", "灵隐寺"]);
   await schedule(page, table, "西湖边走一整圈", "09:00", "2");
   await schedule(page, table, "灵隐寺", "14:00", "2");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   const day1 = timelineRow(page, "10.1");
   const lake = segment(day1, "西湖边走一整圈").getByRole("button", { name: /^西湖边走一整圈 / });
 
@@ -64,7 +64,7 @@ test("电脑上：快捷条里新建两个标签挂上 → 块的上边挂着两
   expect(titleBox.y).toBeGreaterThanOrEqual(dotsBox.y + dotsBox.height - 0.5);
   await shot(page, "02-ribbons-on-bar");
 
-  // 列表里「灵隐寺」那一行的「标签」列：挂上「必去」
+  // 日程里「灵隐寺」那一行的「标签」列：挂上「必去」
   const temple = await rowOf(table, "灵隐寺");
   await temple.getByRole("button", { name: "标签：没有" }).click();
   await page.getByRole("dialog", { name: "选择标签" }).getByRole("button", { name: "必去", exact: true }).click();
@@ -72,8 +72,8 @@ test("电脑上：快捷条里新建两个标签挂上 → 块的上边挂着两
   await expect(temple.getByRole("button", { name: "标签：必去" })).toContainText("必去");
   await shot(page, "03-list-column");
 
-  // 按标签筛：只按「下雨也能去」，时间轴上只剩西湖；全部标签
-  await showView(page, "时间轴");
+  // 按标签筛：只按「下雨也能去」，时间线上只剩西湖；全部标签
+  await showView(page, "时间线");
   const tags = page.getByRole("group", { name: "按标签筛选" });
   await expect(tags.getByRole("button")).toHaveText(["必去", "下雨也能去"]);
   await tags.getByRole("button", { name: "下雨也能去" }).click();
@@ -109,8 +109,8 @@ test("手机上：竖条选中，底部快捷条里挂标签，竖条上边挂�
   const table = page.getByRole("table", { name: DAY1 });
   await addBlocks(page, table, ["西湖"]);
   await schedule(page, table, "西湖", "09:00", "3");
-  await showView(page, "时间轴");
-  const lake = page.getByRole("region", { name: "时间轴" }).getByRole("button", { name: /^西湖 / });
+  await showView(page, "时间线");
+  const lake = page.getByRole("region", { name: "时间线" }).getByRole("button", { name: /^西湖 / });
 
   await lake.click();
   const tagButton = quickBar(page, "西湖").getByRole("button", { name: "标签：没有" });

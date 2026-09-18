@@ -6,7 +6,7 @@ function keyOf(planId: string): string {
   return `welshonion.plan-view.${planId}`;
 }
 
-/** 这个计划上次看的视图；没存过、存的不认识都算时间轴（主页面是时间轴，然后才是列表）。 */
+/** 这个计划上次看的视图；没存过、存的不认识都算时间线（主页面是时间线，然后才是日程）。 */
 export function readPlanView(planId: string): PlanViewName {
   const stored = localStorage.getItem(keyOf(planId));
   return stored === "list" || stored === "overview" ? stored : "timeline";

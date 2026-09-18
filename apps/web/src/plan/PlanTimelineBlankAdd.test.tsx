@@ -34,8 +34,8 @@ function lakePlan(more?: (plan: Y.Doc, library: Y.Doc, days: string[]) => void) 
  * 第 1 行从 y=0 到 40，第 2 行从 y=50 到 90。
  */
 async function wideTimeline(): Promise<HTMLElement> {
-  await showView("时间轴");
-  const region = await screen.findByRole("region", { name: "时间轴" });
+  await showView("时间线");
+  const region = await screen.findByRole("region", { name: "时间线" });
   const rows = within(region).getAllByRole("listitem");
   rows.forEach((row, index) => {
     const top = index * 50;
@@ -175,8 +175,8 @@ describe("手机上按住空白处加一件事", () => {
    * （指针离框边远，拖到框边框自己滚的那一套不动）。
    */
   async function dayTimeline(): Promise<HTMLElement> {
-    await showView("时间轴");
-    const region = await screen.findByRole("region", { name: "时间轴" });
+    await showView("时间线");
+    const region = await screen.findByRole("region", { name: "时间线" });
     const scroller = region.querySelector<HTMLElement>("[data-day-scroll]")!;
     vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(DOMRect.fromRect({ x: 0, y: 0, width: 320, height: 768 }));
     const axis = region.querySelector<HTMLElement>("[data-day-axis]")!;

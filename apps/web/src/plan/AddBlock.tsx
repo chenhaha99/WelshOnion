@@ -46,7 +46,7 @@ interface AddBlockProps {
   className?: string;
 }
 
-/** 「加一件事」：填标题回车就建，没排时间、在整天、没划掉，类型和标签用给的；建完清空，焦点留着接着加。列表和时间轴共用。 */
+/** 「加一件事」：填标题回车就建，没排时间、在整天、没划掉，类型和标签用给的；建完清空，焦点留着接着加。日程和时间线共用。 */
 export function AddBlock({ doc, library, baseId, kindId, tagIds, onAdded, className = "input-bare" }: AddBlockProps) {
   const [title, setTitle] = useState("");
   return (
@@ -82,7 +82,7 @@ interface TimelineAddBlockProps {
   className: string;
 }
 
-/** 时间轴上一天的「加一件事」：时间轴上没有「筛掉了 N 件」那一行，加的被筛掉了就在框下面写一句。 */
+/** 时间线上一天的「加一件事」：时间线上没有「筛掉了 N 件」那一行，加的被筛掉了就在框下面写一句。 */
 export function TimelineAddBlock({ doc, library, plan, baseId, filter, className }: TimelineAddBlockProps) {
   const dayBlocks = blocksOfDay(plan, baseId);
   const shown = dayBlocks.filter((block) => passesFilter(block, filter));

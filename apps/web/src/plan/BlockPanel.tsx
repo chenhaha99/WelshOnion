@@ -16,15 +16,15 @@ interface BlockPanelProps {
   libraryView: LibraryView;
   plan: PlanView;
   block: BlockView;
-  /** 贴着谁弹出：点开它的那个按钮（快捷条的「详情…」、列表的行菜单） */
+  /** 贴着谁弹出：点开它的那个按钮（快捷条的「详情…」、日程的行菜单） */
   anchor: HTMLElement;
   onClose: () => void;
 }
 
 /**
- * 一件事的详情：贴着打开它的按钮弹出的气泡（见 AnchoredCard），时间轴和列表打开的是同一个。
+ * 一件事的详情：贴着打开它的按钮弹出的气泡（见 AnchoredCard），时间线和日程打开的是同一个。
  * 里面只放快捷条上没有的几样：标题、放在哪（叠在谁上）、短备注 / 路程 / 长备注、没排时间的上移下移缩进。
- * 划掉、类型、时间、开销、复制、删除都在快捷条上（列表里是表格的列），这里不重复摆。
+ * 划掉、类型、时间、开销、复制、删除都在快捷条上（日程里是表格的列），这里不重复摆。
  */
 export function BlockPanel({ doc, library, libraryView, plan, block, anchor, onClose }: BlockPanelProps) {
   const arrangeGroup = useRef<HTMLDivElement>(null);

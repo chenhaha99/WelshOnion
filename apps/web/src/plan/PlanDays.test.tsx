@@ -35,7 +35,7 @@ function threeDaysFromOct1(doc: Y.Doc): string[] {
 }
 
 async function dayLabels(): Promise<string[]> {
-  await showView("列表");
+  await showView("日程");
   const list = await screen.findByRole("list", { name: "日期列表" });
   return within(list)
     .getAllByRole("listitem")

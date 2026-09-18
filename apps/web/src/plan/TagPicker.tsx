@@ -42,7 +42,7 @@ export function TagPicker({ doc, library, block, tags, compact = false }: TagPic
   );
 }
 
-/** 列表里按钮上的字：一排书签，后面是名字（写不下截断加「…」）；一个没挂淡色写「加标签」。 */
+/** 日程里按钮上的字：一排书签，后面是名字（写不下截断加「…」）；一个没挂淡色写「加标签」。 */
 function TagNames({ tags }: { tags: readonly TagView[] }) {
   if (tags.length === 0) return <span className="text-ink-muted/60">加标签</span>;
   return (

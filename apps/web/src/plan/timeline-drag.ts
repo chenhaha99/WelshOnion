@@ -1,5 +1,5 @@
 /**
- * 时间轴拖拽的换算。位置全部用「线性分钟」：第几行 × 1440 + 这一行第几分钟，和 core 挪块的换算是同一个模型；
+ * 时间线拖拽的换算。位置全部用「线性分钟」：第几行 × 1440 + 这一行第几分钟，和 core 挪块的换算是同一个模型；
  * 另有拖动中框边自己滚、松手后的时间写在哪这两样按屏幕像素算的。
  */
 
@@ -75,7 +75,7 @@ export function slotOfMinute(minute: number): "day" | "morning" | "afternoon" | 
   return "day";
 }
 
-/** 没排时间的块拖上时间轴时的开始分钟：吸附到 15 分钟，夹在 00:00–23:45（排上时间的操作只收 0–1439，不做过午夜的换算）。 */
+/** 没排时间的块拖上时间线时的开始分钟：吸附到 15 分钟，夹在 00:00–23:45（排上时间的操作只收 0–1439，不做过午夜的换算）。 */
 export function undatedStartMinute(minute: number): number {
   return Math.min(Math.max(snap(minute), 0), MINUTES_PER_DAY - SNAP_MIN);
 }

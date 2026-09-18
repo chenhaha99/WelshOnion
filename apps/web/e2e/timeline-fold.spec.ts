@@ -20,7 +20,7 @@ import { shot, watchErrors } from "./walkthrough";
 
 /** 刻度那一行写着的钟点。 */
 async function ticks(page: Page): Promise<string[]> {
-  return page.getByRole("region", { name: "时间轴" }).locator("[data-hour-tick]").allInnerTexts();
+  return page.getByRole("region", { name: "时间线" }).locator("[data-hour-tick]").allInnerTexts();
 }
 
 test("电脑上：默认折起、块变宽 → 晚到的民宿压在折起那一截 → 早班机不折 → 拖进折起那一截 → 点折起那一截展开、刷新还在、按钮收回", async ({
@@ -34,7 +34,7 @@ test("电脑上：默认折起、块变宽 → 晚到的民宿压在折起那一
   await schedule(page, day1Table, "西湖", "09:00", "3");
   await pickKind(page, day1Table, "民宿", "住宿");
   await schedule(page, day1Table, "民宿", "22:00", "10");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   const day1 = timelineRow(page, "10.1");
   const day2 = timelineRow(page, "10.2");
   const fullDay = page.getByRole("button", { name: "0–24 点" });
@@ -63,7 +63,7 @@ test("电脑上：默认折起、块变宽 → 晚到的民宿压在折起那一
   await expect.poll(() => ticks(page)).toEqual(["0", "2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24"]);
   expect(foldedWidth).toBeGreaterThan((await box(segment(day1, "西湖"))).width * 1.5);
   // 画到 24 点时，最右的「24」写在 24 点那条线左边，不伸出横轴
-  const tick24 = await box(page.getByRole("region", { name: "时间轴" }).locator("[data-hour-tick]").last());
+  const tick24 = await box(page.getByRole("region", { name: "时间线" }).locator("[data-hour-tick]").last());
   const axisFull = await axisOf(day1);
   expect(tick24.x + tick24.width).toBeLessThanOrEqual(axisFull.rect.x + axisFull.rect.width + 0.5);
   await fullDay.click();
@@ -72,7 +72,7 @@ test("电脑上：默认折起、块变宽 → 晚到的民宿压在折起那一
   // 早班机不折：10.2 的航班 05:40 起，每一行都从 5 点画起，航班整个画出来
   await addBlocks(page, day2Table, ["航班"]);
   await schedule(page, day2Table, "航班", "05:40", "2");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   await expect.poll(async () => (await ticks(page))[0]).toBe("5");
   const flight = await box(segment(day2, "航班"));
   expect(flight.x).toBeGreaterThanOrEqual((await axisOf(day2)).rect.x + 24 - 0.5);
@@ -87,11 +87,11 @@ test("电脑上：默认折起、块变宽 → 晚到的民宿压在折起那一
   await shot(page, "02-drag-into-fold", { dragging: true });
   await page.mouse.up();
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe(dropped);
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   await expect.poll(async () => (await ticks(page))[0]).toBe(String(Number(dropped.slice(0, 2))));
   await page.keyboard.press("Control+z");
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("09:00–12:00");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   await expect.poll(async () => (await ticks(page))[0]).toBe("5");
 
   // 点右边折起的那一截（上边压着民宿那一小段，点下边空着的地方）：展开成 0–24 点；刷新还是；按「0–24 点」收回

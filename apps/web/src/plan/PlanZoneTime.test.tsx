@@ -27,17 +27,17 @@ describe("跨时区的时间写两地的时刻", () => {
     expect(await blockTexts("北京")).toEqual([{ title: "飞洛杉矶", time: "北京 18:00 → 洛杉矶 15:00" }]);
   });
 
-  it("时间轴的详情：点洛杉矶那一行的横条", async () => {
+  it("时间线的详情：点洛杉矶那一行的横条", async () => {
     const user = userEvent.setup();
     await openStoredPlan(flyToLosAngeles);
 
-    await showView("时间轴");
-    const timeline = await screen.findByRole("region", { name: "时间轴" });
+    await showView("时间线");
+    const timeline = await screen.findByRole("region", { name: "时间线" });
     const row = within(timeline)
       .getAllByRole("listitem")
       .find((item) => item.getAttribute("aria-label")?.includes("洛杉矶"));
-    if (!row) throw new Error("时间轴上没有洛杉矶那一行");
-    // 时间不在详情气泡里了（在快捷条和列表的时间格上）：横条自己的读屏名和鼠标提示写两地时刻
+    if (!row) throw new Error("时间线上没有洛杉矶那一行");
+    // 时间不在详情气泡里了（在快捷条和日程的时间格上）：横条自己的读屏名和鼠标提示写两地时刻
     const bar = within(row).getByRole("button", { name: /^飞洛杉矶 / });
     expect(bar.getAttribute("aria-label")).toBe("飞洛杉矶 北京 18:00 → 洛杉矶 15:00");
     expect(bar.getAttribute("title")).toBe("飞洛杉矶 北京 18:00 → 洛杉矶 15:00");

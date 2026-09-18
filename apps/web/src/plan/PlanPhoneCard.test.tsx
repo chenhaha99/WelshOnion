@@ -20,8 +20,8 @@ function lakePlan(plan: Y.Doc, library: Y.Doc): void {
 }
 
 async function lakeOnTimeline(): Promise<HTMLElement> {
-  await showView("时间轴");
-  const region = await screen.findByRole("region", { name: "时间轴" });
+  await showView("时间线");
+  const region = await screen.findByRole("region", { name: "时间线" });
   return waitFor(() => within(region).getByRole("button", { name: /^西湖 / }));
 }
 

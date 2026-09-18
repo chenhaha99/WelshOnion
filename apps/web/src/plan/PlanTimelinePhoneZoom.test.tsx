@@ -21,8 +21,8 @@ function lakePlan(plan: Y.Doc, library: Y.Doc): void {
 }
 
 async function timeline(): Promise<HTMLElement> {
-  await showView("时间轴");
-  return screen.findByRole("region", { name: "时间轴" });
+  await showView("时间线");
+  return screen.findByRole("region", { name: "时间线" });
 }
 
 function zoomButton(name: string): HTMLElement {
@@ -79,7 +79,7 @@ describe("竖排能放大缩小", () => {
 
     cleanup();
     renderApp(`#/plans/${planId}`);
-    await screen.findByRole("region", { name: "时间轴" });
+    await screen.findByRole("region", { name: "时间线" });
     expect(zoomButton("200%").getAttribute("aria-pressed")).toBe("true");
 
     cleanup();

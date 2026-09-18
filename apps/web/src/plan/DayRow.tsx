@@ -20,7 +20,7 @@ interface DayRowProps {
   filter?: StatsFilter;
 }
 
-/** 列表视图里的一天：组头（标签、这天的菜单）、展开的表单、这天怎么样，下面是这天的安排表。 */
+/** 日程视图里的一天：组头（标签、这天的菜单）、展开的表单、这天怎么样，下面是这天的安排表。 */
 export function DayRow({ doc, library, libraryView, plan, base, label, index, count, moneyCells, filter }: DayRowProps) {
   const dayMenu = useDayMenu({ doc, plan, base, label, index, count });
   const facts = dayFactsParts(plan, base, moneyCells, filter);

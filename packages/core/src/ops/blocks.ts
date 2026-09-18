@@ -295,7 +295,7 @@ export function setBlockTimed(
 
 /**
  * 松手前算出排上时间以后这个块是什么样，不改文档：底座、分钟、时长、层和 setBlockTimed 写进去再读出来的一样，
- * 也不再在没排时间的排序里。给时间轴从「没排时间」栏拖出来时画松手后的样子用。
+ * 也不再在没排时间的排序里。给时间线从「没排时间」栏拖出来时画松手后的样子用。
  */
 export function previewSetBlockTimed(
   plan: PlanView,

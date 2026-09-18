@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-// 时间轴走查共用：建计划、切换时间轴和列表、在安排表里加事排时间、在时间轴上量位置、用鼠标拖
+// 时间线走查共用：建计划、切换时间线和日程、在安排表里加事排时间、在时间线上量位置、用鼠标拖
 
 export const DAY1 = /10\.1 周四 的安排/;
 export const DAY2 = /10\.2 周五 的安排/;
@@ -11,7 +11,7 @@ export interface Point {
   y: number;
 }
 
-type ViewName = "时间轴" | "列表" | "总览";
+type ViewName = "时间线" | "日程" | "总览";
 
 interface NewPlanOptions {
   startDate?: string;
@@ -19,7 +19,7 @@ interface NewPlanOptions {
   height?: number;
 }
 
-/** 新建一个计划、定好几天，停在打开时的视图（现在是时间轴）。默认 10.1 出发、在 1280 × 900 的窗口里。 */
+/** 新建一个计划、定好几天，停在打开时的视图（现在是时间线）。默认 10.1 出发、在 1280 × 900 的窗口里。 */
 export async function newPlanKeepingView(
   page: Page,
   dayCount = 2,
@@ -37,12 +37,12 @@ export async function newPlanKeepingView(
 }
 
 /**
- * 新建一个计划、定好几天，再切到列表：多数走查从安排表开始。
- * 打开一个计划本来落在时间轴（`newPlanKeepingView` 停在那儿），要验「打开是哪个视图」的用那一个。
+ * 新建一个计划、定好几天，再切到日程：多数走查从安排表开始。
+ * 打开一个计划本来落在时间线（`newPlanKeepingView` 停在那儿），要验「打开是哪个视图」的用那一个。
  */
 export async function newPlan(page: Page, dayCount = 2, options: NewPlanOptions = {}): Promise<void> {
   await newPlanKeepingView(page, dayCount, options);
-  await showView(page, "列表");
+  await showView(page, "日程");
   await expect(page.getByRole("list", { name: "日期列表" }).getByRole("listitem")).toHaveCount(dayCount);
 }
 
@@ -50,7 +50,7 @@ async function pressedView(page: Page): Promise<ViewName> {
   return (await page.getByRole("group", { name: "视图" }).getByRole("button", { pressed: true }).innerText()) as ViewName;
 }
 
-/** 切到「时间轴」「列表」或「总览」视图；已经是就不点。切换按钮贴着顶时，点了页面滚到新视图的开头；没贴顶不滚。 */
+/** 切到「时间线」「日程」或「总览」视图；已经是就不点。切换按钮贴着顶时，点了页面滚到新视图的开头；没贴顶不滚。 */
 export async function showView(page: Page, name: ViewName): Promise<void> {
   if ((await pressedView(page)) === name) return;
   const views = page.getByRole("group", { name: "视图" });
@@ -59,12 +59,12 @@ export async function showView(page: Page, name: ViewName): Promise<void> {
 }
 
 /**
- * 在列表视图里做 action，做完切回原来的视图。读表、改表的辅助函数都这样：拖拽走查里拖一下、读一下表，测试里不用来回切。
+ * 在日程视图里做 action，做完切回原来的视图。读表、改表的辅助函数都这样：拖拽走查里拖一下、读一下表，测试里不用来回切。
  * 拖着没松手时不能用：一点切换按钮就松手了。
  */
 async function inList<T>(page: Page, action: () => Promise<T>): Promise<T> {
   const before = await pressedView(page);
-  await showView(page, "列表");
+  await showView(page, "日程");
   const result = await action();
   await showView(page, before);
   return result;
@@ -72,7 +72,7 @@ async function inList<T>(page: Page, action: () => Promise<T>): Promise<T> {
 
 /**
  * 切到「总览」看一眼开销总览、占比，看完切回原来的视图。
- * 开销总览和占比是第三个视图，别的走查大多在列表或时间轴里做事，看一眼数字就回来。
+ * 开销总览和占比是第三个视图，别的走查大多在日程或时间线里做事，看一眼数字就回来。
  */
 export async function inOverview<T>(
   page: Page,
@@ -102,10 +102,10 @@ export async function addBlocks(page: Page, table: Locator, titles: string[]): P
 
 /**
  * 安排表里标题是 title 的那一行。排时间会改变行的先后，所以按标题找到块 id 再定位。
- * 只切到列表、不切回：返回的行后面还要点。
+ * 只切到日程、不切回：返回的行后面还要点。
  */
 export async function rowOf(table: Locator, title: string): Promise<Locator> {
-  await showView(table.page(), "列表");
+  await showView(table.page(), "日程");
   const id = await table
     .locator("tr[data-block-id]")
     .evaluateAll(
@@ -204,12 +204,12 @@ export async function addMoney(
   });
 }
 
-/** 时间轴上这一天的那一行。不切视图：用之前要在时间轴视图里（box 会切）。 */
+/** 时间线上这一天的那一行。不切视图：用之前要在时间线视图里（box 会切）。 */
 export function timelineRow(page: Page, day: "10.1" | "10.2" | "10.3"): Locator {
-  return page.getByRole("region", { name: "时间轴" }).getByRole("listitem", { name: new RegExp(day.replace(".", "\\.")) });
+  return page.getByRole("region", { name: "时间线" }).getByRole("listitem", { name: new RegExp(day.replace(".", "\\.")) });
 }
 
-/** 时间轴这一行里读屏名以「title 」开头的那段横条的外框。 */
+/** 时间线这一行里读屏名以「title 」开头的那段横条的外框。 */
 export function segment(row: Locator, title: string): Locator {
   return row.locator("[data-segment]").filter({ has: row.page().getByRole("button", { name: new RegExp(`^${title} `) }) });
 }
@@ -225,7 +225,7 @@ export async function openPlanSettings(
   return settings;
 }
 
-/** 时间轴上打开一件事的详情面板：没选中就先点一下选中（点已选中的是取消选中），再点快捷条的「详情…」。 */
+/** 时间线上打开一件事的详情面板：没选中就先点一下选中（点已选中的是取消选中），再点快捷条的「详情…」。 */
 export async function openDetails(thing: Locator): Promise<void> {
   if ((await thing.getAttribute("aria-pressed")) !== "true") await thing.click();
   await thing.page().getByRole("button", { name: "详情…" }).click();
@@ -236,7 +236,7 @@ export function quickBar(page: Page, title: string): Locator {
   return page.getByRole("toolbar", { name: `「${title}」的操作` });
 }
 
-/** 时间轴上面那条「没排时间」（整个计划共用一条）。 */
+/** 时间线上面那条「没排时间」（整个计划共用一条）。 */
 export function tray(page: Page): Locator {
   return page.getByRole("group", { name: "没排时间" });
 }
@@ -248,19 +248,19 @@ export function chip(page: Page, title: string): Locator {
     .filter({ has: page.getByRole("button", { name: new RegExp(`^${title} `) }) });
 }
 
-/** 时间轴某一行第一列的「＋ 加一件事」：点开，返回弹出来的输入框。 */
+/** 时间线某一行第一列的「＋ 加一件事」：点开，返回弹出来的输入框。 */
 export async function openAddBlock(page: Page, row: Locator): Promise<Locator> {
   await row.getByRole("button", { name: "加一件事" }).click();
   return page.getByRole("dialog", { name: "加一件事" }).getByRole("textbox", { name: "加一件事" });
 }
 
 /**
- * 量时间轴里某个元素在屏幕上的位置。先切到时间轴视图，再把整张时间轴滚进屏幕：
+ * 量时间线里某个元素在屏幕上的位置。先切到时间线视图，再把整张时间线滚进屏幕：
  * 量出来的点在屏幕外，鼠标按下去什么都收不到。整张卡片一次滚好，前后量的几个点才对得上。
  */
 export async function box(locator: Locator) {
-  await showView(locator.page(), "时间轴");
-  await locator.page().getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
+  await showView(locator.page(), "时间线");
+  await locator.page().getByRole("region", { name: "时间线" }).scrollIntoViewIfNeeded();
   const found = await locator.boundingBox();
   if (!found) throw new Error("量不到位置");
   return found;
@@ -275,7 +275,7 @@ export function center(rect: { x: number; y: number; width: number; height: numb
  * 折起时块拖到凌晨，横轴会跟着伸缩，前面量好的「一小时多宽」就不对了。
  */
 export async function showFullDay(page: Page): Promise<void> {
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   const button = page.getByRole("button", { name: "0–24 点" });
   // 已经按下就不点（点了会收回去）
   if ((await button.getAttribute("aria-pressed")) !== "true") await button.click();

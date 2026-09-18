@@ -28,12 +28,12 @@ async function dayWithMoney(): Promise<void> {
     block(plan, library, { baseId: day!, kindId: "sight", title: "灵隐寺", minute: 840, duration: 120 });
     block(plan, library, { baseId: day!, kindId: "stay", title: "在杭州", minute: 0, duration: 1440 });
   });
-  await showView("时间轴");
+  await showView("时间线");
 }
 
-/** 时间轴上读屏名以「title 」开头的那一段的外框。 */
+/** 时间线上读屏名以「title 」开头的那一段的外框。 */
 async function segmentOf(title: string): Promise<HTMLElement> {
-  const timeline = await screen.findByRole("region", { name: "时间轴" });
+  const timeline = await screen.findByRole("region", { name: "时间线" });
   return within(timeline)
     .getByRole("button", { name: new RegExp(`^${title} `) })
     .closest<HTMLElement>("[data-segment]")!;
@@ -164,7 +164,7 @@ describe("块上写标题、开销：两个开关各开各关", () => {
       block(plan, library, { baseId: day!, kindId: "sight", title: "看潮", minute: 720, duration: 45 });
       block(plan, library, { baseId: day!, kindId: "stay", title: "在杭州", minute: 0, duration: 1440 });
     });
-    await showView("时间轴");
+    await showView("时间线");
 
     await toggle(user, "时长");
 
@@ -192,7 +192,7 @@ describe("块上写标题、开销：两个开关各开各关", () => {
       addExpense(plan, library, { title: "面", amountCents: 12000, blockIds: [lunch] });
       addExpense(plan, library, { title: "汤", amountCents: 3850, blockIds: [lunch] });
     });
-    await showView("时间轴");
+    await showView("时间线");
 
     await toggle(user, "开销");
 
@@ -221,8 +221,8 @@ describe("块上写标题、开销：两个开关各开各关", () => {
 
     await toggle(user, "开销");
     await toggle(user, "标题");
-    await showView("列表");
-    await showView("时间轴");
+    await showView("日程");
+    await showView("时间线");
 
     await waitFor(() => expect(pressed("开销")).toBe("true"));
     expect(pressed("标题")).toBe("false");

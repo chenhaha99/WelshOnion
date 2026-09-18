@@ -28,7 +28,7 @@ async function boxInRow(element: Locator, row: Locator): Promise<number[]> {
   return [box.x - rowBox.x, box.y - rowBox.y, box.width, box.height].map(Math.round);
 }
 
-test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小不变 → 列表里划掉另一件 → 只看没划掉的 → 总览写划掉了几件", async ({ page }) => {
+test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小不变 → 日程里划掉另一件 → 只看没划掉的 → 总览写划掉了几件", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 1);
@@ -37,7 +37,7 @@ test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小�
   await schedule(page, day1Table, "西湖", "09:00", "3");
   await schedule(page, day1Table, "灵隐寺", "14:00", "2");
   await schedule(page, day1Table, "河坊街", "19:00", "2");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   const day1 = timelineRow(page, "10.1");
   const lake = segment(day1, "西湖").getByRole("button", { name: /^西湖 / });
 
@@ -68,8 +68,8 @@ test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小�
   await page.keyboard.press("Escape");
   await shot(page, "01-struck-bar");
 
-  // 列表里划掉「河坊街」：标题前面的勾选框；这一行左边一道变虚线，标题划一道
-  await showView(page, "列表");
+  // 日程里划掉「河坊街」：标题前面的勾选框；这一行左边一道变虚线，标题划一道
+  await showView(page, "日程");
   const street = await rowOf(day1Table, "河坊街");
   await street.getByRole("checkbox", { name: "划掉" }).check();
   await expect(street).toHaveAttribute("data-checked", "true");
@@ -80,8 +80,8 @@ test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小�
   ).toBe("line-through");
   await shot(page, "02-list-struck");
 
-  // 只看没划掉的：时间轴上只剩「灵隐寺」
-  await showView(page, "时间轴");
+  // 只看没划掉的：时间线上只剩「灵隐寺」
+  await showView(page, "时间线");
   await page.getByRole("button", { name: "只看没划掉的" }).click();
   await expect(segment(day1, "西湖")).toHaveCount(0);
   await expect(segment(day1, "河坊街")).toHaveCount(0);
@@ -102,8 +102,8 @@ test("手机上：竖条选中，底部快捷条的「划掉」，竖条变成�
   const day1Table = page.getByRole("table", { name: DAY1 });
   await addBlocks(page, day1Table, ["西湖"]);
   await schedule(page, day1Table, "西湖", "09:00", "3");
-  await showView(page, "时间轴");
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  await showView(page, "时间线");
+  const timeline = page.getByRole("region", { name: "时间线" });
   const lake = timeline.getByRole("button", { name: /^西湖 / });
 
   await lake.click();
@@ -117,7 +117,7 @@ test("手机上：竖条选中，底部快捷条的「划掉」，竖条变成�
   expect(errors).toEqual([]);
 });
 
-test("只看没划掉的：只用键盘在列表里挨个划掉 → 焦点落到下一行 → 一行不剩焦点到这天的菜单 → 手机上那一行不撑出屏幕", async ({ page }) => {
+test("只看没划掉的：只用键盘在日程里挨个划掉 → 焦点落到下一行 → 一行不剩焦点到这天的菜单 → 手机上那一行不撑出屏幕", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });

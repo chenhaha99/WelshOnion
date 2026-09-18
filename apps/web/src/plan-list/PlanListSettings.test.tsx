@@ -146,7 +146,7 @@ describe("导入一个计划", () => {
     await chooseFile(user, await openSettings(user), fileText);
 
     expect(await screen.findByRole("button", { name: "关西 10 天" })).toBeTruthy();
-    await showView("列表");
+    await showView("日程");
     expect(await screen.findByDisplayValue("西湖")).toBeTruthy();
     await user.click(screen.getByRole("link", { name: /我的计划/ }));
     expect(await cardNames()).toEqual(["关西 10 天"]);
@@ -168,7 +168,7 @@ describe("导入一个计划", () => {
     expect(ids).toContain(planId);
     await user.click(screen.getByRole("link", { name: /^关西 10 天(?!（导入）)/ }));
     expect(await screen.findByRole("button", { name: "关西 10 天" })).toBeTruthy();
-    await showView("列表");
+    await showView("日程");
     expect(await screen.findByDisplayValue("西湖")).toBeTruthy();
   });
 });

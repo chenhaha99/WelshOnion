@@ -49,15 +49,15 @@ interface DayTimelineProps {
   blockText: BlockText;
   /** 每小时多高（像素）：视图那一行的「竖向放大」定 */
   hourHeight: number;
-  /** 看的是哪天（底座 id），记在 DayList 里：切到列表时这里卸掉，切回来接着看这天 */
+  /** 看的是哪天（底座 id），记在 DayList 里：切到日程时这里卸掉，切回来接着看这天 */
   shownDay: { current: string | null };
   /** 搜索里点了一条：翻到这天（seq 变了才算一次新的） */
   jump: { baseId: string; seq: number } | null;
 }
 
 /**
- * 窄屏上的时间轴：一次看一天，纵向 0–24 点按真实比例，放在能上下滚的框里。
- * 打开时落在今天（没出发是第一天，已结束是最后一天），切到列表再切回来还是原来那天；滚到现在或这天第一件事，只在打开、翻天时滚。
+ * 窄屏上的时间线：一次看一天，纵向 0–24 点按真实比例，放在能上下滚的框里。
+ * 打开时落在今天（没出发是第一天，已结束是最后一天），切到日程再切回来还是原来那天；滚到现在或这天第一件事，只在打开、翻天时滚。
  * 块画成竖条，同一层重叠的并排成列，停留、住宿这类在左边的细条里；竖条能拖着挪时间，拖动中画成松手后的样子（见 use-timeline-drag）。
  * 标签旁边是这天的菜单；框下面列出这天没排时间的事（没有就不出现，那里的事不能拖），再下面一直有「加一件事」。
  * 点一件事选中它，快捷条固定在屏幕底部（手指够得着，也不会被块挤到屏幕外）。
@@ -80,7 +80,7 @@ export function DayTimeline({
   const timeZone = useTimeZone();
   const today = todayIn(now(), timeZone);
   const todayIndex = initialDayIndex(plan.bases, today);
-  // 切走前看的那天还在就接着看（在列表里删了前面的天也还是那天），不然按今天落
+  // 切走前看的那天还在就接着看（在日程里删了前面的天也还是那天），不然按今天落
   const [chosen, setChosen] = useState(() => {
     const shown = plan.bases.findIndex((item) => item.id === shownDay.current);
     return shown >= 0 ? shown : todayIndex;

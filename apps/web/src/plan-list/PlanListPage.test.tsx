@@ -74,7 +74,7 @@ describe("一个计划都没有时", () => {
   it("第一次用", async () => {
     renderApp("#/");
     expect(await screen.findByRole("button", { name: "新建第一个计划" })).toBeTruthy();
-    expect(screen.getByText(/把旅行排进时间轴/)).toBeTruthy();
+    expect(screen.getByText(/把旅行排进时间线/)).toBeTruthy();
   });
 });
 

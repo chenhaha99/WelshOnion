@@ -33,24 +33,24 @@ async function oneDay(struck: string[] = []): Promise<void> {
 }
 
 async function timeline(): Promise<HTMLElement> {
-  return screen.findByRole("region", { name: "时间轴" });
+  return screen.findByRole("region", { name: "时间线" });
 }
 
-/** 时间轴上读屏名以「title 」开头的那个按钮（横条、竖条、条上的一件）。 */
+/** 时间线上读屏名以「title 」开头的那个按钮（横条、竖条、条上的一件）。 */
 async function blockButton(title: string): Promise<HTMLElement> {
   return within(await timeline()).getByRole("button", { name: new RegExp(`^${title} `) });
 }
 
-/** 画这件事的那一层（横条、竖条的外框，条上的一件，列表的一行）上记着划没划掉，样子按它画。 */
+/** 画这件事的那一层（横条、竖条的外框，条上的一件，日程的一行）上记着划没划掉，样子按它画。 */
 function struck(element: HTMLElement): boolean {
   return element.closest<HTMLElement>("[data-block-id]")!.dataset.checked === "true";
 }
 
 describe("在哪划掉", () => {
-  it("时间轴上：快捷条第一个是「划掉」，点了块画成划掉的样子、焦点留着；Ctrl+Z 撤销", async () => {
+  it("时间线上：快捷条第一个是「划掉」，点了块画成划掉的样子、焦点留着；Ctrl+Z 撤销", async () => {
     const user = userEvent.setup();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("西湖"));
     const bar = screen.getByRole("toolbar", { name: "「西湖」的操作" });
@@ -69,7 +69,7 @@ describe("在哪划掉", () => {
     await waitFor(async () => expect(struck(await blockButton("西湖"))).toBe(false));
   });
 
-  it("列表里：标题前面的勾选框", async () => {
+  it("日程里：标题前面的勾选框", async () => {
     const user = userEvent.setup();
     await oneDay();
 
@@ -81,7 +81,7 @@ describe("在哪划掉", () => {
     await waitFor(() => expect(box.checked).toBe(true));
     expect(document.activeElement).toBe(box);
     expect(struck(row)).toBe(true);
-    await showView("时间轴");
+    await showView("时间线");
     expect(struck(await blockButton("西湖"))).toBe(true);
   });
 
@@ -89,7 +89,7 @@ describe("在哪划掉", () => {
     stubNarrowScreen();
     const user = userEvent.setup();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("西湖"));
     await user.click(within(screen.getByRole("toolbar", { name: "「西湖」的操作" })).getByRole("button", { name: "划掉" }));
@@ -101,7 +101,7 @@ describe("在哪划掉", () => {
 describe("划掉的怎么显示", () => {
   it("横条画成划掉的样子，读屏名末尾加「 · 划掉了」；没划掉的照常；块上没有角标", async () => {
     await oneDay(["西湖"]);
-    await showView("时间轴");
+    await showView("时间线");
 
     const lake = await blockButton("西湖");
     expect(struck(lake)).toBe(true);
@@ -112,19 +112,19 @@ describe("划掉的怎么显示", () => {
     expect(document.querySelector("[data-checked-mark]")).toBeNull();
   });
 
-  it("「没排时间」栏里的一件、列表的一行也是", async () => {
+  it("「没排时间」栏里的一件、日程的一行也是", async () => {
     await oneDay(["河坊街"]);
 
     expect(struck(await blockRow("10.1", "河坊街"))).toBe(true);
     expect(struck(await blockRow("10.1", "西湖"))).toBe(false);
-    await showView("时间轴");
+    await showView("时间线");
     expect(struck(await blockButton("河坊街"))).toBe(true);
   });
 
   it("手机上的竖条也是", async () => {
     stubNarrowScreen();
     await oneDay(["西湖"]);
-    await showView("时间轴");
+    await showView("时间线");
 
     expect(struck(await blockButton("西湖"))).toBe(true);
     expect(struck(await blockButton("灵隐寺"))).toBe(false);
@@ -139,10 +139,10 @@ describe("只看没划掉的", () => {
     expect(screen.queryByRole("button", { name: "只看没划掉的" })).toBeNull();
   });
 
-  it("按下后时间轴只剩没划掉的", async () => {
+  it("按下后时间线只剩没划掉的", async () => {
     const user = userEvent.setup();
     await oneDay(["西湖"]);
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
 
@@ -155,7 +155,7 @@ describe("只看没划掉的", () => {
   it("按下以后划掉的都取消了：按钮还在、还按着，不然取消不了", async () => {
     const user = userEvent.setup();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("西湖"));
     await user.click(within(screen.getByRole("toolbar", { name: "「西湖」的操作" })).getByRole("button", { name: "划掉" }));
@@ -174,7 +174,7 @@ describe("只看没划掉的", () => {
   it("和按类型筛一起：都要满足", async () => {
     const user = userEvent.setup();
     await oneDay(["西湖"]);
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
     await user.click(within(screen.getByRole("group", { name: "按类型筛选" })).getByRole("button", { name: "游玩" }));

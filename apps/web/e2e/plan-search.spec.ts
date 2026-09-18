@@ -22,7 +22,7 @@ async function searchFor(page: Page, query: string): Promise<Locator> {
   return panel;
 }
 
-test("电脑上：放大到 400% 搜一件 → 跳过去选中、横条在屏幕里 → 列表里跳到那一行", async ({ page }) => {
+test("电脑上：放大到 400% 搜一件 → 跳过去选中、横条在屏幕里 → 日程里跳到那一行", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 3);
@@ -32,8 +32,8 @@ test("电脑上：放大到 400% 搜一件 → 跳过去选中、横条在屏幕
   await addBlocks(page, page.getByRole("table", { name: DAY3 }), ["西湖夜游"]);
   await schedule(page, page.getByRole("table", { name: DAY3 }), "西湖夜游", "21:00", "2");
 
-  // 时间轴放大到 400%：21:00 的块在横向滚动框外面
-  await showView(page, "时间轴");
+  // 时间线放大到 400%：21:00 的块在横向滚动框外面
+  await showView(page, "时间线");
   await page.getByRole("slider", { name: "横向放大" }).fill("400");
   const day3 = timelineRow(page, "10.3");
   const night = segment(day3, "西湖夜游");
@@ -55,13 +55,13 @@ test("电脑上：放大到 400% 搜一件 → 跳过去选中、横条在屏幕
   await expect(quickBar(page, "西湖夜游")).toBeVisible();
   await expect(bar).toBeFocused();
   await expectInWindow(page, bar);
-  // 只横着滚过去，没把时间轴竖着滚：最上面钟点那一行还在
+  // 只横着滚过去，没把时间线竖着滚：最上面钟点那一行还在
   expect(await page.locator("[data-timeline-scroll]").evaluate((element) => element.scrollTop)).toBe(0);
   await expect(page.locator("[data-hour-tick]").filter({ hasText: /^22$/ })).toBeInViewport();
   await shot(page, "02-jumped-timeline");
 
-  // 列表里：只用键盘搜，跳到那一行的「这件事的操作」
-  await showView(page, "列表");
+  // 日程里：只用键盘搜，跳到那一行的「这件事的操作」
+  await showView(page, "日程");
   await page.getByRole("button", { name: "搜索", exact: true }).click();
   await page.keyboard.type("灵隐");
   await page.keyboard.press("ArrowDown");
@@ -88,8 +88,8 @@ test("手机上：页顶四个图标放得下 → 竖排看着第 1 天，搜第
     await expectInWindow(page, top.getByRole("button", { name, exact: true }));
   }
 
-  await showView(page, "时间轴");
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  await showView(page, "时间线");
+  const timeline = page.getByRole("region", { name: "时间线" });
   await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 1 天 · 10.1 周四");
 
   // 面板占满屏幕

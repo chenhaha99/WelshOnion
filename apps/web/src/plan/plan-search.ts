@@ -17,7 +17,7 @@ export interface SearchHit {
 
 /**
  * 计划内搜索：在每件事的标题、短备注、长备注和挂在它上面的开销说明里找，不分大小写，
- * 空格隔开的几个词都要出现（不必在同一样里）。顺序和列表视图一样：按天，每天里排了时间的在前、没排时间的在后。
+ * 空格隔开的几个词都要出现（不必在同一样里）。顺序和日程视图一样：按天，每天里排了时间的在前、没排时间的在后。
  */
 export function searchPlan(plan: PlanView, query: string): SearchHit[] {
   const words = query.trim().toLowerCase().split(/\s+/).filter((word) => word !== "");

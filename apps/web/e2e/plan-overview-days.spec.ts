@@ -34,7 +34,7 @@ async function barShare(table: Locator, name: RegExp): Promise<number> {
     .evaluate((track) => track.firstElementChild!.getBoundingClientRect().width / track.getBoundingClientRect().width);
 }
 
-test("电脑上：总览里并排看每天 → 细条按各天花的钱比 → 点日期到时间轴上的那天", async ({ page }) => {
+test("电脑上：总览里并排看每天 → 细条按各天花的钱比 → 点日期到时间线上的那天", async ({ page }) => {
   const errors = watchErrors(page);
   // 「现在」是 10.2 上午：那天写「今天」
   await page.clock.setFixedTime(new Date("2026-10-02T02:00:00Z"));
@@ -65,11 +65,11 @@ test("电脑上：总览里并排看每天 → 细条按各天花的钱比 → �
   expect(await barShare(table, /10\.1/)).toBeCloseTo(300 / 450, 2);
   await shot(page, "01-desktop-days");
 
-  // 点第 3 天的日期：到时间轴，那一行的「这天的操作」在屏幕里、有焦点
-  await card.getByRole("button", { name: "在时间轴上看 第 3 天 · 10.3 周六" }).click();
-  await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
+  // 点第 3 天的日期：到时间线，那一行的「这天的操作」在屏幕里、有焦点
+  await card.getByRole("button", { name: "在时间线上看 第 3 天 · 10.3 周六" }).click();
+  await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name: "时间线", pressed: true })).toBeVisible();
   const menu = page
-    .getByRole("region", { name: "时间轴" })
+    .getByRole("region", { name: "时间线" })
     .getByRole("listitem", { name: /10\.3/ })
     .getByRole("button", { name: "这天的操作" });
   await expect(menu).toBeFocused();
@@ -87,14 +87,14 @@ test("手机上：一天两行字、不横着滚 → 点日期竖排翻到那天
   const card = page.getByRole("region", { name: "每天" });
   await expect(card.getByRole("table")).toHaveCount(0);
   const oct1 = card.getByRole("list", { name: "每天" }).getByRole("listitem").first();
-  await expect(oct1.getByRole("button", { name: "在时间轴上看 第 1 天 · 10.1 周四" })).toBeVisible();
+  await expect(oct1.getByRole("button", { name: "在时间线上看 第 1 天 · 10.1 周四" })).toBeVisible();
   await expect(oct1.locator("[data-day-money]")).toHaveText("¥300");
   await expect(oct1.locator("[data-day-line]")).toHaveText("09:00 起 · 12:30 收工 · 排了 3.5 小时 · 还有 2 小时没排 · 3 件");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await card.scrollIntoViewIfNeeded();
   await page.screenshot({ path: test.info().outputPath("03-phone-days.png") });
 
-  await card.getByRole("button", { name: "在时间轴上看 第 2 天 · 10.2 周五" }).click();
+  await card.getByRole("button", { name: "在时间线上看 第 2 天 · 10.2 周五" }).click();
   await expect(page.locator("[data-timeline-day]")).toHaveText("第 2 天 · 10.2 周五");
   await expect(page.locator("[data-base-id]").getByRole("button", { name: "这天的操作" })).toBeFocused();
   await page.screenshot({ path: test.info().outputPath("04-phone-jumped.png") });

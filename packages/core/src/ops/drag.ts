@@ -143,7 +143,7 @@ export function previewCopyId(blockId: string): string {
 /**
  * 松手前算出挪块（copy 为真时是复制块）以后计划里的块是什么样，不改文档：
  * 每个块的底座、分钟、存的层，和 moveBlock / duplicateBlock 写进去再读出来的一样；复制出来的块 id 是原 id 加「:copy」。
- * 只算块，不算钱：给时间轴拖动中画松手后的样子用。
+ * 只算块，不算钱：给时间线拖动中画松手后的样子用。
  */
 export function previewDrop(
   plan: PlanView,

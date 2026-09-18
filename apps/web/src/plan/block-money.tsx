@@ -20,7 +20,7 @@ interface BlockMoneyProps {
 
 /**
  * 改这件事的开销，两处共用：快捷条上的「¥」、块上附件栏里写着的开销。
- * 点了贴着按钮弹出完整的开销编辑区（和列表里点开销格展开的是同一套）：每笔一行能改类型、金额、人均或总价、说明，
+ * 点了贴着按钮弹出完整的开销编辑区（和日程里点开销格展开的是同一套）：每笔一行能改类型、金额、人均或总价、说明，
  * 末尾一行空的填了才建，下面还能挂上已有的一笔。你提的：以前只弹一个填金额的小框，「现在太简单」。
  */
 export function BlockMoney({ doc, library, libraryView, plan, block, moneyCell, variant }: BlockMoneyProps) {

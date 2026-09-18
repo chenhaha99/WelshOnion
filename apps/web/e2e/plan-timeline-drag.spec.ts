@@ -97,7 +97,7 @@ test("拖中间：点一下开详情 → 预览 → 挪 → 撤销重做 → 吸
   const innMorning = center(await box(segment(day2, "民宿")));
   await drag(page, innMorning, { x: innMorning.x + hour, y: innMorning.y });
   await expect.poll(() => timeOf(day1Table, "民宿")).toBe("23:00–10.2 09:00");
-  await page.getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
+  await page.getByRole("region", { name: "时间线" }).scrollIntoViewIfNeeded();
   await shot(page, "02-after-moves");
 
   expect(errors).toEqual([]);
@@ -155,7 +155,7 @@ test("拖两端：左端时里面的块不动 → 右端 → 左端拖过右端 
   const tideLeft = { x: tide.x + 1, y: tide.y + tide.height / 2 };
   await drag(page, tideLeft, { x: tideLeft.x + hour, y: tideLeft.y });
   await expect.poll(() => timeOf(day3Table, "看潮")).toBe("13:00–13:15");
-  await page.getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
+  await page.getByRole("region", { name: "时间线" }).scrollIntoViewIfNeeded();
   await shot(page, "01-edges");
 
   expect(errors).toEqual([]);
@@ -193,7 +193,7 @@ test("叠上去还是放旁边，松手前就画成松手后的样子：中间�
   await dragPalaceOntoHengdian(0.5);
   await expect(segment(day1, "横店")).toHaveAttribute("data-drop-target", "true");
   await expectPalace("1", "1");
-  await page.getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
+  await page.getByRole("region", { name: "时间线" }).scrollIntoViewIfNeeded();
   await shot(page, "01-drop-onto", { dragging: true });
   await page.mouse.up();
   await expectPalace("1", "1");
@@ -269,7 +269,7 @@ test("按住 Alt 复制 → Esc 放弃 → 拖的时候块没了", async ({ page
   await expect(label).toHaveText("复制 · 09:00–12:00");
   await expect(segment(day1, "西湖")).not.toHaveAttribute("data-lifted", "true");
   await expect(segment(day2, "西湖")).toHaveAttribute("data-lifted", "true");
-  await page.getByRole("region", { name: "时间轴" }).scrollIntoViewIfNeeded();
+  await page.getByRole("region", { name: "时间线" }).scrollIntoViewIfNeeded();
   await shot(page, "01-alt-copy", { dragging: true });
   await page.mouse.up();
   await page.keyboard.up("Alt");
@@ -314,7 +314,7 @@ test("行不变矮 → 只有一道时拖到横条上边也能并排", async ({ 
   await schedule(page, day1Table, "游船", "10:00", "2");
   const day1 = timelineRow(page, "10.1");
   const day2 = timelineRow(page, "10.2");
-  // box 先切到时间轴视图再量
+  // box 先切到时间线视图再量
   const axisHeight = async () => (await box(day1.locator("[data-timeline-axis]"))).height;
   const twoLanes = await axisHeight();
   await expect(segment(day1, "游船")).toHaveAttribute("data-lane", "2");

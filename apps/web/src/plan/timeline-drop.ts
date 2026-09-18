@@ -25,12 +25,12 @@ import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from 
 import { axisPixel, type HourWindow } from "./timeline-window";
 
 /*
- * 时间轴上拖拽松手后的事：松手调哪个操作、带什么参数（松手写入和拖动中画的样子共用这一份），
+ * 时间线上拖拽松手后的事：松手调哪个操作、带什么参数（松手写入和拖动中画的样子共用这一份），
  * 松手后的计划和行怎么画，指针落在哪块的中间（叠上去还是放旁边）。不碰 DOM：屏幕上的位置由调用方量好传进来。
  */
 
 const MINUTES_PER_DAY = 1440;
-/** 没填时长的事拖上时间轴给多长（分钟），和安排表「排上时间」的默认一样 */
+/** 没填时长的事拖上时间线给多长（分钟），和安排表「排上时间」的默认一样 */
 const DEFAULT_DURATION_MIN = 60;
 /** 落在一块的这一段（横排从上往下、竖排从左往右）算中间，叠上去；两边放旁边 */
 /** 块的上下边（竖排左右边）各留这么多算「边上」：横排按道高的比例，竖排按这一段自己的宽度 */
@@ -126,7 +126,7 @@ export function clampStart(value: number, span: Span, rowCount: number, day: num
 
 /**
  * 松手后的计划，用和松手写入同一套算法：挪、复制用 core 的 previewDrop，排上时间用 previewSetBlockTimed，
- * 改长度只改这一块的开始和时长。拖进栏里时时间轴不重排，是 null；块已经不在了也是 null。
+ * 改长度只改这一块的开始和时长。拖进栏里时时间线不重排，是 null；块已经不在了也是 null。
  */
 export function droppedPlan(plan: PlanView, library: LibraryView, action: DropAction): PlanView | null {
   switch (action.kind) {
@@ -166,7 +166,7 @@ function withBlock(plan: PlanView, blockId: string, patch: Partial<BlockView>): 
 }
 
 /**
- * 拖动中画的每一行：松手后的计划按画时间轴的同一套摆好。
+ * 拖动中画的每一行：松手后的计划按画时间线的同一套摆好。
  * keepHeights（横排）时每行的道数、背景条数不比拖之前少：块离开的那一行不变矮，指针下面不会换成下一行。
  */
 export function droppedRows(

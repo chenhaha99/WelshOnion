@@ -29,8 +29,8 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
-  // 打开是时间轴：这份走查从安排表开始，先切到列表
-  await showView(page, "列表");
+  // 打开是时间线：这份走查从安排表开始，先切到日程
+  await showView(page, "日程");
 
   const card = page.getByRole("region", { name: "占比" });
   const moneyPart = card.getByRole("group", { name: "开销的占比" });
@@ -46,7 +46,7 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await shot(page, "01-empty");
 
   // 三件事：在杭州（停留）、西湖（游玩）、午饭（餐饮）
-  await showView(page, "列表");
+  await showView(page, "日程");
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const rows = table.locator("tr[data-block-id]");
   await table.getByRole("textbox", { name: "加一件事" }).click();
@@ -64,7 +64,7 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await expect(baseLayer).toBeVisible();
   await expect(timePart).toContainText("除了停留，还没有排了时间的事");
 
-  await showView(page, "列表");
+  await showView(page, "日程");
   await schedule(page, rows.nth(1), "西湖", "09:00", "3");
   await schedule(page, rows.nth(2), "午饭", "12:00", "1");
   await showView(page, "总览");
@@ -82,7 +82,7 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await expect(timePart.getByRole("listitem")).toHaveText(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
 
   // 取消在杭州的时间：停留一分钟都没占到，勾选消失；撤销后回来
-  await showView(page, "列表");
+  await showView(page, "日程");
   await rows.nth(0).getByRole("button", { name: "时间" }).click();
   await page.getByRole("group", { name: "在杭州 的时间" }).getByRole("button", { name: "取消时间" }).click();
   await showView(page, "总览");
@@ -92,7 +92,7 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await expect(baseLayer).toBeVisible();
 
   // 开销：西湖 300 和一笔只写了说明的打车；午饭 150；不属于任何一天的签证 600
-  await showView(page, "列表");
+  await showView(page, "日程");
   await expect(rows.nth(1).getByRole("textbox", { name: "标题" })).toHaveValue("西湖");
   await rows.nth(1).getByRole("button", { name: "开销" }).click();
   const lakeMoney = page.getByRole("group", { name: "西湖 的开销" });
@@ -136,7 +136,7 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await shot(page, "04-money");
 
   // 划掉了几件：划掉西湖
-  await showView(page, "列表");
+  await showView(page, "日程");
   await rows.nth(1).getByRole("checkbox", { name: "划掉" }).check();
   await inOverview(page, () => expect(card.getByText("划掉 1 件，共 3 件")).toBeVisible());
 

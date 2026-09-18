@@ -119,7 +119,7 @@ describe("按类型筛选", () => {
     expect(within(kindGroup()).getAllByRole("button").map((button) => button.textContent)).toEqual(["住宿", "全部类型"]);
   });
 
-  it("只看住宿：表和时间轴只剩住宿的块", async () => {
+  it("只看住宿：表和时间线只剩住宿的块", async () => {
     const user = userEvent.setup();
     await openStoredPlan(threeKinds);
 
@@ -128,8 +128,8 @@ describe("按类型筛选", () => {
     expect(within(kindGroup()).getByRole("button", { name: "住宿" }).getAttribute("aria-pressed")).toBe("true");
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿"]));
     expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
-    await showView("时间轴");
-    const tray = within(await screen.findByRole("region", { name: "时间轴" })).getByRole("group", { name: "没排时间" });
+    await showView("时间线");
+    const tray = within(await screen.findByRole("region", { name: "时间线" })).getByRole("group", { name: "没排时间" });
     expect(within(tray).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["民宿 10.1 整天"]);
   });
 
@@ -251,7 +251,7 @@ describe("按类型筛选时的开销", () => {
     expect((await moneyOverview()).textContent).toContain("总额 ¥480");
   });
 
-  it("只挂着别的类型的开销：写「填开销」、另写一行；时间轴上点开，面板的「开销」也这么写", async () => {
+  it("只挂着别的类型的开销：写「填开销」、另写一行；时间线上点开，面板的「开销」也这么写", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -262,8 +262,8 @@ describe("按类型筛选时的开销", () => {
     await pressKind(user, "住宿");
 
     await waitFor(async () => expect(await moneyCellOf("10.1", "酒店")).toEqual({ label: "填开销", note: "另有别的类型的开销" }));
-    await showView("时间轴");
-    const timeline = await screen.findByRole("region", { name: "时间轴" });
+    await showView("时间线");
+    const timeline = await screen.findByRole("region", { name: "时间线" });
     // 开销在快捷条上：按钮的读屏名写着这块开销格的字
     await user.click(within(timeline).getAllByRole("button", { name: /^酒店 / })[0]!);
     const bar = screen.getByRole("toolbar", { name: "「酒店」的操作" });
@@ -281,7 +281,7 @@ describe("按类型筛选时的开销", () => {
 
     await pressKind(user, "住宿");
 
-    await showView("列表");
+    await showView("日程");
     const line = await screen.findByText("有 ¥300 挂在被筛掉的事上");
     const list = screen.getByRole("list", { name: "日期列表" });
     expect(line.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -370,7 +370,7 @@ describe("筛选开着时改块", () => {
     setBlockChecked(plan, [lunch], true);
   }
 
-  /** 列表里点这一行标题前面的「划掉」。 */
+  /** 日程里点这一行标题前面的「划掉」。 */
   async function strike(user: User, title: string): Promise<void> {
     await user.click(within(await blockRow("10.1", title)).getByRole("checkbox", { name: "划掉" }));
   }

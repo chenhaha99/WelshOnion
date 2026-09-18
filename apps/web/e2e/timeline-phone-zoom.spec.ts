@@ -19,8 +19,8 @@ test("手机上：竖向放大三档 → 放到 200% 正中间的钟点不跳 �
   await addBlocks(page, day1Table, ["西湖", "午饭"]);
   await schedule(page, day1Table, "西湖", "09:00", "3");
   await schedule(page, day1Table, "午饭", "12:00", "0", "30");
-  await showView(page, "时间轴");
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  await showView(page, "时间线");
+  const timeline = page.getByRole("region", { name: "时间线" });
   const scroller = timeline.locator("[data-day-scroll]");
   const axis = timeline.locator("[data-day-axis]");
   const zoom = page.getByRole("group", { name: "竖向放大" });
@@ -57,7 +57,7 @@ test("手机上：竖向放大三档 → 放到 200% 正中间的钟点不跳 �
 
   // 刷新还是 50%
   await page.reload();
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   await expect(page.getByRole("group", { name: "竖向放大" }).getByRole("button", { name: "50%", pressed: true })).toBeVisible();
 
   expect(errors).toEqual([]);

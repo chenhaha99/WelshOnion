@@ -59,8 +59,8 @@ export function stubNarrowScreen(): void {
   }));
 }
 
-/** 切到「时间轴」「列表」或「总览」视图；已经是就不动。 */
-export async function showView(name: "时间轴" | "列表" | "总览"): Promise<void> {
+/** 切到「时间线」「日程」或「总览」视图；已经是就不动。 */
+export async function showView(name: "时间线" | "日程" | "总览"): Promise<void> {
   // 找日期列表的辅助函数每次都先调它，用 CSS 选择器找，比按读屏名找快
   const button = await waitFor(() => {
     const found = [...document.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="视图"] button')].find(
@@ -72,23 +72,23 @@ export async function showView(name: "时间轴" | "列表" | "总览"): Promise
   if (button.getAttribute("aria-pressed") !== "true") fireEvent.click(button);
 }
 
-/** 「视图」里按下的是哪个：「时间轴」或「列表」。 */
+/** 「视图」里按下的是哪个：「时间线」或「日程」。 */
 export function pressedView(): string | null {
   return document.querySelector('[role="group"][aria-label="视图"] button[aria-pressed="true"]')?.textContent ?? null;
 }
 
-/** 每天的标签。先切到列表。 */
+/** 每天的标签。先切到日程。 */
 export async function dayLabels(): Promise<string[]> {
-  await showView("列表");
+  await showView("日程");
   const list = await screen.findByRole("list", { name: "日期列表" });
   return within(list)
     .getAllByRole("listitem")
     .map((row) => row.querySelector("[data-day-label]")?.textContent ?? "");
 }
 
-/** 标签里含 text 的那一行（比如「10.2」）。先切到列表：要断言「切到了列表」的，在调它之前看 pressedView。 */
+/** 标签里含 text 的那一行（比如「10.2」）。先切到日程：要断言「切到了日程」的，在调它之前看 pressedView。 */
 export async function dayRow(text: string): Promise<HTMLElement> {
-  await showView("列表");
+  await showView("日程");
   const list = await screen.findByRole("list", { name: "日期列表" });
   const row = within(list)
     .getAllByRole("listitem")
@@ -119,13 +119,13 @@ export async function openPlanSettings(
   return settings;
 }
 
-/** 时间轴上打开一件事的详情面板：点一下选中它，再点快捷条的「详情…」。 */
-/** 时间轴上面那条「没排时间」（一件都没有时它不在，返回 null）。 */
+/** 时间线上打开一件事的详情面板：点一下选中它，再点快捷条的「详情…」。 */
+/** 时间线上面那条「没排时间」（一件都没有时它不在，返回 null）。 */
 export function undatedStrip(): HTMLElement | null {
   return screen.queryByRole("group", { name: "没排时间" });
 }
 
-/** 时间轴上点开某一天的「加一件事」，返回弹出来的输入框。 */
+/** 时间线上点开某一天的「加一件事」，返回弹出来的输入框。 */
 export async function openAddBlock(user: UserEvent, row: HTMLElement): Promise<HTMLElement> {
   await user.click(within(row).getByRole("button", { name: "加一件事" }));
   return within(screen.getByRole("dialog", { name: "加一件事" })).getByRole("textbox", { name: "加一件事" });

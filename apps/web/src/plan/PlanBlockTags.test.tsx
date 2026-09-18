@@ -70,10 +70,10 @@ async function oneDay(seed: Seed = {}): Promise<void> {
 }
 
 async function timeline(): Promise<HTMLElement> {
-  return screen.findByRole("region", { name: "时间轴" });
+  return screen.findByRole("region", { name: "时间线" });
 }
 
-/** 时间轴上读屏名以「title 」开头的那个按钮（横条、竖条、条上的一件）。 */
+/** 时间线上读屏名以「title 」开头的那个按钮（横条、竖条、条上的一件）。 */
 async function blockButton(title: string): Promise<HTMLElement> {
   return within(await timeline()).getByRole("button", { name: new RegExp(`^${title} `) });
 }
@@ -99,7 +99,7 @@ async function openTagPicker(user: User, trigger: HTMLElement): Promise<HTMLElem
 describe("块上画出标签", () => {
   it("横条上一排书签，按标签的顺序；鼠标停上去写名字；读屏名在时间后面写标签名", async () => {
     await oneDay({ tags: { 西湖: ["下雨也能去", "必去"] } });
-    await showView("时间轴");
+    await showView("时间线");
 
     const lake = await blockButton("西湖");
     expect(tagsOn(lake)?.getAttribute("title")).toBe("必去、下雨也能去");
@@ -110,7 +110,7 @@ describe("块上画出标签", () => {
 
   it("4 个以上画 2 条书签加「+N」", async () => {
     await oneDay({ extraTags: ["带老人", "要预约"], tags: { 西湖: ["必去", "下雨也能去", "带老人", "要预约"] } });
-    await showView("时间轴");
+    await showView("时间线");
 
     const lake = await blockButton("西湖");
     expect(ribbonColors(lake)).toHaveLength(2);
@@ -120,7 +120,7 @@ describe("块上画出标签", () => {
 
   it("划掉了的：读屏名先写标签，再写划掉了；书签照画", async () => {
     await oneDay({ tags: { 西湖: ["必去"] }, struck: ["西湖"] });
-    await showView("时间轴");
+    await showView("时间线");
 
     const lake = await blockButton("西湖");
     expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 必去 · 划掉了");
@@ -129,7 +129,7 @@ describe("块上画出标签", () => {
 
   it("时长为 0 的竖线不画书签，读屏名照样写", async () => {
     await oneDay({ tags: { 看潮: ["必去"] } });
-    await showView("时间轴");
+    await showView("时间线");
 
     const tide = await blockButton("看潮");
     expect(tagsOn(tide)).toBeNull();
@@ -139,7 +139,7 @@ describe("块上画出标签", () => {
   it("「没排时间」条上的一件、手机上的竖条也画", async () => {
     stubNarrowScreen();
     await oneDay({ tags: { 西湖: ["必去"], 河坊街: ["下雨也能去"] } });
-    await showView("时间轴");
+    await showView("时间线");
 
     expect(ribbonColors(await blockButton("西湖"))).toEqual(["#c08d68"]);
     expect(ribbonColors(await blockButton("河坊街"))).toEqual(["#6b8fb0"]);
@@ -147,7 +147,7 @@ describe("块上画出标签", () => {
 });
 
 describe("别处的标签也画成书签，类型还是圆点", () => {
-  it("筛选按钮、列表的标签列、选择面板、设置里", async () => {
+  it("筛选按钮、日程的标签列、选择面板、设置里", async () => {
     const user = userEvent.setup();
     await oneDay({ tags: { 西湖: ["必去"] } });
 
@@ -167,11 +167,11 @@ describe("别处的标签也画成书签，类型还是圆点", () => {
   });
 });
 
-describe("在快捷条和列表里挂上、摘下", () => {
+describe("在快捷条和日程里挂上、摘下", () => {
   it("快捷条「类型」后面是「标签」：点开一项一个开关，挂上两个面板不关；每挂一个一步撤销", async () => {
     const user = userEvent.setup();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("西湖"));
     const names = within(quickBar("西湖"))
@@ -199,7 +199,7 @@ describe("在快捷条和列表里挂上、摘下", () => {
   it("再点一下摘下", async () => {
     const user = userEvent.setup();
     await oneDay({ tags: { 西湖: ["必去"] } });
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("西湖"));
     const picker = await openTagPicker(user, within(quickBar("西湖")).getByRole("button", { name: "标签：必去" }));
@@ -212,7 +212,7 @@ describe("在快捷条和列表里挂上、摘下", () => {
   it("面板里新建：建好就挂上，回到标签列表", async () => {
     const user = userEvent.setup();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("西湖"));
     const picker = await openTagPicker(user, within(quickBar("西湖")).getByRole("button", { name: "标签：没有" }));
@@ -228,7 +228,7 @@ describe("在快捷条和列表里挂上、摘下", () => {
   it("面板里新建一半取消：焦点回到「+ 新建标签」", async () => {
     const user = userEvent.setup();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("西湖"));
     const picker = await openTagPicker(user, within(quickBar("西湖")).getByRole("button", { name: "标签：没有" }));
@@ -238,11 +238,11 @@ describe("在快捷条和列表里挂上、摘下", () => {
     await waitFor(() => expect(document.activeElement).toBe(within(picker).getByRole("button", { name: "+ 新建标签" })));
   });
 
-  it("时间轴上摘掉以后被标签筛掉：快捷条和面板一起没了，焦点落到这天的菜单", async () => {
+  it("时间线上摘掉以后被标签筛掉：快捷条和面板一起没了，焦点落到这天的菜单", async () => {
     const user = userEvent.setup();
     await oneDay({ tags: { 西湖: ["必去"] } });
     await user.click(within(await screen.findByRole("group", { name: "按标签筛选" })).getByRole("button", { name: "必去" }));
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("西湖"));
     const picker = await openTagPicker(user, within(quickBar("西湖")).getByRole("button", { name: "标签：必去" }));
@@ -255,7 +255,7 @@ describe("在快捷条和列表里挂上、摘下", () => {
     );
   });
 
-  it("列表里摘掉以后被标签筛掉：焦点落到下一行的「标签」", async () => {
+  it("日程里摘掉以后被标签筛掉：焦点落到下一行的「标签」", async () => {
     const user = userEvent.setup();
     await oneDay({ tags: { 西湖: ["必去"], 灵隐寺: ["必去"] } });
     await user.click(within(await screen.findByRole("group", { name: "按标签筛选" })).getByRole("button", { name: "必去" }));
@@ -269,7 +269,7 @@ describe("在快捷条和列表里挂上、摘下", () => {
     );
   });
 
-  it("列表里「类型」后面一列「标签」：没挂淡色写「加标签」，挂了写名字", async () => {
+  it("日程里「类型」后面一列「标签」：没挂淡色写「加标签」，挂了写名字", async () => {
     const user = userEvent.setup();
     await oneDay();
 
@@ -318,7 +318,7 @@ describe("在设置里管标签", () => {
     await user.click(within(manager).getByRole("button", { name: "颜色 #6fa3a0" }));
     await user.keyboard("{Escape}");
 
-    await showView("时间轴");
+    await showView("时间线");
     const lake = await blockButton("西湖");
     expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 一定要去");
     expect(ribbonColors(lake)).toEqual(["#6fa3a0"]);

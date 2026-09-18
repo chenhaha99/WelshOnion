@@ -19,9 +19,9 @@ function block(plan: Y.Doc, library: Y.Doc, input: AddBlockInput): string {
   return result.value.blockId;
 }
 
-/** 时间轴上读屏名以「title 」开头的那一段里，标题那一小段。 */
+/** 时间线上读屏名以「title 」开头的那一段里，标题那一小段。 */
 async function titleOf(title: string): Promise<HTMLElement | null> {
-  const timeline = await screen.findByRole("region", { name: "时间轴" });
+  const timeline = await screen.findByRole("region", { name: "时间线" });
   return within(timeline)
     .getByRole("button", { name: new RegExp(`^${title} `) })
     .querySelector<HTMLElement>("[data-bar-title]");
@@ -44,7 +44,7 @@ describe("标题写不下就截断，不写到块外面", () => {
       block(plan, library, { baseId: day!, kindId: "sight", title: "西湖漫步", minute: 540, duration: 60 });
       block(plan, library, { baseId: day!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
     });
-    await showView("时间轴");
+    await showView("时间线");
 
     expect((await titleOf("西湖漫步"))?.style.maxWidth).toBe("");
     expect((await titleOf("午饭"))?.style.maxWidth).toBe("");
@@ -55,9 +55,9 @@ describe("标题写不下就截断，不写到块外面", () => {
       const [day] = daysFromOct1(plan, 1);
       block(plan, library, { baseId: day!, kindId: "sight", title: "西湖漫步", minute: 540, duration: 60 });
     });
-    await showView("时间轴");
+    await showView("时间线");
 
-    const timeline = await screen.findByRole("region", { name: "时间轴" });
+    const timeline = await screen.findByRole("region", { name: "时间线" });
     const bar = within(timeline).getByRole("button", { name: /^西湖漫步 / });
     expect(bar.getAttribute("title")).toBe("西湖漫步 09:00–10:00");
   });
@@ -67,16 +67,16 @@ describe("标题写不下就截断，不写到块外面", () => {
       const [day] = daysFromOct1(plan, 1);
       block(plan, library, { baseId: day!, kindId: "sight", title: "看潮", minute: 720, duration: 0 });
     });
-    await showView("时间轴");
+    await showView("时间线");
 
     expect(await titleOf("看潮")).toBeNull();
   });
 });
 
-describe("时间轴横向放大", () => {
+describe("时间线横向放大", () => {
   it("拖动条无级放大：横轴跟着变宽，100% 到 400%", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    await showView("时间轴");
+    await showView("时间线");
 
     const slider = zoomSlider();
     expect(slider.value).toBe("100");
@@ -93,11 +93,11 @@ describe("时间轴横向放大", () => {
 
   it("记在这台设备上：切走再回来还是那个倍数", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    await showView("时间轴");
+    await showView("时间线");
 
     fireEvent.change(zoomSlider(), { target: { value: "200" } });
-    await showView("列表");
-    await showView("时间轴");
+    await showView("日程");
+    await showView("时间线");
 
     await waitFor(() => expect(zoomSlider().value).toBe("200"));
     expect(axisWidth()).toBe("124rem");
@@ -106,7 +106,7 @@ describe("时间轴横向放大", () => {
   it("手机上没有拖动条", async () => {
     stubNarrowScreen();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    await showView("时间轴");
+    await showView("时间线");
 
     expect(screen.queryByRole("slider", { name: "横向放大" })).toBeNull();
   });

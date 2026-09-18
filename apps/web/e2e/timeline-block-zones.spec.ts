@@ -40,7 +40,7 @@ test("电脑上：挂标签、开时长和开销、拉到 3 行 → 书签在上
   await schedule(page, table, "喝茶", "17:00", "0", "45");
   await addMoney(page, table, LONG_TITLE, "300");
   await addMoney(page, table, "喝茶", "20");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   const day1 = timelineRow(page, "10.1");
   const lakeSegment = segment(day1, LONG_TITLE);
   const lake = lakeSegment.getByRole("button", { name: new RegExp(`^${LONG_TITLE} `) });
@@ -112,8 +112,8 @@ test("手机上：竖条也分三区，书签在右上、时长和开销在最�
   await addBlocks(page, table, ["西湖"]);
   await schedule(page, table, "西湖", "09:00", "3");
   await addMoney(page, table, "西湖", "300");
-  await showView(page, "时间轴");
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  await showView(page, "时间线");
+  const timeline = page.getByRole("region", { name: "时间线" });
   const lake = timeline.getByRole("button", { name: /^西湖 / });
 
   await tagWithNew(page, lake, "西湖", "必去");

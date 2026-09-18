@@ -23,8 +23,8 @@ test("这天怎么样：空的一天 → 排时间 → 取消时间留下没排�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
-  // 打开是时间轴：这份走查从安排表开始，先切到列表
-  await showView(page, "列表");
+  // 打开是时间线：这份走查从安排表开始，先切到日程
+  await showView(page, "日程");
 
   const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
   const day1 = days.nth(0);

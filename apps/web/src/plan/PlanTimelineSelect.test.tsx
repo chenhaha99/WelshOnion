@@ -34,12 +34,12 @@ async function onePlanDay(): Promise<void> {
     block(plan, library, { baseId: day!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
     block(plan, library, { baseId: day!, kindId: "sight", title: "灵隐寺", slot: "morning", duration: 120 });
   });
-  await showView("时间轴");
+  await showView("时间线");
 }
 
-/** 时间轴上读屏名以「title 」开头的那个按钮（横条、竖条或栏里的一件）。 */
+/** 时间线上读屏名以「title 」开头的那个按钮（横条、竖条或栏里的一件）。 */
 async function blockButton(title: string): Promise<HTMLElement> {
-  const timeline = await screen.findByRole("region", { name: "时间轴" });
+  const timeline = await screen.findByRole("region", { name: "时间线" });
   return within(timeline).getByRole("button", { name: new RegExp(`^${title} `) });
 }
 
@@ -48,15 +48,15 @@ function quickBar(title: string): HTMLElement {
   return screen.getByRole("toolbar", { name: `「${title}」的操作` });
 }
 
-/** 时间轴上选中的是哪几件（读屏名的头一段就是标题）。 */
+/** 时间线上选中的是哪几件（读屏名的头一段就是标题）。 */
 function selectedTitles(): string[] {
-  const blocks = 'section[aria-label="时间轴"] [data-block-id] > button[aria-pressed="true"]';
+  const blocks = 'section[aria-label="时间线"] [data-block-id] > button[aria-pressed="true"]';
   return [...document.querySelectorAll(blocks)].map(
     (button) => button.getAttribute("aria-label")?.split(" ")[0] ?? "",
   );
 }
 
-describe("时间轴上点一下选中", () => {
+describe("时间线上点一下选中", () => {
   it("点横条选中，不开详情面板", async () => {
     const user = userEvent.setup();
     await onePlanDay();
@@ -94,7 +94,7 @@ describe("时间轴上点一下选中", () => {
     expect(document.activeElement).toBe(bar);
   });
 
-  it("点时间轴的空白处取消", async () => {
+  it("点时间线的空白处取消", async () => {
     const user = userEvent.setup();
     await onePlanDay();
 
@@ -105,13 +105,13 @@ describe("时间轴上点一下选中", () => {
     expect(selectedTitles()).toEqual([]);
   });
 
-  it("切到列表取消", async () => {
+  it("切到日程取消", async () => {
     const user = userEvent.setup();
     await onePlanDay();
 
     await user.click(await blockButton("西湖"));
-    await showView("列表");
-    await showView("时间轴");
+    await showView("日程");
+    await showView("时间线");
 
     expect(selectedTitles()).toEqual([]);
   });
@@ -131,8 +131,8 @@ describe("时间轴上点一下选中", () => {
   it("这件事没了就取消", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    await showView("时间轴");
-    const timeline = await screen.findByRole("region", { name: "时间轴" });
+    await showView("时间线");
+    const timeline = await screen.findByRole("region", { name: "时间线" });
 
     await user.type(await openAddBlock(user, within(timeline).getAllByRole("listitem")[0]!), "河坊街{Enter}");
     await user.click(await blockButton("河坊街"));
@@ -262,7 +262,7 @@ describe("选中后的快捷条", () => {
       addExpense(plan, library, { title: "面", amountCents: 12000, blockIds: [lunch] });
       addExpense(plan, library, { title: "汤", amountCents: 3850, blockIds: [lunch] });
     });
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("午饭"));
     await user.click(within(quickBar("午饭")).getByRole("button", { name: "开销：¥158.50 · 2 笔" }));
@@ -279,7 +279,7 @@ describe("选中后的快捷条", () => {
       const lake = block(plan, library, { baseId: day!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
       addExpense(plan, library, { title: "门票", amountCents: 30000, blockIds: [lake] });
     });
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await blockButton("西湖"));
     await user.click(within(quickBar("西湖")).getByRole("button", { name: "复制" }));
@@ -289,7 +289,7 @@ describe("选中后的快捷条", () => {
     expect((await blockTexts("10.1")).map((item) => item.time)).toEqual(["09:00–12:00", "09:00–12:00"]);
     expect((await moneyOverview()).textContent).toContain("总额 ¥600");
 
-    await showView("时间轴");
+    await showView("时间线");
     await user.keyboard("{Control>}z{/Control}");
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["西湖"]));
   });
@@ -303,7 +303,7 @@ describe("选中后的快捷条", () => {
 
     await waitFor(() => expect(screen.getByText("删掉了「西湖」")).toBeTruthy());
     expect(selectedTitles()).toEqual([]);
-    const timeline = await screen.findByRole("region", { name: "时间轴" });
+    const timeline = await screen.findByRole("region", { name: "时间线" });
     await waitFor(() =>
       expect(document.activeElement).toBe(within(timeline).getAllByRole("button", { name: "这天的操作" })[0]),
     );

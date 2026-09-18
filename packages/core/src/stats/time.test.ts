@@ -77,7 +77,7 @@ describe("统计前先按筛选条件去掉块", () => {
   });
 });
 
-describe("时间轴占用法", () => {
+describe("时间线占用法", () => {
   test("套在里面的块盖住外面的块", () => {
     hengdianWithLunch();
     const { lib, plan } = views();

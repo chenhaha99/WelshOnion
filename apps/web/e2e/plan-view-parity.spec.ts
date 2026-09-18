@@ -24,17 +24,17 @@ import { shot, watchErrors } from "./walkthrough";
 // 「现在」固定在 9.14，行程 10.1 还没出发：手机上打开是第一天
 const BEFORE_TRIP = new Date("2026-09-14T06:20:00Z");
 
-async function expectView(page: Page, name: "时间轴" | "列表"): Promise<void> {
+async function expectView(page: Page, name: "时间线" | "日程"): Promise<void> {
   await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name, pressed: true })).toBeVisible();
 }
 
-test("电脑上只在时间轴里：加事 → 拖上去排时间、快捷条挂开销、复制到下一天 → 删掉另一天的 → 插一天、改时区", async ({
+test("电脑上只在时间线里：加事 → 拖上去排时间、快捷条挂开销、复制到下一天 → 删掉另一天的 → 插一天、改时区", async ({
   page,
 }) => {
   const errors = watchErrors(page);
   await newPlan(page, 2);
-  await showView(page, "时间轴");
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  await showView(page, "时间线");
+  const timeline = page.getByRole("region", { name: "时间线" });
   const day1 = timelineRow(page, "10.1");
   const day2 = timelineRow(page, "10.2");
 
@@ -44,7 +44,7 @@ test("电脑上只在时间轴里：加事 → 拖上去排时间、快捷条挂
   await page.keyboard.press("Escape");
   await expect(chip(page, "西湖")).toBeVisible();
 
-  // 从条上拖到 10.1 的 09:00：排上时间（时间就在时间轴上改，你提的）
+  // 从条上拖到 10.1 的 09:00：排上时间（时间就在时间线上改，你提的）
   await drag(page, center(await box(chip(page, "西湖"))), await axisPoint(day1, 9 * 60));
   await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "540");
 
@@ -92,8 +92,8 @@ test("电脑上只在时间轴里：加事 → 拖上去排时间、快捷条挂
   await expect(day3.getByRole("button", { name: "这天的操作" })).toBeFocused();
   await shot(page, "02-desktop-day-menu");
 
-  // 一直是时间轴视图；到列表里看，改动都在
-  await expectView(page, "时间轴");
+  // 一直是时间线视图；到日程里看，改动都在
+  await expectView(page, "时间线");
   const day1Table = page.getByRole("table", { name: /10\.1 周四/ });
   // 条上拖上去、没填过时长的给 1 小时
   expect(await timeOf(day1Table, "西湖")).toBe("09:00–10:00");
@@ -103,12 +103,12 @@ test("电脑上只在时间轴里：加事 → 拖上去排时间、快捷条挂
   expect(errors).toEqual([]);
 });
 
-test("手机上只在时间轴里：框下面加事 → 点开从底部浮起、点暗底关掉 → 快捷条上排时间 → 这天的菜单插一天", async ({ page }) => {
+test("手机上只在时间线里：框下面加事 → 点开从底部浮起、点暗底关掉 → 快捷条上排时间 → 这天的菜单插一天", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 2, { width: 390, height: 844 });
-  await showView(page, "时间轴");
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  await showView(page, "时间线");
+  const timeline = page.getByRole("region", { name: "时间线" });
   await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 1 天 · 10.1 周四");
 
   // 框下面加「西湖」：出现「没排时间」和它
@@ -151,13 +151,13 @@ test("手机上只在时间轴里：框下面加事 → 点开从底部浮起、
   await timeline.getByRole("button", { name: "后一天" }).click();
   await timeline.getByRole("button", { name: "后一天" }).click();
   await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 3 天 · 10.3 周六");
-  await expectView(page, "时间轴");
+  await expectView(page, "时间线");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
   expect(errors).toEqual([]);
 });
 
-test("列表里：详情气泡里叠放 → 时间格里换天", async ({ page }) => {
+test("日程里：详情气泡里叠放 → 时间格里换天", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 2);
   const day1Table = page.getByRole("table", { name: DAY1 });
@@ -191,7 +191,7 @@ test("列表里：详情气泡里叠放 → 时间格里换天", async ({ page }
     .selectOption({ label: "第 2 天 · 10.2 周五" });
   await expect.poll(() => timeOf(day2Table, "灵隐寺")).toBe("整天");
   await expect((await rowOf(day2Table, "灵隐寺")).getByRole("button", { name: "时间" })).toBeFocused();
-  await expectView(page, "列表");
+  await expectView(page, "日程");
 
   expect(errors).toEqual([]);
 });

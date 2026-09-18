@@ -30,7 +30,7 @@ test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被
   const kinds = page.getByRole("group", { name: "按类型筛选" });
   await expect(kinds.getByRole("button")).toHaveText(["住宿", "餐饮", "游玩"]);
 
-  // 只看住宿：表只剩民宿；开销格只算住宿、另写一行；上面写挂在被筛掉的事上的开销；总览只算住宿；时间轴只画民宿
+  // 只看住宿：表只剩民宿；开销格只算住宿、另写一行；上面写挂在被筛掉的事上的开销；总览只算住宿；时间线只画民宿
   await kinds.getByRole("button", { name: "住宿", exact: true }).click();
   await expect(rows).toHaveCount(1);
   await expect(table.locator("[data-filtered-out]")).toHaveText("筛掉了 2 件");
@@ -39,9 +39,9 @@ test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被
   await expect(inn.locator("[data-money-note]")).toHaveText("另有别的类型的开销");
   await expect(page.getByText("有 ¥300 挂在被筛掉的事上")).toBeVisible();
   await inOverview(page, ({ money }) => expect(money).toContainText("总额 ¥780"));
-  await showView(page, "时间轴");
-  await expect(page.getByRole("region", { name: "时间轴" }).locator("[data-segment]")).toHaveCount(1);
-  await showView(page, "列表");
+  await showView(page, "时间线");
+  await expect(page.getByRole("region", { name: "时间线" }).locator("[data-segment]")).toHaveCount(1);
+  await showView(page, "日程");
   await shot(page, "01-lodging-only");
 
   // 和只看没划掉的一起：把民宿划掉，再按「只看没划掉的」，一件都不显示；再按一下取消

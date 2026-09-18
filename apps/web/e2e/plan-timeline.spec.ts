@@ -18,7 +18,7 @@ async function schedule(page: Page, row: Locator, title: string, start: string, 
   await expect(editor).toBeHidden();
 }
 
-/** 时间轴这一行里读屏名以「title 」开头的那段横条的外框。 */
+/** 时间线这一行里读屏名以「title 」开头的那段横条的外框。 */
 function segment(row: Locator, title: string): Locator {
   return row.locator("[data-segment]").filter({ has: row.page().getByRole("button", { name: new RegExp(`^${title} `) }) });
 }
@@ -30,7 +30,7 @@ async function measuredMinutes(row: Locator, title: string): Promise<{ from: num
   return { from: minuteAtX(axis, box!.x - axis.rect.x), to: minuteAtX(axis, box!.x + box!.width - axis.rect.x) };
 }
 
-test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电脑和手机上的宽度", async ({ page }) => {
+test("时间线：排出一天 → 按时长画 → 点开详情面板 → 电脑和手机上的宽度", async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1280, height: 800 });
 
@@ -41,17 +41,17 @@ test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
-  // 打开是时间轴：这份走查从安排表开始，先切到列表
-  await showView(page, "列表");
+  // 打开是时间线：这份走查从安排表开始，先切到日程
+  await showView(page, "日程");
 
-  const timeline = page.getByRole("region", { name: "时间轴" });
-  // 刚建好、一件事都没有：时间轴上提示去加第一件事
+  const timeline = page.getByRole("region", { name: "时间线" });
+  // 刚建好、一件事都没有：时间线上提示去加第一件事
   const hint = timeline.getByText("还没有事。加了事、排上时间，就会画在这里");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   await expect(hint).toBeVisible();
 
-  // 在列表里用表格排出一天：排时间不改变这几行的先后
-  await showView(page, "列表");
+  // 在日程里用表格排出一天：排时间不改变这几行的先后
+  await showView(page, "日程");
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const rows = table.locator("tr[data-block-id]");
   await table.getByRole("textbox", { name: "加一件事" }).click();
@@ -66,7 +66,7 @@ test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电�
   await schedule(page, rows.nth(2), "游船", "10:00", "1");
   await pickKind(page, rows.nth(3), "住宿");
   await schedule(page, rows.nth(3), "民宿", "22:00", "10");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   await expect(timeline.locator("[data-segment]").first()).toBeVisible();
   await expect(hint).toHaveCount(0);
 
@@ -109,13 +109,13 @@ test("时间轴：排出一天 → 按时长画 → 点开详情面板 → 电�
   // 贴着「详情…」那个按钮弹出，不是占满右边的抽屉
   expect(Math.abs(panelBox.x - barBox.x)).toBeLessThan(200);
   expect(panelBox.x + panelBox.width).toBeLessThan(1280);
-  await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "视图" }).getByRole("button", { name: "时间线", pressed: true })).toBeVisible();
   await shot(page, "02-details");
   await page.keyboard.press("Escape");
   await expect(panel).toBeHidden();
 
   // 只用键盘：回车打开详情，Esc 关掉，焦点回到横条
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   const lakeBar = segment(day1, "西湖").getByRole("button");
   await lakeBar.focus();
   // 回车选中 → Tab 进快捷条（第一个是「划掉」）→ 再 Tab 到「详情…」→ 回车开详情 → Esc 关详情、再 Esc 取消选中

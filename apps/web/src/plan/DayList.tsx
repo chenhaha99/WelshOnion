@@ -27,8 +27,8 @@ import { SharesCard } from "./SharesCard";
 import { Timeline } from "./Timeline";
 
 const VIEWS = [
-  { value: "timeline", label: "时间轴" },
-  { value: "list", label: "列表" },
+  { value: "timeline", label: "时间线" },
+  { value: "list", label: "日程" },
   { value: "overview", label: "总览" },
 ] as const;
 
@@ -52,7 +52,7 @@ interface DayListProps {
   library: Y.Doc;
   libraryView: LibraryView;
   plan: PlanView;
-  /** 按计划记住上次看的是时间轴还是列表 */
+  /** 按计划记住上次看的是时间线还是日程 */
   planId: string;
   /** 搜索面板开着时贴着的按钮（页顶的「搜索」）；没开是 null */
   searchAnchor: HTMLButtonElement | null;
@@ -68,9 +68,9 @@ interface OpenedBlock {
 }
 
 /**
- * 计划页的主体：一行筛选（按类型、按标签、只看没划掉的），下面「时间轴」「列表」「总览」三个视图切换着看。
- * 列表视图是每天一个组头和它的安排表（或按类型分组）；总览视图是开销总览、每天和占比。计划里至少有一天。
- * 按下了哪些类型、标签，只看没划掉的，怎么分组，只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间轴、开销、占比和每一天；
+ * 计划页的主体：一行筛选（按类型、按标签、只看没划掉的），下面「时间线」「日程」「总览」三个视图切换着看。
+ * 日程视图是每天一个组头和它的安排表（或按类型分组）；总览视图是开销总览、每天和占比。计划里至少有一天。
+ * 按下了哪些类型、标签，只看没划掉的，怎么分组，只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间线、开销、占比和每一天；
  * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：几个视图打开的是同一个，切换视图面板留着。
  */
 export function DayList({ doc, library, libraryView, plan, planId, searchAnchor, onSearchClosed }: DayListProps) {
@@ -87,14 +87,14 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const pressedGrouping = useRef<HTMLButtonElement>(null);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
-  // 时间轴的块上写标题、开销（各开各关）：也按计划记在这台设备上
+  // 时间线的块上写标题、开销（各开各关）：也按计划记在这台设备上
   const [blockText, setBlockText] = useState<BlockText>(() => readBlockText(planId));
   const toggleBlockText = (part: "title" | "duration" | "money") => {
     const next = { ...blockText, [part]: !blockText[part] };
     setBlockText(next);
     saveBlockText(planId, next);
   };
-  // 时间轴横向放到百分之几：也按计划记在这台设备上
+  // 时间线横向放到百分之几：也按计划记在这台设备上
   const [zoom, setZoom] = useState(() => readTimelineZoom(planId));
   const setShownZoom = (next: number) => {
     setZoom(next);
@@ -121,7 +121,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const foldedHours = useMemo(() => hourWindow(plan, libraryView, false), [plan, libraryView]);
   const foldable = foldedHours.from > FULL_DAY.from || foldedHours.to < FULL_DAY.to;
   const wide = useWideScreen();
-  // 竖排看的是哪天（底座 id）：切到列表时时间轴卸掉，切回来接着看这天
+  // 竖排看的是哪天（底座 id）：切到日程时时间线卸掉，切回来接着看这天
   const shownDay = useRef<string | null>(null);
   // 零高度的标记放在切换按钮本来的位置：按钮贴在顶上时，靠它量出按钮不贴顶该在哪
   const viewsMarker = useRef<HTMLDivElement>(null);
@@ -141,7 +141,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     if (offset < 0) window.scrollBy(0, offset);
   }, [viewClicks]);
 
-  // 时间轴上选中的是哪一件、点的是哪一行（跨午夜的块点哪一段，快捷条就贴哪一段）
+  // 时间线上选中的是哪一件、点的是哪一行（跨午夜的块点哪一段，快捷条就贴哪一段）
   const [selected, setSelected] = useState<{ blockId: string; baseId: string | null } | null>(null);
   const selectedBlock = selected === null ? undefined : plan.blocks.get(selected.blockId);
 
@@ -175,7 +175,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   const cells = useMemo(() => moneyCells(plan, filter), [plan, filter]);
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
 
-  // 选中的那件没了（删了、撤销掉了）、被筛掉了、切到了列表：取消选中
+  // 选中的那件没了（删了、撤销掉了）、被筛掉了、切到了日程：取消选中
   const filteredOutDay = useRef<string | null>(null);
   if (selected !== null && (view !== "timeline" || selectedBlock === undefined || !passesFilter(selectedBlock, filter))) {
     if (view === "timeline" && selectedBlock !== undefined) filteredOutDay.current = selectedBlock.start_base_id;
@@ -214,7 +214,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     }),
     [selected],
   );
-  // 点时间轴的空白处、页面别处就取消选中；点另一件事、快捷条、弹层里的不算（各自有事要做），
+  // 点时间线的空白处、页面别处就取消选中；点另一件事、快捷条、弹层里的不算（各自有事要做），
   // 手机上点底部浮起的卡片后面的暗底也不算（它和点「关闭」一样，只关卡片）
   useEffect(() => {
     if (selected === null) return;
@@ -227,9 +227,9 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [selected]);
-  // 搜索里点了一条：跳到那件事。被筛选挡住先清筛选；总览切到时间轴、列表按类型分组切回按天（没有一件事一行）；
-  // 时间轴上选中它，手机竖排翻到它那天（DayTimeline 看 jump.seq 变了就换天）。画完再滚到屏幕中间、焦点放上去。
-  // 总览「每天」里点了一天的日期（blockId 是 null）：切到时间轴、竖排翻到那天，焦点放到那天的「这天的操作」
+  // 搜索里点了一条：跳到那件事。被筛选挡住先清筛选；总览切到时间线、日程按类型分组切回按天（没有一件事一行）；
+  // 时间线上选中它，手机竖排翻到它那天（DayTimeline 看 jump.seq 变了就换天）。画完再滚到屏幕中间、焦点放上去。
+  // 总览「每天」里点了一天的日期（blockId 是 null）：切到时间线、竖排翻到那天，焦点放到那天的「这天的操作」
   const [jump, setJump] = useState<{ blockId: string | null; baseId: string; seq: number } | null>(null);
   const jumpToBlock = (blockId: string) => {
     const block = plan.blocks.get(blockId)!;
@@ -253,7 +253,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
   useEffect(() => {
     if (jump === null) return;
     if (jump.blockId === null) {
-      // 切视图那一下已经把时间轴摆好了（贴着顶就从开头露出来）：那天的按钮看得见就不再滚
+      // 切视图那一下已经把时间线摆好了（贴着顶就从开头露出来）：那天的按钮看得见就不再滚
       const menu = document.querySelector<HTMLElement>(`[data-base-id="${jump.baseId}"] button[aria-label="这天的操作"]`)!;
       menu.scrollIntoView({ block: "nearest" });
       menu.focus({ preventScroll: true });
@@ -313,7 +313,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
       )}
       {/* -mb-4 抵掉标记后面那道间距，切换按钮还在原来的位置 */}
       <div ref={viewsMarker} aria-hidden className="-mb-4" />
-      {/* 往下滚时贴在屏幕顶上：列表多长都不用滚回来切换。右边是只在时间轴上有意义的两样（你提的：放到这一行，居右） */}
+      {/* 往下滚时贴在屏幕顶上：日程多长都不用滚回来切换。右边是只在时间线上有意义的两样（你提的：放到这一行，居右） */}
       <div
         data-view-row
         className="sticky z-20 flex flex-wrap items-center justify-between gap-2"

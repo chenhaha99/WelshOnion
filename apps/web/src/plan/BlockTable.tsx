@@ -208,7 +208,7 @@ function BlockRow({
     danger: true,
     onSelect: () => notifyDeleted(deleteBlockWithNotice(doc, library, block, followerCount)),
   };
-  // 「详情…」打开详情气泡（时间轴上点开的也是它），贴着这一行的行菜单按钮弹出
+  // 「详情…」打开详情气泡（时间线上点开的也是它），贴着这一行的行菜单按钮弹出
   const detailsItem: MenuItem = {
     label: "详情…",
     onSelect: () => openBlock(block.id, row.current!.querySelector<HTMLElement>("button[aria-label='这件事的操作']")!),

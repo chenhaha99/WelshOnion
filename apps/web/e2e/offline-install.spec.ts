@@ -110,8 +110,8 @@ test("断网刷新：列表和计划页照常，能加一件事", async ({ page,
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("3");
   await page.getByRole("button", { name: "确定" }).click();
-  // 打开是时间轴：这份走查从安排表开始，先切到列表
-  await showView(page, "列表");
+  // 打开是时间线：这份走查从安排表开始，先切到日程
+  await showView(page, "日程");
   const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
   await expect(days).toHaveCount(3);
   await page.getByRole("link", { name: /我的计划/ }).click();

@@ -30,8 +30,8 @@ function lakePlan(more?: (plan: Y.Doc, library: Y.Doc, days: string[]) => void) 
 }
 
 async function timeline(): Promise<HTMLElement> {
-  await showView("时间轴");
-  return screen.findByRole("region", { name: "时间轴" });
+  await showView("时间线");
+  return screen.findByRole("region", { name: "时间线" });
 }
 
 function ticks(region: HTMLElement): string[] {
@@ -138,7 +138,7 @@ describe("没事的凌晨和深夜默认折起", () => {
 
     cleanup();
     renderApp(`#/plans/${planId}`);
-    const again = await screen.findByRole("region", { name: "时间轴" });
+    const again = await screen.findByRole("region", { name: "时间线" });
     expect(ticks(again)[0]).toBe("0");
     expect(fullDayButton().getAttribute("aria-pressed")).toBe("true");
 

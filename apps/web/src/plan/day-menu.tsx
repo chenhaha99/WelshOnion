@@ -48,7 +48,7 @@ export interface DayMenu {
 
 /**
  * 每天的菜单：插天（被块跨过先问放哪边）、上移下移、改时区、加一个另一时区的这天、删天。
- * 列表的组头、时间轴的横排行、竖排共用：按钮和展开的表单由用它的地方各自摆。
+ * 日程的组头、时间线的横排行、竖排共用：按钮和展开的表单由用它的地方各自摆。
  * 展开时焦点放进表单，收起后回到菜单按钮；竖排翻到别的天时，展开的收起，焦点不动。
  */
 export function useDayMenu({ doc, plan, base, label, index, count, triggerClassName }: DayMenuOptions): DayMenu {

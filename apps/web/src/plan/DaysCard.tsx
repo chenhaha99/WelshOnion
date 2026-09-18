@@ -9,11 +9,11 @@ import { overviewDays, type OverviewRow } from "./overview-days";
 
 interface DaysCardProps {
   plan: PlanView;
-  /** 每天的标签「第 1 天 · 10.1 周四」，和列表组头一样 */
+  /** 每天的标签「第 1 天 · 10.1 周四」，和日程组头一样 */
   labels: readonly string[];
   cells: ReadonlyMap<string, MoneyCell>;
   filter?: StatsFilter;
-  /** 点了一天的日期：切到时间轴上的那天 */
+  /** 点了一天的日期：切到时间线上的那天 */
   onJump: (baseId: string) => void;
 }
 
@@ -144,7 +144,7 @@ function TableRow({
   );
 }
 
-/** 某一天是按钮（点了到时间轴上的那天），今天后面写「今天」；最后几行只是字。 */
+/** 某一天是按钮（点了到时间线上的那天），今天后面写「今天」；最后几行只是字。 */
 function DayName({ row, onJump }: { row: OverviewRow; onJump: (baseId: string) => void }) {
   const { baseId } = row;
   if (baseId === null) return <span className="text-sm text-ink">{row.label}</span>;
@@ -152,7 +152,7 @@ function DayName({ row, onJump }: { row: OverviewRow; onJump: (baseId: string) =
     <span className="inline-flex flex-wrap items-baseline gap-x-2">
       <button
         type="button"
-        aria-label={`在时间轴上看 ${row.label}`}
+        aria-label={`在时间线上看 ${row.label}`}
         className="rounded text-left text-sm text-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage"
         onClick={() => onJump(baseId)}
       >

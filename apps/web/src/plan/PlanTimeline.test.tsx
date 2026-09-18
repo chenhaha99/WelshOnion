@@ -28,18 +28,18 @@ function block(plan: Y.Doc, library: Y.Doc, input: AddBlockInput): string {
   return result.value.blockId;
 }
 
-/** 切到时间轴视图，返回「时间轴」卡片。 */
+/** 切到时间线视图，返回「时间线」卡片。 */
 async function timeline(): Promise<HTMLElement> {
-  await showView("时间轴");
-  return screen.findByRole("region", { name: "时间轴" });
+  await showView("时间线");
+  return screen.findByRole("region", { name: "时间线" });
 }
 
-/** 时间轴上标签里含 text 的那一行（比如「10.2」）。 */
+/** 时间线上标签里含 text 的那一行（比如「10.2」）。 */
 async function timelineRow(text: string): Promise<HTMLElement> {
   const row = within(await timeline())
     .getAllByRole("listitem")
     .find((item) => item.getAttribute("aria-label")?.includes(text));
-  if (!row) throw new Error(`时间轴上没有含「${text}」的那一行`);
+  if (!row) throw new Error(`时间线上没有含「${text}」的那一行`);
   return row;
 }
 
@@ -54,7 +54,7 @@ function segmentData(segment: HTMLElement) {
   return { from, to, track, lane, depth, checked };
 }
 
-/** 时间轴上面那条「没排时间」。 */
+/** 时间线上面那条「没排时间」。 */
 function tray(): HTMLElement {
   return screen.getByRole("group", { name: "没排时间" });
 }
@@ -75,9 +75,9 @@ function groupingPressed(name: string): string | null {
   return within(screen.getByRole("group", { name: "分组" })).getByRole("button", { name }).getAttribute("aria-pressed");
 }
 
-const HINT = "排上时间的事会画在这里：把上面没排时间的事拖到时间轴上，或者点开它排时间";
+const HINT = "排上时间的事会画在这里：把上面没排时间的事拖到时间线上，或者点开它排时间";
 
-describe("时间轴一天一行", () => {
+describe("时间线一天一行", () => {
   it("两天的计划：标签和刻度", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 2));
 
@@ -199,7 +199,7 @@ describe("没排时间的那一条", () => {
       setBlockChecked(plan, [temple], true);
     });
 
-    await screen.findByRole("region", { name: "时间轴" });
+    await screen.findByRole("region", { name: "时间线" });
     expect(chipNames(tray())).toEqual(["河坊街 10.1 整天", "灵隐寺 10.1 上午 · 2 小时 · 划掉了", "宋城 10.1 下午"]);
     const temple = within(tray())
       .getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时 · 划掉了" })
@@ -228,7 +228,7 @@ describe("没排时间的那一条", () => {
     const user = userEvent.setup();
     await openStoredPlan(listForOct1);
 
-    await screen.findByRole("region", { name: "时间轴" });
+    await screen.findByRole("region", { name: "时间线" });
     const chip = within(tray()).getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时" });
     await user.click(chip);
 
@@ -253,7 +253,7 @@ describe("没排时间的那一条", () => {
       setBlockIndent(plan, temple, 1);
     });
 
-    await screen.findByRole("region", { name: "时间轴" });
+    await screen.findByRole("region", { name: "时间线" });
     const chipOf = (title: string) =>
       within(tray()).getByRole("button", { name: new RegExp(`^${title} `) }).closest<HTMLElement>("[data-undated-chip]")!;
     expect(chipOf("河坊街").style.marginLeft).toBe("");
@@ -262,13 +262,13 @@ describe("没排时间的那一条", () => {
 
   it("一件没排时间的都没有：整条不出现", async () => {
     await openStoredPlan((plan) => daysFromOct1(plan, 2));
-    await screen.findByRole("region", { name: "时间轴" });
+    await screen.findByRole("region", { name: "时间线" });
     expect(screen.queryByRole("group", { name: "没排时间" })).toBeNull();
   });
 });
 
 describe("空的时候", () => {
-  it("一件事都没有：写先加事；点「加第一件事」不切视图，焦点到时间轴第 1 天那一行的「加一件事」", async () => {
+  it("一件事都没有：写先加事；点「加第一件事」不切视图，焦点到时间线第 1 天那一行的「加一件事」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 3));
 
@@ -277,7 +277,7 @@ describe("空的时候", () => {
     expect(within(region).queryByText(HINT)).toBeNull();
     await user.click(within(region).getByRole("button", { name: "加第一件事" }));
 
-    expect(pressedView()).toBe("时间轴");
+    expect(pressedView()).toBe("时间线");
     // 「加一件事」现在是第一列里的「＋」，点了弹出输入框、焦点落在里面
     await waitFor(() =>
       expect(document.activeElement).toBe(
@@ -286,7 +286,7 @@ describe("空的时候", () => {
     );
   });
 
-  it("加了第一件事：时间轴换回怎么排上时间的那句，「加第一件事」不见", async () => {
+  it("加了第一件事：时间线换回怎么排上时间的那句，「加第一件事」不见", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
     await user.click(within(await timeline()).getByRole("button", { name: "加第一件事" }));

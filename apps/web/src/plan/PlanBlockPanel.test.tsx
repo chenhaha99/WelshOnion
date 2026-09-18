@@ -47,17 +47,17 @@ function hengdian(stacked: boolean) {
   };
 }
 
-/** 切到时间轴视图，返回「时间轴」卡片。 */
+/** 切到时间线视图，返回「时间线」卡片。 */
 async function timeline(): Promise<HTMLElement> {
-  await showView("时间轴");
-  return screen.findByRole("region", { name: "时间轴" });
+  await showView("时间线");
+  return screen.findByRole("region", { name: "时间线" });
 }
 
-/** 时间轴上标签里含「 day 」的那一行（比如「10.2」）。 */
+/** 时间线上标签里含「 day 」的那一行（比如「10.2」）。 */
 async function timelineRow(day: string): Promise<HTMLElement> {
   const rows = await within(await timeline()).findAllByRole("listitem");
   const row = rows.find((item) => item.getAttribute("aria-label")!.includes(` ${day} `));
-  if (!row) throw new Error(`时间轴上没有 ${day} 那一行`);
+  if (!row) throw new Error(`时间线上没有 ${day} 那一行`);
   return row;
 }
 
@@ -70,7 +70,7 @@ function segmentOf(container: HTMLElement, title: string): HTMLElement {
   return thing(container, title).closest<HTMLElement>("[data-segment]")!;
 }
 
-/** 时间轴上面那条「没排时间」里每件的读屏名，按顺序。 */
+/** 时间线上面那条「没排时间」里每件的读屏名，按顺序。 */
 function chipNames(): string[] {
   return [
     ...screen.getByRole("group", { name: "没排时间" }).querySelectorAll("[data-undated-chip] > button"),
@@ -82,7 +82,7 @@ function panelOf(title: string): HTMLElement {
 }
 
 async function openInTimeline(user: User, day: string, title: string): Promise<HTMLElement> {
-  // 排上时间的在这一行的横轴上；没排时间的在时间轴上面那条里（整个计划共用一条）
+  // 排上时间的在这一行的横轴上；没排时间的在时间线上面那条里（整个计划共用一条）
   const row = await timelineRow(day);
   const inRow = within(row).queryAllByRole("button", { name: new RegExp(`^${title} `) })[0];
   await openDetails(user, inRow ?? thing(screen.getByRole("group", { name: "没排时间" }), title));
@@ -100,7 +100,7 @@ function buttonIn(panel: HTMLElement, name: string): HTMLElement {
 }
 
 describe("打开和关掉详情气泡", () => {
-  it("从时间轴打开：名字是标题，焦点在标题框上，不是抽屉", async () => {
+  it("从时间线打开：名字是标题，焦点在标题框上，不是抽屉", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeAtNine);
 
@@ -111,7 +111,7 @@ describe("打开和关掉详情气泡", () => {
     expect(panel.className).not.toContain("drawer");
   });
 
-  it("从列表的「详情…」打开：焦点也在标题框上", async () => {
+  it("从日程的「详情…」打开：焦点也在标题框上", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeAtNine);
 
@@ -231,7 +231,7 @@ describe("气泡里有什么", () => {
     expect(within(await timelineRow("10.1")).getByRole("button", { name: "西湖游船 09:00–12:00" })).toBeTruthy();
   });
 
-  it("填短备注，点「关闭」：列表里标题下面写着", async () => {
+  it("填短备注，点「关闭」：日程里标题下面写着", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeAtNine);
 
@@ -286,7 +286,7 @@ describe("放在哪", () => {
 });
 
 describe("没排时间的上移、下移、缩进", () => {
-  it("在时间轴上下移、缩进：栏里跟着变，焦点留在面板里", async () => {
+  it("在时间线上下移、缩进：栏里跟着变，焦点留在面板里", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);

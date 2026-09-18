@@ -38,10 +38,10 @@ function daysFrom(plan: Y.Doc, startDate: string, count: number): string[] {
   return result.value.baseIds;
 }
 
-/** 切到时间轴视图，返回「时间轴」卡片。 */
+/** 切到时间线视图，返回「时间线」卡片。 */
 async function timeline(): Promise<HTMLElement> {
-  await showView("时间轴");
-  return screen.findByRole("region", { name: "时间轴" });
+  await showView("时间线");
+  return screen.findByRole("region", { name: "时间线" });
 }
 
 /** 竖排现在显示的是哪一天。 */
@@ -114,7 +114,7 @@ describe("打开时落在哪一天", () => {
     await waitFor(async () => expect(await shownDay()).toBe("第 2 天 · 9.15 周二"));
   });
 
-  it("切到列表再切回来：还是切走前看的那天", async () => {
+  it("切到日程再切回来：还是切走前看的那天", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFrom(plan, "2026-09-13", 3));
     const region = await timeline();
@@ -122,13 +122,13 @@ describe("打开时落在哪一天", () => {
     await user.click(within(region).getByRole("button", { name: "后一天" }));
     expect(await shownDay()).toBe("第 3 天 · 9.15 周二");
 
-    await showView("列表");
-    expect(screen.queryByRole("region", { name: "时间轴" })).toBeNull();
+    await showView("日程");
+    expect(screen.queryByRole("region", { name: "时间线" })).toBeNull();
 
     expect(await shownDay()).toBe("第 3 天 · 9.15 周二");
   });
 
-  it("在列表里删了前面的一天，切回来还是原来那天", async () => {
+  it("在日程里删了前面的一天，切回来还是原来那天", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFrom(plan, "2026-09-13", 4));
     const region = await timeline();
@@ -160,7 +160,7 @@ describe("竖条怎么画", () => {
     expect(segmentOf(region, "游船").dataset.lane).toBe("2");
 
     await openDetails(user, within(lake).getByRole("button", { name: /^西湖 / }));
-    // 气泡里只剩标题、备注这些；时间在快捷条和列表的时间格上
+    // 气泡里只剩标题、备注这些；时间在快捷条和日程的时间格上
     const dialog = screen.getByRole("dialog", { name: "西湖" });
     expect(within(dialog).getByLabelText("标题")).toHaveProperty("value", "西湖");
   });
@@ -251,7 +251,7 @@ describe("空的时候", () => {
     const region = await timeline();
     await user.click(await within(region).findByRole("button", { name: "加第一件事" }));
 
-    expect(pressedView()).toBe("时间轴");
+    expect(pressedView()).toBe("时间线");
     await waitFor(() => expect(document.activeElement).toBe(within(region).getByRole("textbox", { name: "加一件事" })));
   });
 });

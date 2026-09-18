@@ -1,4 +1,4 @@
-/** 竖排（手机）时间轴的三档：每小时 24、48、96 像素 */
+/** 竖排（手机）时间线的三档：每小时 24、48、96 像素 */
 export const DAY_ZOOMS = [50, 100, 200] as const;
 export type DayZoom = (typeof DAY_ZOOMS)[number];
 

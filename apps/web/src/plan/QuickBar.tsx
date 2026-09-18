@@ -32,7 +32,7 @@ interface QuickBarProps {
   block: BlockView;
   /** 它的开销格摘要（按筛选算过）；一笔开销都没挂是 undefined */
   moneyCell: MoneyCell | undefined;
-  /** 「复制」按住往外拖时的监听，由时间轴给；不给就只能点一下原地复制 */
+  /** 「复制」按住往外拖时的监听，由时间线给；不给就只能点一下原地复制 */
   copyHandlers?: CopyHandlers;
 }
 
@@ -40,9 +40,9 @@ interface QuickBarProps {
  * 选中一件事后浮出的快捷条：划掉、详情、类型、标签、时间、开销、复制、删除。
  * 「划掉」放第一个：含义由用户自己定（你提的），行中最常点，Tab 进来先到它。
  * 常改的几样在这里一两下就改完，不用开详情气泡；没排时间的事没有「复制」。
- * 已经排上时间的，在时间轴上拖着改更快（你提的「时间这类在时间轴操作会更好」）；
+ * 已经排上时间的，在时间线上拖着改更快（你提的「时间这类在时间轴操作会更好」）；
  * 「时间」按钮管的是拖不出来的那几样：排上时间、取消时间、换天、填时长。
- * 条是浮着的，不占时间轴的行高，不然点一下整条时间轴会往下跳（你提的）。
+ * 条是浮着的，不占时间线的行高，不然点一下整条时间线会往下跳（你提的）。
  * 摆在哪由外面决定：横排贴着这件事的右下角，竖排固定在屏幕底部。
  */
 export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, copyHandlers }: QuickBarProps) {
@@ -58,7 +58,7 @@ export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, co
   const lifted = useRef(copyHandlers?.liftedByFinger);
   lifted.current = copyHandlers?.liftedByFinger;
 
-  // 手机上快捷条挂在页面最外层（不在时间轴里面），时间轴那套触摸监听管不到它：
+  // 手机上快捷条挂在页面最外层（不在时间线里面），时间线那套触摸监听管不到它：
   // 拿起来以后手指挪动不滚页面、长按不弹系统菜单，这两件「复制」按钮自己拦
   useEffect(() => {
     const element = copyButton.current;

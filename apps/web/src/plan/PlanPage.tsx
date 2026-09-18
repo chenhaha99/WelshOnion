@@ -93,7 +93,7 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
 
   return (
     <DeletedNotice undo={undo}>
-      {/* 放宽到 1152 像素：时间轴的 24 小时要放得下（每小时至少 30 像素） */}
+      {/* 放宽到 1152 像素：时间线的 24 小时要放得下（每小时至少 30 像素） */}
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
         {/* 三列，计划名在正中间（你提的）：用 grid，两边宽度不等也不会把名字推偏 */}
         <div data-top-row className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">

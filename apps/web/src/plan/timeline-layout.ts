@@ -16,7 +16,7 @@ const MINUTES_PER_DAY = 1440;
 /** 叠在上面的块最多缩几级 */
 const MAX_DEPTH = 3;
 
-/** 一个块画在时间轴某一行上的那一段。分钟从这一行这天的 0 点起算。 */
+/** 一个块画在时间线某一行上的那一段。分钟从这一行这天的 0 点起算。 */
 export interface Segment {
   blockId: string;
   /** 第几行：底座排好序后的下标 */

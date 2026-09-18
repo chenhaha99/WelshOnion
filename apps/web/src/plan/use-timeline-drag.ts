@@ -64,13 +64,13 @@ const LONG_PRESS_SLOP_PX = 10;
 const TOUCH_CLICK_GUARD_MS = 500;
 /** 手指抬起后多久恢复页面选字（毫秒）：iOS 可能在抬起之后才开始选字 */
 const RESTORE_SELECT_MS = 300;
-// 页面只有一个根元素，恢复选字的计时也只留一个、放在所有时间轴外面：切视图卸掉的时间轴留下的计时，
-// 不能在新装上的时间轴按住时把选字恢复了
+// 页面只有一个根元素，恢复选字的计时也只留一个、放在所有时间线外面：切视图卸掉的时间线留下的计时，
+// 不能在新装上的时间线按住时把选字恢复了
 let restoreSelectTimer: number | undefined;
 
 /**
  * 按下那一刻有事选中着（有快捷条）、或者开着弹层、气泡的按下。在窗口的捕获阶段记，比取消选中、关弹层的监听都早：
- * 那些监听一动，React 可能在轮到时间轴的按下之前就重画了，到那时再看，选中的已经没了。
+ * 那些监听一动，React 可能在轮到时间线的按下之前就重画了，到那时再看，选中的已经没了。
  */
 const pressedWhileBusy = new WeakSet<Event>();
 const BUSY_SELECTOR = "[data-quick-bar], [role='dialog'], [role='menu']";
@@ -102,7 +102,7 @@ interface Drag extends DropInput {
 export interface CopyHandlers {
   onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>, blockId: string) => void;
   onClickCapture: (event: ReactMouseEvent<HTMLButtonElement>) => void;
-  /** 手指已经把复制出来的那一份拿起来了：这时手指挪动不能滚页面（手机上快捷条不在时间轴里面，要它自己拦） */
+  /** 手指已经把复制出来的那一份拿起来了：这时手指挪动不能滚页面（手机上快捷条不在时间线里面，要它自己拦） */
   liftedByFinger: () => boolean;
 }
 
@@ -112,7 +112,7 @@ export interface DragView {
   blockId: string;
   /** 按着 Alt 挪：复制，原来的不动 */
   copying: boolean;
-  /** 画在松手后的位置、拿起来的样子的块：挪的是它自己，复制的是复制出来的；指针在栏里时是 null（时间轴不重排） */
+  /** 画在松手后的位置、拿起来的样子的块：挪的是它自己，复制的是复制出来的；指针在栏里时是 null（时间线不重排） */
   liftedId: string | null;
   /** 跟着一起走的块（复制时是复制出来的那些），画在松手后的位置 */
   followers: readonly string[];
@@ -190,10 +190,10 @@ interface TimelineDragOptions {
 
 export interface TimelineDrag {
   dragView: DragView | null;
-  /** 拖动中、指针在时间轴上时，松手后的计划和行：照它画；别的时候是 null，照原来的画 */
+  /** 拖动中、指针在时间线上时，松手后的计划和行：照它画；别的时候是 null，照原来的画 */
   dropped: DroppedView | null;
   trayDrop: TrayDrop | null;
-  /** 松手后的时间，写在指针上方；没在时间轴上拖是 null */
+  /** 松手后的时间，写在指针上方；没在时间线上拖是 null */
   pointerLabel: PointerLabel | null;
   /** 正在空白处拖出的一段（手指按住还没抬起也算）；别的时候是 null */
   blankRange: BlankRange | null;
@@ -205,12 +205,12 @@ export interface TimelineDrag {
   rowRef: (index: number) => (element: HTMLLIElement | null) => void;
   axisRef: (index: number) => (element: HTMLDivElement | null) => void;
   trayRef: (element: HTMLDivElement | null) => void;
-  /** 时间轴最外层的元素：挂触摸和系统菜单的监听 */
+  /** 时间线最外层的元素：挂触摸和系统菜单的监听 */
   containerRef: (element: HTMLElement | null) => void;
 }
 
 /**
- * 时间轴上拖，横排、竖排共用：
+ * 时间线上拖，横排、竖排共用：
  * - 横条、竖条：中间挪时间，按住 Alt 复制；横排上下拖换天、用鼠标拖两端改长度、拖进「没排时间」栏就变回没排时间
  * - 横排栏里的一件：拖到横轴上排上时间，拖进另一天的栏换天
  * - 竖排不换天（开始夹在块开始的那天），拖到框边时框自己滚
@@ -272,7 +272,7 @@ export function useTimelineDrag({
   const suppressClick = useRef(false);
   /** 拿起来拖过的手指刚抬起：接着的 touchend 拦下，浏览器就不补发点击 */
   const swallowTouchEnd = useRef(false);
-  /** 最近一次在时间轴里按下的是不是鼠标：手指长按弹出的系统菜单要拦，鼠标右键的不拦 */
+  /** 最近一次在时间线里按下的是不是鼠标：手指长按弹出的系统菜单要拦，鼠标右键的不拦 */
   const lastPressByMouse = useRef(true);
   // 窗口上的监听、长按计时、每帧的滚动都经过这里读最新的计划
   const latest = useRef({ doc, library, plan, libraryView, rows, filter, day, metrics, hours, onBlankRange });
@@ -297,7 +297,7 @@ export function useTimelineDrag({
     return { row, minute: minuteAtPixel(hours, clientX - axis.left, axis.width) };
   };
 
-/** 横排：指针落在时间轴上面那条「没排时间」里就是在条里（条是整个计划一条）。竖排没有条。 */
+/** 横排：指针落在时间线上面那条「没排时间」里就是在条里（条是整个计划一条）。竖排没有条。 */
   const zoneAt = (clientX: number, clientY: number): Drag["zone"] => {
     const tray = latest.current.day === null ? trayElement.current?.getBoundingClientRect() : undefined;
     const inside =
@@ -489,7 +489,7 @@ export function useTimelineDrag({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edgeScrolling]);
 
-  // 时间轴外层的触摸、系统菜单监听。挂载时就挂上：浏览器在手指按下那一刻决定滚动要不要等页面处理，按下以后才挂的拦不住滚动；
+  // 时间线外层的触摸、系统菜单监听。挂载时就挂上：浏览器在手指按下那一刻决定滚动要不要等页面处理，按下以后才挂的拦不住滚动；
   // 非被动（passive: false）才能 preventDefault
   const detachContainer = useRef<(() => void) | null>(null);
   const containerRef = useCallback((element: HTMLElement | null) => {

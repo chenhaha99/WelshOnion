@@ -51,7 +51,7 @@ test("手机上用手指：长按拿起 → 挪晚 1 小时 → 点一下开详�
   const day1Table = page.getByRole("table", { name: DAY1 });
   await addBlocks(page, day1Table, ["西湖", "河坊街"]);
   await schedule(page, day1Table, "西湖", "09:00", "3");
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  const timeline = page.getByRole("region", { name: "时间线" });
   const scroller = timeline.locator("[data-day-scroll]");
   const lifted = timeline.locator("[data-lifted]");
   const label = page.locator("[data-drag-label]");
@@ -165,12 +165,12 @@ test("手机上：拖到框边自己滚、回到中间就停 → 鼠标拖：不
   await addBlocks(page, day3Table, ["横店", "明清宫苑"]);
   await schedule(page, day3Table, "横店", "08:00", "12");
   await schedule(page, day3Table, "明清宫苑", "10:00", "2");
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  const timeline = page.getByRole("region", { name: "时间线" });
   const scroller = timeline.locator("[data-day-scroll]");
   const label = page.locator("[data-drag-label]");
 
   // 框滚到 08:00 在最上面；长按灵隐寺，挪到框的下边上：框往下滚
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   await scroller.evaluate((element, hourHeight) => {
     element.scrollTop = 8 * hourHeight;
   }, HOUR_HEIGHT);
@@ -261,13 +261,13 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   await longPress(page, lake);
   await expect(label).toHaveText("09:00–12:00");
   await expect(segment(day1, "西湖")).toHaveAttribute("data-lifted", "true");
-  // 斜着挪一点点就行：往上挪太多会进「没排时间」那一条（它在时间轴上面），那是另一回事
+  // 斜着挪一点点就行：往上挪太多会进「没排时间」那一条（它在时间线上面），那是另一回事
   await fingerMove(page, lake, { x: lake.x + hour, y: lake.y - 12 });
   await expect(label).toHaveText("10:00–13:00");
   expect(await pageScrollY(page)).toBe(scrollBefore);
   await shot(page, "04-wide-finger", { dragging: true });
   await fingerUp(page);
-  // 先看页面没滚，再去读表：读表要切到列表，切换按钮贴着顶时切换页面会滚
+  // 先看页面没滚，再去读表：读表要切到日程，切换按钮贴着顶时切换页面会滚
   await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "600");
   expect(await pageScrollY(page)).toBe(scrollBefore);
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("10:00–13:00");
@@ -294,8 +294,8 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   await fingerUp(page);
   await expect.poll(() => timeOf(day1Table, "灵隐寺")).toBe("14:00–16:00");
 
-  // 没长按就往下滑：滚的是页面（往回滚），没有预览框。切换按钮贴顶时时间轴下面没有别的了，往上滑滚不动，所以往下滑。
-  // 放在最后：在时间轴上快速滑过以后，Chromium 模拟的手指在一两秒里点不出点击（惯性把那一下吃了），后面再点、再按会不稳
+  // 没长按就往下滑：滚的是页面（往回滚），没有预览框。切换按钮贴顶时时间线下面没有别的了，往上滑滚不动，所以往下滑。
+  // 放在最后：在时间线上快速滑过以后，Chromium 模拟的手指在一两秒里点不出点击（惯性把那一下吃了），后面再点、再按会不稳
   // 先往下滚到切换按钮贴顶（主版面上面只剩一行筛选，只滚得下去几十像素），够往回滚就行
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const lakeNow = center(await box(segment(day1, "西湖")));

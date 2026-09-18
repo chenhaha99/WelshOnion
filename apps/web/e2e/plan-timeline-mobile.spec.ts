@@ -11,20 +11,20 @@ async function topMinute(scroller: Locator): Promise<number> {
 }
 
 async function shownDay(page: Page): Promise<string> {
-  return page.getByRole("region", { name: "时间轴" }).locator("[data-timeline-day]").innerText();
+  return page.getByRole("region", { name: "时间线" }).locator("[data-timeline-day]").innerText();
 }
 
 // 行程 9.13–9.15，「现在」固定在 9.14 14:20（北京）
-test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第一件事 → 切到列表加事再切回来还是那天、没排时间出现又不见 → 改块不滚 → 空的一天 → 回到今天 → 宽屏切回横排", async ({
+test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第一件事 → 切到日程加事再切回来还是那天、没排时间出现又不见 → 改块不滚 → 空的一天 → 回到今天 → 宽屏切回横排", async ({
   page,
 }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(new Date("2026-09-14T06:20:00Z"));
   await newPlan(page, 3, { startDate: "2026-09-13", width: 390, height: 844 });
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  const timeline = page.getByRole("region", { name: "时间线" });
   const scroller = timeline.locator("[data-day-scroll]");
   const day3Table = page.getByRole("table", { name: /9\.15 周二 的安排/ });
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
 
   // 打开落在今天，滚到现在往前 1 小时再往前取到整点；横排不在
   await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 2 天 · 9.14 周一");
@@ -39,7 +39,7 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   await timeline.scrollIntoViewIfNeeded();
   await shot(page, "01-today");
 
-  // 在 9.15 排一件 09:00 的事（辅助函数切到列表排好再切回来），翻过去：往前 30 分钟再取整点，滚到 08:00；「回到今天」出现
+  // 在 9.15 排一件 09:00 的事（辅助函数切到日程排好再切回来），翻过去：往前 30 分钟再取整点，滚到 08:00；「回到今天」出现
   await addBlocks(page, day3Table, ["西湖"]);
   await schedule(page, day3Table, "西湖", "09:00", "3");
   await timeline.getByRole("button", { name: "后一天" }).click();
@@ -50,7 +50,7 @@ test("手机上竖着看一天：落在今天、滚到现在 → 翻天滚到第
   await timeline.scrollIntoViewIfNeeded();
   await shot(page, "02-next-day");
 
-  // 切到列表加一件、切回来：还是 9.15；刚加上、还没排时间，框下面出现「没排时间」；排上时间后整块不见
+  // 切到日程加一件、切回来：还是 9.15；刚加上、还没排时间，框下面出现「没排时间」；排上时间后整块不见
   await addBlocks(page, day3Table, ["灵隐寺"]);
   await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 3 天 · 9.15 周二");
   const tray = timeline.getByRole("group", { name: "没排时间" });

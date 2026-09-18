@@ -26,7 +26,7 @@ test("电脑上：点空白弹框 → 回车建出来、选中 → 选中着点�
   const day1Table = page.getByRole("table", { name: DAY1 });
   await addBlocks(page, day1Table, ["西湖"]);
   await schedule(page, day1Table, "西湖", "09:00", "3");
-  await showView(page, "时间轴");
+  await showView(page, "时间线");
   const day1 = timelineRow(page, "10.1");
   const ghost = day1.locator("[data-new-range]");
 
@@ -97,8 +97,8 @@ test.describe("手机上", () => {
     const day1Table = page.getByRole("table", { name: DAY1 });
     await addBlocks(page, day1Table, ["西湖"]);
     await schedule(page, day1Table, "西湖", "09:00", "3");
-    await showView(page, "时间轴");
-    const timeline = page.getByRole("region", { name: "时间轴" });
+    await showView(page, "时间线");
+    const timeline = page.getByRole("region", { name: "时间线" });
     const axis = timeline.locator("[data-day-axis]");
     const ghost = axis.locator("[data-new-range]");
 

@@ -301,7 +301,7 @@ describe("松手后做什么、松手后的计划", () => {
     expect([started.start_minute, started.duration_min]).toEqual([600, 120]);
   });
 
-  it("拖进条里：时间轴不重排、留在原来那一天；条里的拖回条里：什么都不做", () => {
+  it("拖进条里：时间线不重排、留在原来那一天；条里的拖回条里：什么都不做", () => {
     const built = build(2, [{ title: "西湖", minute: 540, duration: 180 }, { title: "河坊街" }]);
 
     const intoTray = dropAction(segmentDrag(built, "西湖", { zone: { kind: "tray" } }), built.plan, null)!;

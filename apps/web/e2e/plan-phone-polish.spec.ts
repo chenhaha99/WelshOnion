@@ -12,7 +12,7 @@ async function expectSameLine(a: Locator, b: Locator, name: string): Promise<voi
   expect(Math.abs(boxA.y + boxA.height / 2 - (boxB.y + boxB.height / 2)), `${name}在同一行`).toBeLessThan(8);
 }
 
-test("手机竖排：切到时间轴滚到整点、框的上边不切开钟点字 → 正在进行的「西湖」开头在框外，名字贴着框的上边", async ({ page }) => {
+test("手机竖排：切到时间线滚到整点、框的上边不切开钟点字 → 正在进行的「西湖」开头在框外，名字贴着框的上边", async ({ page }) => {
   const errors = watchErrors(page);
   // 行程 9.13–9.15，「现在」固定在 9.14 11:08（北京）：往前 1 小时是 10:08，不取整点的话「10」会被切掉一半
   await page.clock.setFixedTime(new Date("2026-09-14T03:08:00Z"));
@@ -20,10 +20,10 @@ test("手机竖排：切到时间轴滚到整点、框的上边不切开钟点�
   const today = page.getByRole("table", { name: /9\.14 周一 的安排/ });
   await addBlocks(page, today, ["西湖"]);
   await schedule(page, today, "西湖", "09:30", "3");
-  // 框只在打开时间轴、翻天时滚：在列表里排好再切到时间轴
-  await showView(page, "时间轴");
+  // 框只在打开时间线、翻天时滚：在日程里排好再切到时间线
+  await showView(page, "时间线");
 
-  const timeline = page.getByRole("region", { name: "时间轴" });
+  const timeline = page.getByRole("region", { name: "时间线" });
   const scroller = timeline.locator("[data-day-scroll]");
   await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 2 天 · 9.14 周一");
   await expect

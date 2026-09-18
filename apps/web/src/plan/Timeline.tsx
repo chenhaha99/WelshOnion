@@ -91,14 +91,14 @@ interface TimelineProps {
   hours: HourWindow;
   /** 点了折起的那一截：展开成 0–24 点 */
   onExpandHours: () => void;
-  /** 竖排看的是哪天（底座 id）：DayList 记着，切到列表再切回来接着看这天 */
+  /** 竖排看的是哪天（底座 id）：DayList 记着，切到日程再切回来接着看这天 */
   shownDay: { current: string | null };
   /** 搜索里点了一条：竖排翻到这天（seq 变了才算一次新的） */
   jump: { baseId: string; seq: number } | null;
 }
 
 /**
- * 时间轴：屏幕够宽时横着铺（一天一行），窄屏上竖着铺、一次一天（见 DayTimeline）；两种都能拖（见 use-timeline-drag）。
+ * 时间线：屏幕够宽时横着铺（一天一行），窄屏上竖着铺、一次一天（见 DayTimeline）；两种都能拖（见 use-timeline-drag）。
  * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。点一件事选中它、旁边出快捷条；每天有「加一件事」和「这天的操作」。
  */
 export function Timeline({
@@ -145,8 +145,8 @@ export function Timeline({
   };
 
   return (
-    <section ref={section} aria-label="时间轴" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
-      {/* 卡片名不写出来：上面「时间轴」那个 tab 按着呢，读屏名在 section 的 aria-label 上 */}
+    <section ref={section} aria-label="时间线" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
+      {/* 卡片名不写出来：上面「时间线」那个 tab 按着呢，读屏名在 section 的 aria-label 上 */}
       {plan.blocks.size === 0 ? (
         // 一件事都没有：栏是空的，栏下面的「加一件事」不显眼，直接给个按钮
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -160,7 +160,7 @@ export function Timeline({
         !hasTimed && (
           <p className="text-sm text-ink-muted">
             {wide
-              ? "排上时间的事会画在这里：把上面没排时间的事拖到时间轴上，或者点开它排时间"
+              ? "排上时间的事会画在这里：把上面没排时间的事拖到时间线上，或者点开它排时间"
               : "排上时间的事会画在这里：点开下面没排时间的事排时间"}
           </p>
         )
@@ -238,7 +238,7 @@ function WideTimeline({
   onExpandHours,
 }: WideTimelineProps) {
   const selection = useBlockSelection();
-  // 块分上中下三区：按拖之前的计划算，拖一件挂着标签的事进时间轴时版面不在拖动中跳
+  // 块分上中下三区：按拖之前的计划算，拖一件挂着标签的事进时间线时版面不在拖动中跳
   const zones = barZones(blockText, titleLines, planHasBarTags(plan, libraryView));
   const metrics = wideMetrics(zones);
   // 在空白处点了、拖出了一段：画着虚线框，贴着它弹「加一件事」；框关掉就没了
@@ -284,7 +284,7 @@ function WideTimeline({
 
   return (
     <div ref={drag.containerRef} className="relative flex flex-col gap-1">
-      {/* 「没排时间」在时间轴上面横着一条（你提的）：一件都没有时整条不出现 */}
+      {/* 「没排时间」在时间线上面横着一条（你提的）：一件都没有时整条不出现 */}
       <UndatedStrip
         // 条用现在的计划画：拖动中被拖的那一件留在条上、变淡，松手后才拿走
         plan={plan}
@@ -516,7 +516,7 @@ function TimelineRow({
         data-window-from={hours.from}
         data-window-to={hours.to}
         className="relative"
-        // 快捷条浮在上面、不占这一行的高度（你提的：选中不该把下面的时间轴顶下去）
+        // 快捷条浮在上面、不占这一行的高度（你提的：选中不该把下面的时间线顶下去）
         style={{ minHeight: wideAxisHeight(layout, metrics) }}
         // 空白处点一下、按住拖：加一件事
         onPointerDown={(event) => {
@@ -657,7 +657,7 @@ function Segment({
       // 三区里有哪几区：按钮上下留多少由 index.css 照这两个属性定
       data-tag-bar={bar && zones.tagBar ? true : undefined}
       data-foot={bar && zones.foot ? true : undefined}
-      // 指针在「没排时间」栏里时时间轴不重排：被拖的横条留在原处变淡
+      // 指针在「没排时间」栏里时时间线不重排：被拖的横条留在原处变淡
       data-dragging={
         dragView && dragView.liftedId === null && !dragView.copying && dragView.blockId === item.blockId ? true : undefined
       }

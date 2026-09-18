@@ -12,8 +12,8 @@ test("开销：填第一笔 → 一块多笔 → 不属于任何一天 → 总�
   await page.getByLabel("出发日期").fill("2026-10-01");
   await page.getByLabel("天数").fill("2");
   await page.getByRole("button", { name: "确定" }).click();
-  // 打开是时间轴：这份走查从安排表开始，先切到列表
-  await showView(page, "列表");
+  // 打开是时间线：这份走查从安排表开始，先切到日程
+  await showView(page, "日程");
 
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const rows = table.locator("tr[data-block-id]");
@@ -75,7 +75,7 @@ test("开销：填第一笔 → 一块多笔 → 不属于任何一天 → 总�
   await expect(overview.getByRole("button", { name: "不属于任何一天：¥0" })).toBeVisible();
 
   // 只用键盘：灵隐寺的开销格回车打开，填 45 回车
-  await showView(page, "列表");
+  await showView(page, "日程");
   await rows.nth(2).getByRole("button", { name: "开销" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("group", { name: "灵隐寺 的开销" }).getByRole("textbox", { name: "新一笔的金额" })).toBeFocused();

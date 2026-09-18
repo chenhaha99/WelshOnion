@@ -129,7 +129,7 @@ export function AnchoredCard({
 
   return createPortal(
     <>
-      {/* 底部浮起时后面压一层暗底：点了关掉，也点不到后面的时间轴（点外面多半是想点别的事，关掉又选中别的容易乱） */}
+      {/* 底部浮起时后面压一层暗底：点了关掉，也点不到后面的时间线（点外面多半是想点别的事，关掉又选中别的容易乱） */}
       {sheet && <div data-card-backdrop aria-hidden className="fixed inset-0 z-30 bg-ink/25" onClick={onClose} />}
       {card}
     </>,

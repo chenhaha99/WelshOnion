@@ -52,9 +52,9 @@ async function oneDay(seed: Seed = {}): Promise<string> {
   });
 }
 
-/** 时间轴上读屏名以「title 」开头的那一段的外框。 */
+/** 时间线上读屏名以「title 」开头的那一段的外框。 */
 async function segmentOf(title: string): Promise<HTMLElement> {
-  const timeline = await screen.findByRole("region", { name: "时间轴" });
+  const timeline = await screen.findByRole("region", { name: "时间线" });
   return within(timeline)
     .getByRole("button", { name: new RegExp(`^${title} `) })
     .closest<HTMLElement>("[data-segment]")!;
@@ -80,7 +80,7 @@ function titleLines(segment: HTMLElement): string {
 describe("书签栏：上面那一区", () => {
   it("有排上时间的事挂着标签：每道 38，书签挂在书签栏里", async () => {
     await oneDay({ lakeTagged: true });
-    await showView("时间轴");
+    await showView("时间线");
 
     const lake = await segmentOf("西湖");
     expect(axisHeight()).toBe("54px"); // 背景细条 16 + 一道 38
@@ -90,9 +90,9 @@ describe("书签栏：上面那一区", () => {
     expect((await segmentOf("看潮")).dataset.tagBar).toBe("true");
   });
 
-  it("只有没排时间的事挂着标签：时间轴上没有书签栏", async () => {
+  it("只有没排时间的事挂着标签：时间线上没有书签栏", async () => {
     await oneDay({ streetTagged: true });
-    await showView("时间轴");
+    await showView("时间线");
 
     expect(axisHeight()).toBe("44px");
     expect((await segmentOf("西湖")).dataset.tagBar).toBeUndefined();
@@ -101,11 +101,11 @@ describe("书签栏：上面那一区", () => {
   it("挂着标签的事被筛掉了：书签栏还在，点筛选时版面不跳", async () => {
     const user = userEvent.setup();
     await oneDay({ lakeTagged: true, lakeStruck: true });
-    await showView("时间轴");
+    await showView("时间线");
 
     await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
 
-    const timeline = await screen.findByRole("region", { name: "时间轴" });
+    const timeline = await screen.findByRole("region", { name: "时间线" });
     await waitFor(() => expect(within(timeline).queryByRole("button", { name: /^西湖 / })).toBeNull());
     expect((await segmentOf("看潮")).dataset.tagBar).toBe("true");
     expect(axisHeight()).toBe("54px");
@@ -116,7 +116,7 @@ describe("附件栏：下面那一区", () => {
   it("时长和开销在最下面一行，开销在最右；每道 40", async () => {
     const user = userEvent.setup();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     await toggle(user, "时长");
     await toggle(user, "开销");
@@ -142,7 +142,7 @@ describe("附件栏：下面那一区", () => {
   it("书签栏、标题、附件栏都有：每道 50", async () => {
     const user = userEvent.setup();
     await oneDay({ lakeTagged: true });
-    await showView("时间轴");
+    await showView("时间线");
 
     await toggle(user, "开销");
 
@@ -153,7 +153,7 @@ describe("附件栏：下面那一区", () => {
   it("只开时长：时长在最下面一行，每道 28", async () => {
     const user = userEvent.setup();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     await toggle(user, "时长");
     await toggle(user, "标题");
@@ -171,7 +171,7 @@ describe("附件栏：下面那一区", () => {
 describe("中间那一区写几行：文字行数拉动条", () => {
   it("默认 1 行；拉到 3 行，每道 60，标题最多写 3 行", async () => {
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     const slider = linesSlider();
     expect([slider.value, slider.min, slider.max, slider.step]).toEqual(["1", "1", "4", "1"]);
@@ -188,25 +188,25 @@ describe("中间那一区写几行：文字行数拉动条", () => {
 
   it("记在这台设备上：切走再回来还是那个行数；另一个计划是 1 行", async () => {
     const planId = await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     fireEvent.change(linesSlider(), { target: { value: "2" } });
-    await showView("列表");
-    await showView("时间轴");
+    await showView("日程");
+    await showView("时间线");
     await waitFor(() => expect(linesSlider().value).toBe("2"));
 
     expect(localStorage.getItem(`welshonion.title-lines.${planId}`)).toBe("2");
     cleanup();
     await releaseAll();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
     expect(linesSlider().value).toBe("1");
   });
 
   it("关掉「标题」时按不了", async () => {
     const user = userEvent.setup();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     await toggle(user, "标题");
 
@@ -216,7 +216,7 @@ describe("中间那一区写几行：文字行数拉动条", () => {
 
   it("细条不受行数影响", async () => {
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
     fireEvent.change(linesSlider(), { target: { value: "4" } });
 
@@ -227,9 +227,9 @@ describe("中间那一区写几行：文字行数拉动条", () => {
   it("手机上没有拉动条", async () => {
     stubNarrowScreen();
     await oneDay();
-    await showView("时间轴");
+    await showView("时间线");
 
-    await screen.findByRole("region", { name: "时间轴" });
+    await screen.findByRole("region", { name: "时间线" });
     expect(screen.queryByRole("slider", { name: "文字行数" })).toBeNull();
   });
 });
@@ -244,7 +244,7 @@ describe("套在里面的块往下让「书签栏 + 标题那几行」", () => {
       setBlockLayer(plan, library, inner, outer);
       setBlockTag(plan, library, [outer], must, true);
     });
-    await showView("时间轴");
+    await showView("时间线");
     fireEvent.change(linesSlider(), { target: { value: "2" } });
 
     await waitFor(async () => expect(titleLines(await segmentOf("横店"))).toBe("2"));
@@ -259,7 +259,7 @@ describe("手机上的竖条按自己的高度分区", () => {
     stubNarrowScreen();
     const user = userEvent.setup();
     await oneDay({ lakeTagged: true });
-    await showView("时间轴");
+    await showView("时间线");
 
     await toggle(user, "时长");
     await toggle(user, "开销");

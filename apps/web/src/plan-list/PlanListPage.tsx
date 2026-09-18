@@ -77,7 +77,7 @@ export function PlanListPage() {
         <div className="absolute top-6 right-6">{settings}</div>
         <main className="mx-auto flex max-w-xl flex-col items-center gap-5 px-6 py-28 text-center">
           <h1 className="text-4xl font-medium tracking-wider text-ink">葱葱</h1>
-          <p className="text-ink-muted">把旅行排进时间轴，每天满不满、钱花在哪，一眼看得见。</p>
+          <p className="text-ink-muted">把旅行排进时间线，每天满不满、钱花在哪，一眼看得见。</p>
           <NewPlan label="新建第一个计划" />
         </main>
         {settingsPanel}

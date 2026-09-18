@@ -66,8 +66,8 @@ describe("占比卡片", () => {
     expect(overview.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // 状态去掉了，不再写「定没定」
     expect(within(card).queryByRole("group", { name: "定没定" })).toBeNull();
-    // 时间轴、列表里都没有它们
-    await showView("时间轴");
+    // 时间线、日程里都没有它们
+    await showView("时间线");
     expect(screen.queryByRole("region", { name: "占比" })).toBeNull();
     expect(screen.queryByRole("region", { name: "开销总览" })).toBeNull();
   });

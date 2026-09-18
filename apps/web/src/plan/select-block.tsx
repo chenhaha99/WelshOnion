@@ -3,7 +3,7 @@ import { createContext, useContext, type CSSProperties, type ReactNode } from "r
 import { TagRibbon } from "./tag-ribbon";
 
 /**
- * 时间轴上选中的是哪一件：DayList 拿着，横条、竖条、「没排时间」栏里的一件都从这里读。
+ * 时间线上选中的是哪一件：DayList 拿着，横条、竖条、「没排时间」栏里的一件都从这里读。
  * 选中的那件旁边出快捷条（QuickBar）；详情面板从快捷条的「详情…」打开。
  */
 export interface BlockSelection {
@@ -22,7 +22,7 @@ export const SelectBlockContext = createContext<BlockSelection | null>(null);
 
 export function useBlockSelection(): BlockSelection {
   const selection = useContext(SelectBlockContext);
-  if (!selection) throw new Error("时间轴上选中一件事只能在 DayList 里面");
+  if (!selection) throw new Error("时间线上选中一件事只能在 DayList 里面");
   return selection;
 }
 
@@ -41,7 +41,7 @@ interface BlockButtonProps {
 }
 
 /**
- * 时间轴上的一件事（横条、竖条、「没排时间」栏里的一件）：点一下选中它，再点一下取消；
+ * 时间线上的一件事（横条、竖条、「没排时间」栏里的一件）：点一下选中它，再点一下取消；
  * 选中的按钮 aria-pressed 是 true（读屏报得出来），描边在 index.css 里按这个属性画。
  */
 export function BlockButton({ blockId, name, tags, tagMarks = true, checked, className, children }: BlockButtonProps) {

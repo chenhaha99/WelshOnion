@@ -35,7 +35,7 @@ interface UndatedTrayProps {
 }
 
 /**
- * 时间轴的「没排时间」：一天里没排时间的一串事，每件写标题和时间格的字，缩进了的往右缩，点一下选中它（下面出快捷条）。
+ * 时间线的「没排时间」：一天里没排时间的一串事，每件写标题和时间格的字，缩进了的往右缩，点一下选中它（下面出快捷条）。
  * 横排在每行右边，按住能拖；这一栏一直在，没有事时是空的，横条也能拖进来。竖排在框下面，不能拖。
  */
 export function UndatedTray({
@@ -129,7 +129,7 @@ interface UndatedStripProps {
 }
 
 /**
- * 时间轴上面的「没排时间」条：整个计划里没排时间的事横着排一行，每件写日期和标题，
+ * 时间线上面的「没排时间」条：整个计划里没排时间的事横着排一行，每件写日期和标题，
  * 放不下就在这一条里横向滚。一件都没有、又没在往这里拖时，整条不出现。
  */
 export function UndatedStrip({
@@ -145,7 +145,7 @@ export function UndatedStrip({
 }: UndatedStripProps) {
   const items = undatedAcrossDays(plan, filter);
   if (items.length === 0 && dropLabel === null && !showWhenEmpty) return null;
-  // 条上一件都没有、只是拖动中才画出来的：浮在时间轴上面，不占位——占位会把横轴顶下去，拖着的落点就偏了
+  // 条上一件都没有、只是拖动中才画出来的：浮在时间线上面，不占位——占位会把横轴顶下去，拖着的落点就偏了
   const floating = items.length === 0;
   return (
     <div className={floating ? "absolute inset-x-0 top-0 z-30" : "flex flex-col gap-1"}>

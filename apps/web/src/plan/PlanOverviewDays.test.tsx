@@ -118,16 +118,16 @@ describe("总览里的「每天」", () => {
     expect(card.textContent).toContain("还没有事，也没有开销");
   });
 
-  it("点日期：切到时间轴，焦点到那天的「这天的操作」", async () => {
+  it("点日期：切到时间线，焦点到那天的「这天的操作」", async () => {
     await openTrip();
     const card = await daysCard();
-    fireEvent.click(within(card).getByRole("button", { name: "在时间轴上看 第 2 天 · 10.2 周五" }));
+    fireEvent.click(within(card).getByRole("button", { name: "在时间线上看 第 2 天 · 10.2 周五" }));
 
-    expect(pressedView()).toBe("时间轴");
+    expect(pressedView()).toBe("时间线");
     await waitFor(() => {
       const menu = document.activeElement as HTMLElement;
       expect(menu.getAttribute("aria-label")).toBe("这天的操作");
-      // 时间轴上那天一行（`<li aria-label>`）
+      // 时间线上那天一行（`<li aria-label>`）
       expect(menu.closest("[data-base-id]")?.getAttribute("aria-label")).toContain("10.2");
     });
   });
@@ -141,7 +141,7 @@ describe("手机上的「每天」", () => {
     expect(within(card).queryByRole("table")).toBeNull();
     const list = within(card).getByRole("list", { name: "每天" });
     const [oct1] = within(list).getAllByRole("listitem");
-    expect(within(oct1!).getByRole("button", { name: "在时间轴上看 第 1 天 · 10.1 周四" })).toBeTruthy();
+    expect(within(oct1!).getByRole("button", { name: "在时间线上看 第 1 天 · 10.1 周四" })).toBeTruthy();
     expect(oct1!.querySelector("[data-day-money]")?.textContent).toBe("¥300");
     expect(oct1!.querySelector("[data-day-line]")?.textContent).toBe(
       "09:00 起 · 16:00 收工 · 排了 5.5 小时 · 自驾 2 小时 130 公里 · 还有 1.5 小时没排 · 1 笔没填 · 5 件",
@@ -152,9 +152,9 @@ describe("手机上的「每天」", () => {
     stubNarrowScreen();
     await openTrip();
     const card = await daysCard();
-    fireEvent.click(within(card).getByRole("button", { name: "在时间轴上看 第 3 天 · 10.3 周六" }));
+    fireEvent.click(within(card).getByRole("button", { name: "在时间线上看 第 3 天 · 10.3 周六" }));
 
-    expect(pressedView()).toBe("时间轴");
+    expect(pressedView()).toBe("时间线");
     await waitFor(() => expect(document.querySelector("[data-timeline-day]")?.textContent).toBe("第 3 天 · 10.3 周六"));
     await waitFor(() => expect((document.activeElement as HTMLElement).getAttribute("aria-label")).toBe("这天的操作"));
   });

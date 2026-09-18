@@ -27,7 +27,7 @@ export interface DayFacts {
 }
 
 /**
- * 时间轴占用法：每一分钟归给盖住它的块里有效层最高的那些块，一样高的各算各的。
+ * 时间线占用法：每一分钟归给盖住它的块里有效层最高的那些块，一样高的各算各的。
  * 在绝对时间上算；返回每个定时块实际占到的分钟数（整笔归开始那天由调用方按 start_base_id 归）。
  */
 export function occupiedMinutes(

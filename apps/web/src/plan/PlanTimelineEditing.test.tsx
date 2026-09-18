@@ -30,10 +30,10 @@ function block(plan: Y.Doc, library: Y.Doc, input: AddBlockInput): string {
   return result.value.blockId;
 }
 
-/** 切到时间轴视图，返回「时间轴」卡片。 */
+/** 切到时间线视图，返回「时间线」卡片。 */
 async function timeline(): Promise<HTMLElement> {
-  await showView("时间轴");
-  return screen.findByRole("region", { name: "时间轴" });
+  await showView("时间线");
+  return screen.findByRole("region", { name: "时间线" });
 }
 
 /** 横排每一行的标签。 */
@@ -47,11 +47,11 @@ async function rowLabels(): Promise<string[]> {
 async function timelineRow(day: string): Promise<HTMLElement> {
   const rows = await within(await timeline()).findAllByRole("listitem");
   const row = rows.find((item) => item.getAttribute("aria-label")!.includes(` ${day} `));
-  if (!row) throw new Error(`时间轴上没有 ${day} 那一行`);
+  if (!row) throw new Error(`时间线上没有 ${day} 那一行`);
   return row;
 }
 
-/** container 里「没排时间」那一串每件的读屏名，按顺序（横排的条在时间轴上面，竖排的在框下面）。 */
+/** container 里「没排时间」那一串每件的读屏名，按顺序（横排的条在时间线上面，竖排的在框下面）。 */
 function chipNames(container: HTMLElement): string[] {
   return [
     ...within(container).getByRole("group", { name: "没排时间" }).querySelectorAll("[data-undated-chip] > button"),
@@ -68,7 +68,7 @@ async function chooseDayMenu(user: User, container: HTMLElement, item: string): 
   await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: item }));
 }
 
-describe("在时间轴上加一件事", () => {
+describe("在时间线上加一件事", () => {
   it("横排：点第一列的「＋」连着加两件，焦点留在框里", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 2));
@@ -80,7 +80,7 @@ describe("在时间轴上加一件事", () => {
     await waitFor(async () => expect(chipNames(await timeline())).toEqual(["西湖 10.2 整天", "灵隐寺 10.2 整天"]));
     expect(document.activeElement).toBe(add);
     expect(add.value).toBe("");
-    expect(pressedView()).toBe("时间轴");
+    expect(pressedView()).toBe("时间线");
     expect(await blockTitles("10.2")).toEqual(["西湖", "灵隐寺"]);
   });
 
@@ -150,8 +150,8 @@ describe("在时间轴上加一件事", () => {
   });
 });
 
-describe("时间轴上每天的菜单", () => {
-  it("横排：在下面插一天，还是时间轴视图", async () => {
+describe("时间线上每天的菜单", () => {
+  it("横排：在下面插一天，还是时间线视图", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 2));
 
@@ -160,7 +160,7 @@ describe("时间轴上每天的菜单", () => {
     await waitFor(async () =>
       expect(await rowLabels()).toEqual(["第 1 天 · 10.1 周四", "第 2 天 · 10.2 周五", "第 3 天 · 10.3 周六"]),
     );
-    expect(pressedView()).toBe("时间轴");
+    expect(pressedView()).toBe("时间线");
   });
 
   it("横排：改时区在这一行下面展开，选完焦点回到这一行的「这天的操作」", async () => {
