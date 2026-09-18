@@ -63,12 +63,20 @@ test("电脑上的时刻表：左边开始时刻、竖线串起来、空档写�
     "民宿",
   ]);
 
-  // 点「午饭」的圆圈：划掉，卡片左边一道变虚线、标题划一道
+  // 点「午饭」的圆圈：划掉，整张卡片换成浅灰底、四周一圈虚线，标题划一道
   const lunch = await rowOf(table, "午饭");
   await lunch.getByRole("checkbox", { name: "划掉" }).click();
   await expect(lunch).toHaveAttribute("data-checked", "true");
   await expect(lunch.getByRole("checkbox", { name: "划掉" })).toBeChecked();
-  expect(await lunch.locator(".schedule-card").evaluate((node) => getComputedStyle(node).borderLeftStyle)).toBe("dashed");
+  const cardLooks = (node: Element) => {
+    const style = getComputedStyle(node);
+    return { left: style.borderLeftStyle, top: style.borderTopStyle, background: style.backgroundColor };
+  };
+  const struck = await lunch.locator(".schedule-card").evaluate(cardLooks);
+  const plain = await drive.locator(".schedule-card").evaluate(cardLooks);
+  expect(struck.left).toBe("dashed");
+  expect(struck.top, "四周一圈也是虚线").toBe("dashed");
+  expect(struck.background, "底色和没划掉的不一样").not.toBe(plain.background);
   await page.mouse.click(5, 5);
   expect(
     await lunch.getByRole("textbox", { name: "标题" }).evaluate((node) => getComputedStyle(node).textDecorationLine),

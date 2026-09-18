@@ -369,6 +369,10 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+  /* 划掉的那件：开始时刻跟着卡片变淡 */
+  [data-checked="true"] > & {
+    color: color-mix(in srgb, var(--color-ink-muted) 80%, white);
+  }
 }
 
 @utility schedule-rail {
@@ -411,7 +415,9 @@
 
 @utility schedule-card {
   margin: 0.25rem 0 0.25rem calc(var(--indent, 0) * 1rem);
-  padding: 0.25rem 0.375rem 0.375rem 0.375rem;
+  /* 四周一圈 1 像素的透明边（左边是 3 像素类型色）：划掉时换成虚线，卡片不变大；内边距少 1 像素抵掉 */
+  padding: calc(0.25rem - 1px) calc(0.375rem - 1px) calc(0.375rem - 1px) 0.375rem;
+  border: 1px solid transparent;
   border-left: 3px solid var(--kind-color);
   border-radius: 0.625rem;
   background-color: rgb(255 255 255 / 0.55);
@@ -423,16 +429,26 @@
   & .schedule-title {
     width: 100%;
   }
+  /*
+   * 划掉的（你提的：虚线、变淡、字上划一道）：白底卡片只改左边一道看不出（你提的：在视觉观感上并不明显），
+   * 整张换成浅灰底、四周一圈虚线，卡片里的字换成淡色。靠换颜色，不整张半透明
+   */
   [data-checked="true"] > td > & {
-    border-left-style: dashed;
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--kind-color) 45%, white);
     border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
+    background-color: rgb(47 58 69 / 0.045);
+  }
+  /* 本来深的字（时间、类型、开销）换成淡色；本来就淡的（空着的「填开销」）不动，不然反倒比没划掉的深 */
+  [data-checked="true"] > td > & .input-bare:not(.schedule-title, .text-ink-muted\/60) {
+    color: var(--color-ink-muted);
   }
   [data-checked="true"] > td > & .kind-dot {
     opacity: 0.45;
   }
-  /* 正在改标题时不划：划线挡着看不清在改什么 */
+  /* 正在改标题时不划、不淡：划线挡着看不清在改什么 */
   [data-checked="true"] > td > & .schedule-title:not(:focus) {
-    color: var(--color-ink-muted);
+    color: color-mix(in srgb, var(--color-ink-muted) 80%, white);
     text-decoration-line: line-through;
   }
 }

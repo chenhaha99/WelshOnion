@@ -68,13 +68,25 @@ test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小�
   await page.keyboard.press("Escape");
   await shot(page, "01-struck-bar");
 
-  // 日程里划掉「河坊街」：竖线上的圆圈；卡片左边一道变虚线，标题划一道
+  // 日程里划掉「河坊街」：竖线上的圆圈；白底卡片只改左边一道看不出，整张换成浅灰底、四周一圈虚线，标题划一道；
+  // 不是半透明，大小不变
   await showView(page, "日程");
   const street = await rowOf(day1Table, "河坊街");
+  const streetCard = street.locator(".schedule-card");
+  const cardBefore = await boxInRow(streetCard, street);
   await street.getByRole("checkbox", { name: "划掉" }).check();
   await expect(street).toHaveAttribute("data-checked", "true");
   await expect((await rowOf(day1Table, "西湖")).getByRole("checkbox", { name: "划掉" })).toBeChecked();
-  expect(await street.locator(".schedule-card").evaluate((node) => getComputedStyle(node).borderLeftStyle)).toBe("dashed");
+  expect(await streetCard.evaluate((node) => getComputedStyle(node).borderLeftStyle)).toBe("dashed");
+  const struckCard = await looks(streetCard);
+  const plainCard = await looks((await rowOf(day1Table, "灵隐寺")).locator(".schedule-card"));
+  expect(struckCard.borderStyle, "四周一圈也是虚线").toBe("dashed");
+  expect(struckCard.background, "底色和没划掉的不一样").not.toBe(plainCard.background);
+  expect(struckCard.opacity).toBe("1");
+  expect(await boxInRow(streetCard, street), "大小不变").toEqual(cardBefore);
+  // 本来就淡的「填开销」不跟着换色：换了反倒比没划掉的深
+  const moneyColor = (row: Locator) => row.getByRole("button", { name: "开销" }).evaluate((node) => getComputedStyle(node).color);
+  expect(await moneyColor(street), "「填开销」的颜色").toBe(await moneyColor(await rowOf(day1Table, "灵隐寺")));
   expect(
     await street.getByRole("textbox", { name: "标题" }).evaluate((node) => getComputedStyle(node).textDecorationLine),
   ).toBe("line-through");
