@@ -130,11 +130,14 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
     savePlanView(planId, next);
     setViewClicks((count) => count + 1);
   };
-  // 点了切换按钮（按下的那个也算）：新视图画完，把页面滚到按钮贴在顶上、视图从开头露出来。
-  // 不滚的话，第一屏差不多被筛选、开销、占比占满，换掉的内容在屏幕外面，看不出点上了
+  // 点了切换按钮（按下的那个也算），按钮一直留在原处：
+  // - 按钮在它本来的位置（没贴顶）：不滚。上面只剩页顶和筛选两行，新视图就在按钮下面（你提的：「维持不动就行」）
+  // - 按钮贴在顶上（往下滚过了）：滚到新视图从开头露出来，按钮照旧贴顶。不滚的话，新视图停在刚才滚到的地方，看的是中间一截
+  // 画完新视图再量：标记跑到贴顶位置上面就是贴顶了。新视图比一屏短时浏览器先把滚动夹小，下面至少一屏高的框让它正好夹到贴顶
   useLayoutEffect(() => {
     if (viewClicks === 0) return;
-    window.scrollBy(0, viewsMarker.current!.getBoundingClientRect().top - VIEWS_STICKY_TOP);
+    const offset = viewsMarker.current!.getBoundingClientRect().top - VIEWS_STICKY_TOP;
+    if (offset < 0) window.scrollBy(0, offset);
   }, [viewClicks]);
 
   // 时间轴上选中的是哪一件、点的是哪一行（跨午夜的块点哪一段，快捷条就贴哪一段）
@@ -425,7 +428,7 @@ export function DayList({ doc, library, libraryView, plan, planId, searchAnchor,
       </div>
       <OpenBlockContext.Provider value={openBlock}>
         <SelectBlockContext.Provider value={selection}>
-          {/* 至少一屏高（减去切换按钮 42 像素、贴顶的 8、间距 16、页面底边 32）：视图比一屏短时，点切换按钮照样滚得到贴顶 */}
+          {/* 至少一屏高（减去切换按钮 42 像素、贴顶的 8、间距 16、页面底边 32）：视图比一屏短时，贴着顶切过来照样贴顶 */}
           <div className="flex min-h-[calc(100dvh-6.125rem)] flex-col gap-4">
             {view === "overview" ? (
               <>

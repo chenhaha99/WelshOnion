@@ -16,7 +16,8 @@ test("手机上删完：滚到最后一天删一件事 → 提示和「撤销」
   await newPlan(page, 3, { width: 390, height: 844 });
   const lastDay = page.getByRole("table", { name: DAY3 });
   await addBlocks(page, lastDay, ["河坊街", "回家"]);
-  await lastDay.scrollIntoViewIfNeeded();
+  // 滚到页面最下面：提示贴在屏幕底部，要在滚过的页面上看它整个露出来
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 
   await (await rowOf(lastDay, "河坊街")).getByRole("button", { name: "这件事的操作" }).click();
   await page.getByRole("menuitem", { name: "删除" }).click();

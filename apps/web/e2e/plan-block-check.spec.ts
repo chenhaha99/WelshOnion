@@ -21,6 +21,13 @@ async function looks(element: Locator) {
   });
 }
 
+/** 块在它那一行里的位置和大小（取整的像素）：左、上、宽、高。 */
+async function boxInRow(element: Locator, row: Locator): Promise<number[]> {
+  const box = (await element.boundingBox())!;
+  const rowBox = (await row.boundingBox())!;
+  return [box.x - rowBox.x, box.y - rowBox.y, box.width, box.height].map(Math.round);
+}
+
 test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小不变 → 列表里划掉另一件 → 只看没划掉的 → 总览写划掉了几件", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
@@ -35,7 +42,8 @@ test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小�
   const lake = segment(day1, "西湖").getByRole("button", { name: /^西湖 / });
 
   // 快捷条第一个是「划掉」：点了按下，横条变成虚线、底色和字变淡、字上划一道；大小不变，选中的描边不跟着变淡
-  const before = (await lake.boundingBox())!;
+  // 位置量的是在这一行里的：第一次划掉，筛选那一行多出「只看没划掉的」，页面在最上面时整个往下挪一行
+  const before = await boxInRow(lake, day1);
   await lake.click();
   const selected = await looks(lake);
   expect(selected.borderStyle).toBe("solid");
@@ -55,13 +63,7 @@ test("电脑上：快捷条划掉一件、块变成虚线变淡划线、大小�
   expect(struck.color).not.toBe(selected.color);
   expect(struck.opacity).toBe("1");
   expect(struck.outlineColor).toBe(selected.outlineColor);
-  const after = (await lake.boundingBox())!;
-  expect([Math.round(after.x), Math.round(after.y), Math.round(after.width), Math.round(after.height)]).toEqual([
-    Math.round(before.x),
-    Math.round(before.y),
-    Math.round(before.width),
-    Math.round(before.height),
-  ]);
+  expect(await boxInRow(lake, day1)).toEqual(before);
   await expect(lake.locator("[data-checked-mark]")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await shot(page, "01-struck-bar");

@@ -18,6 +18,22 @@ async function edges(locator: Locator): Promise<{ top: number; bottom: number }>
 }
 
 /**
+ * 像人一样点：点在按钮现在看得见的地方。
+ * 不用 locator.click()：它点之前先把元素「滚进视野」，贴顶的按钮被当成还在原处，页面先被滚回最上面，量的就不是真人点的样子。
+ */
+async function clickInPlace(page: Page, button: Locator): Promise<void> {
+  const box = (await button.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+/** 页面没滚：还在点之前滚到的地方（默认最上面），切换按钮还在点之前的地方。 */
+async function expectStill(page: Page, before: { top: number }, scrollY = 0): Promise<void> {
+  expect(await page.evaluate(() => window.scrollY), "页面没滚").toBe(scrollY);
+  const now = await edges(page.getByRole("group", { name: "视图" }));
+  expect(Math.abs(now.top - before.top), "切换按钮没动").toBeLessThan(1);
+}
+
+/**
  * 切换按钮贴在屏幕顶上（离上边不到 12 像素），下面紧挨着 below（隔开不到 24 像素）。
  * 量的是整行（`[data-view-row]`）：这一行右边还有「标题」「时长」「开销」和放大条，窄屏上会折到第二行。
  */
@@ -31,22 +47,26 @@ async function expectPinned(page: Page, below: Locator): Promise<void> {
   expect(next, "下面的视图离切换按钮那一行").toBeLessThanOrEqual(24);
 }
 
-test("手机上切换视图：打开是时间轴 → 列表滚到下面时切换按钮贴顶 → 点「列表」回到开头 → 重新打开还是上次看的", async ({
+test("手机上切换视图：打开是时间轴 → 页面在最上面时点切换不跳 → 列表滚到下面时切换按钮贴顶 → 点「列表」回到开头 → 重新打开还是上次看的", async ({
   page,
 }) => {
   const errors = watchErrors(page);
   await busyPlan(page, 390, 844);
   const views = page.getByRole("group", { name: "视图" });
 
-  // 打开就是时间轴；点按下的「时间轴」：切换按钮贴顶，时间轴紧挨着它
+  // 打开就是时间轴；页面在最上面时点切换：页面不滚，切换按钮留在原处（你提的：上面只剩两行，维持不动就行）
   await expect(views.getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
-  await views.getByRole("button", { name: "时间轴" }).click();
+  const before = await edges(views);
+  expect(before.top, "切换按钮本来就在第一屏、没贴顶").toBeGreaterThan(40);
+  await clickInPlace(page, views.getByRole("button", { name: "时间轴" }));
   await expect(views.getByRole("button", { name: "时间轴", pressed: true })).toBeVisible();
-  await expectPinned(page, page.getByRole("region", { name: "时间轴" }));
+  await expectStill(page, before);
   await shot(page, "01-phone-timeline");
+  await clickInPlace(page, views.getByRole("button", { name: "列表" }));
+  await expect(views.getByRole("button", { name: "列表", pressed: true })).toBeVisible();
+  await expectStill(page, before);
 
-  // 切到列表往下滚到 10.3：切换按钮贴在顶上
-  await views.getByRole("button", { name: "列表" }).click();
+  // 列表往下滚到 10.3：切换按钮贴在顶上
   await page.getByRole("table", { name: DAY3 }).evaluate((element) => element.scrollIntoView({ block: "start" }));
   const stuck = await edges(views);
   expect(stuck.top).toBeGreaterThanOrEqual(0);
@@ -55,9 +75,15 @@ test("手机上切换视图：打开是时间轴 → 列表滚到下面时切换
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(600);
   await shot(page, "02-phone-list-stuck");
 
-  // 点按下的「列表」：回到列表开头
-  await views.getByRole("button", { name: "列表" }).click();
+  // 贴在顶上时点按下的「列表」：按钮不动，列表回到开头
+  await clickInPlace(page, views.getByRole("button", { name: "列表" }));
   await expectPinned(page, page.getByRole("group", { name: "分组" }));
+
+  // 贴在顶上时切到时间轴：按钮不动，时间轴从开头露出来（不停在列表滚到的地方）
+  await page.getByRole("table", { name: DAY3 }).evaluate((element) => element.scrollIntoView({ block: "start" }));
+  await clickInPlace(page, views.getByRole("button", { name: "时间轴" }));
+  await expectPinned(page, page.getByRole("region", { name: "时间轴" }));
+  await clickInPlace(page, views.getByRole("button", { name: "列表" }));
 
   // 切到列表、重新打开：还是列表（默认是时间轴，所以这一下才看得出记住了）
   await page.reload();
@@ -68,12 +94,30 @@ test("手机上切换视图：打开是时间轴 → 列表滚到下面时切换
   expect(errors).toEqual([]);
 });
 
-test("电脑上时间轴比一屏短：点「时间轴」照样滚到切换按钮贴顶", async ({ page }) => {
+test("电脑上：页面在最上面时点切换不跳 → 滚下去以后切到比一屏短的时间轴，切换按钮还贴顶、时间轴从开头露出来", async ({ page }) => {
   const errors = watchErrors(page);
   await busyPlan(page, 1280, 800);
   const views = page.getByRole("group", { name: "视图" });
 
-  await views.getByRole("button", { name: "时间轴" }).click();
+  const before = await edges(views);
+  for (const name of ["时间轴", "列表", "总览", "列表"]) {
+    await clickInPlace(page, views.getByRole("button", { name }));
+    await expect(views.getByRole("button", { name, pressed: true })).toBeVisible();
+    await expectStill(page, before);
+  }
+
+  // 往下滚了一点、按钮还没贴顶：照样不滚，切到比一屏短的总览也不动
+  await page.evaluate(() => window.scrollTo(0, 40));
+  const partway = await edges(views);
+  await clickInPlace(page, views.getByRole("button", { name: "总览" }));
+  await expect(views.getByRole("button", { name: "总览", pressed: true })).toBeVisible();
+  await expectStill(page, partway, 40);
+  await clickInPlace(page, views.getByRole("button", { name: "列表" }));
+  await expectStill(page, partway, 40);
+
+  await page.getByRole("table", { name: DAY3 }).evaluate((element) => element.scrollIntoView({ block: "start" }));
+  expect((await edges(views)).top, "滚下去以后切换按钮贴在顶上").toBeLessThan(12);
+  await clickInPlace(page, views.getByRole("button", { name: "时间轴" }));
   await expectPinned(page, page.getByRole("region", { name: "时间轴" }));
   await shot(page, "03-desktop-timeline");
 

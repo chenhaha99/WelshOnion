@@ -267,7 +267,7 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
   expect(await pageScrollY(page)).toBe(scrollBefore);
   await shot(page, "04-wide-finger", { dragging: true });
   await fingerUp(page);
-  // 先看页面没滚，再去读表：读表要切到列表，切换时页面会滚
+  // 先看页面没滚，再去读表：读表要切到列表，切换按钮贴着顶时切换页面会滚
   await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "600");
   expect(await pageScrollY(page)).toBe(scrollBefore);
   await expect.poll(() => timeOf(day1Table, "西湖")).toBe("10:00–13:00");
@@ -296,8 +296,9 @@ test("宽屏上用手指：长按拖横条、页面不跟着滚 → 点一下、
 
   // 没长按就往下滑：滚的是页面（往回滚），没有预览框。切换按钮贴顶时时间轴下面没有别的了，往上滑滚不动，所以往下滑。
   // 放在最后：在时间轴上快速滑过以后，Chromium 模拟的手指在一两秒里点不出点击（惯性把那一下吃了），后面再点、再按会不稳
+  // 先往下滚到切换按钮贴顶（主版面上面只剩一行筛选，只滚得下去几十像素），够往回滚就行
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const lakeNow = center(await box(segment(day1, "西湖")));
-  // 主版面上面只剩一行筛选，切换按钮贴顶时页面只滚下去几十像素，够往回滚就行
   const beforeSwipe = await pageScrollY(page);
   expect(beforeSwipe).toBeGreaterThan(10);
   await fingerDown(page, lakeNow);
