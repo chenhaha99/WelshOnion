@@ -75,6 +75,18 @@ describe("统计前先按筛选条件去掉块", () => {
 
     expect(plain(occupiedMinutes(plan, lib, { marks: ["pending", "decided"] }))).toEqual({ lunch: 120 });
   });
+
+  test("只看某几天：跨天的按开始那天算", () => {
+    // 10.1 的「横店」里套着「午饭」；10.2 有「灵隐寺」；10.1 22:00 起的「民宿」画到 10.2，按开始那天算
+    addBlock(planDoc, "temple", { start_base_id: "d2", start_minute: 540, duration_min: 120, kind_id: "sight" });
+    addBlock(planDoc, "inn", { start_base_id: "d1", start_minute: 1320, duration_min: 600, kind_id: "lodging" });
+    const { lib, plan } = views();
+
+    expect(plain(occupiedMinutes(plan, lib, { baseIds: ["d2"] }))).toEqual({ temple: 120 });
+    expect(Object.keys(plain(occupiedMinutes(plan, lib, { baseIds: ["d1"] }))).sort()).toEqual(["hengdian", "inn", "lunch"]);
+    // 和别的条件一起：都要满足
+    expect(plain(occupiedMinutes(plan, lib, { baseIds: ["d1"], kindIds: ["lodging"] }))).toEqual({ inn: 600 });
+  });
 });
 
 describe("时间线占用法", () => {

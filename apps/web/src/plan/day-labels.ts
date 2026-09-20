@@ -54,13 +54,8 @@ export function dateWithWeekday(date: string): string {
   return `${monthDay} ${weekday.format(new Date(`${date}T00:00:00Z`))}`;
 }
 
-/**
- * 排好序的底座每行的标签：「第 N 天 · 10.1 周四」。同一日期的底座同一个「第几天」。
- * 计划里有两个以上时区时加「· 城市」，和第一天时区差几小时的再加「+1h」。
- */
-export function dayRowLabels(bases: ReadonlyArray<{ date: string; tz: string }>): string[] {
-  const firstTz = bases[0]?.tz;
-  const multipleZones = new Set(bases.map((base) => base.tz)).size > 1;
+/** 排好序的底座各是第几天。同一日期的底座（换了时区的那天）同一个数。 */
+export function dayNumbers(bases: ReadonlyArray<{ date: string }>): number[] {
   let dayNumber = 0;
   let previousDate: string | null = null;
   return bases.map((base) => {
@@ -68,7 +63,20 @@ export function dayRowLabels(bases: ReadonlyArray<{ date: string; tz: string }>)
       dayNumber += 1;
       previousDate = base.date;
     }
-    const parts = [`第 ${dayNumber} 天`, dateWithWeekday(base.date)];
+    return dayNumber;
+  });
+}
+
+/**
+ * 排好序的底座每行的标签：「第 N 天 · 10.1 周四」。同一日期的底座同一个「第几天」。
+ * 计划里有两个以上时区时加「· 城市」，和第一天时区差几小时的再加「+1h」。
+ */
+export function dayRowLabels(bases: ReadonlyArray<{ date: string; tz: string }>): string[] {
+  const firstTz = bases[0]?.tz;
+  const multipleZones = new Set(bases.map((base) => base.tz)).size > 1;
+  const numbers = dayNumbers(bases);
+  return bases.map((base, index) => {
+    const parts = [`第 ${numbers[index]} 天`, dateWithWeekday(base.date)];
     if (multipleZones && firstTz !== undefined) parts.push(zoneLabel(base, firstTz));
     return parts.join(" · ");
   });

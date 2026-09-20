@@ -228,6 +228,16 @@ describe("跟着筛选", () => {
     expect([total.money, total.blocks]).toEqual(["¥900", "5 件"]);
   });
 
+  it("按天筛：没选中的那天整行不列，细条只和这几天比", () => {
+    const plan = trip();
+    const oct2 = plan.bases[1]!.id;
+    const { days, extra, total } = rows(plan, { baseIds: [oct2] });
+    expect(days.map((row) => [row.label, row.money, row.share])).toEqual([["第 2 天 · 10.2 周五", "¥450", 1]]);
+    // 不挂块的开销挂不到哪天上，按天筛也留着（和按类型筛一样），单写一行
+    expect(extra.map((row) => [row.label, row.money])).toEqual([["不属于任何一天", "¥600"]]);
+    expect([total.money, total.blocks]).toEqual(["¥1,050", "1 件 · 划掉 1"]);
+  });
+
   it("按类型筛：挂在被筛掉的事上的钱单写一行，合计对得上总额", () => {
     const filter: StatsFilter = { kindIds: ["lodging"] };
     const plan = trip((built, { lake }) => money(built, 20000, [lake], { kindId: "lodging" }));

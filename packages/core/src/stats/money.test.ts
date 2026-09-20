@@ -126,6 +126,17 @@ describe("筛选对钱的影响", () => {
     expect(summary.byKind.has("transit")).toBe(false);
   });
 
+  test("按天筛：看开销挂的块坐在哪天，不挂块的不受影响", () => {
+    nanxunMoney();
+
+    const summary = moneySummary(plan(), { baseIds: ["d2"] });
+
+    // 联票挂的小莲庄、张石铭旧宅都在 d2：20000；保险不挂块：12000；油费、房费挂的块在 d1
+    expect(summary.totalCents).toBe(32000);
+    expect(summary.byKind.has("transit")).toBe(false);
+    expect(summary.byKind.has("lodging")).toBe(false);
+  });
+
   test("只看游玩类的钱", () => {
     nanxunMoney();
 

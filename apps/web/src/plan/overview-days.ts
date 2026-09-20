@@ -79,10 +79,14 @@ export function overviewDays(
     blocks: 0,
     struck: 0,
   };
-  const spent = plan.bases.map((base) => dayMoney(plan, base.id, cells));
+  // 按天筛时没选中的那天整行不列（和日程一样）：筛的就是「只看这几天」，细条也只和这几天比
+  const shownBases = plan.bases
+    .map((base, index) => ({ base, index }))
+    .filter(({ base }) => filter?.baseIds === undefined || filter.baseIds.includes(base.id));
+  const spent = shownBases.map(({ base }) => dayMoney(plan, base.id, cells));
   const most = Math.max(0, ...spent.map((money) => money.cents));
 
-  const days = plan.bases.map((base, index): OverviewRow => {
+  const days = shownBases.map(({ base, index: labelIndex }, index): OverviewRow => {
     const facts = dayFacts(plan, base.id, filter);
     const shown = blocksOfDay(plan, base.id).filter((block) => passesFilter(block, filter));
     const counts: Counts = {
@@ -101,7 +105,7 @@ export function overviewDays(
     return {
       ...countCells(counts),
       baseId: base.id,
-      label: labels[index]!,
+      label: labels[labelIndex]!,
       isToday: base.date === today,
       span: start === null ? null : `${start}–${end}`,
       money: money.count > money.unfilled ? formatYuan(money.cents) : null,

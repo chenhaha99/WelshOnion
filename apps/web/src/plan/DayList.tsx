@@ -11,7 +11,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type * as Y from "yjs";
 import { blockFocusSelector } from "./block-actions";
 import { BlockPanel } from "./BlockPanel";
-import { dayRowLabels } from "./day-labels";
+import { dayNumbers, dayRowLabels } from "./day-labels";
+import { DayFilter, type FilterDay } from "./DayFilter";
 import { DayRow } from "./DayRow";
 import { DaysCard } from "./DaysCard";
 import { FilterChips, chipClass } from "./FilterChips";
@@ -92,6 +93,8 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   // 按标记筛：三档「待定」「定了」「划掉」，和类型、标签一样多选，都不按下就是三档都看
   const [selectedMarks, setSelectedMarks] = useState<BlockMark[]>([]);
+  // 按天筛（底座 id）：删掉的那天不算了
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
   // 时间线的块上写标题、开销（各开各关）：也按计划记在这台设备上
@@ -204,14 +207,16 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   const kindKey = selectedKinds.filter((id) => libraryView.kinds.has(id)).join(",");
   const tagKey = selectedTags.filter((id) => libraryView.tags.has(id)).join(",");
   const markKey = selectedMarks.join(",");
+  const dayKey = selectedDays.filter((id) => bases.some((base) => base.id === id)).join(",");
   const filter = useMemo<StatsFilter | undefined>(() => {
-    if (kindKey === "" && tagKey === "" && markKey === "") return undefined;
+    if (kindKey === "" && tagKey === "" && markKey === "" && dayKey === "") return undefined;
     return {
       ...(kindKey === "" ? {} : { kindIds: kindKey.split(",") }),
       ...(tagKey === "" ? {} : { tagIds: tagKey.split(",") }),
       ...(markKey === "" ? {} : { marks: markKey.split(",") as BlockMark[] }),
+      ...(dayKey === "" ? {} : { baseIds: dayKey.split(",") }),
     };
-  }, [kindKey, tagKey, markKey]);
+  }, [kindKey, tagKey, markKey, dayKey]);
   // 开销格的摘要整份算一次：共用的开销要看全计划才知道显示在哪块
   const cells = useMemo(() => moneyCells(plan, filter), [plan, filter]);
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
@@ -313,6 +318,15 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   // 三档都是「定了」时按下去也筛不掉：不出现；按下过就留着
   const showMarkFilter =
     selectedMarks.length > 0 || [...plan.blocks.values()].some((block) => block.mark !== "decided");
+  // 「天」：一天的计划筛了也没意义（选它和不选一样）
+  const filterDays = useMemo<FilterDay[]>(() => {
+    const numbers = dayNumbers(bases);
+    return bases.map((base, index) => ({ id: base.id, number: numbers[index]!, label: labels[index]! }));
+  }, [bases, labels]);
+  // 两天起才有得筛；一件事都没有时筛了也是空的，不摆这个按钮（已经按下的留着，不然取消不了）
+  const showDayFilter = filterDays.length >= 2 && (plan.blocks.size > 0 || dayKey !== "");
+  // 按天筛时，没选中的那天整天不出现在日程里：筛的就是「只看这几天」，留一排空日子只会挡路
+  const shownBaseIds = filter?.baseIds;
 
   return (
     // -mt-2 抵掉页顶那一行上边留的 8 像素：页面在最上面时页顶还在原处，和还没加天时一样
@@ -342,7 +356,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
       */}
       <div ref={topDrawer} data-top-drawer className="top-drawer flex flex-col gap-3" {...peek}>
         {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
-        {(showKindFilter || showTagFilter || showMarkFilter) && (
+        {(showKindFilter || showTagFilter || showMarkFilter || showDayFilter) && (
           <div data-filter-row className="filter-row flex flex-wrap items-center gap-x-5 gap-y-2">
             {showKindFilter && (
               <FilterChips
@@ -391,6 +405,10 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                   </button>
                 )}
               </div>
+            )}
+            {/* 天数可以十几个，一行摆不下：这个是按钮，点开才一天一行（见 DayFilter） */}
+            {showDayFilter && (
+              <DayFilter days={filterDays} selected={filter?.baseIds ?? []} onChange={setSelectedDays} />
             )}
           </div>
         )}
@@ -571,21 +589,24 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                   </p>
                 )}
                 <ol aria-label="日期列表" className="flex flex-col gap-3">
-                  {bases.map((base, index) => (
-                    <DayRow
-                      key={base.id}
-                      doc={doc}
-                      library={library}
-                      libraryView={libraryView}
-                      plan={plan}
-                      base={base}
-                      label={labels[index]!}
-                      index={index}
-                      count={bases.length}
-                      moneyCells={cells}
-                      filter={filter}
-                    />
-                  ))}
+                  {/* 按天筛时没选中的那天整天不画；序号和总数还按全部天算（菜单里的「上移」「下移」看的是真实位置） */}
+                  {bases.map((base, index) =>
+                    shownBaseIds !== undefined && !shownBaseIds.includes(base.id) ? null : (
+                      <DayRow
+                        key={base.id}
+                        doc={doc}
+                        library={library}
+                        libraryView={libraryView}
+                        plan={plan}
+                        base={base}
+                        label={labels[index]!}
+                        index={index}
+                        count={bases.length}
+                        moneyCells={cells}
+                        filter={filter}
+                      />
+                    ),
+                  )}
                 </ol>
               </>
             )}
