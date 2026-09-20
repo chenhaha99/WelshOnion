@@ -71,22 +71,22 @@ async function inList<T>(page: Page, action: () => Promise<T>): Promise<T> {
 }
 
 /**
- * 切到「总览」看一眼开销、时间两张卡片，看完切回原来的视图。
+ * 切到「总览」看一眼那个同心双环，看完切回原来的视图。
  * 总览是第三个视图，别的走查大多在日程或时间线里做事，看一眼数字就回来。
- * `total` 是开销那个环中间的总额，`note` 是它下面「还有几笔没填」那一句，`time` 是时间那张卡片。
+ * `card` 是整张卡片，`total` 是环中间钱那行，`time` 是环中间时间那行，`note` 是环下面「还有几笔没填」那一句。
  */
 export async function inOverview<T>(
   page: Page,
-  action: (cards: { money: Locator; total: Locator; note: Locator; time: Locator }) => Promise<T>,
+  action: (parts: { card: Locator; total: Locator; time: Locator; note: Locator }) => Promise<T>,
 ): Promise<T> {
   const before = await pressedView(page);
   await showView(page, "总览");
-  const money = page.getByRole("region", { name: "开销总览" });
+  const card = page.getByRole("region", { name: "总览" });
   const result = await action({
-    money,
-    total: money.locator("[data-donut-total]"),
-    note: money.locator("[data-money-note]"),
-    time: page.getByRole("region", { name: "时间总览" }),
+    card,
+    total: card.locator("[data-ring-money]"),
+    time: card.locator("[data-ring-time]"),
+    note: card.locator("[data-money-note]"),
   });
   await showView(page, before);
   return result;

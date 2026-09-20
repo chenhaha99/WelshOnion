@@ -5,7 +5,7 @@ import { addBlock, setBlockMark, type AddBlockInput, type BlockMark } from "@wel
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, daysFromOct1, openStoredPlan, showView, stubNarrowScreen, timeOverview } from "./test-helpers";
+import { blockRow, daysFromOct1, openStoredPlan, overviewCard, showView, stubNarrowScreen } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -202,10 +202,10 @@ describe("按标记筛选", () => {
 });
 
 describe("待定、完成各几件", () => {
-  it("时间总览最下面写「待定 X · 完成 Y，共 N 件」", async () => {
+  it("总览里写「待定 X · 完成 Y，共 N 件」", async () => {
     await oneDay({ 西湖: "done", 河坊街: "pending" });
 
-    const card = await timeOverview();
+    const card = await overviewCard();
 
     expect(card.querySelector("[data-check-line]")?.textContent).toBe("待定 1 件 · 完成 1 件，共 3 件");
   });
@@ -213,7 +213,7 @@ describe("待定、完成各几件", () => {
   it("只有完成的就只写完成", async () => {
     await oneDay({ 西湖: "done" });
 
-    const card = await timeOverview();
+    const card = await overviewCard();
 
     expect(card.querySelector("[data-check-line]")?.textContent).toBe("完成 1 件，共 3 件");
   });
@@ -221,7 +221,7 @@ describe("待定、完成各几件", () => {
   it("三档都是「确定」就不写", async () => {
     await oneDay();
 
-    const card = await timeOverview();
+    const card = await overviewCard();
 
     expect(card.querySelector("[data-check-line]")).toBeNull();
     expect(within(card).queryByText(/完成|待定/)).toBeNull();

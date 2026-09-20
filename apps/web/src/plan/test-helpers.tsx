@@ -102,28 +102,32 @@ export async function openDayMenu(user: UserEvent, text: string): Promise<HTMLEl
   return screen.getByRole("menu");
 }
 
-/** 「总览」视图里的开销总览卡片；会先切到「总览」。 */
-export async function moneyOverview(): Promise<HTMLElement> {
+/** 「总览」视图里那张总览卡片；会先切到「总览」。 */
+export async function overviewCard(): Promise<HTMLElement> {
   await showView("总览");
-  return screen.findByRole("region", { name: "开销总览" });
+  return screen.findByRole("region", { name: "总览" });
 }
 
-/** 「总览」视图里的时间总览卡片；会先切到「总览」。 */
-export async function timeOverview(): Promise<HTMLElement> {
-  await showView("总览");
-  return screen.findByRole("region", { name: "时间总览" });
+/** 环外贴着的一圈标签上写的字，顺时针（也就是钱从多到少）。 */
+export function ringLabels(card: HTMLElement): string[] {
+  return within(within(card).getByRole("list", { name: "按类型" }))
+    .queryAllByRole("button")
+    .map((button) => button.textContent ?? "");
 }
 
-/** 一张总览卡片里说明那一列的字，按显示顺序。别在点开某一类时调：展开的那块里也有 listitem。 */
-export function overviewLegend(card: HTMLElement): string[] {
-  return within(card)
-    .queryAllByRole("listitem")
-    .map((item) => item.textContent ?? "");
+/** 环上有几段：外圈是钱，内圈是时间。 */
+export function ringSliceCount(card: HTMLElement, ring: "money" | "time"): number {
+  return card.querySelectorAll(`[data-ring="${ring}"]`).length;
 }
 
-/** 一张总览卡片的环上有几段。 */
-export function donutSliceCount(card: HTMLElement): number {
-  return card.querySelectorAll("[data-slice]").length;
+/** 环中间那行钱：没指着哪一类时是总开销。 */
+export function ringMoney(card: HTMLElement): string | null {
+  return card.querySelector("[data-ring-money]")?.textContent ?? null;
+}
+
+/** 环中间那行时长：没指着哪一类时是一共排了多久。 */
+export function ringTime(card: HTMLElement): string | null {
+  return card.querySelector("[data-ring-time]")?.textContent ?? null;
 }
 
 /** 打开计划设置，切到某一块（默认「基本」），返回设置窗口。 */

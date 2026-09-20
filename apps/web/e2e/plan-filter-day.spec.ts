@@ -42,9 +42,9 @@ test("按天筛选：只看第 1–2 天 → 日程、总览、时间线都跟�
 
   // 总览：总额、占比只算这两天（灵隐寺的 ¥100、1 小时都不算）
   await showView(page, "总览");
-  await expect(page.getByRole("region", { name: "开销总览" }).locator("[data-donut-total]")).toHaveText("¥300");
-  const time = page.getByRole("region", { name: "时间总览" });
-  await expect(time.getByRole("listitem")).toHaveText(["游玩 3 小时 · 100%"]);
+  const card = page.getByRole("region", { name: "总览" });
+  await expect(card.locator("[data-ring-money]")).toHaveText("¥300");
+  await expect(card.getByRole("list", { name: "按类型" }).getByRole("listitem")).toHaveText(["游玩 ¥300 · 100%"]);
   await shot(page, "03-overview");
 
   // 时间线：三天的行都在（行是时间的格子，位置不变才拖得动），但第 3 天上不画块

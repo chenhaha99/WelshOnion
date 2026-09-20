@@ -10,13 +10,13 @@ import {
   blockTitles,
   dayRow,
   daysFromOct1,
-  moneyOverview,
   openDetails,
   openOtherTab,
   openStoredPlan,
-  overviewLegend,
+  overviewCard,
+  ringLabels,
+  ringMoney,
   showView,
-  timeOverview,
 } from "./test-helpers";
 
 afterEach(async () => {
@@ -238,7 +238,7 @@ describe("按类型筛选", () => {
 });
 
 describe("按类型筛选时的开销", () => {
-  it("开销格只算所选类型，另写一行；开销的总览只算所选类型", async () => {
+  it("开销格只算所选类型，另写一行；总览里的钱只算所选类型", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const { inn } = threeKinds(plan, library);
@@ -250,7 +250,7 @@ describe("按类型筛选时的开销", () => {
     await pressKind(user, "住宿");
 
     await waitFor(async () => expect(await moneyCellOf("10.1", "民宿")).toEqual({ label: "¥480", note: "另有别的类型的开销" }));
-    expect((await moneyOverview()).querySelector("[data-donut-total]")?.textContent).toBe("¥480");
+    expect(ringMoney(await overviewCard())).toBe("¥480");
   });
 
   it("只挂着别的类型的开销：写「填开销」、另写一行；时间线上点开，面板的「开销」也这么写", async () => {
@@ -272,7 +272,7 @@ describe("按类型筛选时的开销", () => {
     expect(within(bar).getByRole("button", { name: "开销：填开销" })).toBeTruthy();
   });
 
-  it("挂在被筛掉的事上的开销：日期列表上面写一句，开销的总览算上它", async () => {
+  it("挂在被筛掉的事上的开销：日期列表上面写一句，总览里的钱算上它", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const { lake } = threeKinds(plan, library);
@@ -288,7 +288,7 @@ describe("按类型筛选时的开销", () => {
     const list = screen.getByRole("list", { name: "日期列表" });
     expect(line.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await blockTitles("10.1")).toEqual(["民宿"]);
-    expect((await moneyOverview()).querySelector("[data-donut-total]")?.textContent).toBe("¥300");
+    expect(ringMoney(await overviewCard())).toBe("¥300");
   });
 
   it("没有这样的开销就不写", async () => {
@@ -306,7 +306,7 @@ describe("按类型筛选时的开销", () => {
 });
 
 describe("筛选作用到开销、总览和这天怎么样", () => {
-  it("开销总览：挂在被筛掉的块上的开销不算，不属于任何一天不变", async () => {
+  it("总览里的钱：挂在被筛掉的块上的开销不算，不属于任何一天不变", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -319,9 +319,9 @@ describe("筛选作用到开销、总览和这天怎么样", () => {
     });
 
     await pressOnlyUnchecked(user);
-    const overview = (await moneyOverview());
-    await waitFor(() => expect(overview.querySelector("[data-donut-total]")?.textContent).toBe("¥720"));
-    expect(overview.querySelector("[data-donut-note]")?.textContent).toBe("人均 ¥720");
+    const overview = await overviewCard();
+    await waitFor(() => expect(ringMoney(overview)).toBe("¥720"));
+    expect(overview.textContent).toContain("人均 ¥720");
     // 两笔都填了金额、也没有哪件事空着：不写没填的那句
     expect(overview.querySelector("[data-money-note]")).toBeNull();
     expect(within(overview).getByRole("button", { name: "不属于任何一天：¥600" })).toBeTruthy();
@@ -343,7 +343,7 @@ describe("筛选作用到开销、总览和这天怎么样", () => {
     );
   });
 
-  it("时间总览和这天怎么样", async () => {
+  it("总览里的时间和这天怎么样", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -356,7 +356,7 @@ describe("筛选作用到开销、总览和这天怎么样", () => {
     await waitFor(async () =>
       expect((await dayRow("10.1")).querySelector("[data-day-facts]")?.textContent).toBe("18:00 起 · 19:00 收工"),
     );
-    expect(overviewLegend(await timeOverview())).toEqual(["餐饮 1 小时 · 100%"]);
+    expect(ringLabels(await overviewCard())).toEqual(["餐饮 1 小时 · 100%"]);
   });
 });
 

@@ -18,6 +18,7 @@ import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import {
   moneyNoteLabel,
+  ringRows,
   moneyRowLabel,
   moneyShares,
   sharePercents,
@@ -247,5 +248,126 @@ describe("带筛选", () => {
   it("时间：被筛掉的块不占时间", () => {
     const { plan, library } = build(lakeAndDinner);
     expect(timeShares(plan, library, false, onlyUnchecked).rows.map(timeRowLabel)).toEqual(["餐饮 1 小时 · 100%"]);
+  });
+});
+
+describe("同心双环：两圈按类型合起来", () => {
+  /** 10.1：西湖（游玩 3 小时，门票 ¥300）、午饭（餐饮 1 小时，¥120）、民宿（住宿 22:00 起 2 小时，房费 ¥480）、灵隐寺（游玩，没排时间、没开销）。 */
+  function trip() {
+    return build((built) => {
+      timed(built, "西湖", "sight", 540, 180);
+      timed(built, "午饭", "food", 720, 60);
+      timed(built, "民宿", "lodging", 1320, 120);
+      undated(built, "灵隐寺", "sight");
+      money(built, "sight", 30000);
+      money(built, "food", 12000);
+      money(built, "lodging", 48000);
+    });
+  }
+
+  it("一个类型一行，钱和时间都在里面，按钱从多到少", () => {
+    const { plan, library } = trip();
+
+    const rings = ringRows(plan, library, false);
+
+    expect(rings.rows.map((r) => [r.name, r.cents, r.minutes])).toEqual([
+      ["住宿", 48000, 120],
+      ["游玩", 30000, 180],
+      ["餐饮", 12000, 60],
+    ]);
+    // 53.3 / 33.3 / 13.3 三个余数一样大，按顺序把差的 1% 给第一个
+    expect(rings.rows.map((r) => [r.moneyPercent, r.timePercent])).toEqual([
+      [54, 33],
+      [33, 50],
+      [13, 17],
+    ]);
+  });
+
+  it("中心那两行：总额人均、排了多久和还没排多久", () => {
+    const { plan, library } = trip();
+
+    const rings = ringRows(plan, library, false);
+
+    expect(rings.moneyTotalCents).toBe(90000);
+    expect(rings.minutesTotal).toBe(360);
+    // 灵隐寺没排时间、也没填时长：不算进「还没排」
+    expect(rings.unscheduledMinutes).toBe(0);
+  });
+
+  it("只有时间没有钱的类型也占一行，标签写时长", () => {
+    const { plan, library } = build((built) => {
+      timed(built, "西湖", "sight", 540, 180);
+      timed(built, "开车", "transit", 780, 120);
+      money(built, "sight", 30000);
+    });
+
+    const rings = ringRows(plan, library, false);
+
+    expect(rings.rows.map((r) => [r.name, r.label])).toEqual([
+      ["游玩", "游玩 ¥300 · 100%"],
+      ["交通", "交通 2 小时 · 40%"],
+    ]);
+  });
+
+  it("超过 6 类：第 6 类以后并成「其余 N 类」", () => {
+    const { plan, library } = build((built) => {
+      const kinds = ["lodging", "sight", "food", "transit", "shopping", "other", "stay"];
+      kinds.forEach((kind, index) => {
+        timed(built, kind, kind, 480 + index * 60, 30);
+        money(built, kind, (kinds.length - index) * 10000);
+      });
+    });
+
+    const rings = ringRows(plan, library, true);
+
+    expect(rings.rows).toHaveLength(6);
+    const last = rings.rows[5]!;
+    expect(last.name).toBe("其余 2 类");
+    expect(last.merged).toEqual(["其他", "停留"]);
+    expect(last.cents).toBe(30000);
+  });
+
+  it("两圈都画不出来的类型不上环：全没填、也没排时间的那类", () => {
+    const { plan, library } = build((built) => {
+      timed(built, "西湖", "sight", 540, 180);
+      money(built, "sight", 30000);
+      // 购物只有一笔没填金额的开销，也没有排时间的事：环上两圈都画不出它
+      money(built, "shopping", null);
+    });
+
+    const rings = ringRows(plan, library, false);
+
+    expect(rings.rows.map((r) => r.name)).toEqual(["游玩"]);
+  });
+
+  it("一分钱都没填：外圈空着，写那句话", () => {
+    const { plan, library } = build((built) => {
+      timed(built, "西湖", "sight", 540, 180);
+      money(built, "sight", null);
+    });
+
+    const rings = ringRows(plan, library, false);
+
+    expect(rings.moneyEmpty).toBe("还没有填了金额的开销");
+    expect(rings.timeEmpty).toBeNull();
+    expect(rings.rows.map((r) => [r.name, r.cents, r.minutes])).toEqual([["游玩", 0, 180]]);
+  });
+
+  it("还没排的时长：算进内圈末尾那一段", () => {
+    const { plan, library } = build((built) => {
+      timed(built, "西湖", "sight", 540, 180);
+      const result = addBlock(built.plan, built.library, {
+        baseId: built.oct1,
+        kindId: "sight",
+        title: "灵隐寺",
+        slot: "day",
+        duration: 90,
+      });
+      if (!result.ok) throw new Error("建块失败");
+    });
+
+    const rings = ringRows(plan, library, false);
+
+    expect(rings.unscheduledMinutes).toBe(90);
   });
 });

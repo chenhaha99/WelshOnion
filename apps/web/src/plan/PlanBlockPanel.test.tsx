@@ -10,7 +10,6 @@ import {
   blockTexts,
   blockTitles,
   daysFromOct1,
-  moneyOverview,
   openAddBlock,
   openDetails,
   openStoredPlan,

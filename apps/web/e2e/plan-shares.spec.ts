@@ -32,17 +32,18 @@ test("总览：空计划 → 排时间 → 算上停留、勾选的出现和消�
   // 打开是时间线：这份走查从安排表开始，先切到日程
   await showView(page, "日程");
 
-  const moneyPart = page.getByRole("region", { name: "开销总览" });
-  const timePart = page.getByRole("region", { name: "时间总览" });
-  const baseLayer = timePart.getByRole("checkbox", { name: "算上最底层的类型（停留）" });
+  const card = page.getByRole("region", { name: "总览" });
+  const legend = card.getByRole("list", { name: "按类型" });
+  const baseLayer = card.getByRole("checkbox", { name: "算上最底层的类型（停留）" });
 
-  // 空计划：两句「还没有」，没有环、没有勾选，不写完成了几件。两张卡片在第三个视图「总览」里
+  // 空计划：两圈都是空的，中间两行各写一句「还没有」；没有勾选，不写完成了几件
   await showView(page, "总览");
-  await expect(moneyPart).toContainText("还没有填了金额的开销");
-  await expect(timePart).toContainText("还没有排了时间的事");
-  await expect(page.locator("[data-donut]")).toHaveCount(0);
-  await expect(timePart.getByText(/^完成/)).toHaveCount(0);
-  await expect(timePart.getByRole("checkbox")).toHaveCount(0);
+  await expect(card).toContainText("还没有填了金额的开销");
+  await expect(card).toContainText("还没有排了时间的事");
+  await expect(card.locator('[data-ring="money"]')).toHaveCount(0);
+  await expect(card.locator('[data-ring="time"]')).toHaveCount(0);
+  await expect(card.getByText(/^完成/)).toHaveCount(0);
+  await expect(card.getByRole("checkbox")).toHaveCount(0);
   await shot(page, "01-empty");
 
   // 三件事：在杭州（停留）、西湖（游玩）、午饭（餐饮）
@@ -62,32 +63,32 @@ test("总览：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await schedule(page, rows.nth(0), "在杭州", "00:00", "24");
   await showView(page, "总览");
   await expect(baseLayer).toBeVisible();
-  await expect(timePart).toContainText("除了停留，还没有排了时间的事");
+  await expect(card).toContainText("除了停留，还没有排了时间的事");
 
   await showView(page, "日程");
   await schedule(page, rows.nth(1), "西湖", "09:00", "3");
   await schedule(page, rows.nth(2), "午饭", "12:00", "1");
   await showView(page, "总览");
-  await expect(timePart.getByRole("listitem")).toHaveText(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
+  await expect(legend.getByRole("listitem")).toHaveText(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
   await shot(page, "02-time");
 
   await baseLayer.check();
-  await expect(timePart.getByRole("listitem")).toHaveText(["停留 20 小时 · 83%", "游玩 3 小时 · 13%", "餐饮 1 小时 · 4%"]);
+  await expect(legend.getByRole("listitem")).toHaveText(["停留 20 小时 · 83%", "游玩 3 小时 · 13%", "餐饮 1 小时 · 4%"]);
   await shot(page, "03-with-stay");
 
   // 只用键盘取消勾选
   await baseLayer.focus();
   await page.keyboard.press("Space");
   await expect(baseLayer).not.toBeChecked();
-  await expect(timePart.getByRole("listitem")).toHaveText(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
+  await expect(legend.getByRole("listitem")).toHaveText(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
 
   // 取消在杭州的时间：停留一分钟都没占到，勾选消失；撤销后回来
   await showView(page, "日程");
   await rows.nth(0).getByRole("button", { name: "时间" }).click();
   await page.getByRole("group", { name: "在杭州 的时间" }).getByRole("button", { name: "取消时间" }).click();
   await showView(page, "总览");
-  await expect(timePart.getByRole("checkbox")).toHaveCount(0);
-  await expect(timePart.getByRole("listitem")).toHaveText(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
+  await expect(card.getByRole("checkbox")).toHaveCount(0);
+  await expect(legend.getByRole("listitem")).toHaveText(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
   await page.keyboard.press("Control+z");
   await expect(baseLayer).toBeVisible();
 
@@ -116,7 +117,7 @@ test("总览：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await expect(lunchMoney).toBeHidden();
 
   await showView(page, "总览");
-  const overview = page.getByRole("region", { name: "开销总览" });
+  const overview = card;
   await overview.getByRole("button", { name: "不属于任何一天：¥0" }).click();
   const unattached = page.getByRole("group", { name: "不属于任何一天的开销" });
   await unattached.getByRole("textbox", { name: "新一笔的说明" }).fill("签证");
@@ -126,29 +127,27 @@ test("总览：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await page.keyboard.press("Escape");
   await expect(unattached).toBeHidden();
 
-  await expect(moneyPart).toContainText("只算已填的 3 笔，还有 1 笔没填");
-  await expect(moneyPart.getByRole("listitem")).toHaveText([
+  await expect(card).toContainText("只算已填的 3 笔，还有 1 笔没填");
+  await expect(legend.getByRole("button")).toHaveText([
     "其他 ¥600 · 57%",
-    "游玩 ¥300 · 29% · 还有 1 笔没填",
+    "游玩 ¥300 · 29%",
     "餐饮 ¥150 · 14%",
   ]);
-  await expect(moneyPart.locator("[data-slice]")).toHaveCount(3);
+  await expect(card.locator('[data-ring="money"]')).toHaveCount(3);
   await shot(page, "04-money");
 
   // 完成了几件：完成西湖
   await showView(page, "日程");
   await rows.nth(1).getByRole("button", { name: /^标记：/ }).click();
-  await inOverview(page, () => expect(timePart.getByText("完成 1 件，共 3 件")).toBeVisible());
+  await inOverview(page, () => expect(card.getByText("完成 1 件，共 3 件")).toBeVisible());
 
-  // 手机：两张卡片上下堆，都在屏幕里
+  // 手机：整张卡片在屏幕里
   await page.setViewportSize({ width: 390, height: 844 });
   await showView(page, "总览");
-  await moneyPart.scrollIntoViewIfNeeded();
-  for (const card of [moneyPart, timePart]) {
-    const box = await card.boundingBox();
-    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
-  }
-  await moneyPart.screenshot({ path: test.info().outputPath("05-mobile-card.png") });
+  await card.scrollIntoViewIfNeeded();
+  const box = await card.boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  await card.screenshot({ path: test.info().outputPath("05-mobile-card.png") });
   await shot(page, "06-mobile");
 
   expect(errors).toEqual([]);

@@ -5,7 +5,7 @@ import { addBlock, addExpense, setPlanSettings, type ExpenseView } from "@welsho
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, daysFromOct1, moneyOverview, openOtherTab, openStoredPlan } from "./test-helpers";
+import { blockRow, daysFromOct1, openOtherTab, openStoredPlan, overviewCard } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -315,7 +315,7 @@ describe("把已有的一笔挂到这件事上", () => {
     await user.selectOptions(pickOf(editor), "其他 ¥600 签证 · 不属于任何一天");
 
     await waitFor(async () => expect(await moneyCellText("10.1", "西湖")).toBe("¥600"));
-    expect(within(await moneyOverview()).getByRole("button", { name: "不属于任何一天：¥0" })).toBeTruthy();
+    expect(within(await overviewCard()).getByRole("button", { name: "不属于任何一天：¥0" })).toBeTruthy();
   });
 
   it("筛选开着时也列出被筛掉的开销", async () => {
@@ -362,7 +362,7 @@ describe("不属于任何一天的开销", () => {
   it("点「收起」收起，焦点回到「不属于任何一天」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 1));
-    const overview = await moneyOverview();
+    const overview = await overviewCard();
     const toggle = within(overview).getByRole("button", { name: "不属于任何一天：¥0" });
 
     await user.click(toggle);

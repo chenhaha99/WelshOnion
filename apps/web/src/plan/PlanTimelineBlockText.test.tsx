@@ -5,7 +5,7 @@ import { addBlock, addExpense, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, moneyOverview, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
+import { daysFromOct1, openStoredPlan, overviewCard, ringMoney, showView, stubNarrowScreen } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -212,7 +212,7 @@ describe("块上写标题、开销：两个开关各开各关", () => {
     await user.type(amount, "280{Enter}");
 
     await waitFor(async () => expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥280"));
-    expect((await moneyOverview()).querySelector("[data-donut-total]")?.textContent).toBe("¥280");
+    expect(ringMoney(await overviewCard())).toBe("¥280");
   });
 
   it("记在这台设备上：切走再回来还是那两个开关，另一个计划回到默认", async () => {

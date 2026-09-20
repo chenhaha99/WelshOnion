@@ -3,6 +3,7 @@ import {
   moneySummary,
   passesFilter,
   timeByKind,
+  unscheduledMinutes,
   type LibraryView,
   type PlanView,
   type StatsFilter,
@@ -171,4 +172,120 @@ export function checkLine(plan: PlanView, filter?: StatsFilter): string | null {
   if (pending === 0 && done === 0) return null;
   const parts = [pending > 0 ? `待定 ${pending} 件` : "", done > 0 ? `完成 ${done} 件` : ""].filter((part) => part !== "");
   return `${parts.join(" · ")}，共 ${blocks.length} 件`;
+}
+
+/** 环上最多画几段：多了分不清（调研：5–6 段封顶），第 6 段以后并成一段。 */
+const RING_MAX = 6;
+const MERGED_COLOR = "#9aa3ad";
+
+/** 同心双环里的一类：外圈是它的钱，内圈是它的时间。 */
+export interface RingRow {
+  kindId: string;
+  name: string;
+  color: string;
+  /** 这一类填了金额的合计（分） */
+  cents: number;
+  /** 占钱的几成；一分钱都没填时是 null */
+  moneyPercent: number | null;
+  /** 这一类实际占到的分钟 */
+  minutes: number;
+  /** 占时间的几成；一件排了时间的事都没有时是 null */
+  timePercent: number | null;
+  /** 贴在环外的字：有钱写钱，只有时间写时长 */
+  label: string;
+  /** 并进来的那几类的名字（只有「其余 N 类」那一段有） */
+  merged?: string[];
+}
+
+export interface Rings {
+  rows: RingRow[];
+  moneyTotalCents: number;
+  /** 排了多久（分钟）：内圈实心的那部分 */
+  minutesTotal: number;
+  /** 还没排多久（分钟）：内圈末尾那一段灰的 */
+  unscheduledMinutes: number;
+  /** 一分钱都没填时写的那句；填了就是 null */
+  moneyEmpty: string | null;
+  /** 一件排了时间的事都没有时写的那句 */
+  timeEmpty: string | null;
+}
+
+/**
+ * 同心双环要画的数据：一个类型一行，外圈按 `cents`、内圈按 `minutes`。
+ * 按钱从多到少排（钱一样多的按时间），第 6 类以后并成「其余 N 类」；两圈的百分比各算各的。
+ */
+export function ringRows(
+  plan: PlanView,
+  library: LibraryView,
+  includeBaseLayer: boolean,
+  filter?: StatsFilter,
+): Rings {
+  const money = moneyShares(plan, library, filter);
+  const time = timeShares(plan, library, includeBaseLayer, filter);
+  const byKind = new Map<string, RingRow>();
+  const take = (kindId: string, name: string, color: string): RingRow => {
+    const has = byKind.get(kindId);
+    if (has) return has;
+    const row: RingRow = { kindId, name, color, cents: 0, moneyPercent: null, minutes: 0, timePercent: null, label: "" };
+    byKind.set(kindId, row);
+    return row;
+  };
+  for (const row of money.rows) {
+    const into = take(row.kindId, row.name, row.color);
+    into.cents = row.cents;
+    into.moneyPercent = row.percent;
+  }
+  for (const row of time.rows) {
+    const into = take(row.kindId, row.name, row.color);
+    into.minutes = row.minutes;
+    into.timePercent = row.percent;
+  }
+
+  const order = (row: RingRow) => library.kinds.get(row.kindId)?.order ?? Number.POSITIVE_INFINITY;
+  // 两圈都画不出来的类型（只有没填金额的开销、又没排时间）不上环：不然环外会多一个指不到任何一段的标签。
+  // 这几笔没填的钱在环下面那句「还有 K 笔没填」里算着
+  const rows = [...byKind.values()]
+    .filter((row) => row.cents > 0 || row.minutes > 0)
+    .sort(
+    (a, b) => b.cents - a.cents || b.minutes - a.minutes || order(a) - order(b),
+  );
+
+  const shown = rows.length > RING_MAX ? rows.slice(0, RING_MAX - 1) : rows;
+  const rest = rows.slice(shown.length);
+  if (rest.length > 0) {
+    shown.push({
+      kindId: "",
+      name: `其余 ${rest.length} 类`,
+      color: MERGED_COLOR,
+      cents: rest.reduce((sum, row) => sum + row.cents, 0),
+      moneyPercent: sumPercent(rest.map((row) => row.moneyPercent)),
+      minutes: rest.reduce((sum, row) => sum + row.minutes, 0),
+      timePercent: sumPercent(rest.map((row) => row.timePercent)),
+      label: "",
+      merged: rest.map((row) => row.name),
+    });
+  }
+  for (const row of shown) row.label = ringLabel(row);
+
+  return {
+    rows: shown,
+    moneyTotalCents: moneySummary(plan, filter).totalCents,
+    minutesTotal: time.rows.reduce((sum, row) => sum + row.minutes, 0),
+    unscheduledMinutes: plan.bases.reduce((sum, base) => sum + unscheduledMinutes(plan, base.id, filter), 0),
+    moneyEmpty: money.rows.some((row) => row.percent !== null) ? null : moneyNoteLabel(money),
+    timeEmpty: time.rows.length > 0 ? null : timeEmptyLabel(time),
+  };
+}
+
+/** 并起来的那几类的百分比：全是 null（都不进比例）就还是 null。 */
+function sumPercent(percents: Array<number | null>): number | null {
+  const real = percents.filter((percent): percent is number => percent !== null);
+  return real.length === 0 ? null : real.reduce((sum, percent) => sum + percent, 0);
+}
+
+/** 贴在环外的字：有钱写钱和占几成钱，只有时间的写时长和占几成时间。 */
+function ringLabel(row: RingRow): string {
+  if (row.cents > 0 && row.moneyPercent !== null) return `${row.name} ${formatYuan(row.cents)} · ${row.moneyPercent}%`;
+  if (row.minutes > 0 && row.timePercent !== null) return `${row.name} ${durationLabel(row.minutes)} · ${row.timePercent}%`;
+  return row.name;
 }

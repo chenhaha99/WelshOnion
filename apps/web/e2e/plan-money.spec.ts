@@ -54,17 +54,17 @@ test("开销：填第一笔 → 一块多笔 → 不属于任何一天 → 总�
   await page.keyboard.press("Escape");
   await expect(lunchMoney).toBeHidden();
 
-  // 不属于任何一天：签证 600。开销总览在第三个视图「总览」里
+  // 不属于任何一天：签证 600。这些都在第三个视图「总览」里
   await showView(page, "总览");
-  const overview = page.getByRole("region", { name: "开销总览" });
+  const overview = page.getByRole("region", { name: "总览" });
   await overview.getByRole("button", { name: "不属于任何一天：¥0" }).click();
   const unattached = page.getByRole("group", { name: "不属于任何一天的开销" });
   await unattached.getByRole("textbox", { name: "新一笔的说明" }).fill("签证");
   await unattached.getByRole("textbox", { name: "新一笔的金额" }).fill("600");
   await page.keyboard.press("Enter");
   await expect(overview.getByRole("button", { name: "不属于任何一天：¥600" })).toBeVisible();
-  await expect(overview.locator("[data-donut-total]")).toHaveText("¥1,058.50");
-  await expect(overview.locator("[data-donut-note]")).toHaveText("人均 ¥1,058.50");
+  await expect(overview.locator("[data-ring-money]")).toHaveText("¥1,058.50");
+  await expect(overview).toContainText("人均 ¥1,058.50");
   await expect(overview.locator("[data-money-note]")).toHaveText("另有 1 件事还没填开销");
   await shot(page, "03-overview");
 
@@ -83,9 +83,9 @@ test("开销：填第一笔 → 一块多笔 → 不属于任何一天 → 总�
   await page.keyboard.press("Enter");
   await expect(rows.nth(2).locator("[data-money-cell]")).toHaveText("¥45");
   // 四笔全填了：环中间只有总额和人均，不再写「还有几笔没填」
-  await inOverview(page, async ({ total, money, note }) => {
+  await inOverview(page, async ({ total, card, note }) => {
     await expect(total).toHaveText("¥503.50");
-    await expect(money.locator("[data-donut-note]")).toHaveText("人均 ¥503.50");
+    await expect(card).toContainText("人均 ¥503.50");
     await expect(note).toHaveCount(0);
   });
 

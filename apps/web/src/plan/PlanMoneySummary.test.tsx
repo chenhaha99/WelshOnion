@@ -5,7 +5,7 @@ import { addBlock, addExpense, setPlanSettings } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, moneyOverview, openOtherTab, openStoredPlan } from "./test-helpers";
+import { daysFromOct1, openOtherTab, openStoredPlan, overviewCard, ringMoney } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -34,10 +34,10 @@ describe("总额、人均和填写进度", () => {
       addDayBlock(plan, library, oct1!, "灵隐寺");
     });
 
-    // 开销总览在「总览」这个视图里：总额和人均在环中间，没填的那句在环下面
-    const card = await moneyOverview();
-    expect(card.querySelector("[data-donut-total]")?.textContent).toBe("¥900");
-    expect(card.querySelector("[data-donut-note]")?.textContent).toBe("人均 ¥300");
+    // 总览在「总览」这个视图里：总开销和人均在环中间，没填的那句在环下面
+    const card = await overviewCard();
+    expect(ringMoney(card)).toBe("¥900");
+    expect(card.textContent).toContain("人均 ¥300");
     expect(card.querySelector("[data-money-note]")?.textContent).toBe(
       "只算已填的 2 笔，还有 1 笔没填 · 另有 1 件事还没填开销",
     );
@@ -50,7 +50,7 @@ describe("不属于任何一天的开销", () => {
     const planId = await openStoredPlan((plan) => daysFromOct1(plan, 1));
     const other = await openOtherTab(planId);
 
-    const overview = await moneyOverview();
+    const overview = await overviewCard();
     await user.click(within(overview).getByRole("button", { name: "不属于任何一天：¥0" }));
     const editor = screen.getByRole("group", { name: "不属于任何一天的开销" });
     await user.type(within(editor).getByRole("textbox", { name: "新一笔的说明" }), "签证");

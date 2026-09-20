@@ -2,7 +2,6 @@ import {
   expensePasses,
   expenseTotalCents,
   occupiedMinutes,
-  passesFilter,
   type LibraryView,
   type PlanView,
   type StatsFilter,
@@ -96,22 +95,4 @@ export function timeItemsOfKind(
     })
     .sort((a, b) => a.rank - b.rank)
     .map(({ key, label, blockId }) => ({ key, label, blockId }));
-}
-
-/** 鼠标停在开销某一类上时第二行写的：「2 笔 · 挂在 2 件事上」「1 笔 · 不属于任何一天」。 */
-export function moneyDetailOfKind(plan: PlanView, kindId: string, filter?: StatsFilter): string {
-  const expenses = [...plan.expenses.values()].filter(
-    (expense) => expense.kind.id === kindId && expensePasses(expense, plan, filter),
-  );
-  const blocks = new Set(expenses.flatMap((expense) => expense.block_ids).filter((id) => plan.blocks.has(id)));
-  const where = blocks.size === 0 ? "不属于任何一天" : `挂在 ${blocks.size} 件事上`;
-  return `${expenses.length} 笔 · ${where}`;
-}
-
-/** 鼠标停在时间某一类上时第二行写的：「4 件事」。 */
-export function timeDetailOfKind(plan: PlanView, kindId: string, filter?: StatsFilter): string {
-  const count = [...plan.blocks.values()].filter(
-    (block) => block.kind.id === kindId && block.start_minute !== null && passesFilter(block, filter),
-  ).length;
-  return `${count} 件事`;
 }

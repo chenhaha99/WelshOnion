@@ -9,9 +9,10 @@ import {
   blockTexts,
   blockTitles,
   daysFromOct1,
-  moneyOverview,
   openAddBlock,
   openStoredPlan,
+  overviewCard,
+  ringMoney,
   showView,
 } from "./test-helpers";
 
@@ -251,7 +252,7 @@ describe("选中后的快捷条", () => {
     expect(document.activeElement).toBe(within(quickBar("西湖")).getByRole("button", { name: "开销：¥280" }));
 
     // 最后看一眼总览（切视图会取消选中，所以放在最后）
-    expect((await moneyOverview()).querySelector("[data-donut-total]")?.textContent).toBe("¥280");
+    expect(ringMoney(await overviewCard())).toBe("¥280");
   });
 
   it("开销：挂着两笔时也在这里改，不再开详情", async () => {
@@ -287,7 +288,7 @@ describe("选中后的快捷条", () => {
     // 两件同样时间的「西湖」，各挂一笔 300 元
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["西湖", "西湖"]));
     expect((await blockTexts("10.1")).map((item) => item.time)).toEqual(["09:00–12:00", "09:00–12:00"]);
-    expect((await moneyOverview()).querySelector("[data-donut-total]")?.textContent).toBe("¥600");
+    expect(ringMoney(await overviewCard())).toBe("¥600");
 
     await showView("时间线");
     await user.keyboard("{Control>}z{/Control}");

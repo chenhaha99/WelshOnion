@@ -630,6 +630,130 @@
   pointer-events: none;
 }
 
+/*
+ * 总览的同心双环（你选的小样 B）：外圈钱、内圈时间。浅色底上的「未来感」靠环外的细刻度、切角、等宽数字和同色柔光，
+ * 不靠发光——亮东西只有暗底才发得亮。段上的柔光用 drop-shadow，颜色跟着这一段自己的色。
+ */
+@utility dual-ring {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.dual-ring-center {
+  position: absolute;
+  /* 只占内圈那个洞：字宽了会顶到环上，所以限死在洞里面（内圈半径 88、粗 24，洞的直径约占整幅的 45%） */
+  inset: 27.5%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  text-align: center;
+  /* 中间的字不挡鼠标：底下就是环 */
+  pointer-events: none;
+}
+
+.ring-tick {
+  stroke: rgb(47 58 69 / 0.18);
+}
+
+.ring-arc circle {
+  cursor: pointer;
+  transition:
+    opacity 180ms ease,
+    stroke-width 180ms ease;
+  filter: drop-shadow(0 3px 8px color-mix(in srgb, currentColor 0%, transparent));
+}
+
+/* 指着哪一类，别的就淡下去；淡到 0.3 还看得见形状，不至于「消失」 */
+.ring-arc.is-dim circle {
+  opacity: 0.3;
+}
+
+/* 环外贴着的标签：绝对定位在那一段弧外面，本身是按钮（键盘、读屏走这里） */
+.ring-label {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  translate: -50% -50%;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+  cursor: pointer;
+  &:hover,
+  &.is-on {
+    background-color: rgb(111 154 130 / 0.12);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 1px;
+  }
+}
+
+/* 圈口说明里的两截色条 */
+@utility ring-key {
+  display: inline-block;
+  width: 1.1rem;
+  height: 0.35rem;
+  border-radius: 999px;
+}
+
+@utility ring-key-outer {
+  background: linear-gradient(90deg, #9b8ab2, #77a389);
+}
+
+@utility ring-key-inner {
+  background: linear-gradient(90deg, #77a389, #c08d68);
+  opacity: 0.75;
+}
+
+/* 卡片四角的切角 */
+@utility corner-bracket {
+  position: absolute;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 1px solid rgb(111 154 130 / 0.45);
+  pointer-events: none;
+}
+
+@utility corner-tl {
+  top: -1px;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: 1rem;
+}
+
+@utility corner-tr {
+  top: -1px;
+  right: -1px;
+  border-left: 0;
+  border-bottom: 0;
+  border-top-right-radius: 1rem;
+}
+
+@utility corner-bl {
+  bottom: -1px;
+  left: -1px;
+  border-right: 0;
+  border-top: 0;
+  border-bottom-left-radius: 1rem;
+}
+
+@utility corner-br {
+  bottom: -1px;
+  right: -1px;
+  border-left: 0;
+  border-top: 0;
+  border-bottom-right-radius: 1rem;
+}
+
 @utility kind-dot {
   display: inline-block;
   flex-shrink: 0;
