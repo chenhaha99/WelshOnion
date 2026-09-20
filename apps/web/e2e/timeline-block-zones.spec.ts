@@ -136,7 +136,7 @@ test("手机上：竖条也分三区，书签在右上、时长和开销在最�
   expect(bar.x + bar.width - (money.x + money.width)).toBeLessThanOrEqual(6);
   await shot(page, "02-phone-three-zones");
 
-  // 完成：竖条整条变灰（附件栏单独摆在最下面，那里的字本来就是淡的，不划线）
+  // 完成：竖条整条变灰，附件栏单独摆在最下面，划线传不过来，单独划
   const barBorder = () => lake.evaluate((node) => getComputedStyle(node).borderTopColor);
   const borderBefore = await barBorder();
   await lake.click();
@@ -144,7 +144,7 @@ test("手机上：竖条也分三区，书签在右上、时长和开销在最�
   await expect.poll(barBorder).not.toBe(borderBefore);
   await expect
     .poll(() => lake.locator("[data-bar-foot]").evaluate((node) => getComputedStyle(node).textDecorationLine))
-    .toBe("none");
+    .toBe("line-through");
 
   expect(errors).toEqual([]);
 });

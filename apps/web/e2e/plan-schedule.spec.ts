@@ -80,8 +80,7 @@ test("电脑上的时刻表：左边开始时刻、竖线串起来、空档写�
   await page.mouse.click(5, 5);
   expect(
     await lunch.getByRole("textbox", { name: "标题" }).evaluate((node) => getComputedStyle(node).textDecorationLine),
-    "完成不划线，整张变灰就够了",
-  ).toBe("none");
+  ).toBe("line-through");
   await shot(page, "02-desktop-added-done");
 
   expect(errors).toEqual([]);

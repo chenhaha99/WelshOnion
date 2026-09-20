@@ -58,7 +58,7 @@ test("电脑上：快捷条按一圈换三档、块跟着变样子、大小不�
   // 完成（你提的：统一灰色 + 实线）：边和底都换成灰的，字变淡，不划线；不是整块半透明，选中的描边照样看得清
   const done = await looks(lake);
   expect(done.borderStyle, "完成是实线").toBe("solid");
-  expect(done.decoration, "完成不划线").toBe("none");
+  expect(done.decoration, "完成的字上划一道").toBe("line-through");
   expect(done.borderColor, "完成的边不是类型色").not.toBe(selected.borderColor);
   expect(done.background).not.toBe(selected.background);
   expect(done.color).not.toBe(selected.color);
@@ -111,8 +111,7 @@ test("电脑上：快捷条按一圈换三档、块跟着变样子、大小不�
   expect(await moneyColor(street), "「填开销」的颜色").toBe(await moneyColor(await rowOf(day1Table, "灵隐寺")));
   expect(
     await street.getByRole("textbox", { name: "标题" }).evaluate((node) => getComputedStyle(node).textDecorationLine),
-    "完成的标题不划线，整张变灰就够了",
-  ).toBe("none");
+  ).toBe("line-through");
   await shot(page, "02-list-done");
 
   // 按标记筛：按下「确定」只剩「灵隐寺」；再按「完成」，完成的两件也回来
@@ -152,7 +151,7 @@ test("手机上：竖条选中，底部快捷条第一个按钮完成，竖条�
   await expect(timeline.locator("[data-segment]").first()).toHaveAttribute("data-mark", "done");
   const phoneDone = await looks(lake);
   expect(phoneDone.borderStyle, "完成是实线").toBe("solid");
-  expect(phoneDone.decoration, "完成不划线").toBe("none");
+  expect(phoneDone.decoration, "完成的字上划一道").toBe("line-through");
   await shot(page, "03-phone-done");
 
   expect(errors).toEqual([]);
