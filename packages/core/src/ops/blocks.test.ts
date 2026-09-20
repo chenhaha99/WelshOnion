@@ -8,7 +8,8 @@ import {
   deleteBlock,
   moveUndated,
   resizeBlock,
-  setBlockChecked,
+  nextMark,
+  setBlockMark,
   setBlockIndent,
   setBlockTag,
   setBlockTimed,
@@ -85,7 +86,7 @@ describe("新建块", () => {
     expect((block?.get("place_ids") as Y.Array<string>).toArray()).toEqual([]);
     // 新建就写一个空数组：两边同时挂标签时挂进同一个数组
     expect(tagsOf(result.ok ? result.value.blockId : "")).toEqual([]);
-    for (const key of ["slot", "layer", "indent", "status_id", "checked"]) {
+    for (const key of ["slot", "layer", "indent", "status_id", "mark"]) {
       expect(block?.has(key), key).toBe(false);
     }
   });
@@ -258,27 +259,34 @@ describe("批量划掉", () => {
   test("一次划掉两个，一步撤销", () => {
     const undo = createPlanUndoManager(planDoc);
 
-    expect(setBlockChecked(planDoc, ["k1", "k2"], true).ok).toBe(true);
-    expect([raw("k1")?.get("checked"), raw("k2")?.get("checked")]).toEqual([true, true]);
+    expect(setBlockMark(planDoc, ["k1", "k2"], "struck").ok).toBe(true);
+    expect([raw("k1")?.get("mark"), raw("k2")?.get("mark")]).toEqual(["struck", "struck"]);
 
     undo.undo();
-    expect([raw("k1")?.has("checked"), raw("k2")?.has("checked")]).toEqual([false, false]);
+    expect([raw("k1")?.has("mark"), raw("k2")?.has("mark")]).toEqual([false, false]);
   });
 
-  test("取消划掉删掉键", () => {
-    setBlockChecked(planDoc, ["k1"], true);
+  test("设成「待定」存下来，设回「定了」删掉键", () => {
+    expect(setBlockMark(planDoc, ["k1"], "pending").ok).toBe(true);
+    expect(raw("k1")?.get("mark")).toBe("pending");
 
-    expect(setBlockChecked(planDoc, ["k1"], false).ok).toBe(true);
+    expect(setBlockMark(planDoc, ["k1"], "decided").ok).toBe(true);
 
-    expect(raw("k1")?.has("checked")).toBe(false);
+    expect(raw("k1")?.has("mark")).toBe(false);
+  });
+
+  test("转一圈：定了 → 划掉 → 待定 → 定了", () => {
+    expect(nextMark("decided")).toBe("struck");
+    expect(nextMark("struck")).toBe("pending");
+    expect(nextMark("pending")).toBe("decided");
   });
 
   test("有块找不到就一个都不改", () => {
-    expect(setBlockChecked(planDoc, ["k1", "gone"], true)).toEqual({
+    expect(setBlockMark(planDoc, ["k1", "gone"], "struck")).toEqual({
       ok: false,
       error: { code: "NOT_FOUND", id: "gone" },
     });
-    expect(raw("k1")?.has("checked")).toBe(false);
+    expect(raw("k1")?.has("mark")).toBe(false);
   });
 });
 

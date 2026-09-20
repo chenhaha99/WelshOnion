@@ -40,7 +40,8 @@ export {
   moveUndated,
   previewSetBlockTimed,
   resizeBlock,
-  setBlockChecked,
+  setBlockMark,
+  nextMark,
   setBlockIndent,
   setBlockTag,
   setBlockTimed,
@@ -74,6 +75,7 @@ export { readLibrary, readPlan, reconcilePlanIndex, summarizePlan } from "./read
 export type {
   BaseView,
   Basis,
+  BlockMark,
   BlockView,
   ExpenseView,
   KindRef,

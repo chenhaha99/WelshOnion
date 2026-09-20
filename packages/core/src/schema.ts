@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { PRESET_KINDS } from "./presets";
 
 /** 代码支持的文档结构版本。计划文档和资料库文档各自在 meta.schema 里记版本。 */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export type DocumentErrorCode = "SCHEMA_TOO_NEW" | "NOT_INITIALIZED";
 
@@ -81,14 +81,19 @@ export function openLibraryDoc(doc: Y.Doc): void {
 
 /**
  * 旧版本的计划文档改成当前版本，事务由调用方开。
- * 1 → 2（2026-09-17 去掉了状态）：每件事删掉 status_id；checked 原样留下，就是「划掉」。
+ * 1 → 2（2026-09-17 去掉了状态）：每件事删掉 status_id。
+ * 2 → 3（2026-09-20 标记从两档变三档）：checked 是 true 的写成 mark = "struck"，其余不写（读出来就是「定了」），删掉 checked。
  */
 export function upgradePlanDoc(doc: Y.Doc): void {
-  for (const block of doc.getMap<Y.Map<unknown>>("blocks").values()) block.delete("status_id");
+  for (const block of doc.getMap<Y.Map<unknown>>("blocks").values()) {
+    block.delete("status_id");
+    if (block.get("checked") === true) block.set("mark", "struck");
+    block.delete("checked");
+  }
   doc.getMap("meta").set("schema", SCHEMA_VERSION);
 }
 
-/** 1 → 2：清空状态。顶层的 statuses 删不掉（Yjs 的顶层结构建了就一直在），只能留空。 */
+/** 1 → 2：清空状态；2 → 3 资料库没变。顶层的 statuses 删不掉（Yjs 的顶层结构建了就一直在），只能留空。 */
 function upgradeLibraryDoc(doc: Y.Doc): void {
   const statuses = doc.getMap("statuses");
   for (const id of [...statuses.keys()]) statuses.delete(id);

@@ -661,7 +661,7 @@ function Segment({
       data-track={item.track}
       data-lane={item.lane}
       data-depth={item.depth}
-      data-checked={block.checked}
+      data-mark={block.mark}
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
       data-lifted={lifted ? true : undefined}
@@ -692,7 +692,7 @@ function Segment({
         name={`${block.title} ${time}`}
         tags={block.tags}
         tagMarks={!point}
-        checked={block.checked}
+        mark={block.mark}
         className={buttonClass}
       >
         {/* 写不下就换行，写满行数还放不下截断加「…」（鼠标停上去的提示里有全名）；细条只写一行 */}

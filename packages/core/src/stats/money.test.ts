@@ -105,9 +105,9 @@ describe("每天花多少", () => {
 describe("筛选对钱的影响", () => {
   test("只看没划掉的：看开销挂的块，不挂块的不受影响", () => {
     nanxunMoney();
-    planDoc.getMap<Y.Map<unknown>>("blocks").get("drive")?.set("checked", true);
+    planDoc.getMap<Y.Map<unknown>>("blocks").get("drive")?.set("mark", "struck");
 
-    const summary = moneySummary(plan(), { onlyUnchecked: true });
+    const summary = moneySummary(plan(), { marks: ["pending", "decided"] });
 
     // 油费只挂在划掉的开车上：不算；民宿 48000 + 联票 20000 + 保险 12000（不挂块）
     expect(summary.byKind.has("transit")).toBe(false);

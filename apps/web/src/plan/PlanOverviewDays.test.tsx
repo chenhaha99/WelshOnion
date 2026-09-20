@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { addBlock, addExpense, setBlockChecked, setPlanSettings, updateBlock } from "@welshonion/core";
+import { addBlock, addExpense, setBlockMark, setPlanSettings, updateBlock } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -38,7 +38,7 @@ async function openTrip(): Promise<void> {
     }
     const wuzhen = timed(plan, library, oct2!, "乌镇", "sight", 540, 480);
     money(plan, library, 15000, [wuzhen], "per_person");
-    if (!setBlockChecked(plan, [wuzhen], true).ok) throw new Error("划掉失败");
+    if (!setBlockMark(plan, [wuzhen], "struck").ok) throw new Error("划掉失败");
     money(plan, library, 60000, []);
   });
 }

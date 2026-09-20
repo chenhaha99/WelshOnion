@@ -138,7 +138,7 @@ test("手机上：竖条也分三区，书签在右上、时长和开销在最�
 
   // 划掉：附件栏单独摆在竖条最下面，划线也要有
   await lake.click();
-  await quickBar(page, "西湖").getByRole("button", { name: "划掉", exact: true }).click();
+  await quickBar(page, "西湖").getByRole("button", { name: /^标记：/ }).click();
   await expect
     .poll(() => lake.locator("[data-bar-foot]").evaluate((node) => getComputedStyle(node).textDecorationLine))
     .toBe("line-through");

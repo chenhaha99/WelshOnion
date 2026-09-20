@@ -9,6 +9,8 @@ import * as Y from "yjs";
 import { compareBases, compareStrings } from "./order";
 
 export type Slot = "morning" | "afternoon" | "evening";
+/** 一件事的标记，三档：待定（还没定）、定了（默认）、划掉（含义用户自己定） */
+export type BlockMark = "pending" | "decided" | "struck";
 export type TransportMode = "drive" | "transit" | "walk";
 export type Basis = "per_person" | "total";
 export type PlainObject = Readonly<Record<string, unknown>>;
@@ -80,8 +82,8 @@ export interface BlockView {
   kind: KindRef;
   layer: number | null;
   indent: number | null;
-  /** 划掉：含义由用户自己定；存的是 true 才算划掉 */
-  checked: boolean;
+  /** 三档标记：没写、写了不认识的都读成「定了」 */
+  mark: BlockMark;
   title: string;
   place_ids: string[];
   places: PlaceView[];
@@ -181,6 +183,11 @@ export function readLibrary(doc: Y.Doc): LibraryView {
   return { kinds, tags, places, planIndex };
 }
 
+/** 存的标记只认「待定」「划掉」，别的（没写、写坏了）都是「定了」。 */
+function markOf(value: unknown): BlockMark {
+  return value === "pending" || value === "struck" ? value : "decided";
+}
+
 export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
   const planMap = doc.getMap("plan");
   const plan: PlanSettingsView = {
@@ -226,8 +233,8 @@ export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {
       // 同时存了 layer 和 indent 时，排了时间只认 layer，没排时间只认 indent
       layer: startMinute === null ? null : optional(map, "layer"),
       indent: startMinute === null ? optional(map, "indent") : null,
-      // 没划掉就不存这个键
-      checked: map.get("checked") === true,
+      // 「定了」不存这个键
+      mark: markOf(map.get("mark")),
       title: required(map, "title"),
       place_ids: places.map((place) => place.id),
       places,

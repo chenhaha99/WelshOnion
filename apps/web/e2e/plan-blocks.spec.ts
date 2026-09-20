@@ -33,8 +33,8 @@ test("安排表：连着加几件事 → 改类型、划掉一件 → 排时间 
   // 选项旁边有「「餐饮」的操作」按钮，按名字找选项要精确匹配
   await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: "餐饮", exact: true }).click();
   await expect(rows.nth(0).getByRole("button", { name: "类型：餐饮" })).toBeVisible();
-  await rows.nth(1).getByRole("checkbox", { name: "划掉" }).check();
-  await expect(rows.nth(1)).toHaveAttribute("data-checked", "true");
+  await rows.nth(1).getByRole("button", { name: /^标记：/ }).click();
+  await expect(rows.nth(1)).toHaveAttribute("data-mark", "struck");
 
   // 给早茶排上 08:00 起 1 小时
   await rows.nth(0).getByRole("button", { name: "时间" }).click();

@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { readLibrary, readPlan } from "../read";
 import { initLibraryDoc } from "../schema";
 import { addBase } from "../testing";
-import { addBlock, setBlockChecked, setBlockTag } from "./blocks";
+import { addBlock, setBlockMark, setBlockTag } from "./blocks";
 import { setDays } from "./days";
 import { addExpense } from "./expenses";
 import { addTag } from "./library";
@@ -141,7 +141,7 @@ describe("复制计划", () => {
     const [, oct2, oct3] = days.value.baseIds;
     const lake = addBlock(planDoc, library, { baseId: oct2!, kindId: "sight", title: "西湖", minute: 540, duration: 120 });
     if (!lake.ok) throw new Error("建块失败");
-    setBlockChecked(planDoc, [lake.value.blockId], true);
+    setBlockMark(planDoc, [lake.value.blockId], "struck");
     const must = addTag(library, { name: "必去", color: "#c08d68" });
     if (!must.ok) throw new Error("建标签失败");
     setBlockTag(planDoc, library, [lake.value.blockId], must.value.tagId, true);
@@ -168,7 +168,7 @@ describe("复制计划", () => {
     const lake = [...view.blocks.values()].find((block) => block.title === "西湖")!;
     expect(view.bases.find((base) => base.id === lake.start_base_id)?.date).toBe("2027-04-30");
     expect(lake).toMatchObject({ start_minute: 540, duration_min: 120 });
-    expect(lake.checked).toBe(false);
+    expect(lake.mark).toBe("decided");
     expect(lake.tags.map((tag) => tag.name)).toEqual(["必去"]);
     expect(target.getMap<Y.Map<unknown>>("blocks").get(lake.id)?.has("status_id")).toBe(false);
     expect([...view.expenses.values()].map((expense) => [expense.amount_cents, expense.block_ids])).toEqual([
@@ -191,7 +191,7 @@ describe("复制计划", () => {
 
     const view = readPlan(source, readLibrary(library));
     expect(view.bases.map((base) => base.date)).toEqual(["2026-10-01", "2026-10-02", "2026-10-03"]);
-    expect([...view.blocks.values()].find((block) => block.title === "西湖")?.checked).toBe(true);
+    expect([...view.blocks.values()].find((block) => block.title === "西湖")?.mark).toBe("struck");
   });
 
   test("没有天的计划", () => {

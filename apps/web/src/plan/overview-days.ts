@@ -56,7 +56,7 @@ interface Counts {
   unscheduledMinutes: number;
   unfilled: number;
   blocks: number;
-  checked: number;
+  struck: number;
 }
 
 /**
@@ -77,7 +77,7 @@ export function overviewDays(
     unscheduledMinutes: 0,
     unfilled: 0,
     blocks: 0,
-    checked: 0,
+    struck: 0,
   };
   const spent = plan.bases.map((base) => dayMoney(plan, base.id, cells));
   const most = Math.max(0, ...spent.map((money) => money.cents));
@@ -92,7 +92,7 @@ export function overviewDays(
       unscheduledMinutes: unscheduledMinutes(plan, base.id, filter),
       unfilled: spent[index]!.unfilled,
       blocks: shown.length,
-      checked: shown.filter((block) => block.checked).length,
+      struck: shown.filter((block) => block.mark === "struck").length,
     };
     add(sum, counts);
     const start = facts.firstStartMinute === null ? null : clockOnDay(facts.firstStartMinute, base.date);
@@ -146,7 +146,7 @@ function countCells(counts: Counts): Pick<OverviewRow, "busy" | "drive" | "unsch
     unscheduled: counts.unscheduledMinutes > 0 ? durationLabel(counts.unscheduledMinutes) : null,
     unfilled: counts.unfilled > 0 ? `${counts.unfilled} 笔没填` : null,
     blocks:
-      counts.blocks === 0 ? null : `${counts.blocks} 件${counts.checked > 0 ? ` · 划掉 ${counts.checked}` : ""}`,
+      counts.blocks === 0 ? null : `${counts.blocks} 件${counts.struck > 0 ? ` · 划掉 ${counts.struck}` : ""}`,
   };
 }
 

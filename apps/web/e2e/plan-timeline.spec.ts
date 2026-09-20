@@ -122,7 +122,7 @@ test("时间线：排出一天 → 按时长画 → 点开详情面板 → 电�
   await page.keyboard.press("Enter");
   await expect(quickBar(page, "西湖")).toBeVisible();
   await page.keyboard.press("Tab");
-  await expect(quickBar(page, "西湖").getByRole("button", { name: "划掉", exact: true })).toBeFocused();
+  await expect(quickBar(page, "西湖").getByRole("button", { name: /^标记：/ })).toBeFocused();
   await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog", { name: "西湖" })).toBeVisible();

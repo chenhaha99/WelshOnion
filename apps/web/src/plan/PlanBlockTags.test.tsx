@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { addBlock, addTag, setBlockChecked, setBlockTag, type AddBlockInput } from "@welshonion/core";
+import { addBlock, addTag, setBlockMark, setBlockTag, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -65,7 +65,7 @@ async function oneDay(seed: Seed = {}): Promise<void> {
     for (const [title, names] of Object.entries(seed.tags ?? {})) {
       for (const name of names) setBlockTag(plan, library, [ids[title]!], tagIds[name]!, true);
     }
-    if (seed.struck) setBlockChecked(plan, seed.struck.map((title) => ids[title]!), true);
+    if (seed.struck) setBlockMark(plan, seed.struck.map((title) => ids[title]!), "struck");
   });
 }
 
@@ -177,7 +177,7 @@ describe("在快捷条和日程里挂上、摘下", () => {
     const names = within(quickBar("西湖"))
       .getAllByRole("button")
       .map((button) => button.getAttribute("aria-label"));
-    expect(names.slice(0, 4)).toEqual(["划掉", "详情…", "类型：游玩", "标签：没有"]);
+    expect(names.slice(0, 4)).toEqual(["标记：定了", "详情…", "类型：游玩", "标签：没有"]);
 
     const picker = await openTagPicker(user, within(quickBar("西湖")).getByRole("button", { name: "标签：没有" }));
     await user.click(within(picker).getByRole("button", { name: "必去" }));

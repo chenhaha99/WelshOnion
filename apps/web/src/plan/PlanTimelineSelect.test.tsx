@@ -121,8 +121,8 @@ describe("时间线上点一下选中", () => {
     await onePlanDay();
 
     await user.click(await blockButton("西湖"));
-    await user.click(within(quickBar("西湖")).getByRole("button", { name: "划掉" }));
-    await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
+    await user.click(within(quickBar("西湖")).getByRole("button", { name: /^标记：/ }));
+    await user.click(await screen.findByRole("button", { name: "定了" }));
 
     await waitFor(() => expect(selectedTitles()).toEqual([]));
     expect(screen.queryByRole("toolbar", { name: "「西湖」的操作" })).toBeNull();
@@ -158,13 +158,13 @@ describe("时间线上点一下选中", () => {
 });
 
 describe("选中后的快捷条", () => {
-  it("排上时间的有八个图标（第一个是「划掉」），没排时间的少「复制」", async () => {
+  it("排上时间的有八个图标（第一个是标记），没排时间的少「复制」", async () => {
     const user = userEvent.setup();
     await onePlanDay();
 
     await user.click(await blockButton("西湖"));
     expect(names(quickBar("西湖"))).toEqual([
-      "划掉",
+      "标记：定了",
       "详情…",
       "类型：游玩",
       "标签：没有",
@@ -176,7 +176,7 @@ describe("选中后的快捷条", () => {
 
     await user.click(await blockButton("灵隐寺"));
     expect(names(quickBar("灵隐寺"))).toEqual([
-      "划掉",
+      "标记：定了",
       "详情…",
       "类型：游玩",
       "标签：没有",
@@ -209,7 +209,7 @@ describe("选中后的快捷条", () => {
     const lake = await blockButton("西湖");
     await user.click(lake);
     await user.tab();
-    expect(document.activeElement).toBe(within(quickBar("西湖")).getByRole("button", { name: "划掉" }));
+    expect(document.activeElement).toBe(within(quickBar("西湖")).getByRole("button", { name: /^标记：/ }));
 
     await user.keyboard("{Escape}");
     expect(selectedTitles()).toEqual([]);

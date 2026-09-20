@@ -129,7 +129,7 @@ test("手机上：打开是时间线 → 页面在最上面时和原来一样、
   await expectStill(page, before);
 
   // 划掉一件：筛选那一行出现「只看没划掉的」
-  await (await rowOf(page.getByRole("table", { name: DAY1 }), "西湖")).getByRole("checkbox", { name: "划掉" }).click();
+  await (await rowOf(page.getByRole("table", { name: DAY1 }), "西湖")).getByRole("button", { name: /^标记：/ }).click();
 
   // 往下滚到 10.3：只剩页顶那一行钉在顶上（「撤销」点得到），筛选和切换按钮收起（你提的：要 B，折叠）
   await moveAway(page);
@@ -144,7 +144,7 @@ test("手机上：打开是时间线 → 页面在最上面时和原来一样、
   await hoverBar(page);
   await expectShown(page);
   expect(await page.evaluate(() => window.scrollY), "页面没滚").toBe(scrolled);
-  await expectOnScreen(page, page.getByRole("button", { name: "只看没划掉的" }), "只看没划掉的");
+  await expectOnScreen(page, page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "定了" }), "标记里的「定了」");
   await shot(page, "03-phone-shown", { screen: true });
 
   // 弹出来时点按下的「日程」：回到开头，页顶、筛选、切换按钮都在原处
@@ -189,7 +189,7 @@ test("手机上走到的输入框不被页顶那一行、停住的「第 1 天�
   expect(errors).toEqual([]);
 });
 
-test("手机上筛选不折行：五种类型加「只看没划掉的」只占一行，左右滑得到最后一个", async ({ page }) => {
+test("手机上筛选不折行：五种类型加「标记」三档只占一行，左右滑得到最后一个", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1, { width: 390, height: 844 });
   const day1 = page.getByRole("table", { name: DAY1 });
@@ -198,17 +198,17 @@ test("手机上筛选不折行：五种类型加「只看没划掉的」只占�
   await pickKind(page, day1, "午饭", "餐饮");
   await pickKind(page, day1, "民宿", "住宿");
   await pickKind(page, day1, "买茶", "购物");
-  await (await rowOf(day1, "西湖")).getByRole("checkbox", { name: "划掉" }).click();
+  await (await rowOf(day1, "西湖")).getByRole("button", { name: /^标记：/ }).click();
 
   const row = page.locator("[data-filter-row]");
-  const onlyUnchecked = page.getByRole("button", { name: "只看没划掉的" });
-  await expect(onlyUnchecked).toBeAttached();
+  const onlyDecided = page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "定了" });
+  await expect(onlyDecided).toBeAttached();
   const kinds = page.getByRole("group", { name: "按类型筛选" });
   // 一行：「只看没划掉的」和第一个类型按钮一样高（没折到下一行）；这一行比屏幕宽，能左右滑
-  expect(Math.abs((await edges(onlyUnchecked)).top - (await edges(kinds.getByRole("button").first())).top)).toBeLessThan(2);
+  expect(Math.abs((await edges(onlyDecided)).top - (await edges(kinds.getByRole("button").first())).top)).toBeLessThan(2);
   expect(await row.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
   await row.evaluate((element) => (element.scrollLeft = element.scrollWidth));
-  const box = (await onlyUnchecked.boundingBox())!;
+  const box = (await onlyDecided.boundingBox())!;
   expect(box.x + box.width).toBeLessThanOrEqual(390);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await shot(page, "04-phone-filter-row");
@@ -241,7 +241,7 @@ test("电脑上：页面在最上面、滚了一点时点切换不跳 → 滚下
   await expect(topBar(page), "还没钉住，没有底色").toHaveCSS("background-color", TRANSPARENT);
 
   // 划掉一件，滚下去：只剩页顶那一行
-  await (await rowOf(page.getByRole("table", { name: DAY1 }), "西湖")).getByRole("checkbox", { name: "划掉" }).click();
+  await (await rowOf(page.getByRole("table", { name: DAY1 }), "西湖")).getByRole("button", { name: /^标记：/ }).click();
   await moveAway(page);
   await scrollToDay3(page);
   await expectBarPinned(page);
@@ -252,7 +252,7 @@ test("电脑上：页面在最上面、滚了一点时点切换不跳 → 滚下
   // 鼠标移上去弹出来，移开收回去
   await hoverBar(page);
   await expectShown(page);
-  await expectOnScreen(page, page.getByRole("button", { name: "只看没划掉的" }), "只看没划掉的");
+  await expectOnScreen(page, page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "定了" }), "标记里的「定了」");
   await shot(page, "06-desktop-shown", { screen: true });
   await moveAway(page);
   await expectFolded(page);
@@ -290,7 +290,7 @@ test("电脑上用键盘：收起时 Tab 走进筛选，弹出来、焦点所在
   const errors = watchErrors(page);
   await busyPlan(page, 1280, 800);
   await clickInPlace(page, viewGroup(page).getByRole("button", { name: "日程" }));
-  await (await rowOf(page.getByRole("table", { name: DAY1 }), "西湖")).getByRole("checkbox", { name: "划掉" }).click();
+  await (await rowOf(page.getByRole("table", { name: DAY1 }), "西湖")).getByRole("button", { name: /^标记：/ }).click();
   await moveAway(page);
   await scrollToDay3(page);
   await expectFolded(page);
@@ -301,7 +301,7 @@ test("电脑上用键盘：收起时 Tab 走进筛选，弹出来、焦点所在
     if (await page.evaluate(() => document.activeElement?.closest("[data-filter-row]") != null)) break;
   }
   const focused = page.locator(":focus");
-  await expect(focused).toHaveText("只看没划掉的");
+  await expect(focused).toHaveText("待定");
   await expectOnScreen(page, focused, "焦点所在的按钮");
   expect((await edges(focused)).top, "在页顶那一行下面").toBeGreaterThanOrEqual((await edges(topBar(page))).bottom - 1);
 

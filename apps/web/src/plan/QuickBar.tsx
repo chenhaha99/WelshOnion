@@ -2,7 +2,6 @@ import {
   countBlocksUsing,
   duplicateBlock,
   followersOf,
-  setBlockChecked,
   type BlockView,
   type LibraryView,
   type PlanView,
@@ -14,7 +13,8 @@ import { blockFocusSelector, deleteBlockWithNotice, deleteLabel } from "./block-
 import { BlockMoney } from "./block-money";
 import { BlockTimeButton } from "./block-time-button";
 import { useNotifyDeleted } from "./DeletedNotice";
-import { CopyIcon, DetailsIcon, StrikeIcon, TrashIcon } from "./icons";
+import { CopyIcon, DetailsIcon, TrashIcon } from "./icons";
+import { MarkButton } from "./mark";
 import type { MoneyCell } from "./money-cells";
 import { useOpenBlock } from "./open-block";
 import { KindPicker } from "./pickers";
@@ -94,16 +94,7 @@ export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, co
         }
       }}
     >
-      <button
-        type="button"
-        aria-label="划掉"
-        title={block.checked ? "取消划掉" : "划掉"}
-        aria-pressed={block.checked}
-        className="quick-button"
-        onClick={() => setBlockChecked(doc, [block.id], !block.checked)}
-      >
-        <StrikeIcon />
-      </button>
+      <MarkButton doc={doc} block={block} className="quick-button" />
       <button
         type="button"
         aria-label="详情…"

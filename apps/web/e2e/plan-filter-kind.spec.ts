@@ -45,12 +45,12 @@ test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被
   await shot(page, "01-lodging-only");
 
   // 和只看没划掉的一起：把民宿划掉，再按「只看没划掉的」，一件都不显示；再按一下取消
-  await inn.getByRole("checkbox", { name: "划掉" }).check();
-  const onlyUnchecked = page.getByRole("button", { name: "只看没划掉的" });
-  await onlyUnchecked.click();
+  await inn.getByRole("button", { name: /^标记：/ }).click();
+  const onlyDecided = page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "定了" });
+  await onlyDecided.click();
   await expect(rows).toHaveCount(0);
   await expect(table.locator("[data-filtered-out]")).toHaveText("筛掉了 3 件");
-  await onlyUnchecked.click();
+  await onlyDecided.click();
   await expect(rows).toHaveCount(1);
 
   // 全部类型：都回来，上面那一句和开销格下面那一行都不见

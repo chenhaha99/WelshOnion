@@ -137,7 +137,7 @@ test("占比：空计划 → 排时间 → 算上停留、勾选的出现和消�
 
   // 划掉了几件：划掉西湖
   await showView(page, "日程");
-  await rows.nth(1).getByRole("checkbox", { name: "划掉" }).check();
+  await rows.nth(1).getByRole("button", { name: /^标记：/ }).click();
   await inOverview(page, () => expect(card.getByText("划掉 1 件，共 3 件")).toBeVisible());
 
   await page.setViewportSize({ width: 390, height: 844 });

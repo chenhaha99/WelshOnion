@@ -366,7 +366,7 @@ function DaySegment({ plan, item, place, blockText, tagBar, hourHeight, money, d
       data-track={item.track}
       data-lane={item.lane}
       data-depth={item.depth}
-      data-checked={block.checked}
+      data-mark={block.mark}
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
       data-lifted={lifted ? true : undefined}
@@ -390,7 +390,7 @@ function DaySegment({ plan, item, place, blockText, tagBar, hourHeight, money, d
         name={`${block.title} ${time}`}
         tags={block.tags}
         tagMarks={bar && zones.tagBar}
-        checked={block.checked}
+        mark={block.mark}
         className={buttonClass}
       >
         {/* 标题单独一段：竖条开头滚出框的上边时，标题贴着框的上边（见 index.css） */}

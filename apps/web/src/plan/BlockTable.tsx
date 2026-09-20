@@ -3,7 +3,6 @@ import {
   followersOf,
   freeGaps,
   passesFilter,
-  setBlockChecked,
   updateBlock,
   type BlockView,
   type KindView,
@@ -25,6 +24,7 @@ import { useNotifyDeleted } from "./DeletedNotice";
 import { linkableExpenses } from "./expense-links";
 import { MoneyEditor } from "./MoneyEditor";
 import { moneyCellEmpty, moneyCellLabel, moneyCellNote, type MoneyCell } from "./money-cells";
+import { MarkButton, markItems } from "./mark";
 import { useOpenBlock } from "./open-block";
 import { KindPicker } from "./pickers";
 import { TagPicker } from "./TagPicker";
@@ -322,28 +322,22 @@ function BlockRow({
   const subtitleLine = [block.subtitle, block.note === null ? null : "有长备注"].filter((part) => part !== null).join(" · ");
   const moneyNote = moneyCellNote(moneyCell);
   const items: MenuItem[] = undated
-    ? [...undatedArrangeItems(doc, plan, block), detailsItem, deleteItem]
-    : [detailsItem, deleteItem];
+    ? [...undatedArrangeItems(doc, plan, block), ...markItems(doc, block), detailsItem, deleteItem]
+    : [...markItems(doc, block), detailsItem, deleteItem];
 
   return (
     <>
       <tr
         ref={row}
         data-block-id={block.id}
-        data-checked={block.checked}
+        data-mark={block.mark}
         className="schedule-row"
         style={{ "--kind-color": color, "--indent": indent } as CSSProperties}
       >
         <td className="schedule-time">{undated ? "" : clock(block.start_minute!)}</td>
-        {/* 竖线上的圆圈就是「划掉」（照滴答的日程：线上的圈能打勾） */}
+        {/* 竖线上的圆圈就是标记（照滴答的日程：线上的圈能打勾）：点一下换下一档 */}
         <td className="schedule-rail">
-          <input
-            type="checkbox"
-            aria-label="划掉"
-            className="schedule-check"
-            checked={block.checked}
-            onChange={(event) => setBlockChecked(doc, [block.id], event.target.checked)}
-          />
+          <MarkButton doc={doc} block={block} className="schedule-check" />
         </td>
         <td>
           <div className="schedule-card" data-indent={indent}>

@@ -10,6 +10,7 @@ import {
   type TransportMode,
   type UndatedGroups,
 } from "../read";
+import type { BlockMark } from "../read";
 import type { ValidatedField } from "../validate";
 import { attachFuel, hasTransitMoney, qualifiesForFuel } from "./fuel";
 import { LOCAL_ORIGIN } from "./origin";
@@ -169,18 +170,27 @@ export function deleteBlock(planDoc: Y.Doc, library: Y.Doc, blockId: string): Op
   return done();
 }
 
-/** 一组块一次划掉或取消划掉，一步撤销：划掉存 true，取消就删掉键。有块找不到就一个都不改。 */
-export function setBlockChecked(planDoc: Y.Doc, blockIds: readonly string[], checked: boolean): OpResult {
+/**
+ * 一组块一次设成同一档标记，一步撤销：「待定」「划掉」存下来，「定了」删掉键（默认）。有块找不到就一个都不改。
+ */
+export function setBlockMark(planDoc: Y.Doc, blockIds: readonly string[], mark: BlockMark): OpResult {
   const blocks = blocksOf(planDoc);
   const absent = blockIds.find((id) => !blocks.has(id));
   if (absent !== undefined) return fail({ code: "NOT_FOUND", id: absent });
 
   planDoc.transact(() => {
     for (const id of blockIds) {
-      setOrDelete(blocks.get(id)!, "checked", checked ? true : null);
+      setOrDelete(blocks.get(id)!, "mark", mark === "decided" ? null : mark);
     }
   }, LOCAL_ORIGIN);
   return done();
+}
+
+/** 点一下换下一档：定了 → 划掉 → 待定 → 定了（最常用的那一下还是「划掉」）。 */
+export function nextMark(mark: BlockMark): BlockMark {
+  if (mark === "decided") return "struck";
+  if (mark === "struck") return "pending";
+  return "decided";
 }
 
 /**

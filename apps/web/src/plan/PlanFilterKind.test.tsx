@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { addBlock, addExpense, setBlockChecked, type AddBlockInput } from "@welshonion/core";
+import { addBlock, addExpense, setBlockMark, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -52,9 +52,9 @@ async function pressKind(user: User, name: string): Promise<void> {
   await user.click(within(await screen.findByRole("group", { name: "按类型筛选" })).getByRole("button", { name }));
 }
 
-/** 「只看没划掉的」：有划掉的事才出现。 */
+/** 按标记筛：按下「定了」就只剩定了的（划掉的、待定的都筛掉）。 */
 async function pressOnlyUnchecked(user: User): Promise<void> {
-  await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
+  await user.click(await screen.findByRole("button", { name: "定了" }));
 }
 
 async function filteredOutOf(day: string): Promise<string | null> {
@@ -140,7 +140,7 @@ describe("按类型筛选", () => {
       block(plan, library, { baseId: oct1!, kindId: "lodging", title: "民宿", slot: "day" });
       const hotel = block(plan, library, { baseId: oct1!, kindId: "lodging", title: "酒店", slot: "day" });
       block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
-      setBlockChecked(plan, [hotel], true);
+      setBlockMark(plan, [hotel], "struck");
     });
 
     await pressKind(user, "住宿");
@@ -211,7 +211,7 @@ describe("按类型筛选", () => {
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["民宿", "酒店"]));
     const hotel = await blockRow("10.1", "酒店");
     expect(within(hotel).getByRole("button", { name: /^类型：/ }).getAttribute("aria-label")).toBe("类型：住宿");
-    expect(hotel.dataset.checked).toBe("false");
+    expect(hotel.dataset.mark).toBe("decided");
     expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
   });
 
@@ -310,7 +310,7 @@ describe("筛选作用到开销、占比和这天怎么样", () => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
       const lunch = block(plan, library, { baseId: oct1!, kindId: "sight", title: "午饭", slot: "day" });
-      setBlockChecked(plan, [lake], true);
+      setBlockMark(plan, [lake], "struck");
       money(plan, library, "门票", 30000, "sight", [lake]);
       money(plan, library, "午饭钱", 12000, "sight", [lunch]);
       money(plan, library, "签证", 60000, "other", []);
@@ -330,7 +330,7 @@ describe("筛选作用到开销、占比和这天怎么样", () => {
       const [oct1, oct2] = daysFromOct1(plan, 2);
       const first = block(plan, library, { baseId: oct1!, kindId: "lodging", title: "民宿", slot: "day" });
       const second = block(plan, library, { baseId: oct2!, kindId: "lodging", title: "民宿", slot: "day" });
-      setBlockChecked(plan, [first], true);
+      setBlockMark(plan, [first], "struck");
       money(plan, library, "民宿两晚", 50000, "lodging", [first, second]);
     });
 
@@ -346,7 +346,7 @@ describe("筛选作用到开销、占比和这天怎么样", () => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
       block(plan, library, { baseId: oct1!, kindId: "food", title: "晚饭", minute: 1080, duration: 60 });
-      setBlockChecked(plan, [lake], true);
+      setBlockMark(plan, [lake], "struck");
     });
 
     await pressOnlyUnchecked(user);
@@ -367,12 +367,12 @@ describe("筛选开着时改块", () => {
     block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
     const lunch = block(plan, library, { baseId: oct1!, kindId: "sight", title: "午饭", slot: "day" });
     block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "day" });
-    setBlockChecked(plan, [lunch], true);
+    setBlockMark(plan, [lunch], "struck");
   }
 
   /** 日程里点这一行竖线上的「划掉」。 */
   async function strike(user: User, title: string): Promise<void> {
-    await user.click(within(await blockRow("10.1", title)).getByRole("checkbox", { name: "划掉" }));
+    await user.click(within(await blockRow("10.1", title)).getByRole("button", { name: /^标记：/ }));
   }
 
   it("挨个划掉：这一行被筛掉，焦点落到下一行的「划掉」", async () => {
@@ -385,7 +385,7 @@ describe("筛选开着时改块", () => {
     expect(await filteredOutOf("10.1")).toBe("筛掉了 2 件");
     await waitFor(async () =>
       expect(document.activeElement).toBe(
-        within(await blockRow("10.1", "灵隐寺")).getByRole("checkbox", { name: "划掉" }),
+        within(await blockRow("10.1", "灵隐寺")).getByRole("button", { name: /^标记：/ }),
       ),
     );
   });

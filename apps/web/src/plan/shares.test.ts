@@ -7,7 +7,7 @@ import {
   initPlanDoc,
   readLibrary,
   readPlan,
-  setBlockChecked,
+  setBlockMark,
   setDays,
   updateKind,
   type LibraryView,
@@ -219,7 +219,7 @@ describe("时间的占比", () => {
 });
 
 describe("带筛选", () => {
-  const onlyUnchecked: StatsFilter = { onlyUnchecked: true };
+  const onlyUnchecked: StatsFilter = { marks: ["pending", "decided"] };
 
   function linkedMoney(built: Built, blockId: string, kindId: string, cents: number): void {
     const result = addExpense(built.plan, built.library, { title: kindId, amountCents: cents, kindId, blockIds: [blockId] });
@@ -230,7 +230,7 @@ describe("带筛选", () => {
   function lakeAndDinner(built: Built): void {
     const lake = timed(built, "西湖", "sight", 540, 180);
     const dinner = timed(built, "晚饭", "food", 1080, 60);
-    setBlockChecked(built.plan, [lake], true);
+    setBlockMark(built.plan, [lake], "struck");
     linkedMoney(built, lake, "sight", 30000);
     linkedMoney(built, dinner, "food", 12000);
     money(built, "other", 60000);

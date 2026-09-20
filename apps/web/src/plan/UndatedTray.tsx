@@ -68,7 +68,7 @@ export function UndatedTray({
               data-undated-chip
               data-block-id={block.id}
               data-slot={block.slot ?? "day"}
-              data-checked={block.checked}
+              data-mark={block.mark}
               data-dragging={draggingId === block.id ? true : undefined}
               style={{ ...kindColor(plan, block.id), ...(indent > 0 ? { marginLeft: indent * INDENT_PX } : {}) }}
               onPointerDown={(event) => onChipPointerDown(event, block.id)}
@@ -78,7 +78,7 @@ export function UndatedTray({
                 blockId={block.id}
                 name={`${block.title} ${time}`}
                 tags={block.tags}
-                checked={block.checked}
+                mark={block.mark}
                 className="timeline-chip"
               >
                 <span className="truncate">{block.title}</span>
@@ -171,7 +171,7 @@ export function UndatedStrip({
               data-undated-chip
               data-block-id={block.id}
               data-slot={block.slot ?? "day"}
-              data-checked={block.checked}
+              data-mark={block.mark}
               data-dragging={draggingId === block.id ? true : undefined}
               className="shrink-0"
               style={{ ...kindColor(plan, block.id), ...(indent > 0 ? { marginLeft: indent * INDENT_PX } : {}) }}
@@ -182,7 +182,7 @@ export function UndatedStrip({
                 blockId={block.id}
                 name={`${block.title} ${monthDay(base.date)} ${time}`}
                 tags={block.tags}
-                checked={block.checked}
+                mark={block.mark}
                 className="timeline-chip"
               >
                 <span aria-hidden className="shrink-0 pr-1 text-[10px] text-ink-muted tabular-nums">

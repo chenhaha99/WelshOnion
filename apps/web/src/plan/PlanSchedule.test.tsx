@@ -52,7 +52,7 @@ describe("一件事一行", () => {
 
     expect(row.children).toHaveLength(3);
     expect(start!.textContent).toBe("09:00");
-    expect(within(rail!).getByRole("checkbox", { name: "划掉" })).toBeTruthy();
+    expect(within(rail!).getByRole("button", { name: /^标记：/ })).toBeTruthy();
     expect(within(card!).getByRole("button", { name: "时间" }).textContent).toBe("09:00–12:00");
     expect(card!.querySelector("[data-block-duration]")?.textContent).toBe("· 3 小时");
     expect(within(card!).getByRole("textbox", { name: "标题" })).toHaveProperty("value", "西湖");
@@ -83,9 +83,9 @@ describe("一件事一行", () => {
       timed(plan, library, oct1, "西湖", "sight", 540, 180);
     });
     const row = await blockRow("10.1", "西湖");
-    await user.click(within(row.children[1] as HTMLElement).getByRole("checkbox", { name: "划掉" }));
+    await user.click(within(row.children[1] as HTMLElement).getByRole("button", { name: /^标记：/ }));
 
-    await waitFor(async () => expect((await blockRow("10.1", "西湖")).dataset.checked).toBe("true"));
+    await waitFor(async () => expect((await blockRow("10.1", "西湖")).dataset.mark).toBe("struck"));
   });
 });
 

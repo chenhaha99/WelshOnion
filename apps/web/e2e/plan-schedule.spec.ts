@@ -38,7 +38,7 @@ test("电脑上的时刻表：左边开始时刻、竖线串起来、空档写�
   await expect(drive.locator("[data-block-duration]")).toHaveText("· 3 小时");
   // 圆圈在竖线上：开始时刻右边、卡片左边
   const time = (await drive.locator("td").first().boundingBox())!;
-  const circle = (await drive.getByRole("checkbox", { name: "划掉" }).boundingBox())!;
+  const circle = (await drive.getByRole("button", { name: /^标记：/ }).boundingBox())!;
   const card = (await drive.locator(".schedule-card").boundingBox())!;
   expect(circle.x).toBeGreaterThanOrEqual(time.x + time.width - 1);
   expect(circle.x + circle.width).toBeLessThanOrEqual(card.x + 1);
@@ -65,9 +65,9 @@ test("电脑上的时刻表：左边开始时刻、竖线串起来、空档写�
 
   // 点「午饭」的圆圈：划掉，整张卡片换成浅灰底、四周一圈虚线，标题划一道
   const lunch = await rowOf(table, "午饭");
-  await lunch.getByRole("checkbox", { name: "划掉" }).click();
-  await expect(lunch).toHaveAttribute("data-checked", "true");
-  await expect(lunch.getByRole("checkbox", { name: "划掉" })).toBeChecked();
+  await lunch.getByRole("button", { name: /^标记：/ }).click();
+  await expect(lunch).toHaveAttribute("data-mark", "struck");
+  await expect(lunch.getByRole("button", { name: /^标记：/ })).toHaveAttribute("aria-label", "标记：划掉");
   const cardLooks = (node: Element) => {
     const style = getComputedStyle(node);
     return { left: style.borderLeftStyle, top: style.borderTopStyle, background: style.backgroundColor };

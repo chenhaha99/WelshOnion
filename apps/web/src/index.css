@@ -370,7 +370,7 @@
   text-align: right;
   white-space: nowrap;
   /* 划掉的那件：开始时刻跟着卡片变淡 */
-  [data-checked="true"] > & {
+  [data-mark="struck"] > & {
     color: color-mix(in srgb, var(--color-ink-muted) 80%, white);
   }
 }
@@ -389,27 +389,25 @@
 }
 
 /* 竖线上的圆圈：就是「划掉」的勾选框，划掉了填满、打勾 */
+/* 竖线上的圆圈：换标记的按钮，三档的圆圈画在里面（见 plan/mark.tsx）。颜色跟着标记走 */
 @utility schedule-check {
   position: relative;
   z-index: 1;
   display: block;
-  width: 1rem;
-  height: 1rem;
-  margin: 1.125rem auto 0;
-  appearance: none;
-  border: 1.5px solid color-mix(in srgb, var(--color-ink) 35%, transparent);
+  margin: 1rem auto 0;
+  padding: 0.125rem;
   border-radius: 999px;
-  background-color: white;
+  color: color-mix(in srgb, var(--color-ink) 35%, transparent);
   cursor: pointer;
-  &:checked {
-    border-color: transparent;
-    background: color-mix(in srgb, var(--color-ink) 40%, white)
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-      center / 0.625rem no-repeat;
+  &:hover {
+    color: color-mix(in srgb, var(--color-ink) 55%, transparent);
   }
   &:focus-visible {
     outline: 2px solid var(--color-sage);
     outline-offset: 2px;
+  }
+  [data-mark="struck"] > td > & {
+    color: color-mix(in srgb, var(--color-ink) 40%, white);
   }
 }
 
@@ -433,21 +431,27 @@
    * 划掉的（你提的：虚线、变淡、字上划一道）：白底卡片只改左边一道看不出（你提的：在视觉观感上并不明显），
    * 整张换成浅灰底、四周一圈虚线，卡片里的字换成淡色。靠换颜色，不整张半透明
    */
-  [data-checked="true"] > td > & {
+  /* 待定：只有一圈虚线，颜色照常（还没定，不是做完了） */
+  [data-mark="pending"] > td > & {
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--kind-color) 55%, white);
+    border-left-color: var(--kind-color);
+  }
+  [data-mark="struck"] > td > & {
     border-style: dashed;
     border-color: color-mix(in srgb, var(--kind-color) 45%, white);
     border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
     background-color: rgb(47 58 69 / 0.045);
   }
   /* 本来深的字（时间、类型、开销）换成淡色；本来就淡的（空着的「填开销」）不动，不然反倒比没划掉的深 */
-  [data-checked="true"] > td > & .input-bare:not(.schedule-title, .text-ink-muted\/60) {
+  [data-mark="struck"] > td > & .input-bare:not(.schedule-title, .text-ink-muted\/60) {
     color: var(--color-ink-muted);
   }
-  [data-checked="true"] > td > & .kind-dot {
+  [data-mark="struck"] > td > & .kind-dot {
     opacity: 0.45;
   }
   /* 正在改标题时不划、不淡：划线挡着看不清在改什么 */
-  [data-checked="true"] > td > & .schedule-title:not(:focus) {
+  [data-mark="struck"] > td > & .schedule-title:not(:focus) {
     color: color-mix(in srgb, var(--color-ink-muted) 80%, white);
     text-decoration-line: line-through;
   }
@@ -718,15 +722,19 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
+  /* 待定：只换成虚线边框，底色和字照常 */
+  [data-mark="pending"] > & {
+    border-style: dashed;
+  }
   /* 划掉的（你提的：虚线、变淡、字上划一道）：边、底色、字都换成淡的颜色，不整块半透明，选中的描边照样看得清 */
-  [data-checked="true"] > & {
+  [data-mark="struck"] > & {
     border-style: dashed;
     border-color: color-mix(in srgb, var(--kind-color) 60%, white);
     background-color: color-mix(in srgb, var(--kind-color) 14%, white);
     color: var(--color-ink-muted);
     text-decoration-line: line-through;
   }
-  [data-checked="true"] > &:hover {
+  [data-mark="struck"] > &:hover {
     background-color: color-mix(in srgb, var(--kind-color) 24%, white);
   }
   [data-continues-before="true"] > & {
@@ -766,8 +774,11 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
+  [data-mark="pending"] > & {
+    border-style: dashed;
+  }
   /* 细条的字本来就淡、字又小：再淡就读不出来，只淡一点 */
-  [data-checked="true"] > & {
+  [data-mark="struck"] > & {
     border-style: dashed;
     border-color: color-mix(in srgb, var(--kind-color) 50%, white);
     background-color: color-mix(in srgb, var(--kind-color) 10%, white);
@@ -807,8 +818,12 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
+  /* 待定：虚线，颜色照常 */
+  [data-mark="pending"] > &::before {
+    background: repeating-linear-gradient(to bottom, var(--kind-color) 0 3px, transparent 3px 5px);
+  }
   /* 划掉的：淡色虚线 */
-  [data-checked="true"] > &::before {
+  [data-mark="struck"] > &::before {
     background: repeating-linear-gradient(
       to bottom,
       color-mix(in srgb, var(--kind-color) 60%, white) 0 3px,
@@ -896,7 +911,10 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  [data-checked="true"] > & {
+  [data-mark="pending"] > & {
+    border-left-style: dashed;
+  }
+  [data-mark="struck"] > & {
     border-left-style: dashed;
     border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
     color: var(--color-ink-muted);
@@ -1067,8 +1085,8 @@
 }
 
 /* 划掉的块上的附件栏：横条上它不在块的按钮里、竖条上它单独摆在按钮最下面，划线都传不过来，单独划 */
-[data-checked="true"] .timeline-foot,
-[data-checked="true"] .timeline-foot .timeline-money {
+[data-mark="struck"] .timeline-foot,
+[data-mark="struck"] .timeline-foot .timeline-money {
   color: var(--color-ink-muted);
   text-decoration-line: line-through;
 }
@@ -1191,7 +1209,10 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  [data-checked="true"] > &::before {
+  [data-mark="pending"] > &::before {
+    background: repeating-linear-gradient(to right, var(--kind-color) 0 3px, transparent 3px 5px);
+  }
+  [data-mark="struck"] > &::before {
     background: repeating-linear-gradient(
       to right,
       color-mix(in srgb, var(--kind-color) 60%, white) 0 3px,

@@ -8,7 +8,7 @@ import {
   initPlanDoc,
   readLibrary,
   readPlan,
-  setBlockChecked,
+  setBlockMark,
   setBlockLayer,
   setDays,
   updateKind,
@@ -146,10 +146,10 @@ describe("每个块画在哪几行", () => {
 
   it("只画通过筛选的块", () => {
     const view = build(1, (built) => {
-      setBlockChecked(built.plan, [timed(built, "西湖", 540, 180)], true);
+      setBlockMark(built.plan, [timed(built, "西湖", 540, 180)], "struck");
       timed(built, "游船", 600, 60);
     });
-    expect(segmentTexts(view, { onlyUnchecked: true })).toEqual(["游船 1 600–660"]);
+    expect(segmentTexts(view, { marks: ["pending", "decided"] })).toEqual(["游船 1 600–660"]);
   });
 
   it("先按行、再按开始排", () => {

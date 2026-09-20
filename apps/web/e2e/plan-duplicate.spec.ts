@@ -21,8 +21,8 @@ test("复制计划：有块有开销的计划 → 日程里复制到明年 → �
   const lake = table.locator("tr[data-block-id]").first();
   await table.getByRole("textbox", { name: "加一件事" }).fill("西湖");
   await page.keyboard.press("Enter");
-  await lake.getByRole("checkbox", { name: "划掉" }).check();
-  await expect(lake).toHaveAttribute("data-checked", "true");
+  await lake.getByRole("button", { name: /^标记：/ }).click();
+  await expect(lake).toHaveAttribute("data-mark", "struck");
   await lake.getByRole("button", { name: "开销" }).click();
   await page.keyboard.type("300");
   await page.keyboard.press("Enter");
@@ -48,7 +48,7 @@ test("复制计划：有块有开销的计划 → 日程里复制到明年 → �
   await expect(days.nth(2).locator("[data-day-label]")).toContainText("5.1");
   const copiedLake = page.getByRole("table", { name: /4\.29/ }).locator("tr[data-block-id]").first();
   await expect(copiedLake.getByRole("textbox", { name: "标题" })).toHaveValue("西湖");
-  await expect(copiedLake).toHaveAttribute("data-checked", "false");
+  await expect(copiedLake).toHaveAttribute("data-mark", "decided");
   await expect(copiedLake.locator("[data-money-cell]")).toHaveText("¥300");
   await shot(page, "02-copied-plan");
 

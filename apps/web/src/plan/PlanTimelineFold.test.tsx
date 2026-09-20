@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { addBlock, setBlockChecked, type AddBlockInput } from "@welshonion/core";
+import { addBlock, setBlockMark, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { renderApp } from "../app/test-render";
@@ -111,13 +111,13 @@ describe("没事的凌晨和深夜默认折起", () => {
     await openStoredPlan(
       lakePlan((plan, library, days) => {
         const flight = block(plan, library, { baseId: days[1]!, kindId: "transit", title: "航班", minute: 340, duration: 120 });
-        setBlockChecked(plan, [flight], true);
+        setBlockMark(plan, [flight], "struck");
       }),
     );
     const user = userEvent.setup();
     const region = await timeline();
 
-    await user.click(screen.getByRole("button", { name: "只看没划掉的" }));
+    await user.click(screen.getByRole("button", { name: "定了" }));
 
     await waitFor(() => expect(within(region).queryByRole("button", { name: /^航班 / })).toBeNull());
     expect(windows(region)).toEqual(["300-1260", "300-1260"]);

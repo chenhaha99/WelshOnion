@@ -25,7 +25,7 @@ describe("本机数据版本太新", () => {
   it("说明原因，不显示列表", async () => {
     await storeDoc(LIBRARY_DB, (doc) => {
       initLibraryDoc(doc);
-      doc.getMap("meta").set("schema", 3);
+      doc.getMap("meta").set("schema", 4);
     });
 
     renderApp("#/");

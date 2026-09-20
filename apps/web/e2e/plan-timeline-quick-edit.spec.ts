@@ -49,13 +49,15 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 划掉�
   expect(barBox.y).toBeGreaterThanOrEqual(segBox.y + segBox.height - 1);
   await shot(page, "01-quick-bar");
 
-  // 划掉再取消：一下一个，横条跟着变，还选中着、焦点留在按钮上
-  const strike = bar.getByRole("button", { name: "划掉", exact: true });
+  // 标记转一圈：定了 → 划掉 → 待定 → 定了，横条跟着变，还选中着、焦点留在按钮上
+  const strike = bar.getByRole("button", { name: /^标记：/ });
   await strike.click();
-  await expect(segment(day1, "西湖")).toHaveAttribute("data-checked", "true");
+  await expect(segment(day1, "西湖")).toHaveAttribute("data-mark", "struck");
   await expect(strike).toBeFocused();
   await strike.click();
-  await expect(segment(day1, "西湖")).toHaveAttribute("data-checked", "false");
+  await expect(segment(day1, "西湖")).toHaveAttribute("data-mark", "pending");
+  await strike.click();
+  await expect(segment(day1, "西湖")).toHaveAttribute("data-mark", "decided");
 
   // 填开销：小框里填 300 回车
   await bar.getByRole("button", { name: "开销：填开销" }).click();
@@ -184,8 +186,8 @@ test("手机上：竖条选中后，快捷条固定在屏幕底部", async ({ pa
   await shot(page, "05-phone-quick-bar");
 
   // 手机上也是一下划掉
-  await bar.getByRole("button", { name: "划掉", exact: true }).click();
-  await expect(bar.getByRole("button", { name: "划掉", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await bar.getByRole("button", { name: /^标记：/ }).click();
+  await expect(bar.getByRole("button", { name: /^标记：/ })).toHaveAttribute("aria-label", "标记：划掉");
 
   // 栏里没排时间的那一件：快捷条上没有「复制」
   await addBlocks(page, table, ["河坊街"]);

@@ -61,7 +61,7 @@ describe("加一件事", () => {
       const row = await blockRow("10.1", title);
       expect(row.querySelector("[data-block-time]")?.textContent).toBe("整天");
       expect(within(row).getByRole("button", { name: "类型：游玩" })).toBeTruthy();
-      expect(row.dataset.checked).toBe("false");
+      expect(row.dataset.mark).toBe("decided");
       expect(within(row).queryByRole("button", { name: /^状态/ })).toBeNull();
     }
     expect(document.activeElement).toBe(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }));

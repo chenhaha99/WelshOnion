@@ -1,4 +1,12 @@
-import { passesFilter, type KindView, type LibraryView, type PlanView, type StatsFilter, type TagView } from "@welshonion/core";
+import {
+  passesFilter,
+  type BlockMark,
+  type KindView,
+  type LibraryView,
+  type PlanView,
+  type StatsFilter,
+  type TagView,
+} from "@welshonion/core";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type * as Y from "yjs";
 import { blockFocusSelector } from "./block-actions";
@@ -7,6 +15,7 @@ import { dayRowLabels } from "./day-labels";
 import { DayRow } from "./DayRow";
 import { DaysCard } from "./DaysCard";
 import { FilterChips, chipClass } from "./FilterChips";
+import { MARK_LABEL, MarkIcon } from "./mark";
 import { CollapseIcon, ExpandIcon, PinIcon } from "./icons";
 import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
@@ -39,6 +48,9 @@ const BLOCK_TEXT_PARTS = [
   { value: "duration", label: "时长" },
   { value: "money", label: "开销" },
 ] as const;
+
+/** 筛选里三档的顺序：还没定的排最前面，最常想先看 */
+const MARKS: BlockMark[] = ["pending", "decided", "struck"];
 
 /** 页顶那一行钉在屏幕顶上时，离上边多少像素 */
 const PINNED_TOP = 0;
@@ -78,8 +90,8 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   // 类型、标签删掉了，按下过的就不算了
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  // 只看没划掉的（划掉的含义用户自己定；行中拿来看「还剩什么」）
-  const [onlyUnchecked, setOnlyUnchecked] = useState(false);
+  // 按标记筛：三档「待定」「定了」「划掉」，和类型、标签一样多选，都不按下就是三档都看
+  const [selectedMarks, setSelectedMarks] = useState<BlockMark[]>([]);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
   // 时间线的块上写标题、开销（各开各关）：也按计划记在这台设备上
@@ -191,14 +203,15 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
 
   const kindKey = selectedKinds.filter((id) => libraryView.kinds.has(id)).join(",");
   const tagKey = selectedTags.filter((id) => libraryView.tags.has(id)).join(",");
+  const markKey = selectedMarks.join(",");
   const filter = useMemo<StatsFilter | undefined>(() => {
-    if (kindKey === "" && tagKey === "" && !onlyUnchecked) return undefined;
+    if (kindKey === "" && tagKey === "" && markKey === "") return undefined;
     return {
       ...(kindKey === "" ? {} : { kindIds: kindKey.split(",") }),
       ...(tagKey === "" ? {} : { tagIds: tagKey.split(",") }),
-      ...(onlyUnchecked ? { onlyUnchecked: true as const } : {}),
+      ...(markKey === "" ? {} : { marks: markKey.split(",") as BlockMark[] }),
     };
-  }, [kindKey, tagKey, onlyUnchecked]);
+  }, [kindKey, tagKey, markKey]);
   // 开销格的摘要整份算一次：共用的开销要看全计划才知道显示在哪块
   const cells = useMemo(() => moneyCells(plan, filter), [plan, filter]);
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
@@ -264,7 +277,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
     if (!passesFilter(block, filter)) {
       setSelectedKinds([]);
       setSelectedTags([]);
-      setOnlyUnchecked(false);
+      setSelectedMarks([]);
     }
     if (view === "overview") showView("timeline");
     if (view !== "list") setSelected({ blockId, baseId: null });
@@ -297,8 +310,9 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   // 标签是挂不挂的事：挂了一个就筛得出东西；一件都没挂、也没按下过就不出现
   const tags = usedTags(plan, libraryView, filter?.tagIds ?? []);
   const showTagFilter = tags.length > 0;
-  // 一件划掉的都没有时按下去也筛不掉：不出现；按下过就留着
-  const showCheckFilter = onlyUnchecked || [...plan.blocks.values()].some((block) => block.checked);
+  // 三档都是「定了」时按下去也筛不掉：不出现；按下过就留着
+  const showMarkFilter =
+    selectedMarks.length > 0 || [...plan.blocks.values()].some((block) => block.mark !== "decided");
 
   return (
     // -mt-2 抵掉页顶那一行上边留的 8 像素：页面在最上面时页顶还在原处，和还没加天时一样
@@ -328,7 +342,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
       */}
       <div ref={topDrawer} data-top-drawer className="top-drawer flex flex-col gap-3" {...peek}>
         {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
-        {(showKindFilter || showTagFilter || showCheckFilter) && (
+        {(showKindFilter || showTagFilter || showMarkFilter) && (
           <div data-filter-row className="filter-row flex flex-wrap items-center gap-x-5 gap-y-2">
             {showKindFilter && (
               <FilterChips
@@ -351,15 +365,32 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                 onChange={setSelectedTags}
               />
             )}
-            {showCheckFilter && (
-              <button
-                type="button"
-                aria-pressed={onlyUnchecked}
-                className={chipClass(onlyUnchecked)}
-                onClick={() => setOnlyUnchecked((value) => !value)}
-              >
-                只看没划掉的
-              </button>
+            {showMarkFilter && (
+              <div role="group" aria-label="按标记筛选" className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-ink-muted">标记</span>
+                {MARKS.map((mark) => {
+                  const pressed = selectedMarks.includes(mark);
+                  return (
+                    <button
+                      key={mark}
+                      type="button"
+                      aria-pressed={pressed}
+                      className={chipClass(pressed)}
+                      onClick={() =>
+                        setSelectedMarks(pressed ? selectedMarks.filter((one) => one !== mark) : [...selectedMarks, mark])
+                      }
+                    >
+                      <MarkIcon mark={mark} />
+                      {MARK_LABEL[mark]}
+                    </button>
+                  );
+                })}
+                {selectedMarks.length > 0 && (
+                  <button type="button" className="btn btn-ghost h-8 px-2" onClick={() => setSelectedMarks([])}>
+                    全部标记
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}

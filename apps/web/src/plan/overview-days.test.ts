@@ -6,7 +6,7 @@ import {
   moneySummary,
   readLibrary,
   readPlan,
-  setBlockChecked,
+  setBlockMark,
   setDays,
   setPlanSettings,
   updateBlock,
@@ -74,7 +74,7 @@ function trip(more?: (built: Built, ids: { lake: string }) => void): PlanView {
     if (!temple.ok) throw new Error("建块失败");
     const wuzhen = timed(built, built.oct2, "乌镇", "sight", 540, 480);
     money(built, 15000, [wuzhen], { basis: "per_person" });
-    if (!setBlockChecked(built.plan, [wuzhen], true).ok) throw new Error("划掉失败");
+    if (!setBlockMark(built.plan, [wuzhen], "struck").ok) throw new Error("划掉失败");
     money(built, 60000, []);
     more?.(built, { lake });
   });
@@ -212,7 +212,7 @@ describe("最后几行", () => {
 
 describe("跟着筛选", () => {
   it("只看没划掉的：划掉的那天空着", () => {
-    const filter: StatsFilter = { onlyUnchecked: true };
+    const filter: StatsFilter = { marks: ["pending", "decided"] };
     const { days, total } = rows(trip(), filter);
     expect(cells(days[1]!)).toEqual({
       label: "第 2 天 · 10.2 周五",

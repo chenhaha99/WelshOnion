@@ -143,8 +143,8 @@ test("导入旧版本导出的文件：状态不要了，勾上的是划掉的",
   await expect(page.getByRole("heading", { level: 1, name: "杭州（旧版本导出）" })).toBeVisible();
 
   const table = page.getByRole("table", { name: DAY1 });
-  await expect(await rowOf(table, "西湖")).toHaveAttribute("data-checked", "true");
-  await expect(await rowOf(table, "灵隐寺")).toHaveAttribute("data-checked", "false");
+  await expect(await rowOf(table, "西湖")).toHaveAttribute("data-mark", "struck");
+  await expect(await rowOf(table, "灵隐寺")).toHaveAttribute("data-mark", "decided");
   await expect(table.getByRole("button", { name: /^状态/ })).toHaveCount(0);
   await showView(page, "时间线");
   await expect(page.getByRole("region", { name: "时间线" }).getByRole("button", { name: /^西湖 / })).toHaveAttribute(

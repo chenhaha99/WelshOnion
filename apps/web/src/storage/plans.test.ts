@@ -47,7 +47,7 @@ describe("打开计划", () => {
     expect(await storedDbNames()).not.toContain(planDbName("nope"));
   });
 
-  it("版本 1 的计划：打开时每件事去掉 status_id，划掉的照旧，版本写成 2", async () => {
+  it("版本 1 的计划：打开时每件事去掉 status_id，划掉的照旧，版本写成 3", async () => {
     const library = track(await openLibrary());
     await storeDoc(planDbName("p"), (doc) => {
       // 模拟版本 1 存下的：照现在的样子建两件事，补上当时每件都有的 status_id，版本记成 1
@@ -68,11 +68,11 @@ describe("打开计划", () => {
     const blocks = [...opened.doc.getMap<Y.Map<unknown>>("blocks").values()];
     expect(blocks.some((block) => block.has("status_id"))).toBe(false);
     const view = readPlan(opened.doc, readLibrary(library.doc));
-    expect(Object.fromEntries([...view.blocks.values()].map((block) => [block.title, block.checked]))).toEqual({
-      西湖: false,
-      灵隐寺: true,
+    expect(Object.fromEntries([...view.blocks.values()].map((block) => [block.title, block.mark]))).toEqual({
+      西湖: "decided",
+      灵隐寺: "struck",
     });
-    expect(opened.doc.getMap("meta").get("schema")).toBe(2);
+    expect(opened.doc.getMap("meta").get("schema")).toBe(3);
   });
 });
 

@@ -6,7 +6,7 @@ import {
   addExpense,
   addKind,
   deleteKind,
-  setBlockChecked,
+  setBlockMark,
   setBlockIndent,
   setBlockLayer,
   updateBlock,
@@ -67,7 +67,7 @@ function chipNames(strip: HTMLElement): string[] {
 }
 
 async function pressOnlyUnchecked(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
+  await user.click(await screen.findByRole("button", { name: "定了" }));
 }
 
 const HINT = "排上时间的事会画在这里：把上面没排时间的事拖到时间线上，或者点开它排时间";
@@ -142,7 +142,7 @@ describe("块怎么画", () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-      setBlockChecked(plan, [lake], true);
+      setBlockMark(plan, [lake], "struck");
       block(plan, library, { baseId: oct1!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
       const camping = addKind(library, { name: "露营", color: "#6b8fb0" });
       if (!camping.ok) throw new Error("建类型失败");
@@ -153,10 +153,10 @@ describe("块怎么画", () => {
     const row = await timelineRow("10.1");
     const lake = segmentOf(row, "西湖");
     expect(lake.style.getPropertyValue("--kind-color")).toBe("#77a389");
-    expect(lake.dataset.checked).toBe("true");
+    expect(lake.dataset.mark).toBe("struck");
     const lunch = segmentOf(row, "午饭");
     expect(lunch.style.getPropertyValue("--kind-color")).toBe("#c08d68");
-    expect(lunch.dataset.checked).toBe("false");
+    expect(lunch.dataset.mark).toBe("decided");
     expect(segmentOf(row, "营地").style.getPropertyValue("--kind-color")).toBe("#9aa3ad");
   });
 
@@ -165,7 +165,7 @@ describe("块怎么画", () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-      setBlockChecked(plan, [lake], true);
+      setBlockMark(plan, [lake], "struck");
       block(plan, library, { baseId: oct1!, kindId: "sight", title: "游船", minute: 600, duration: 60 });
     });
     expect(segmentData(segmentOf(await timelineRow("10.1"), "游船"))).toMatchObject({ lane: "2" });
@@ -191,7 +191,7 @@ describe("没排时间的那一条", () => {
   it("按天、按整天上午下午晚上排，每件写日期；颜色和划没划掉同横条", async () => {
     await openStoredPlan((plan, library) => {
       const { temple } = listForOct1(plan, library);
-      setBlockChecked(plan, [temple], true);
+      setBlockMark(plan, [temple], "struck");
     });
 
     await screen.findByRole("region", { name: "时间线" });
@@ -200,18 +200,18 @@ describe("没排时间的那一条", () => {
       .getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时 · 划掉了" })
       .closest<HTMLElement>("[data-undated-chip]")!;
     expect(temple.style.getPropertyValue("--kind-color")).toBe("#77a389");
-    expect(temple.dataset.checked).toBe("true");
+    expect(temple.dataset.mark).toBe("struck");
     const songcheng = within(tray())
       .getByRole("button", { name: "宋城 10.1 下午" })
       .closest<HTMLElement>("[data-undated-chip]")!;
-    expect(songcheng.dataset.checked).toBe("false");
+    expect(songcheng.dataset.mark).toBe("decided");
   });
 
   it("只看没划掉的：条上也只剩没划掉的", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const { temple, street } = listForOct1(plan, library);
-      setBlockChecked(plan, [temple, street], true);
+      setBlockMark(plan, [temple, street], "struck");
     });
 
     await pressOnlyUnchecked(user);
@@ -326,7 +326,7 @@ describe("空的时候", () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-      setBlockChecked(plan, [lake], true);
+      setBlockMark(plan, [lake], "struck");
     });
     expect(within(await timeline()).queryByText(HINT)).toBeNull();
 

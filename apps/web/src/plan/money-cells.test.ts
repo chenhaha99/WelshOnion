@@ -5,7 +5,7 @@ import {
   initPlanDoc,
   readLibrary,
   readPlan,
-  setBlockChecked,
+  setBlockMark,
   setDays,
   setPlanSettings,
   type PlanView,
@@ -132,13 +132,13 @@ describe("开销格怎么显示", () => {
 });
 
 describe("带筛选", () => {
-  const onlyUnchecked: StatsFilter = { onlyUnchecked: true };
+  const onlyUnchecked: StatsFilter = { marks: ["pending", "decided"] };
 
   it("共用的开销显示在通过筛选的块里表上最早的那块", () => {
     const view = planWith(({ plan, block, expense }) => {
       const firstNight = block(0, "民宿一", "lodging");
       const secondNight = block(1, "民宿二", "lodging");
-      setBlockChecked(plan, [firstNight], true);
+      setBlockMark(plan, [firstNight], "struck");
       expense({ title: "民宿两晚", cents: 50000, blockIds: [firstNight, secondNight] });
     });
     expect(labelOf(view, "民宿一")).toBe("¥500");
@@ -148,7 +148,7 @@ describe("带筛选", () => {
   it("被筛掉的块不进开销格", () => {
     const view = planWith(({ plan, block, expense }) => {
       const lake = block(0, "西湖");
-      setBlockChecked(plan, [lake], true);
+      setBlockMark(plan, [lake], "struck");
       expense({ title: "门票", cents: 30000, blockIds: [lake] });
       expense({ title: "面", cents: 12000, blockIds: [block(0, "午饭", "food")] });
     });
@@ -211,13 +211,13 @@ describe("挂在被筛掉的块上的开销", () => {
   it("不筛、只看没划掉的时是 0", () => {
     const view = planWith(({ plan, block, expense }) => {
       const temple = block(0, "灵隐寺");
-      setBlockChecked(plan, [temple], true);
+      setBlockMark(plan, [temple], "struck");
       expense({ title: "门票", cents: 30000, blockIds: [block(0, "西湖"), temple] });
       // 挂的块全划掉了：这笔钱本身就不算，也不算挂在被筛掉的事上
       expense({ title: "香火", cents: 1000, blockIds: [temple] });
     });
     expect(moneyOnHiddenBlocks(view)).toBe(0);
-    expect(moneyOnHiddenBlocks(view, { onlyUnchecked: true })).toBe(0);
+    expect(moneyOnHiddenBlocks(view, { marks: ["pending", "decided"] })).toBe(0);
   });
 
   it("只看没划掉的和类型一起：块没划掉、类型没通过", () => {
@@ -225,7 +225,7 @@ describe("挂在被筛掉的块上的开销", () => {
       const hengdian = block(0, "横店", "sight");
       expense({ title: "住宿费", cents: 30000, blockIds: [hengdian], kindId: "lodging" });
     });
-    expect(moneyOnHiddenBlocks(view, { onlyUnchecked: true, kindIds: ["lodging"] })).toBe(30000);
+    expect(moneyOnHiddenBlocks(view, { marks: ["pending", "decided"], kindIds: ["lodging"] })).toBe(30000);
   });
 
   it("人均的按人数乘", () => {

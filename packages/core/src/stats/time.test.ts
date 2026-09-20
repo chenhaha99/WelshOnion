@@ -70,10 +70,10 @@ describe("统计前先按筛选条件去掉块", () => {
   });
 
   test("只看没划掉的", () => {
-    planDoc.getMap<Y.Map<unknown>>("blocks").get("hengdian")?.set("checked", true);
+    planDoc.getMap<Y.Map<unknown>>("blocks").get("hengdian")?.set("mark", "struck");
     const { lib, plan } = views();
 
-    expect(plain(occupiedMinutes(plan, lib, { onlyUnchecked: true }))).toEqual({ lunch: 120 });
+    expect(plain(occupiedMinutes(plan, lib, { marks: ["pending", "decided"] }))).toEqual({ lunch: 120 });
   });
 });
 

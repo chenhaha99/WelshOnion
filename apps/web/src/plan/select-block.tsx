@@ -1,4 +1,4 @@
-import type { TagView } from "@welshonion/core";
+import type { BlockMark, TagView } from "@welshonion/core";
 import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
 import { TagRibbon } from "./tag-ribbon";
 
@@ -34,8 +34,8 @@ interface BlockButtonProps {
   tags: readonly TagView[];
   /** 画不画书签：时长为 0 的竖线（横线）上没地方，竖条矮得放不下书签栏时也不画 */
   tagMarks?: boolean;
-  /** 划掉了没有：样子由外面那一层的 data-checked 画 */
-  checked: boolean;
+  /** 三档标记：样子由外面那一层的 data-mark 画 */
+  mark: BlockMark;
   className: string;
   children: ReactNode;
 }
@@ -44,12 +44,13 @@ interface BlockButtonProps {
  * 时间线上的一件事（横条、竖条、「没排时间」栏里的一件）：点一下选中它，再点一下取消；
  * 选中的按钮 aria-pressed 是 true（读屏报得出来），描边在 index.css 里按这个属性画。
  */
-export function BlockButton({ blockId, name, tags, tagMarks = true, checked, className, children }: BlockButtonProps) {
+export function BlockButton({ blockId, name, tags, tagMarks = true, mark, className, children }: BlockButtonProps) {
   const selection = useBlockSelection();
   const selected = selection.selectedId === blockId;
-  // 书签和划掉的样子（虚线、变淡、划一道）读屏看不到，名字里写出来：「西湖 09:00–12:00 · 必去、下雨也能去 · 划掉了」
+  // 书签和标记的样子（虚线、变淡、划一道）读屏看不到，名字里写出来：「西湖 09:00–12:00 · 必去、下雨也能去 · 划掉了」
   const tagNames = tags.map((tag) => tag.name).join("、");
-  const fullName = [name, tagNames, checked ? "划掉了" : ""].filter((part) => part !== "").join(" · ");
+  const markName = mark === "struck" ? "划掉了" : mark === "pending" ? "待定" : "";
+  const fullName = [name, tagNames, markName].filter((part) => part !== "").join(" · ");
   const marks = tagMarks && tags.length > 0;
   return (
     <button

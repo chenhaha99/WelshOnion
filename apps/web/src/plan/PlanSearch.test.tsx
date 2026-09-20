@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
-import { addBlock, addTag, setBlockChecked, setBlockTag, updateBlock, type AddBlockInput } from "@welshonion/core";
+import { addBlock, addTag, setBlockMark, setBlockTag, updateBlock, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
@@ -31,7 +31,7 @@ async function threeDays({ nightTourStruck = false } = {}): Promise<void> {
     const temple = block(plan, library, { baseId: oct2!, kindId: "sight", title: "灵隐寺", minute: 540, duration: 120 });
     updateBlock(plan, library, temple, { note: "记得带伞" });
     const nightTour = block(plan, library, { baseId: oct3!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 120 });
-    if (nightTourStruck) setBlockChecked(plan, [nightTour], true);
+    if (nightTourStruck) setBlockMark(plan, [nightTour], "struck");
   });
 }
 
@@ -128,7 +128,7 @@ describe("结果怎么列", () => {
   it("被筛掉的也列，写「筛掉了」", async () => {
     const user = userEvent.setup();
     await threeDays({ nightTourStruck: true });
-    await user.click(await screen.findByRole("button", { name: "只看没划掉的" }));
+    await user.click(await screen.findByRole("button", { name: "定了" }));
 
     const panel = await search(user, "夜游");
 
@@ -220,16 +220,16 @@ describe("点结果跳过去", () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 60 });
-      setBlockChecked(plan, [lake], true);
+      setBlockMark(plan, [lake], "struck");
     });
     await showView("时间线");
-    const onlyUnchecked = await screen.findByRole("button", { name: "只看没划掉的" });
-    await user.click(onlyUnchecked);
+    const onlyDecided = await screen.findByRole("button", { name: "定了" });
+    await user.click(onlyDecided);
 
     const panel = await search(user, "夜游");
     await user.click(results(panel)[0]!);
 
-    await waitFor(() => expect(onlyUnchecked.getAttribute("aria-pressed")).toBe("false"));
+    await waitFor(() => expect(onlyDecided.getAttribute("aria-pressed")).toBe("false"));
     const bar = within(await timeline()).getByRole("button", { name: /^西湖夜游 / });
     await waitFor(() => expect(bar.getAttribute("aria-pressed")).toBe("true"));
   });
