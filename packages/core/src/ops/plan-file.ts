@@ -15,7 +15,7 @@ const FORMAT = "welshonion-plan";
  * 文件这一层的版本，和计划文档里的 meta.schema 分开管。
  * 第 2 版（2026-09-17）去掉了状态；第 1 版的文件照样能读，里面的状态不要。
  */
-const FILE_VERSION = 3;
+const FILE_VERSION = 4;
 
 type YMap = Y.Map<unknown>;
 

@@ -106,11 +106,11 @@ describe("读取只走一个入口，不存在的字段给 null", () => {
     expect(view.undated.get("d1")?.day).toEqual(["k1"]);
   });
 
-  test("标记：没写、写了不认识的都是「定了」", () => {
+  test("标记：没写、写了不认识的都是「确定」", () => {
     const plan = newPlanDoc();
     addBase(plan, "d1", "2026-10-01");
     addBlock(plan, "k1", { start_base_id: "d1" });
-    addBlock(plan, "k2", { start_base_id: "d1", mark: "struck" });
+    addBlock(plan, "k2", { start_base_id: "d1", mark: "done" });
     addBlock(plan, "k3", { start_base_id: "d1", mark: "pending" });
     addBlock(plan, "k4", { start_base_id: "d1", mark: "yes" });
     addBlock(plan, "k5", { start_base_id: "d1", mark: true });
@@ -119,7 +119,7 @@ describe("读取只走一个入口，不存在的字段给 null", () => {
 
     expect(["k1", "k2", "k3", "k4", "k5"].map((id) => view.blocks.get(id)?.mark)).toEqual([
       "decided",
-      "struck",
+      "done",
       "pending",
       "decided",
       "decided",

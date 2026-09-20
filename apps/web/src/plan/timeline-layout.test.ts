@@ -146,7 +146,7 @@ describe("每个块画在哪几行", () => {
 
   it("只画通过筛选的块", () => {
     const view = build(1, (built) => {
-      setBlockMark(built.plan, [timed(built, "西湖", 540, 180)], "struck");
+      setBlockMark(built.plan, [timed(built, "西湖", 540, 180)], "done");
       timed(built, "游船", 600, 60);
     });
     expect(segmentTexts(view, { marks: ["pending", "decided"] })).toEqual(["游船 1 600–660"]);

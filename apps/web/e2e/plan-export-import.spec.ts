@@ -134,7 +134,7 @@ function oldVersionFile(): Buffer {
   return Buffer.from(JSON.stringify(file));
 }
 
-test("导入旧版本导出的文件：状态不要了，勾上的是划掉的", async ({ page }) => {
+test("导入旧版本导出的文件：状态不要了，勾上的是完成的", async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto("/");
   await (await openSettings(page))
@@ -143,13 +143,13 @@ test("导入旧版本导出的文件：状态不要了，勾上的是划掉的",
   await expect(page.getByRole("heading", { level: 1, name: "杭州（旧版本导出）" })).toBeVisible();
 
   const table = page.getByRole("table", { name: DAY1 });
-  await expect(await rowOf(table, "西湖")).toHaveAttribute("data-mark", "struck");
+  await expect(await rowOf(table, "西湖")).toHaveAttribute("data-mark", "done");
   await expect(await rowOf(table, "灵隐寺")).toHaveAttribute("data-mark", "decided");
   await expect(table.getByRole("button", { name: /^状态/ })).toHaveCount(0);
   await showView(page, "时间线");
   await expect(page.getByRole("region", { name: "时间线" }).getByRole("button", { name: /^西湖 / })).toHaveAttribute(
     "aria-label",
-    "西湖 09:00–12:00 · 划掉了",
+    "西湖 09:00–12:00 · 已完成",
   );
   await shot(page, "05-old-file-imported");
 

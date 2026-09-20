@@ -32,7 +32,7 @@ interface Seed {
   lakeTagged?: boolean;
   /** 没排时间的「河坊街」挂不挂「必去」 */
   streetTagged?: boolean;
-  /** 「西湖」划没划掉 */
+  /** 「西湖」划没完成 */
   lakeStruck?: boolean;
 }
 
@@ -48,7 +48,7 @@ async function oneDay(seed: Seed = {}): Promise<string> {
     block(plan, library, { baseId: day!, kindId: "stay", title: "在杭州", minute: 0, duration: 1440 });
     if (seed.lakeTagged) setBlockTag(plan, library, [lake], must, true);
     if (seed.streetTagged) setBlockTag(plan, library, [street], must, true);
-    if (seed.lakeStruck) setBlockMark(plan, [lake], "struck");
+    if (seed.lakeStruck) setBlockMark(plan, [lake], "done");
   });
 }
 
@@ -103,7 +103,7 @@ describe("书签栏：上面那一区", () => {
     await oneDay({ lakeTagged: true, lakeStruck: true });
     await showView("时间线");
 
-    await user.click(await screen.findByRole("button", { name: "定了" }));
+    await user.click(await screen.findByRole("button", { name: "确定" }));
 
     const timeline = await screen.findByRole("region", { name: "时间线" });
     await waitFor(() => expect(within(timeline).queryByRole("button", { name: /^西湖 / })).toBeNull());

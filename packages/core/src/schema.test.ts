@@ -46,7 +46,7 @@ describe("计划文档初始化", () => {
       expect(doc.share.get(name)).toBeInstanceOf(Y.Map);
     }
     const meta = doc.getMap("meta");
-    expect(meta.get("schema")).toBe(3);
+    expect(meta.get("schema")).toBe(4);
     expect(meta.get("plan_id")).toBe("p1");
   });
 
@@ -68,7 +68,7 @@ describe("资料库文档初始化", () => {
     initLibraryDoc(doc);
 
     expect(topLevelNames(doc)).toEqual(LIBRARY_TOP_LEVEL);
-    expect(doc.getMap("meta").get("schema")).toBe(3);
+    expect(doc.getMap("meta").get("schema")).toBe(4);
     expect(doc.getMap("kinds").size).toBe(7);
     // 标签不预设
     expect(doc.getMap("tags").size).toBe(0);
@@ -144,7 +144,7 @@ describe("打开文档时检查 schema 版本", () => {
   test("版本比代码新", () => {
     const doc = new Y.Doc();
     initPlanDoc(doc, "p1");
-    doc.getMap("meta").set("schema", 4);
+    doc.getMap("meta").set("schema", 5);
 
     expect(errorCodeOf(() => openPlanDoc(doc))).toBe("SCHEMA_TOO_NEW");
   });
@@ -178,7 +178,7 @@ describe("打开版本 1 的文档时迁移", () => {
     return doc;
   }
 
-  test("计划文档：每件事去掉状态，划掉的换成 mark，版本写成 3", () => {
+  test("计划文档：每件事去掉状态，勾上的变成「完成」，版本写成 4", () => {
     const doc = planV1();
 
     openPlanDoc(doc);
@@ -186,12 +186,12 @@ describe("打开版本 1 的文档时迁移", () => {
     const blocks = doc.getMap<Y.Map<unknown>>("blocks");
     expect(blocks.get("k1")?.has("status_id")).toBe(false);
     expect(blocks.get("k2")?.has("status_id")).toBe(false);
-    // 划掉的变「划掉」，没划掉的不写这个键（读出来就是「定了」）
-    expect(blocks.get("k2")?.get("mark")).toBe("struck");
+    // 勾上的变「完成」，没勾的不写这个键（读出来就是「确定」）
+    expect(blocks.get("k2")?.get("mark")).toBe("done");
     expect(blocks.get("k2")?.has("checked")).toBe(false);
     expect(blocks.get("k1")?.has("mark")).toBe(false);
     expect(blocks.get("k1")?.get("title")).toBe("西湖");
-    expect(doc.getMap("meta").get("schema")).toBe(3);
+    expect(doc.getMap("meta").get("schema")).toBe(4);
   });
 
   test("版本 2 的计划文档：checked 换成 mark", () => {
@@ -207,10 +207,31 @@ describe("打开版本 1 的文档时迁移", () => {
     openPlanDoc(doc);
 
     const blocks = doc.getMap<Y.Map<unknown>>("blocks");
-    expect(blocks.get("k1")?.get("mark")).toBe("struck");
+    expect(blocks.get("k1")?.get("mark")).toBe("done");
     expect(blocks.get("k1")?.has("checked")).toBe(false);
     expect(blocks.get("k2")?.has("mark")).toBe(false);
-    expect(doc.getMap("meta").get("schema")).toBe(3);
+    expect(doc.getMap("meta").get("schema")).toBe(4);
+  });
+
+  test("版本 3 的计划文档：完成（struck）改叫完成（done）", () => {
+    const doc = new Y.Doc();
+    initPlanDoc(doc, "p3");
+    doc.transact(() => {
+      doc.getMap("meta").set("schema", 3);
+      const blocks = doc.getMap<Y.Map<unknown>>("blocks");
+      blocks.set("k1", new Y.Map<unknown>([["title", "西湖"], ["kind_id", "sight"], ["mark", "done"]]));
+      blocks.set("k2", new Y.Map<unknown>([["title", "午饭"], ["kind_id", "food"], ["mark", "pending"]]));
+      blocks.set("k3", new Y.Map<unknown>([["title", "民宿"], ["kind_id", "lodging"]]));
+    });
+
+    openPlanDoc(doc);
+
+    const blocks = doc.getMap<Y.Map<unknown>>("blocks");
+    expect(blocks.get("k1")?.get("mark")).toBe("done");
+    // 待定不动；不写这个键的还是「确定」
+    expect(blocks.get("k2")?.get("mark")).toBe("pending");
+    expect(blocks.get("k3")?.has("mark")).toBe(false);
+    expect(doc.getMap("meta").get("schema")).toBe(4);
   });
 
   test("迁移不进撤销历史", () => {
@@ -236,7 +257,7 @@ describe("打开版本 1 的文档时迁移", () => {
 
     expect(doc.getMap("statuses").size).toBe(0);
     expect(doc.getMap("kinds").size).toBe(7);
-    expect(doc.getMap("meta").get("schema")).toBe(3);
+    expect(doc.getMap("meta").get("schema")).toBe(4);
   });
 
   test("已经是版本 2 的不动", () => {

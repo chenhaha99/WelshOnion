@@ -250,24 +250,24 @@ describe("删除块", () => {
   });
 });
 
-describe("批量划掉", () => {
+describe("批量完成", () => {
   beforeEach(() => {
     addBase(planDoc, "d1", "2026-10-01");
     seedBlock(planDoc, "k1", { start_base_id: "d1", start_minute: 540, duration_min: 60 });
     seedBlock(planDoc, "k2", { start_base_id: "d1", start_minute: 660, duration_min: 60 });
   });
 
-  test("一次划掉两个，一步撤销", () => {
+  test("一次完成两个，一步撤销", () => {
     const undo = createPlanUndoManager(planDoc);
 
-    expect(setBlockMark(planDoc, ["k1", "k2"], "struck").ok).toBe(true);
-    expect([raw("k1")?.get("mark"), raw("k2")?.get("mark")]).toEqual(["struck", "struck"]);
+    expect(setBlockMark(planDoc, ["k1", "k2"], "done").ok).toBe(true);
+    expect([raw("k1")?.get("mark"), raw("k2")?.get("mark")]).toEqual(["done", "done"]);
 
     undo.undo();
     expect([raw("k1")?.has("mark"), raw("k2")?.has("mark")]).toEqual([false, false]);
   });
 
-  test("设成「待定」存下来，设回「定了」删掉键", () => {
+  test("设成「待定」存下来，设回「确定」删掉键", () => {
     expect(setBlockMark(planDoc, ["k1"], "pending").ok).toBe(true);
     expect(raw("k1")?.get("mark")).toBe("pending");
 
@@ -276,14 +276,14 @@ describe("批量划掉", () => {
     expect(raw("k1")?.has("mark")).toBe(false);
   });
 
-  test("转一圈：定了 → 划掉 → 待定 → 定了", () => {
-    expect(nextMark("decided")).toBe("struck");
-    expect(nextMark("struck")).toBe("pending");
+  test("转一圈：确定 → 完成 → 待定 → 确定", () => {
+    expect(nextMark("decided")).toBe("done");
+    expect(nextMark("done")).toBe("pending");
     expect(nextMark("pending")).toBe("decided");
   });
 
   test("有块找不到就一个都不改", () => {
-    expect(setBlockMark(planDoc, ["k1", "gone"], "struck")).toEqual({
+    expect(setBlockMark(planDoc, ["k1", "gone"], "done")).toEqual({
       ok: false,
       error: { code: "NOT_FOUND", id: "gone" },
     });

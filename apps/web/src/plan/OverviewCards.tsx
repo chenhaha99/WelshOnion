@@ -141,7 +141,7 @@ function MoneyCard({ doc, library, libraryView, plan, filter, onJump, onOnlyKind
   );
 }
 
-/** 时间：环中间是排了多久、还有多少没排；最下面是待定、划掉几件。 */
+/** 时间：环中间是排了多久、还有多少没排；最下面是待定、完成几件。 */
 function TimeCard({
   libraryView,
   plan,

@@ -28,7 +28,7 @@ export function useBlockSelection(): BlockSelection {
 
 interface BlockButtonProps {
   blockId: string;
-  /** 读屏名，也是鼠标停上去的提示：「西湖 09:00–12:00」；后面再加标签名和「划掉了」 */
+  /** 读屏名，也是鼠标停上去的提示：「西湖 09:00–12:00」；后面再加标签名和「已完成」 */
   name: string;
   /** 挂着的标签：块上挂一排书签，读屏名里写出名字 */
   tags: readonly TagView[];
@@ -47,9 +47,9 @@ interface BlockButtonProps {
 export function BlockButton({ blockId, name, tags, tagMarks = true, mark, className, children }: BlockButtonProps) {
   const selection = useBlockSelection();
   const selected = selection.selectedId === blockId;
-  // 书签和标记的样子（虚线、变淡、划一道）读屏看不到，名字里写出来：「西湖 09:00–12:00 · 必去、下雨也能去 · 划掉了」
+  // 书签和标记的样子（虚线、变淡、变灰）读屏看不到，名字里写出来：「西湖 09:00–12:00 · 必去、下雨也能去 · 已完成」
   const tagNames = tags.map((tag) => tag.name).join("、");
-  const markName = mark === "struck" ? "划掉了" : mark === "pending" ? "待定" : "";
+  const markName = mark === "done" ? "已完成" : mark === "pending" ? "待定" : "";
   const fullName = [name, tagNames, markName].filter((part) => part !== "").join(" · ");
   const marks = tagMarks && tags.length > 0;
   return (

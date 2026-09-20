@@ -163,12 +163,12 @@ export function timeEmptyLabel(shares: TimeShares): string {
     : "还没有排了时间的事";
 }
 
-/** 「划掉 8 件，共 12 件」（按筛选算）；一件都没划掉是 null。不写百分比、不叫完成率：划掉的含义用户自己定。 */
+/** 「待定 3 件 · 完成 8 件，共 12 件」（按筛选算）；三档都是「确定」时是 null。只写件数，不写百分比、不叫完成率：那是评判。 */
 export function checkLine(plan: PlanView, filter?: StatsFilter): string | null {
   const blocks = [...plan.blocks.values()].filter((block) => passesFilter(block, filter));
   const pending = blocks.filter((block) => block.mark === "pending").length;
-  const struck = blocks.filter((block) => block.mark === "struck").length;
-  if (pending === 0 && struck === 0) return null;
-  const parts = [pending > 0 ? `待定 ${pending} 件` : "", struck > 0 ? `划掉 ${struck} 件` : ""].filter((part) => part !== "");
+  const done = blocks.filter((block) => block.mark === "done").length;
+  if (pending === 0 && done === 0) return null;
+  const parts = [pending > 0 ? `待定 ${pending} 件` : "", done > 0 ? `完成 ${done} 件` : ""].filter((part) => part !== "");
   return `${parts.join(" · ")}，共 ${blocks.length} 件`;
 }

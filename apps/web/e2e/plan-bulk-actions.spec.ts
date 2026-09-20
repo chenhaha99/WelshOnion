@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { DAY1, DAY2, addBlocks, newPlan, pickKind, rowOf, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("一键批量：对看得见的几件一起划掉 → 撤销 → 改类型 → 这天全部 → 手机", async ({ page }) => {
+test("一键批量：对看得见的几件一起完成 → 撤销 → 改类型 → 这天全部 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 2);
   const day1 = page.getByRole("table", { name: DAY1 });
@@ -16,18 +16,18 @@ test("一键批量：对看得见的几件一起划掉 → 撤销 → 改类型 
   const bulk = page.getByRole("button", { name: "对这 4 件事" });
   await expect(bulk).toHaveText("对这 4 件…");
 
-  // 一起划掉：四件都划掉，底下出提示
+  // 一起完成：四件都完成，底下出提示
   await bulk.click();
-  await page.getByRole("menu").getByRole("menuitem", { name: "划掉" }).click();
-  await expect(day1.locator('tr[data-mark="struck"]')).toHaveCount(3);
-  await expect(day2.locator('tr[data-mark="struck"]')).toHaveCount(1);
+  await page.getByRole("menu").getByRole("menuitem", { name: "设成完成" }).click();
+  await expect(day1.locator('tr[data-mark="done"]')).toHaveCount(3);
+  await expect(day2.locator('tr[data-mark="done"]')).toHaveCount(1);
   const notice = page.getByRole("status", { name: "刚做完的提示" });
-  await expect(notice).toContainText("4 件事的标记都改成了「划掉」");
-  await shot(page, "01-struck", { screen: true });
+  await expect(notice).toContainText("4 件事的标记都改成了「完成」");
+  await shot(page, "01-done", { screen: true });
 
   // 一步撤销：四件都回来
   await notice.getByRole("button", { name: "撤销" }).click();
-  await expect(page.locator('tr[data-mark="struck"]')).toHaveCount(0);
+  await expect(page.locator('tr[data-mark="done"]')).toHaveCount(0);
 
   // 先筛再一键：只看游玩，改成住宿，只有那两件变
   const kinds = page.getByRole("group", { name: "按类型筛选" });

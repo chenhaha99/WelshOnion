@@ -171,7 +171,7 @@ export function deleteBlock(planDoc: Y.Doc, library: Y.Doc, blockId: string): Op
 }
 
 /**
- * 一组块一次设成同一档标记，一步撤销：「待定」「划掉」存下来，「定了」删掉键（默认）。有块找不到就一个都不改。
+ * 一组块一次设成同一档标记，一步撤销：「待定」「完成」存下来，「确定」删掉键（默认）。有块找不到就一个都不改。
  */
 export function setBlockMark(planDoc: Y.Doc, blockIds: readonly string[], mark: BlockMark): OpResult {
   const blocks = blocksOf(planDoc);
@@ -186,10 +186,10 @@ export function setBlockMark(planDoc: Y.Doc, blockIds: readonly string[], mark: 
   return done();
 }
 
-/** 点一下换下一档：定了 → 划掉 → 待定 → 定了（最常用的那一下还是「划掉」）。 */
+/** 点一下换下一档：确定 → 完成 → 待定 → 确定（最常用的那一下还是「完成」）。 */
 export function nextMark(mark: BlockMark): BlockMark {
-  if (mark === "decided") return "struck";
-  if (mark === "struck") return "pending";
+  if (mark === "decided") return "done";
+  if (mark === "done") return "pending";
   return "decided";
 }
 

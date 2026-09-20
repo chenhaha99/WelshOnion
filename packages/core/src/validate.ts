@@ -42,7 +42,7 @@ const CHECKS: Record<ValidatedField, Check> = {
   layer: orNull((v) => isInteger(v) && v >= 0),
   indent: orNull((v) => isInteger(v) && v >= 0),
   slot: orNull(oneOf("morning", "afternoon", "evening")),
-  mark: orNull(oneOf("pending", "decided", "struck")),
+  mark: orNull(oneOf("pending", "decided", "done")),
   amount_cents: orNull(isInteger),
   cost_per_km_cents: orNull((v) => isInteger(v) && v >= 0),
   distance_m: orNull((v) => isInteger(v) && v >= 0),

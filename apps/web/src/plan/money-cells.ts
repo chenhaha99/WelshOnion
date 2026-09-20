@@ -65,7 +65,7 @@ export function moneyCells(plan: PlanView, filter?: StatsFilter): Map<string, Mo
 
 /**
  * 通过筛选、挂了块、但挂的块一个都没通过筛选（安排表里找不到）的开销，填了的金额合计（分，人均的按人数乘过）。
- * 只开「只看没划掉的」时一定是 0：开销看挂的块有没有划掉来计入，计入了就说明挂的块里有没划掉的。
+ * 只开「只看没完成的」时一定是 0：开销看挂的块有没有完成来计入，计入了就说明挂的块里有没完成的。
  */
 export function moneyOnHiddenBlocks(plan: PlanView, filter?: StatsFilter): number {
   let cents = 0;

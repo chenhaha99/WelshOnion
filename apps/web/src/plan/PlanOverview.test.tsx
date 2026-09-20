@@ -178,18 +178,18 @@ describe("总览：时间的环", () => {
     await waitFor(() => expect(pressedView()).toBe("时间线"));
   });
 
-  it("待定、划掉几件写在时间卡片最下面", async () => {
+  it("待定、完成几件写在时间卡片最下面", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = timed(plan, library, oct1!, "西湖", "sight", 540, 180);
       timed(plan, library, oct1!, "午饭", "food", 720, 60);
-      if (!setBlockMark(plan, [lake], "struck").ok) throw new Error("划掉失败");
+      if (!setBlockMark(plan, [lake], "done").ok) throw new Error("完成失败");
     });
 
     const card = await timeCard();
 
-    expect(card.querySelector("[data-check-line]")?.textContent).toBe("划掉 1 件，共 2 件");
-    // 环只算没被筛掉的：这里没筛，划掉的照样算
+    expect(card.querySelector("[data-check-line]")?.textContent).toBe("完成 1 件，共 2 件");
+    // 环只算没被筛掉的：这里没筛，完成的照样算
     expect(legend(card)).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
   });
 });

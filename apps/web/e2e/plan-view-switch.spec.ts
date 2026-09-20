@@ -128,7 +128,7 @@ test("手机上：打开是时间线 → 页面在最上面时和原来一样、
   await expect(views.getByRole("button", { name: "日程", pressed: true })).toBeVisible();
   await expectStill(page, before);
 
-  // 划掉一件：筛选那一行出现「只看没划掉的」
+  // 完成一件：筛选那一行出现「只看没完成的」
   await (await rowOf(page.getByRole("table", { name: DAY1 }), "西湖")).getByRole("button", { name: /^标记：/ }).click();
 
   // 往下滚到 10.3：只剩页顶那一行钉在顶上（「撤销」点得到），筛选和切换按钮收起（你提的：要 B，折叠）
@@ -144,7 +144,7 @@ test("手机上：打开是时间线 → 页面在最上面时和原来一样、
   await hoverBar(page);
   await expectShown(page);
   expect(await page.evaluate(() => window.scrollY), "页面没滚").toBe(scrolled);
-  await expectOnScreen(page, page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "定了" }), "标记里的「定了」");
+  await expectOnScreen(page, page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "确定" }), "标记里的「确定」");
   await shot(page, "03-phone-shown", { screen: true });
 
   // 弹出来时点按下的「日程」：回到开头，页顶、筛选、切换按钮都在原处
@@ -201,10 +201,10 @@ test("手机上筛选不折行：五种类型加「标记」三档只占一行�
   await (await rowOf(day1, "西湖")).getByRole("button", { name: /^标记：/ }).click();
 
   const row = page.locator("[data-filter-row]");
-  const onlyDecided = page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "定了" });
+  const onlyDecided = page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "确定" });
   await expect(onlyDecided).toBeAttached();
   const kinds = page.getByRole("group", { name: "按类型筛选" });
-  // 一行：「只看没划掉的」和第一个类型按钮一样高（没折到下一行）；这一行比屏幕宽，能左右滑
+  // 一行：「只看没完成的」和第一个类型按钮一样高（没折到下一行）；这一行比屏幕宽，能左右滑
   expect(Math.abs((await edges(onlyDecided)).top - (await edges(kinds.getByRole("button").first())).top)).toBeLessThan(2);
   expect(await row.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
   await row.evaluate((element) => (element.scrollLeft = element.scrollWidth));
@@ -240,7 +240,7 @@ test("电脑上：页面在最上面、滚了一点时点切换不跳 → 滚下
   await expectStill(page, partway, 10);
   await expect(topBar(page), "还没钉住，没有底色").toHaveCSS("background-color", TRANSPARENT);
 
-  // 划掉一件，滚下去：只剩页顶那一行
+  // 完成一件，滚下去：只剩页顶那一行
   await (await rowOf(page.getByRole("table", { name: DAY1 }), "西湖")).getByRole("button", { name: /^标记：/ }).click();
   await moveAway(page);
   await scrollToDay3(page);
@@ -252,7 +252,7 @@ test("电脑上：页面在最上面、滚了一点时点切换不跳 → 滚下
   // 鼠标移上去弹出来，移开收回去
   await hoverBar(page);
   await expectShown(page);
-  await expectOnScreen(page, page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "定了" }), "标记里的「定了」");
+  await expectOnScreen(page, page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "确定" }), "标记里的「确定」");
   await shot(page, "06-desktop-shown", { screen: true });
   await moveAway(page);
   await expectFolded(page);

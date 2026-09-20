@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("安排表：连着加几件事 → 改类型、划掉一件 → 排时间 → 缩进 → 删除再撤销", async ({ page }) => {
+test("安排表：连着加几件事 → 改类型、完成一件 → 排时间 → 缩进 → 删除再撤销", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -34,7 +34,7 @@ test("安排表：连着加几件事 → 改类型、划掉一件 → 排时间 
   await page.getByRole("dialog", { name: "选择类型" }).getByRole("button", { name: "餐饮", exact: true }).click();
   await expect(rows.nth(0).getByRole("button", { name: "类型：餐饮" })).toBeVisible();
   await rows.nth(1).getByRole("button", { name: /^标记：/ }).click();
-  await expect(rows.nth(1)).toHaveAttribute("data-mark", "struck");
+  await expect(rows.nth(1)).toHaveAttribute("data-mark", "done");
 
   // 给早茶排上 08:00 起 1 小时
   await rows.nth(0).getByRole("button", { name: "时间" }).click();

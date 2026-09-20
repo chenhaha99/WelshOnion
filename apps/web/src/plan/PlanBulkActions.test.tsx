@@ -69,16 +69,16 @@ describe("一键批量", () => {
     expect(screen.queryByRole("button", { name: /^对这/ })).toBeNull();
   });
 
-  it("一起划掉：看得见的都划掉，出提示，撤销一下全回来", async () => {
+  it("一起完成：看得见的都完成，出提示，撤销一下全回来", async () => {
     const user = userEvent.setup();
     await openStoredPlan(trip);
     await showView("日程");
 
-    await bulk(user, "划掉");
+    await bulk(user, "设成完成");
 
-    await waitFor(async () => expect((await blockRow("10.1", "西湖")).dataset.mark).toBe("struck"));
-    expect((await blockRow("10.2", "乌镇")).dataset.mark).toBe("struck");
-    expect(notice()).toContain("4 件事的标记都改成了「划掉」");
+    await waitFor(async () => expect((await blockRow("10.1", "西湖")).dataset.mark).toBe("done"));
+    expect((await blockRow("10.2", "乌镇")).dataset.mark).toBe("done");
+    expect(notice()).toContain("4 件事的标记都改成了「完成」");
 
     await user.click(within(screen.getByRole("status", { name: "刚做完的提示" })).getByRole("button", { name: "撤销" }));
 
@@ -157,12 +157,12 @@ describe("一键批量", () => {
     await showView("日程");
 
     await user.click(within(await openDayMenu(user, "10.1")).getByRole("menuitem", { name: "这天全部…" }));
-    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "划掉" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "设成完成" }));
 
-    await waitFor(async () => expect((await blockRow("10.1", "西湖")).dataset.mark).toBe("struck"));
-    expect((await blockRow("10.1", "民宿")).dataset.mark).toBe("struck");
+    await waitFor(async () => expect((await blockRow("10.1", "西湖")).dataset.mark).toBe("done"));
+    expect((await blockRow("10.1", "民宿")).dataset.mark).toBe("done");
     expect((await blockRow("10.2", "乌镇")).dataset.mark).toBe("decided");
-    expect(notice()).toContain("3 件事的标记都改成了「划掉」");
+    expect(notice()).toContain("3 件事的标记都改成了「完成」");
   });
 
   it("这天一件都没有时，「这天全部…」按不了", async () => {
@@ -185,7 +185,7 @@ describe("一键批量", () => {
     await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "改类型…" }));
     await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "← 返回" }));
 
-    expect(within(screen.getByRole("menu")).getByRole("menuitem", { name: "划掉" })).toBeTruthy();
+    expect(within(screen.getByRole("menu")).getByRole("menuitem", { name: "设成完成" })).toBeTruthy();
     // 返回不改东西
     expect((await blockRow("10.1", "西湖")).dataset.mark).toBe("decided");
   });
@@ -196,14 +196,14 @@ describe("一键批量", () => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, oct1!, "西湖");
       const lunch = block(plan, library, oct1!, "午饭", "food");
-      if (!setBlockMark(plan, [lake, lunch], "struck").ok) throw new Error("划掉失败");
+      if (!setBlockMark(plan, [lake, lunch], "done").ok) throw new Error("完成失败");
     });
     await showView("日程");
     await expect(dayRow("10.1")).resolves.toBeTruthy();
 
     await user.click(bulkButton());
 
-    expect(within(screen.getByRole("menu")).getByRole<HTMLButtonElement>("menuitem", { name: "划掉" }).disabled).toBe(true);
+    expect(within(screen.getByRole("menu")).getByRole<HTMLButtonElement>("menuitem", { name: "设成完成" }).disabled).toBe(true);
     expect(within(screen.getByRole("menu")).getByRole<HTMLButtonElement>("menuitem", { name: "设成待定" }).disabled).toBe(false);
   });
 });

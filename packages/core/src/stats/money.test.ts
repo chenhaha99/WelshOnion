@@ -103,13 +103,13 @@ describe("每天花多少", () => {
 });
 
 describe("筛选对钱的影响", () => {
-  test("只看没划掉的：看开销挂的块，不挂块的不受影响", () => {
+  test("只看没完成的：看开销挂的块，不挂块的不受影响", () => {
     nanxunMoney();
-    planDoc.getMap<Y.Map<unknown>>("blocks").get("drive")?.set("mark", "struck");
+    planDoc.getMap<Y.Map<unknown>>("blocks").get("drive")?.set("mark", "done");
 
     const summary = moneySummary(plan(), { marks: ["pending", "decided"] });
 
-    // 油费只挂在划掉的开车上：不算；民宿 48000 + 联票 20000 + 保险 12000（不挂块）
+    // 油费只挂在完成的开车上：不算；民宿 48000 + 联票 20000 + 保险 12000（不挂块）
     expect(summary.byKind.has("transit")).toBe(false);
     expect(summary.totalCents).toBe(80000);
   });

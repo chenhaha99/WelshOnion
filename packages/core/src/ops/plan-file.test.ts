@@ -99,7 +99,7 @@ describe("导出一个计划", () => {
     const file = JSON.parse(exportPlan(library, planDoc, EXPORTED));
 
     expect(Object.keys(file)).toEqual(["format", "version", "exported_at", "plan", "library"]);
-    expect(file).toMatchObject({ format: "welshonion-plan", version: 3, exported_at: EXPORTED });
+    expect(file).toMatchObject({ format: "welshonion-plan", version: 4, exported_at: EXPORTED });
     expect(Object.keys(file.library)).toEqual(["kinds", "tags", "places"]);
     expect(file.library.kinds.map((kind: { id: string }) => kind.id)).toEqual(["food", "k-work"]);
     expect(file.library.kinds[1]).toEqual({ id: "k-work", name: "工作", color: "#8a9bb5", layer: 2, order: 100 });
@@ -147,9 +147,9 @@ describe("读文件", () => {
     const { planDoc } = newPlan(library);
     const file = JSON.parse(exportPlan(library, planDoc, EXPORTED));
 
-    expect(parsePlanFile(JSON.stringify({ ...file, version: 4 }))).toEqual(TOO_NEW);
+    expect(parsePlanFile(JSON.stringify({ ...file, version: 5 }))).toEqual(TOO_NEW);
 
-    planDoc.getMap("meta").set("schema", 4);
+    planDoc.getMap("meta").set("schema", 5);
     expect(parsePlanFile(exportPlan(library, planDoc, EXPORTED))).toEqual(TOO_NEW);
   });
 
@@ -178,13 +178,13 @@ describe("读文件", () => {
 });
 
 describe("导入到新的计划文档", () => {
-  /** 10.2：划掉了的「西湖」备注「带伞」挂 30000 分门票，「明清宫苑」叠在「横店」上；10.1 上午两件没排时间的事。 */
+  /** 10.2：完成了的「西湖」备注「带伞」挂 30000 分门票，「明清宫苑」叠在「横店」上；10.1 上午两件没排时间的事。 */
   function kansai() {
     const library = newLibrary();
     const { planDoc, baseIds } = newPlan(library);
     const [oct1, oct2, oct3] = baseIds;
     const lake = block(planDoc, library, { baseId: oct2!, kindId: "sight", title: "西湖", minute: 540, duration: 120 });
-    setBlockMark(planDoc, [lake], "struck");
+    setBlockMark(planDoc, [lake], "done");
     updateBlock(planDoc, library, lake, { note: "带伞" });
     addExpense(planDoc, library, { title: "门票", amountCents: 30000, blockIds: [lake] });
     const hengdian = block(planDoc, library, { baseId: oct2!, kindId: "sight", title: "横店", minute: 780, duration: 300 });
@@ -209,7 +209,7 @@ describe("导入到新的计划文档", () => {
     expect(imported.plan).toEqual(original.plan);
     expect(imported.bases).toEqual(original.bases);
     expect([...imported.blocks.values()]).toEqual([...original.blocks.values()]);
-    expect([...imported.blocks.values()].find((block) => block.title === "西湖")?.mark).toBe("struck");
+    expect([...imported.blocks.values()].find((block) => block.title === "西湖")?.mark).toBe("done");
     expect([...imported.expenses.values()]).toEqual([...original.expenses.values()]);
     expect([...imported.undated.entries()]).toEqual([...original.undated.entries()]);
     expect(readLibrary(otherLibrary).planIndex.get("p9")).toMatchObject({
@@ -252,7 +252,7 @@ describe("读第 1 版文件", () => {
     const { planDoc, baseIds } = newPlan(library);
     const lake = block(planDoc, library, { baseId: baseIds[1]!, kindId: "sight", title: "西湖", minute: 540, duration: 120 });
     block(planDoc, library, { baseId: baseIds[1]!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
-    setBlockMark(planDoc, [lake], "struck");
+    setBlockMark(planDoc, [lake], "done");
     planDoc.transact(() => {
       planDoc.getMap("meta").set("schema", 1);
       for (const entry of planDoc.getMap<Y.Map<unknown>>("blocks").values()) entry.set("status_id", "s-booked");
@@ -266,17 +266,17 @@ describe("读第 1 版文件", () => {
     return parsed.value;
   }
 
-  test("忽略状态，勾上的导进来就是划掉，结构版本写成 3", () => {
+  test("忽略状态，勾上的导进来就是完成，结构版本写成 3", () => {
     const local = newLibrary();
     const target = new Y.Doc();
 
     expect(importPlan(local, target, fileV1(), { planId: "p9", now: IMPORTED }).ok).toBe(true);
 
     expect([...target.getMap<Y.Map<unknown>>("blocks").values()].some((entry) => entry.has("status_id"))).toBe(false);
-    expect(target.getMap("meta").get("schema")).toBe(3);
+    expect(target.getMap("meta").get("schema")).toBe(4);
     const blocks = [...readPlan(target, readLibrary(local)).blocks.values()];
     expect(blocks.map((entry) => [entry.title, entry.mark])).toEqual([
-      ["西湖", "struck"],
+      ["西湖", "done"],
       ["午饭", "decided"],
     ]);
     expect(local.share.has("statuses")).toBe(false);

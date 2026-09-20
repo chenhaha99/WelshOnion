@@ -11,6 +11,16 @@
   --font-sans: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
+/*
+ * 三档标记的样子（你提的：确定＝完整颜色、待定＝完整颜色的变淡版含边框、完成＝统一灰色；待定虚线，确定和完成实线）。
+ * 「完成」不跟类型色走，所以单独取一套灰：块的边、底和悬停时的底
+ */
+@theme {
+  --mark-done-line: color-mix(in srgb, var(--color-ink-muted) 40%, white);
+  --mark-done-fill: rgb(47 58 69 / 0.05);
+  --mark-done-fill-hover: rgb(47 58 69 / 0.09);
+}
+
 @layer base {
   /*
    * 计划页往下滚时顶上钉着多高（--stuck-top）：没固定是页顶那一行，固定了是页顶那一行加筛选和切换按钮（DayList 量出来写 --top-bar、--top-area）。
@@ -340,8 +350,8 @@
 }
 
 /*
- * 日程的时刻表：三列——开始时刻、竖线（线上的圆圈是「划掉」）、一件事一张卡片。
- * 竖线是第二列每一格画一段，上下接起来成一根；卡片左边一道类型色，划掉的虚线、变淡、标题划一道。
+ * 日程的时刻表：三列——开始时刻、竖线（线上的圆圈是「完成」）、一件事一张卡片。
+ * 竖线是第二列每一格画一段，上下接起来成一根；卡片左边一道类型色，完成的虚线、变淡、标题划一道。
  */
 @utility schedule {
   border-collapse: collapse;
@@ -369,8 +379,8 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
-  /* 划掉的那件：开始时刻跟着卡片变淡 */
-  [data-mark="struck"] > & {
+  /* 完成的那件：开始时刻跟着卡片变淡 */
+  [data-mark="done"] > & {
     color: color-mix(in srgb, var(--color-ink-muted) 80%, white);
   }
 }
@@ -388,7 +398,7 @@
   }
 }
 
-/* 竖线上的圆圈：就是「划掉」的勾选框，划掉了填满、打勾 */
+/* 竖线上的圆圈：按一下换下一档；完成那一档填满、打勾 */
 /* 竖线上的圆圈：换标记的按钮，三档的圆圈画在里面（见 plan/mark.tsx）。颜色跟着标记走 */
 @utility schedule-check {
   position: relative;
@@ -406,14 +416,14 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 2px;
   }
-  [data-mark="struck"] > td > & {
-    color: color-mix(in srgb, var(--color-ink) 40%, white);
+  [data-mark="done"] > td > & {
+    color: var(--color-ink-muted);
   }
 }
 
 @utility schedule-card {
   margin: 0.25rem 0 0.25rem calc(var(--indent, 0) * 1rem);
-  /* 四周一圈 1 像素的透明边（左边是 3 像素类型色）：划掉时换成虚线，卡片不变大；内边距少 1 像素抵掉 */
+  /* 四周一圈 1 像素的透明边（左边是 3 像素类型色）：完成时换成虚线，卡片不变大；内边距少 1 像素抵掉 */
   padding: calc(0.25rem - 1px) calc(0.375rem - 1px) calc(0.375rem - 1px) 0.375rem;
   border: 1px solid transparent;
   border-left: 3px solid var(--kind-color);
@@ -428,32 +438,26 @@
     width: 100%;
   }
   /*
-   * 划掉的（你提的：虚线、变淡、字上划一道）：白底卡片只改左边一道看不出（你提的：在视觉观感上并不明显），
-   * 整张换成浅灰底、四周一圈虚线，卡片里的字换成淡色。靠换颜色，不整张半透明
+   * 白底卡片上只改左边那一道看不出（你提的：在视觉观感上并不明显），所以三档改的是整张：
+   * 待定＝类型色的淡版加一圈虚线，完成＝整张灰、实线。靠换颜色，不整张半透明
    */
-  /* 待定：只有一圈虚线，颜色照常（还没定，不是做完了） */
   [data-mark="pending"] > td > & {
     border-style: dashed;
-    border-color: color-mix(in srgb, var(--kind-color) 55%, white);
-    border-left-color: var(--kind-color);
-  }
-  [data-mark="struck"] > td > & {
-    border-style: dashed;
-    border-color: color-mix(in srgb, var(--kind-color) 45%, white);
+    border-color: color-mix(in srgb, var(--kind-color) 40%, white);
     border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
-    background-color: rgb(47 58 69 / 0.045);
+    background-color: color-mix(in srgb, var(--kind-color) 8%, white);
   }
-  /* 本来深的字（时间、类型、开销）换成淡色；本来就淡的（空着的「填开销」）不动，不然反倒比没划掉的深 */
-  [data-mark="struck"] > td > & .input-bare:not(.schedule-title, .text-ink-muted\/60) {
+  [data-mark="done"] > td > & {
+    border-color: var(--mark-done-line);
+    border-left-color: var(--mark-done-line);
+    background-color: var(--mark-done-fill);
+  }
+  /* 本来深的字（时间、标题、类型、开销）换成淡色；本来就淡的（空着的「填开销」）不动，不然反倒比没完成的深 */
+  [data-mark="done"] > td > & .input-bare:not(.text-ink-muted\/60) {
     color: var(--color-ink-muted);
   }
-  [data-mark="struck"] > td > & .kind-dot {
+  [data-mark="done"] > td > & .kind-dot {
     opacity: 0.45;
-  }
-  /* 正在改标题时不划、不淡：划线挡着看不清在改什么 */
-  [data-mark="struck"] > td > & .schedule-title:not(:focus) {
-    color: color-mix(in srgb, var(--color-ink-muted) 80%, white);
-    text-decoration-line: line-through;
   }
 }
 
@@ -592,7 +596,7 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  /* 按下的开关（「划掉」）：底色填上 */
+  /* 按下的开关（「完成」）：底色填上 */
   &[aria-pressed="true"] {
     background-color: color-mix(in srgb, var(--color-sage) 22%, white);
     color: var(--color-sage-deep);
@@ -716,7 +720,7 @@
   }
 }
 
-/* 时间线的横条：类型色的淡底和边；划掉的虚线、变淡、字上划一道；接着下一行的那头是平的 */
+/* 时间线的横条：类型色的淡底和边；完成的虚线、变淡、字上划一道；接着下一行的那头是平的 */
 @utility timeline-bar {
   /* 标签的书签、竖条里的附件栏按它定位 */
   position: relative;
@@ -745,20 +749,23 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  /* 待定：只换成虚线边框，底色和字照常 */
+  /* 待定（你提的：完整颜色的变淡版，包括边框颜色 + 虚线）：只有线型和深浅变，还看得出是哪一类 */
   [data-mark="pending"] > & {
     border-style: dashed;
+    border-color: color-mix(in srgb, var(--kind-color) 55%, white);
+    background-color: color-mix(in srgb, var(--kind-color) 16%, white);
   }
-  /* 划掉的（你提的：虚线、变淡、字上划一道）：边、底色、字都换成淡的颜色，不整块半透明，选中的描边照样看得清 */
-  [data-mark="struck"] > & {
-    border-style: dashed;
-    border-color: color-mix(in srgb, var(--kind-color) 60%, white);
-    background-color: color-mix(in srgb, var(--kind-color) 14%, white);
+  [data-mark="pending"] > &:hover {
+    background-color: color-mix(in srgb, var(--kind-color) 26%, white);
+  }
+  /* 完成（你提的：统一灰色 + 实线）：不用类型色，做完的事一眼退到后面；不整块半透明，选中的描边照样看得清 */
+  [data-mark="done"] > & {
+    border-color: var(--mark-done-line);
+    background-color: var(--mark-done-fill);
     color: var(--color-ink-muted);
-    text-decoration-line: line-through;
   }
-  [data-mark="struck"] > &:hover {
-    background-color: color-mix(in srgb, var(--kind-color) 24%, white);
+  [data-mark="done"] > &:hover {
+    background-color: var(--mark-done-fill-hover);
   }
   [data-continues-before="true"] > & {
     border-left-width: 0;
@@ -799,14 +806,12 @@
   }
   [data-mark="pending"] > & {
     border-style: dashed;
+    border-color: color-mix(in srgb, var(--kind-color) 45%, white);
+    background-color: color-mix(in srgb, var(--kind-color) 12%, white);
   }
-  /* 细条的字本来就淡、字又小：再淡就读不出来，只淡一点 */
-  [data-mark="struck"] > & {
-    border-style: dashed;
-    border-color: color-mix(in srgb, var(--kind-color) 50%, white);
-    background-color: color-mix(in srgb, var(--kind-color) 10%, white);
-    color: color-mix(in srgb, var(--color-ink-muted) 85%, white);
-    text-decoration-line: line-through;
+  [data-mark="done"] > & {
+    border-color: var(--mark-done-line);
+    background-color: var(--mark-done-fill);
   }
   [data-continues-before="true"] > & {
     border-left-width: 0;
@@ -841,17 +846,17 @@
     outline: 2px solid var(--color-sage);
     outline-offset: 1px;
   }
-  /* 待定：虚线，颜色照常 */
+  /* 待定：淡色虚线 */
   [data-mark="pending"] > &::before {
-    background: repeating-linear-gradient(to bottom, var(--kind-color) 0 3px, transparent 3px 5px);
-  }
-  /* 划掉的：淡色虚线 */
-  [data-mark="struck"] > &::before {
     background: repeating-linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--kind-color) 60%, white) 0 3px,
+      color-mix(in srgb, var(--kind-color) 55%, white) 0 3px,
       transparent 3px 5px
     );
+  }
+  /* 完成：灰色实线 */
+  [data-mark="done"] > &::before {
+    background-color: var(--mark-done-line);
   }
 }
 
@@ -910,7 +915,7 @@
   }
 }
 
-/* 时间线右边「没排时间」栏里的一件：左边一道类型色，划掉的虚线、变淡、字上划一道；标题放不下就截断 */
+/* 时间线右边「没排时间」栏里的一件：左边一道类型色，完成的虚线、变淡、字上划一道；标题放不下就截断 */
 @utility timeline-chip {
   position: relative;
   display: flex;
@@ -936,12 +941,12 @@
   }
   [data-mark="pending"] > & {
     border-left-style: dashed;
-  }
-  [data-mark="struck"] > & {
-    border-left-style: dashed;
     border-left-color: color-mix(in srgb, var(--kind-color) 55%, white);
+  }
+  [data-mark="done"] > & {
+    border-left-color: var(--mark-done-line);
+    background-color: var(--mark-done-fill);
     color: var(--color-ink-muted);
-    text-decoration-line: line-through;
   }
 }
 
@@ -1107,11 +1112,10 @@
   bottom: 0;
 }
 
-/* 划掉的块上的附件栏：横条上它不在块的按钮里、竖条上它单独摆在按钮最下面，划线都传不过来，单独划 */
-[data-mark="struck"] .timeline-foot,
-[data-mark="struck"] .timeline-foot .timeline-money {
+/* 完成的块上的附件栏：横条上它不在块的按钮里、竖条上它单独摆在按钮最下面，颜色传不过来，单独写 */
+[data-mark="done"] .timeline-foot,
+[data-mark="done"] .timeline-foot .timeline-money {
   color: var(--color-ink-muted);
-  text-decoration-line: line-through;
 }
 
 /* 时间线上面那条里的一件：按字宽（竖排那一栏里是占满一行），太长就截断 */
@@ -1233,14 +1237,14 @@
     outline-offset: 1px;
   }
   [data-mark="pending"] > &::before {
-    background: repeating-linear-gradient(to right, var(--kind-color) 0 3px, transparent 3px 5px);
-  }
-  [data-mark="struck"] > &::before {
     background: repeating-linear-gradient(
       to right,
-      color-mix(in srgb, var(--kind-color) 60%, white) 0 3px,
+      color-mix(in srgb, var(--kind-color) 55%, white) 0 3px,
       transparent 3px 5px
     );
+  }
+  [data-mark="done"] > &::before {
+    background-color: var(--mark-done-line);
   }
 }
 

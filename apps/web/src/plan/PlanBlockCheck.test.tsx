@@ -52,7 +52,7 @@ function markButton(scope: HTMLElement): HTMLElement {
 }
 
 describe("在哪换标记", () => {
-  it("时间线上：快捷条第一个按钮转一圈——定了 → 划掉 → 待定 → 定了，焦点留着；Ctrl+Z 撤销", async () => {
+  it("时间线上：快捷条第一个按钮转一圈——确定 → 完成 → 待定 → 确定，焦点留着；Ctrl+Z 撤销", async () => {
     const user = userEvent.setup();
     await oneDay();
     await showView("时间线");
@@ -60,20 +60,20 @@ describe("在哪换标记", () => {
     await user.click(await blockButton("西湖"));
     const bar = screen.getByRole("toolbar", { name: "「西湖」的操作" });
     const toggle = within(bar).getAllByRole("button")[0]!;
-    expect(toggle.getAttribute("aria-label")).toBe("标记：定了");
-    expect(toggle.getAttribute("title")).toBe("按一下设成「划掉」");
+    expect(toggle.getAttribute("aria-label")).toBe("标记：确定");
+    expect(toggle.getAttribute("title")).toBe("按一下设成「完成」");
 
     await user.click(toggle);
-    await waitFor(() => expect(toggle.getAttribute("aria-label")).toBe("标记：划掉"));
+    await waitFor(() => expect(toggle.getAttribute("aria-label")).toBe("标记：完成"));
     expect(document.activeElement).toBe(toggle);
-    expect(markOf(await blockButton("西湖"))).toBe("struck");
+    expect(markOf(await blockButton("西湖"))).toBe("done");
 
     await user.click(toggle);
     await waitFor(() => expect(toggle.getAttribute("aria-label")).toBe("标记：待定"));
     expect(markOf(await blockButton("西湖"))).toBe("pending");
 
     await user.click(toggle);
-    await waitFor(() => expect(toggle.getAttribute("aria-label")).toBe("标记：定了"));
+    await waitFor(() => expect(toggle.getAttribute("aria-label")).toBe("标记：确定"));
     expect(markOf(await blockButton("西湖"))).toBe("decided");
 
     await user.click(toggle);
@@ -87,15 +87,15 @@ describe("在哪换标记", () => {
 
     const row = await blockRow("10.1", "西湖");
     const circle = markButton(row);
-    expect(circle.getAttribute("aria-label")).toBe("标记：定了");
+    expect(circle.getAttribute("aria-label")).toBe("标记：确定");
 
     await user.click(circle);
 
-    await waitFor(() => expect(circle.getAttribute("aria-label")).toBe("标记：划掉"));
+    await waitFor(() => expect(circle.getAttribute("aria-label")).toBe("标记：完成"));
     expect(document.activeElement).toBe(circle);
-    expect(markOf(row)).toBe("struck");
+    expect(markOf(row)).toBe("done");
     await showView("时间线");
-    expect(markOf(await blockButton("西湖"))).toBe("struck");
+    expect(markOf(await blockButton("西湖"))).toBe("done");
   });
 
   it("菜单里「设成待定」：一下就到，不用点两下", async () => {
@@ -118,18 +118,18 @@ describe("在哪换标记", () => {
     await user.click(await blockButton("西湖"));
     await user.click(markButton(screen.getByRole("toolbar", { name: "「西湖」的操作" })));
 
-    await waitFor(async () => expect(markOf(await blockButton("西湖"))).toBe("struck"));
+    await waitFor(async () => expect(markOf(await blockButton("西湖"))).toBe("done"));
   });
 });
 
 describe("三档怎么显示", () => {
-  it("横条：待定和划掉都记在块上，读屏名末尾写出来；定了照常", async () => {
-    await oneDay({ 西湖: "struck", 灵隐寺: "pending" });
+  it("横条：待定和完成都记在块上，读屏名末尾写出来；确定照常", async () => {
+    await oneDay({ 西湖: "done", 灵隐寺: "pending" });
     await showView("时间线");
 
     const lake = await blockButton("西湖");
-    expect(markOf(lake)).toBe("struck");
-    expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 划掉了");
+    expect(markOf(lake)).toBe("done");
+    expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 已完成");
     const temple = await blockButton("灵隐寺");
     expect(markOf(temple)).toBe("pending");
     expect(temple.getAttribute("aria-label")).toBe("灵隐寺 14:00–16:00 · 待定");
@@ -138,26 +138,26 @@ describe("三档怎么显示", () => {
   });
 
   it("「没排时间」栏里的一件、日程的一行也是", async () => {
-    await oneDay({ 河坊街: "struck", 西湖: "pending" });
+    await oneDay({ 河坊街: "done", 西湖: "pending" });
 
-    expect(markOf(await blockRow("10.1", "河坊街"))).toBe("struck");
+    expect(markOf(await blockRow("10.1", "河坊街"))).toBe("done");
     expect(markOf(await blockRow("10.1", "西湖"))).toBe("pending");
     await showView("时间线");
-    expect(markOf(await blockButton("河坊街"))).toBe("struck");
+    expect(markOf(await blockButton("河坊街"))).toBe("done");
   });
 
   it("手机上的竖条也是", async () => {
     stubNarrowScreen();
-    await oneDay({ 西湖: "struck", 灵隐寺: "pending" });
+    await oneDay({ 西湖: "done", 灵隐寺: "pending" });
     await showView("时间线");
 
-    expect(markOf(await blockButton("西湖"))).toBe("struck");
+    expect(markOf(await blockButton("西湖"))).toBe("done");
     expect(markOf(await blockButton("灵隐寺"))).toBe("pending");
   });
 });
 
 describe("按标记筛选", () => {
-  it("三档都是「定了」时没有这一组", async () => {
+  it("三档都是「确定」时没有这一组", async () => {
     await oneDay();
 
     await screen.findByRole("group", { name: "按类型筛选" });
@@ -174,7 +174,7 @@ describe("按标记筛选", () => {
     await waitFor(async () => expect(within(await timeline()).queryByRole("button", { name: /^灵隐寺 / })).toBeNull());
     expect(await blockButton("西湖")).toBeTruthy();
 
-    // 把唯一一件待定的改回「定了」：这一组还在、「待定」还按着，不然取消不了
+    // 把唯一一件待定的改回「确定」：这一组还在、「待定」还按着，不然取消不了
     await user.click(await blockButton("西湖"));
     const toggle = markButton(screen.getByRole("toolbar", { name: "「西湖」的操作" }));
     await user.click(toggle);
@@ -185,11 +185,11 @@ describe("按标记筛选", () => {
 
   it("和按类型筛一起：都要满足", async () => {
     const user = userEvent.setup();
-    await oneDay({ 西湖: "struck" });
+    await oneDay({ 西湖: "done" });
     await showView("时间线");
 
     const marks = await screen.findByRole("group", { name: "按标记筛选" });
-    await user.click(within(marks).getByRole("button", { name: "定了" }));
+    await user.click(within(marks).getByRole("button", { name: "确定" }));
     await user.click(within(screen.getByRole("group", { name: "按类型筛选" })).getByRole("button", { name: "游玩" }));
     // 按状态筛选撤掉了：筛选那一行只有这三样
     expect(screen.queryByRole("group", { name: "按状态筛选" })).toBeNull();
@@ -201,29 +201,29 @@ describe("按标记筛选", () => {
   });
 });
 
-describe("待定、划掉各几件", () => {
-  it("时间总览最下面写「待定 X · 划掉 Y，共 N 件」", async () => {
-    await oneDay({ 西湖: "struck", 河坊街: "pending" });
+describe("待定、完成各几件", () => {
+  it("时间总览最下面写「待定 X · 完成 Y，共 N 件」", async () => {
+    await oneDay({ 西湖: "done", 河坊街: "pending" });
 
     const card = await timeOverview();
 
-    expect(card.querySelector("[data-check-line]")?.textContent).toBe("待定 1 件 · 划掉 1 件，共 3 件");
+    expect(card.querySelector("[data-check-line]")?.textContent).toBe("待定 1 件 · 完成 1 件，共 3 件");
   });
 
-  it("只有划掉的就只写划掉", async () => {
-    await oneDay({ 西湖: "struck" });
+  it("只有完成的就只写完成", async () => {
+    await oneDay({ 西湖: "done" });
 
     const card = await timeOverview();
 
-    expect(card.querySelector("[data-check-line]")?.textContent).toBe("划掉 1 件，共 3 件");
+    expect(card.querySelector("[data-check-line]")?.textContent).toBe("完成 1 件，共 3 件");
   });
 
-  it("三档都是「定了」就不写", async () => {
+  it("三档都是「确定」就不写", async () => {
     await oneDay();
 
     const card = await timeOverview();
 
     expect(card.querySelector("[data-check-line]")).toBeNull();
-    expect(within(card).queryByText(/划掉|待定/)).toBeNull();
+    expect(within(card).queryByText(/完成|待定/)).toBeNull();
   });
 });

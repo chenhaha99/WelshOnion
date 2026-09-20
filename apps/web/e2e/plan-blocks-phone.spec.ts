@@ -16,7 +16,7 @@ async function horizontalOverflow(table: Locator): Promise<number> {
 
 function controlsOf(row: Locator): Array<[string, Locator]> {
   return [
-    ["划掉", row.getByRole("button", { name: /^标记：/ })],
+    ["完成", row.getByRole("button", { name: /^标记：/ })],
     ["标题", row.getByRole("textbox", { name: "标题" })],
     ["类型", row.getByRole("button", { name: /^类型：/ })],
     ["标签", row.getByRole("button", { name: /^标签：/ })],

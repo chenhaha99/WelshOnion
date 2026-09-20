@@ -66,10 +66,10 @@ interface FocusSpot {
 type ScheduleRow = { type: "block"; block: BlockView } | { type: "gap"; from: number; to: number } | { type: "undated" };
 
 /**
- * 一天的时刻表：一张三列的表——开始时刻、竖线（线上的圆圈是「划掉」）、一件事一张卡片；
+ * 一天的时刻表：一张三列的表——开始时刻、竖线（线上的圆圈是「完成」）、一件事一张卡片；
  * 事和事之间空着半小时以上写一行空档（点了在那个钟点加一件事），没排时间的在后面，末尾「加一件事」。
  * 带筛选时只画通过的块，写「筛掉了 N 件」；空档按这天全部的事算（筛掉的事那段时间并不空）。
- * 一行消失（划掉、改类型被筛掉，删除）而焦点掉到页面最外面时，焦点落到下一行的同一个位置，没有下一行就上一行，都没有就交给这天的组头。
+ * 一行消失（完成、改类型被筛掉，删除）而焦点掉到页面最外面时，焦点落到下一行的同一个位置，没有下一行就上一行，都没有就交给这天的组头。
  */
 export function BlockTable({
   doc,
@@ -136,7 +136,7 @@ export function BlockTable({
         <thead className="sr-only">
           <tr>
             <th>开始</th>
-            <th>划掉</th>
+            <th>完成</th>
             <th>这件事</th>
           </tr>
         </thead>

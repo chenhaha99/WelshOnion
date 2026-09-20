@@ -42,7 +42,7 @@ async function rowsOf(): Promise<string[]> {
 }
 
 describe("一件事一行", () => {
-  it("开始时刻、竖线上的「划掉」、卡片：时间和多长、标题、类型、标签、开销、操作", async () => {
+  it("开始时刻、竖线上的「完成」、卡片：时间和多长、标题、类型、标签、开销、操作", async () => {
     await openDay((plan, library, oct1) => {
       const lake = timed(plan, library, oct1, "西湖", "sight", 540, 180);
       if (!addExpense(plan, library, { title: "门票", amountCents: 30000, blockIds: [lake] }).ok) throw new Error("建开销失败");
@@ -77,7 +77,7 @@ describe("一件事一行", () => {
     expect(temple.querySelector("[data-block-duration]")).toBeNull();
   });
 
-  it("点竖线上的圆圈就是划掉", async () => {
+  it("点竖线上的圆圈就是完成", async () => {
     const user = userEvent.setup();
     await openDay((plan, library, oct1) => {
       timed(plan, library, oct1, "西湖", "sight", 540, 180);
@@ -85,7 +85,7 @@ describe("一件事一行", () => {
     const row = await blockRow("10.1", "西湖");
     await user.click(within(row.children[1] as HTMLElement).getByRole("button", { name: /^标记：/ }));
 
-    await waitFor(async () => expect((await blockRow("10.1", "西湖")).dataset.mark).toBe("struck"));
+    await waitFor(async () => expect((await blockRow("10.1", "西湖")).dataset.mark).toBe("done"));
   });
 });
 

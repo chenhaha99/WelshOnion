@@ -14,7 +14,7 @@ async function rowsOf(table: Locator): Promise<string[]> {
   );
 }
 
-test("电脑上的时刻表：左边开始时刻、竖线串起来、空档写一行 → 点空档加一件事 → 点圆圈划掉 → 住进民宿前空着的晚上", async ({ page }) => {
+test("电脑上的时刻表：左边开始时刻、竖线串起来、空档写一行 → 点空档加一件事 → 点圆圈完成 → 住进民宿前空着的晚上", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1, { width: 1280, height: 900 });
   const table = page.getByRole("table", { name: DAY1 });
@@ -63,25 +63,26 @@ test("电脑上的时刻表：左边开始时刻、竖线串起来、空档写�
     "民宿",
   ]);
 
-  // 点「午饭」的圆圈：划掉，整张卡片换成浅灰底、四周一圈虚线，标题划一道
+  // 点「午饭」的圆圈：完成，整张卡片换成浅灰底、四周一圈虚线，标题划一道
   const lunch = await rowOf(table, "午饭");
   await lunch.getByRole("button", { name: /^标记：/ }).click();
-  await expect(lunch).toHaveAttribute("data-mark", "struck");
-  await expect(lunch.getByRole("button", { name: /^标记：/ })).toHaveAttribute("aria-label", "标记：划掉");
+  await expect(lunch).toHaveAttribute("data-mark", "done");
+  await expect(lunch.getByRole("button", { name: /^标记：/ })).toHaveAttribute("aria-label", "标记：完成");
   const cardLooks = (node: Element) => {
     const style = getComputedStyle(node);
     return { left: style.borderLeftStyle, top: style.borderTopStyle, background: style.backgroundColor };
   };
-  const struck = await lunch.locator(".schedule-card").evaluate(cardLooks);
+  const done = await lunch.locator(".schedule-card").evaluate(cardLooks);
   const plain = await drive.locator(".schedule-card").evaluate(cardLooks);
-  expect(struck.left).toBe("dashed");
-  expect(struck.top, "四周一圈也是虚线").toBe("dashed");
-  expect(struck.background, "底色和没划掉的不一样").not.toBe(plain.background);
+  expect(done.left, "完成用实线").toBe("solid");
+  expect(done.top, "四周一圈也是实线").toBe("solid");
+  expect(done.background, "底色和没完成的不一样").not.toBe(plain.background);
   await page.mouse.click(5, 5);
   expect(
     await lunch.getByRole("textbox", { name: "标题" }).evaluate((node) => getComputedStyle(node).textDecorationLine),
-  ).toBe("line-through");
-  await shot(page, "02-desktop-added-struck");
+    "完成不划线，整张变灰就够了",
+  ).toBe("none");
+  await shot(page, "02-desktop-added-done");
 
   expect(errors).toEqual([]);
 });

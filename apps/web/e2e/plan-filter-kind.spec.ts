@@ -12,7 +12,7 @@ import {
 } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被筛掉的事上 → 和只看没划掉的一起 → 全部类型 → 手机", async ({ page }) => {
+test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被筛掉的事上 → 和只看没完成的一起 → 全部类型 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
@@ -44,9 +44,9 @@ test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被
   await showView(page, "日程");
   await shot(page, "01-lodging-only");
 
-  // 和只看没划掉的一起：把民宿划掉，再按「只看没划掉的」，一件都不显示；再按一下取消
+  // 和只看没完成的一起：把民宿完成，再按「只看没完成的」，一件都不显示；再按一下取消
   await inn.getByRole("button", { name: /^标记：/ }).click();
-  const onlyDecided = page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "定了" });
+  const onlyDecided = page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "确定" });
   await onlyDecided.click();
   await expect(rows).toHaveCount(0);
   await expect(table.locator("[data-filtered-out]")).toHaveText("筛掉了 3 件");

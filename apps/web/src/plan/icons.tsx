@@ -22,7 +22,7 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-/** 划掉：一个 S 中间划一道 */
+/** 完成：一个 S 中间划一道 */
 export function StrikeIcon() {
   return (
     <Icon>

@@ -133,7 +133,7 @@ describe("删除计划", () => {
 describe("复制计划", () => {
   const LATER = "2026-09-15T09:00:00.000Z";
 
-  /** 「关西 10 天」：10-01 起 3 天；10-02 上 09:00 起 120 分钟、划掉了、带着「必去」的「西湖」挂着 30000 分。 */
+  /** 「关西 10 天」：10-01 起 3 天；10-02 上 09:00 起 120 分钟、完成了、带着「必去」的「西湖」挂着 30000 分。 */
   function kansai() {
     const { library, planDoc } = setup({ name: "关西 10 天" });
     const days = setDays(planDoc, { startDate: "2026-10-01", count: 3, tz: "Asia/Shanghai" });
@@ -141,7 +141,7 @@ describe("复制计划", () => {
     const [, oct2, oct3] = days.value.baseIds;
     const lake = addBlock(planDoc, library, { baseId: oct2!, kindId: "sight", title: "西湖", minute: 540, duration: 120 });
     if (!lake.ok) throw new Error("建块失败");
-    setBlockMark(planDoc, [lake.value.blockId], "struck");
+    setBlockMark(planDoc, [lake.value.blockId], "done");
     const must = addTag(library, { name: "必去", color: "#c08d68" });
     if (!must.ok) throw new Error("建标签失败");
     setBlockTag(planDoc, library, [lake.value.blockId], must.value.tagId, true);
@@ -191,7 +191,7 @@ describe("复制计划", () => {
 
     const view = readPlan(source, readLibrary(library));
     expect(view.bases.map((base) => base.date)).toEqual(["2026-10-01", "2026-10-02", "2026-10-03"]);
-    expect([...view.blocks.values()].find((block) => block.title === "西湖")?.mark).toBe("struck");
+    expect([...view.blocks.values()].find((block) => block.title === "西湖")?.mark).toBe("done");
   });
 
   test("没有天的计划", () => {

@@ -152,7 +152,7 @@ describe("带筛选", () => {
     const plan = build((built) => {
       const lake = timed(built, built.oct1, "西湖", "sight", 540, 180);
       const dinner = timed(built, built.oct1, "晚饭", "food", 1080, 60);
-      setBlockMark(built.plan, [lake], "struck");
+      setBlockMark(built.plan, [lake], "done");
       money(built, 30000, [lake]);
       money(built, 4550, [dinner]);
     });

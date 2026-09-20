@@ -9,8 +9,8 @@ import * as Y from "yjs";
 import { compareBases, compareStrings } from "./order";
 
 export type Slot = "morning" | "afternoon" | "evening";
-/** 一件事的标记，三档：待定（还没定）、定了（默认）、划掉（含义用户自己定） */
-export type BlockMark = "pending" | "decided" | "struck";
+/** 一件事的标记，三档：待定（还没定）、确定（默认）、完成（做过了） */
+export type BlockMark = "pending" | "decided" | "done";
 export type TransportMode = "drive" | "transit" | "walk";
 export type Basis = "per_person" | "total";
 export type PlainObject = Readonly<Record<string, unknown>>;
@@ -183,9 +183,9 @@ export function readLibrary(doc: Y.Doc): LibraryView {
   return { kinds, tags, places, planIndex };
 }
 
-/** 存的标记只认「待定」「划掉」，别的（没写、写坏了）都是「定了」。 */
+/** 存的标记只认「待定」「完成」，别的（没写、写坏了）都是「确定」。 */
 function markOf(value: unknown): BlockMark {
-  return value === "pending" || value === "struck" ? value : "decided";
+  return value === "pending" || value === "done" ? value : "decided";
 }
 
 export function readPlan(doc: Y.Doc, library: LibraryView): PlanView {

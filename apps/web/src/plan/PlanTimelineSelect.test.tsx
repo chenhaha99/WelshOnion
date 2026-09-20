@@ -122,7 +122,7 @@ describe("时间线上点一下选中", () => {
 
     await user.click(await blockButton("西湖"));
     await user.click(within(quickBar("西湖")).getByRole("button", { name: /^标记：/ }));
-    await user.click(await screen.findByRole("button", { name: "定了" }));
+    await user.click(await screen.findByRole("button", { name: "确定" }));
 
     await waitFor(() => expect(selectedTitles()).toEqual([]));
     expect(screen.queryByRole("toolbar", { name: "「西湖」的操作" })).toBeNull();
@@ -164,7 +164,7 @@ describe("选中后的快捷条", () => {
 
     await user.click(await blockButton("西湖"));
     expect(names(quickBar("西湖"))).toEqual([
-      "标记：定了",
+      "标记：确定",
       "详情…",
       "类型：游玩",
       "标签：没有",
@@ -176,7 +176,7 @@ describe("选中后的快捷条", () => {
 
     await user.click(await blockButton("灵隐寺"));
     expect(names(quickBar("灵隐寺"))).toEqual([
-      "标记：定了",
+      "标记：确定",
       "详情…",
       "类型：游玩",
       "标签：没有",

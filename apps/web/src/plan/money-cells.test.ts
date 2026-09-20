@@ -138,7 +138,7 @@ describe("带筛选", () => {
     const view = planWith(({ plan, block, expense }) => {
       const firstNight = block(0, "民宿一", "lodging");
       const secondNight = block(1, "民宿二", "lodging");
-      setBlockMark(plan, [firstNight], "struck");
+      setBlockMark(plan, [firstNight], "done");
       expense({ title: "民宿两晚", cents: 50000, blockIds: [firstNight, secondNight] });
     });
     expect(labelOf(view, "民宿一")).toBe("¥500");
@@ -148,7 +148,7 @@ describe("带筛选", () => {
   it("被筛掉的块不进开销格", () => {
     const view = planWith(({ plan, block, expense }) => {
       const lake = block(0, "西湖");
-      setBlockMark(plan, [lake], "struck");
+      setBlockMark(plan, [lake], "done");
       expense({ title: "门票", cents: 30000, blockIds: [lake] });
       expense({ title: "面", cents: 12000, blockIds: [block(0, "午饭", "food")] });
     });
@@ -208,19 +208,19 @@ describe("挂在被筛掉的块上的开销", () => {
     expect(moneyOnHiddenBlocks(view, { kindIds: ["lodging"] })).toBe(30000);
   });
 
-  it("不筛、只看没划掉的时是 0", () => {
+  it("不筛、只看没完成的时是 0", () => {
     const view = planWith(({ plan, block, expense }) => {
       const temple = block(0, "灵隐寺");
-      setBlockMark(plan, [temple], "struck");
+      setBlockMark(plan, [temple], "done");
       expense({ title: "门票", cents: 30000, blockIds: [block(0, "西湖"), temple] });
-      // 挂的块全划掉了：这笔钱本身就不算，也不算挂在被筛掉的事上
+      // 挂的块全完成了：这笔钱本身就不算，也不算挂在被筛掉的事上
       expense({ title: "香火", cents: 1000, blockIds: [temple] });
     });
     expect(moneyOnHiddenBlocks(view)).toBe(0);
     expect(moneyOnHiddenBlocks(view, { marks: ["pending", "decided"] })).toBe(0);
   });
 
-  it("只看没划掉的和类型一起：块没划掉、类型没通过", () => {
+  it("只看没完成的和类型一起：块没完成、类型没通过", () => {
     const view = planWith(({ block, expense }) => {
       const hengdian = block(0, "横店", "sight");
       expense({ title: "住宿费", cents: 30000, blockIds: [hengdian], kindId: "lodging" });

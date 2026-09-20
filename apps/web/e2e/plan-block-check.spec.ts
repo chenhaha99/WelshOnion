@@ -28,7 +28,7 @@ async function boxInRow(element: Locator, row: Locator): Promise<number[]> {
   return [box.x - rowBox.x, box.y - rowBox.y, box.width, box.height].map(Math.round);
 }
 
-test("电脑上：快捷条按一圈换三档、块跟着变样子、大小不变 → 日程里划掉另一件 → 按标记筛 → 总览写待定、划掉各几件", async ({ page }) => {
+test("电脑上：快捷条按一圈换三档、块跟着变样子、大小不变 → 日程里完成另一件 → 按标记筛 → 总览写待定、完成各几件", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 1);
@@ -41,93 +41,100 @@ test("电脑上：快捷条按一圈换三档、块跟着变样子、大小不�
   const day1 = timelineRow(page, "10.1");
   const lake = segment(day1, "西湖").getByRole("button", { name: /^西湖 / });
 
-  // 快捷条第一个是标记：点一下换下一档（定了 → 划掉 → 待定 → 定了），横条跟着变样子
-  // 位置量的是在这一行里的：第一次划掉，筛选那一行多出「按标记筛选」，页面在最上面时整个往下挪一行
+  // 快捷条第一个是标记：点一下换下一档（确定 → 完成 → 待定 → 确定），横条跟着变样子
+  // 位置量的是在这一行里的：第一次完成，筛选那一行多出「按标记筛选」，页面在最上面时整个往下挪一行
   const before = await boxInRow(lake, day1);
   await lake.click();
   const selected = await looks(lake);
   expect(selected.borderStyle).toBe("solid");
   expect(selected.decoration).toBe("none");
   const toggle = quickBar(page, "西湖").getByRole("button", { name: /^标记：/ });
-  await expect(quickBar(page, "西湖").getByRole("button").first()).toHaveAttribute("aria-label", "标记：定了");
+  await expect(quickBar(page, "西湖").getByRole("button").first()).toHaveAttribute("aria-label", "标记：确定");
   await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-label", "标记：划掉");
+  await expect(toggle).toHaveAttribute("aria-label", "标记：完成");
   await expect(toggle).toBeFocused();
-  await expect(segment(day1, "西湖")).toHaveAttribute("data-mark", "struck");
-  await expect(lake).toHaveAttribute("aria-label", "西湖 09:00–12:00 · 划掉了");
-  const struck = await looks(lake);
-  expect(struck.borderStyle).toBe("dashed");
-  expect(struck.decoration).toBe("line-through");
-  expect(struck.borderColor).not.toBe(selected.borderColor);
-  expect(struck.background).not.toBe(selected.background);
-  expect(struck.color).not.toBe(selected.color);
-  expect(struck.opacity).toBe("1");
-  expect(struck.outlineColor).toBe(selected.outlineColor);
+  await expect(segment(day1, "西湖")).toHaveAttribute("data-mark", "done");
+  await expect(lake).toHaveAttribute("aria-label", "西湖 09:00–12:00 · 已完成");
+  // 完成（你提的：统一灰色 + 实线）：边和底都换成灰的，字变淡，不划线；不是整块半透明，选中的描边照样看得清
+  const done = await looks(lake);
+  expect(done.borderStyle, "完成是实线").toBe("solid");
+  expect(done.decoration, "完成不划线").toBe("none");
+  expect(done.borderColor, "完成的边不是类型色").not.toBe(selected.borderColor);
+  expect(done.background).not.toBe(selected.background);
+  expect(done.color).not.toBe(selected.color);
+  expect(done.opacity).toBe("1");
+  expect(done.outlineColor).toBe(selected.outlineColor);
   expect(await boxInRow(lake, day1)).toEqual(before);
   await expect(lake.locator("[data-checked-mark]")).toHaveCount(0);
-  await shot(page, "01-struck-bar");
+  await shot(page, "01-done-bar");
 
-  // 再点一下是「待定」：虚线边框，但颜色照常、字不划线；再点一下回「定了」
+  // 再点一下是「待定」：虚线边框，但颜色照常、字不划线；再点一下回「确定」
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-label", "标记：待定");
   await expect(segment(day1, "西湖")).toHaveAttribute("data-mark", "pending");
   await expect(lake).toHaveAttribute("aria-label", "西湖 09:00–12:00 · 待定");
+  // 待定（你提的：完整颜色的变淡版，包括边框颜色 + 虚线）
   const pending = await looks(lake);
-  expect(pending.borderStyle, "待定也是虚线").toBe("dashed");
-  expect(pending.background, "待定不变淡").toBe((await looks(segment(day1, "灵隐寺").getByRole("button", { name: /^灵隐寺 / }))).background);
+  expect(pending.borderStyle, "待定是虚线").toBe("dashed");
+  const plainBar = await looks(segment(day1, "灵隐寺").getByRole("button", { name: /^灵隐寺 / }));
+  expect(pending.background, "待定的底色比确定淡").not.toBe(plainBar.background);
+  expect(pending.borderColor, "待定的边框也淡").not.toBe(plainBar.borderColor);
+  expect(pending.borderColor, "待定的边和完成的灰不一样").not.toBe(done.borderColor);
   expect(pending.decoration, "待定不划线").toBe("none");
   expect(await boxInRow(lake, day1), "大小不变").toEqual(before);
   await shot(page, "01b-pending-bar");
   await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-label", "标记：定了");
+  await expect(toggle).toHaveAttribute("aria-label", "标记：确定");
   await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-label", "标记：划掉");
+  await expect(toggle).toHaveAttribute("aria-label", "标记：完成");
   await page.keyboard.press("Escape");
 
-  // 日程里划掉「河坊街」：竖线上的圆圈；白底卡片只改左边一道看不出，整张换成浅灰底、四周一圈虚线，标题划一道；
+  // 日程里完成「河坊街」：竖线上的圆圈；白底卡片只改左边一道看不出，整张换成灰底灰边（实线）；
   // 不是半透明，大小不变
   await showView(page, "日程");
   const street = await rowOf(day1Table, "河坊街");
   const streetCard = street.locator(".schedule-card");
   const cardBefore = await boxInRow(streetCard, street);
   await street.getByRole("button", { name: /^标记：/ }).click();
-  await expect(street).toHaveAttribute("data-mark", "struck");
-  await expect((await rowOf(day1Table, "西湖")).getByRole("button", { name: /^标记：/ })).toHaveAttribute("aria-label", "标记：划掉");
-  expect(await streetCard.evaluate((node) => getComputedStyle(node).borderLeftStyle)).toBe("dashed");
-  const struckCard = await looks(streetCard);
+  await expect(street).toHaveAttribute("data-mark", "done");
+  await expect((await rowOf(day1Table, "西湖")).getByRole("button", { name: /^标记：/ })).toHaveAttribute("aria-label", "标记：完成");
+  expect(await streetCard.evaluate((node) => getComputedStyle(node).borderLeftStyle)).toBe("solid");
+  const doneCard = await looks(streetCard);
   const plainCard = await looks((await rowOf(day1Table, "灵隐寺")).locator(".schedule-card"));
-  expect(struckCard.borderStyle, "四周一圈也是虚线").toBe("dashed");
-  expect(struckCard.background, "底色和没划掉的不一样").not.toBe(plainCard.background);
-  expect(struckCard.opacity).toBe("1");
+  expect(doneCard.borderStyle, "完成的卡片四周是实线").toBe("solid");
+  expect(doneCard.borderColor, "边框换成灰的").not.toBe(plainCard.borderColor);
+  expect(doneCard.background, "底色和没完成的不一样").not.toBe(plainCard.background);
+  expect(doneCard.opacity).toBe("1");
   expect(await boxInRow(streetCard, street), "大小不变").toEqual(cardBefore);
-  // 本来就淡的「填开销」不跟着换色：换了反倒比没划掉的深
+  // 本来就淡的「填开销」不跟着换色：换了反倒比没完成的深
   const moneyColor = (row: Locator) => row.getByRole("button", { name: "开销" }).evaluate((node) => getComputedStyle(node).color);
   expect(await moneyColor(street), "「填开销」的颜色").toBe(await moneyColor(await rowOf(day1Table, "灵隐寺")));
   expect(
     await street.getByRole("textbox", { name: "标题" }).evaluate((node) => getComputedStyle(node).textDecorationLine),
-  ).toBe("line-through");
-  await shot(page, "02-list-struck");
+    "完成的标题不划线，整张变灰就够了",
+  ).toBe("none");
+  await shot(page, "02-list-done");
 
-  // 按标记筛：按下「定了」只剩「灵隐寺」；再按「划掉」，划掉的两件也回来
+  // 按标记筛：按下「确定」只剩「灵隐寺」；再按「完成」，完成的两件也回来
   await showView(page, "时间线");
   const marks = page.getByRole("group", { name: "按标记筛选" });
-  await marks.getByRole("button", { name: "定了" }).click();
+  await marks.getByRole("button", { name: "确定" }).click();
   await expect(segment(day1, "西湖")).toHaveCount(0);
   await expect(segment(day1, "河坊街")).toHaveCount(0);
   await expect(segment(day1, "灵隐寺")).toHaveCount(1);
-  await marks.getByRole("button", { name: "划掉" }).click();
+  await marks.getByRole("button", { name: "完成" }).click();
   await expect(segment(day1, "西湖")).toHaveCount(1);
   await marks.getByRole("button", { name: "全部标记" }).click();
-  await expect(marks.getByRole("button", { name: "定了" })).toHaveAttribute("aria-pressed", "false");
+  await expect(marks.getByRole("button", { name: "确定" })).toHaveAttribute("aria-pressed", "false");
 
-  // 总览：划掉 2 件，共 3 件
+  // 总览：完成 2 件，共 3 件
   await showView(page, "总览");
-  await expect(page.getByRole("region", { name: "时间总览" }).getByText("划掉 2 件，共 3 件")).toBeVisible();
+  await expect(page.getByRole("region", { name: "时间总览" }).getByText("完成 2 件，共 3 件")).toBeVisible();
 
   expect(errors).toEqual([]);
 });
 
-test("手机上：竖条选中，底部快捷条第一个按钮划掉，竖条变成虚线", async ({ page }) => {
+test("手机上：竖条选中，底部快捷条第一个按钮完成，竖条变成灰的", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 1, { width: 390, height: 844 });
@@ -142,14 +149,16 @@ test("手机上：竖条选中，底部快捷条第一个按钮划掉，竖条�
   const toggle = quickBar(page, "西湖").getByRole("button", { name: /^标记：/ });
   await expect(toggle).toBeInViewport();
   await toggle.click();
-  await expect(timeline.locator("[data-segment]").first()).toHaveAttribute("data-mark", "struck");
-  expect((await looks(lake)).borderStyle).toBe("dashed");
-  await shot(page, "03-phone-struck");
+  await expect(timeline.locator("[data-segment]").first()).toHaveAttribute("data-mark", "done");
+  const phoneDone = await looks(lake);
+  expect(phoneDone.borderStyle, "完成是实线").toBe("solid");
+  expect(phoneDone.decoration, "完成不划线").toBe("none");
+  await shot(page, "03-phone-done");
 
   expect(errors).toEqual([]);
 });
 
-test("按标记筛：只用键盘在日程里挨个划掉 → 焦点落到下一行 → 一行不剩焦点到这天的菜单 → 手机上那一行不撑出屏幕", async ({ page }) => {
+test("按标记筛：只用键盘在日程里挨个完成 → 焦点落到下一行 → 一行不剩焦点到这天的菜单 → 手机上那一行不撑出屏幕", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
@@ -159,15 +168,15 @@ test("按标记筛：只用键盘在日程里挨个划掉 → 焦点落到下一
   await pickKind(page, table, "午饭", "餐饮");
   await (await rowOf(table, "午饭")).getByRole("button", { name: /^标记：/ }).click();
 
-  // 有划掉、待定的才有这一组；按下「定了」表里只剩定了的，写「筛掉了 N 件」
-  const onlyDecided = page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "定了" });
+  // 有完成、待定的才有这一组；按下「确定」表里只剩定了的，写「筛掉了 N 件」
+  const onlyDecided = page.getByRole("group", { name: "按标记筛选" }).getByRole("button", { name: "确定" });
   await onlyDecided.click();
   await expect(onlyDecided).toHaveAttribute("aria-pressed", "true");
   await expect(rows).toHaveCount(2);
   await expect(filteredOut).toHaveText("筛掉了 1 件");
   await shot(page, "04-only-unchecked");
 
-  // 只用键盘挨个划掉：空格划掉这一行，它消失，焦点落到下一行的勾选框
+  // 只用键盘挨个完成：空格完成这一行，它消失，焦点落到下一行的勾选框
   await rows.nth(0).getByRole("button", { name: /^标记：/ }).focus();
   for (const remaining of [1, 0]) {
     await page.keyboard.press("Space");
@@ -178,7 +187,7 @@ test("按标记筛：只用键盘在日程里挨个划掉 → 焦点落到下一
   // 一行都不剩：焦点落到这天的菜单按钮（不进输入框，Ctrl+Z 照样能用）
   const day1 = page.getByRole("list", { name: "日期列表" }).getByRole("listitem").nth(0);
   await expect(day1.getByRole("button", { name: "这天的操作" })).toBeFocused();
-  await shot(page, "05-all-struck");
+  await shot(page, "05-all-done");
 
   await onlyDecided.click();
   await expect(rows).toHaveCount(3);

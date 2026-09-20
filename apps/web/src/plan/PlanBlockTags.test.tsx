@@ -39,7 +39,7 @@ function tag(library: Y.Doc, name: string, color: string): string {
 interface Seed {
   /** 按标题给哪几件挂哪几个标签（标签按名字） */
   tags?: Record<string, string[]>;
-  struck?: string[];
+  done?: string[];
   /** 另外再建几个标签，凑数用 */
   extraTags?: string[];
 }
@@ -65,7 +65,7 @@ async function oneDay(seed: Seed = {}): Promise<void> {
     for (const [title, names] of Object.entries(seed.tags ?? {})) {
       for (const name of names) setBlockTag(plan, library, [ids[title]!], tagIds[name]!, true);
     }
-    if (seed.struck) setBlockMark(plan, seed.struck.map((title) => ids[title]!), "struck");
+    if (seed.done) setBlockMark(plan, seed.done.map((title) => ids[title]!), "done");
   });
 }
 
@@ -118,12 +118,12 @@ describe("块上画出标签", () => {
     expect(tagsOn(lake)?.getAttribute("title")).toBe("必去、下雨也能去、带老人、要预约");
   });
 
-  it("划掉了的：读屏名先写标签，再写划掉了；书签照画", async () => {
-    await oneDay({ tags: { 西湖: ["必去"] }, struck: ["西湖"] });
+  it("完成了的：读屏名先写标签，再写已完成；书签照画", async () => {
+    await oneDay({ tags: { 西湖: ["必去"] }, done: ["西湖"] });
     await showView("时间线");
 
     const lake = await blockButton("西湖");
-    expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 必去 · 划掉了");
+    expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 必去 · 已完成");
     expect(ribbonColors(lake)).toHaveLength(1);
   });
 
@@ -177,7 +177,7 @@ describe("在快捷条和日程里挂上、摘下", () => {
     const names = within(quickBar("西湖"))
       .getAllByRole("button")
       .map((button) => button.getAttribute("aria-label"));
-    expect(names.slice(0, 4)).toEqual(["标记：定了", "详情…", "类型：游玩", "标签：没有"]);
+    expect(names.slice(0, 4)).toEqual(["标记：确定", "详情…", "类型：游玩", "标签：没有"]);
 
     const picker = await openTagPicker(user, within(quickBar("西湖")).getByRole("button", { name: "标签：没有" }));
     await user.click(within(picker).getByRole("button", { name: "必去" }));

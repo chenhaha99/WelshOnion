@@ -23,12 +23,12 @@ interface BulkInput {
   focusAfterUndo: string;
 }
 
-const MARKS: BlockMark[] = ["pending", "decided", "struck"];
+const MARKS: BlockMark[] = ["pending", "decided", "done"];
 
 const MARK_MENU: Record<BlockMark, string> = {
   pending: "设成待定",
-  decided: "设成定了",
-  struck: "划掉",
+  decided: "设成确定",
+  done: "设成完成",
 };
 
 /**

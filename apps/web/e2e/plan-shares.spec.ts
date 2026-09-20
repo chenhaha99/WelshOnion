@@ -19,7 +19,7 @@ async function schedule(page: Page, row: Locator, title: string, start: string, 
   await expect(editor).toBeHidden();
 }
 
-test("总览：空计划 → 排时间 → 算上停留、勾选的出现和消失 → 填开销 → 划掉了几件 → 手机", async ({ page }) => {
+test("总览：空计划 → 排时间 → 算上停留、勾选的出现和消失 → 填开销 → 完成了几件 → 手机", async ({ page }) => {
   const errors = watchErrors(page);
 
   await page.goto("/");
@@ -36,12 +36,12 @@ test("总览：空计划 → 排时间 → 算上停留、勾选的出现和消�
   const timePart = page.getByRole("region", { name: "时间总览" });
   const baseLayer = timePart.getByRole("checkbox", { name: "算上最底层的类型（停留）" });
 
-  // 空计划：两句「还没有」，没有环、没有勾选，不写划掉了几件。两张卡片在第三个视图「总览」里
+  // 空计划：两句「还没有」，没有环、没有勾选，不写完成了几件。两张卡片在第三个视图「总览」里
   await showView(page, "总览");
   await expect(moneyPart).toContainText("还没有填了金额的开销");
   await expect(timePart).toContainText("还没有排了时间的事");
   await expect(page.locator("[data-donut]")).toHaveCount(0);
-  await expect(timePart.getByText(/^划掉/)).toHaveCount(0);
+  await expect(timePart.getByText(/^完成/)).toHaveCount(0);
   await expect(timePart.getByRole("checkbox")).toHaveCount(0);
   await shot(page, "01-empty");
 
@@ -135,10 +135,10 @@ test("总览：空计划 → 排时间 → 算上停留、勾选的出现和消�
   await expect(moneyPart.locator("[data-slice]")).toHaveCount(3);
   await shot(page, "04-money");
 
-  // 划掉了几件：划掉西湖
+  // 完成了几件：完成西湖
   await showView(page, "日程");
   await rows.nth(1).getByRole("button", { name: /^标记：/ }).click();
-  await inOverview(page, () => expect(timePart.getByText("划掉 1 件，共 3 件")).toBeVisible());
+  await inOverview(page, () => expect(timePart.getByText("完成 1 件，共 3 件")).toBeVisible());
 
   // 手机：两张卡片上下堆，都在屏幕里
   await page.setViewportSize({ width: 390, height: 844 });

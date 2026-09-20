@@ -193,7 +193,7 @@ describe("导入不了的文件", () => {
     renderApp("#/");
     const panel = await openSettings(user);
 
-    await chooseFile(user, panel, JSON.stringify({ ...JSON.parse(fileText), version: 4 }));
+    await chooseFile(user, panel, JSON.stringify({ ...JSON.parse(fileText), version: 5 }));
 
     expect((await within(panel).findByRole("alert")).textContent).toBe(
       "这个文件来自更新版本的葱葱，这里还读不了，没有导入",

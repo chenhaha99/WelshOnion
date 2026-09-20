@@ -111,13 +111,13 @@ describe("没事的凌晨和深夜默认折起", () => {
     await openStoredPlan(
       lakePlan((plan, library, days) => {
         const flight = block(plan, library, { baseId: days[1]!, kindId: "transit", title: "航班", minute: 340, duration: 120 });
-        setBlockMark(plan, [flight], "struck");
+        setBlockMark(plan, [flight], "done");
       }),
     );
     const user = userEvent.setup();
     const region = await timeline();
 
-    await user.click(screen.getByRole("button", { name: "定了" }));
+    await user.click(screen.getByRole("button", { name: "确定" }));
 
     await waitFor(() => expect(within(region).queryByRole("button", { name: /^航班 / })).toBeNull());
     expect(windows(region)).toEqual(["300-1260", "300-1260"]);

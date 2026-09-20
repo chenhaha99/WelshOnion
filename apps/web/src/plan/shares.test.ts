@@ -226,11 +226,11 @@ describe("带筛选", () => {
     if (!result.ok) throw new Error("建开销失败");
   }
 
-  /** 西湖（游玩，划掉了）挂 300 元；晚饭（餐饮）挂 120 元；另有不挂块的 600 元。 */
+  /** 西湖（游玩，完成了）挂 300 元；晚饭（餐饮）挂 120 元；另有不挂块的 600 元。 */
   function lakeAndDinner(built: Built): void {
     const lake = timed(built, "西湖", "sight", 540, 180);
     const dinner = timed(built, "晚饭", "food", 1080, 60);
-    setBlockMark(built.plan, [lake], "struck");
+    setBlockMark(built.plan, [lake], "done");
     linkedMoney(built, lake, "sight", 30000);
     linkedMoney(built, dinner, "food", 12000);
     money(built, "other", 60000);

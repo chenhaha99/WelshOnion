@@ -54,9 +54,9 @@ async function pressKind(user: User, name: string): Promise<void> {
   await user.click(within(await screen.findByRole("group", { name: "按类型筛选" })).getByRole("button", { name }));
 }
 
-/** 按标记筛：按下「定了」就只剩定了的（划掉的、待定的都筛掉）。 */
+/** 按标记筛：按下「确定」就只剩定了的（完成的、待定的都筛掉）。 */
 async function pressOnlyUnchecked(user: User): Promise<void> {
-  await user.click(await screen.findByRole("button", { name: "定了" }));
+  await user.click(await screen.findByRole("button", { name: "确定" }));
 }
 
 async function filteredOutOf(day: string): Promise<string | null> {
@@ -135,14 +135,14 @@ describe("按类型筛选", () => {
     expect(within(tray).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["民宿 10.1 整天"]);
   });
 
-  it("和只看没划掉的一起：两样都符合才显示", async () => {
+  it("和只看没完成的一起：两样都符合才显示", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       block(plan, library, { baseId: oct1!, kindId: "lodging", title: "民宿", slot: "day" });
       const hotel = block(plan, library, { baseId: oct1!, kindId: "lodging", title: "酒店", slot: "day" });
       block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
-      setBlockMark(plan, [hotel], "struck");
+      setBlockMark(plan, [hotel], "done");
     });
 
     await pressKind(user, "住宿");
@@ -202,7 +202,7 @@ describe("按类型筛选", () => {
     expect(within(kindGroup()).getByRole("button", { name: "住宿" }).getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("只按下住宿时加一件：建出来是住宿、没划掉，看得见", async () => {
+  it("只按下住宿时加一件：建出来是住宿、没完成，看得见", async () => {
     const user = userEvent.setup();
     await openStoredPlan(threeKinds);
     await pressKind(user, "住宿");
@@ -312,7 +312,7 @@ describe("筛选作用到开销、总览和这天怎么样", () => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
       const lunch = block(plan, library, { baseId: oct1!, kindId: "sight", title: "午饭", slot: "day" });
-      setBlockMark(plan, [lake], "struck");
+      setBlockMark(plan, [lake], "done");
       money(plan, library, "门票", 30000, "sight", [lake]);
       money(plan, library, "午饭钱", 12000, "sight", [lunch]);
       money(plan, library, "签证", 60000, "other", []);
@@ -333,7 +333,7 @@ describe("筛选作用到开销、总览和这天怎么样", () => {
       const [oct1, oct2] = daysFromOct1(plan, 2);
       const first = block(plan, library, { baseId: oct1!, kindId: "lodging", title: "民宿", slot: "day" });
       const second = block(plan, library, { baseId: oct2!, kindId: "lodging", title: "民宿", slot: "day" });
-      setBlockMark(plan, [first], "struck");
+      setBlockMark(plan, [first], "done");
       money(plan, library, "民宿两晚", 50000, "lodging", [first, second]);
     });
 
@@ -349,7 +349,7 @@ describe("筛选作用到开销、总览和这天怎么样", () => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
       block(plan, library, { baseId: oct1!, kindId: "food", title: "晚饭", minute: 1080, duration: 60 });
-      setBlockMark(plan, [lake], "struck");
+      setBlockMark(plan, [lake], "done");
     });
 
     await pressOnlyUnchecked(user);
@@ -361,21 +361,21 @@ describe("筛选作用到开销、总览和这天怎么样", () => {
 });
 
 describe("筛选开着时改块", () => {
-  /** 10.1：「西湖」「午饭」「灵隐寺」，都没排时间；「午饭」划掉了（有划掉的，「只看没划掉的」才出来）。 */
+  /** 10.1：「西湖」「午饭」「灵隐寺」，都没排时间；「午饭」完成了（有完成的，「只看没完成的」才出来）。 */
   function threeThings(plan: Y.Doc, library: Y.Doc): void {
     const [oct1] = daysFromOct1(plan, 1);
     block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", slot: "day" });
     const lunch = block(plan, library, { baseId: oct1!, kindId: "sight", title: "午饭", slot: "day" });
     block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "day" });
-    setBlockMark(plan, [lunch], "struck");
+    setBlockMark(plan, [lunch], "done");
   }
 
-  /** 日程里点这一行竖线上的「划掉」。 */
+  /** 日程里点这一行竖线上的「完成」。 */
   async function strike(user: User, title: string): Promise<void> {
     await user.click(within(await blockRow("10.1", title)).getByRole("button", { name: /^标记：/ }));
   }
 
-  it("挨个划掉：这一行被筛掉，焦点落到下一行的「划掉」", async () => {
+  it("挨个完成：这一行被筛掉，焦点落到下一行的「完成」", async () => {
     const user = userEvent.setup();
     await openStoredPlan(threeThings);
 
@@ -390,7 +390,7 @@ describe("筛选开着时改块", () => {
     );
   });
 
-  it("最后一件也划掉了：焦点落到这天的菜单按钮", async () => {
+  it("最后一件也完成了：焦点落到这天的菜单按钮", async () => {
     const user = userEvent.setup();
     await openStoredPlan(threeThings);
 
@@ -408,7 +408,7 @@ describe("筛选开着时改块", () => {
   it("筛选变了就不再写「包括刚加的」", async () => {
     const user = userEvent.setup();
     await openStoredPlan(threeKinds);
-    // 新加的事没划掉，「只看没划掉的」挡不住它：按两个类型挡
+    // 新加的事没完成，「只看没完成的」挡不住它：按两个类型挡
     await pressKind(user, "住宿");
     await pressKind(user, "餐饮");
     await user.type(within(await dayRow("10.1")).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");

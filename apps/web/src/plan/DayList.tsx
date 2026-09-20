@@ -52,7 +52,7 @@ const BLOCK_TEXT_PARTS = [
 ] as const;
 
 /** 筛选里三档的顺序：还没定的排最前面，最常想先看 */
-const MARKS: BlockMark[] = ["pending", "decided", "struck"];
+const MARKS: BlockMark[] = ["pending", "decided", "done"];
 
 /** 页顶那一行钉在屏幕顶上时，离上边多少像素 */
 const PINNED_TOP = 0;
@@ -80,9 +80,9 @@ interface OpenedBlock {
 }
 
 /**
- * 计划页的主体：一行筛选（按类型、按标签、只看没划掉的），下面「时间线」「日程」「总览」三个视图切换着看。
+ * 计划页的主体：一行筛选（按类型、按标签、只看没完成的），下面「时间线」「日程」「总览」三个视图切换着看。
  * 日程视图是每天一个组头和它的时刻表；总览视图是开销总览、每天和占比。计划里至少有一天。
- * 按下了哪些类型、标签，只看没划掉的，只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间线、开销、占比和每一天；
+ * 按下了哪些类型、标签，只看没完成的，只放在这里（不进计划文档、不进撤销），筛选合成一个条件往下传给时间线、开销、占比和每一天；
  * 看的是哪个视图按计划记在这台设备上。一件事的详情面板也放在这里：几个视图打开的是同一个，切换视图面板留着。
  */
 export function DayList({ top, doc, library, libraryView, plan, planId, searchAnchor, onSearchClosed }: DayListProps) {
@@ -93,7 +93,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   // 类型、标签删掉了，按下过的就不算了
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  // 按标记筛：三档「待定」「定了」「划掉」，和类型、标签一样多选，都不按下就是三档都看
+  // 按标记筛：三档「待定」「确定」「完成」，和类型、标签一样多选，都不按下就是三档都看
   const [selectedMarks, setSelectedMarks] = useState<BlockMark[]>([]);
   // 按天筛（底座 id）：删掉的那天不算了
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
@@ -317,7 +317,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   // 标签是挂不挂的事：挂了一个就筛得出东西；一件都没挂、也没按下过就不出现
   const tags = usedTags(plan, libraryView, filter?.tagIds ?? []);
   const showTagFilter = tags.length > 0;
-  // 三档都是「定了」时按下去也筛不掉：不出现；按下过就留着
+  // 三档都是「确定」时按下去也筛不掉：不出现；按下过就留着
   const showMarkFilter =
     selectedMarks.length > 0 || [...plan.blocks.values()].some((block) => block.mark !== "decided");
   // 看得见的那几件：「对这 N 件…」对它们一起做

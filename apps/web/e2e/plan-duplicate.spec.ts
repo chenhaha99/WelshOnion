@@ -15,14 +15,14 @@ test("复制计划：有块有开销的计划 → 日程里复制到明年 → �
   // 打开是时间线：这份走查从安排表开始，先切到日程
   await showView(page, "日程");
 
-  // 源计划：10.1「西湖」划掉了、挂 300 元
+  // 源计划：10.1「西湖」完成了、挂 300 元
   const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const lake = table.locator("tr[data-block-id]").first();
   await table.getByRole("textbox", { name: "加一件事" }).fill("西湖");
   await page.keyboard.press("Enter");
   await lake.getByRole("button", { name: /^标记：/ }).click();
-  await expect(lake).toHaveAttribute("data-mark", "struck");
+  await expect(lake).toHaveAttribute("data-mark", "done");
   await lake.getByRole("button", { name: "开销" }).click();
   await page.keyboard.type("300");
   await page.keyboard.press("Enter");
@@ -39,7 +39,7 @@ test("复制计划：有块有开销的计划 → 日程里复制到明年 → �
   await shot(page, "01-duplicate-form");
   await sourceCard.getByRole("button", { name: "复制" }).click();
 
-  // 进了新计划：日期平移，划掉的恢复成没划掉，开销还在
+  // 进了新计划：日期平移，完成的恢复成没完成，开销还在
   await expect(page.getByRole("button", { name: "关西 10 天 副本" })).toBeVisible();
   // 复制出来的计划没看过，打开是时间线
   await showView(page, "日程");

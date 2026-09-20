@@ -40,7 +40,7 @@ export interface DuplicatePlanOptions {
 
 /**
  * 把源计划整份复制进一份空的新计划文档：换 id 和名字，所有天平移到新的出发日期（顺序、时区、间隔不变），
- * 划掉的事全部恢复成没划掉（划没划掉是那一趟的事），再写计划索引。复制本身不进撤销，源计划不动。
+ * 每件事的标记都回到「确定」（待定、完成是那一趟的事），再写计划索引。复制本身不进撤销，源计划不动。
  */
 export function duplicatePlan(library: Y.Doc, source: Y.Doc, target: Y.Doc, options: DuplicatePlanOptions): OpResult {
   if (options.startDate !== undefined) {

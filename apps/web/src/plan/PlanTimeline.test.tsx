@@ -67,7 +67,7 @@ function chipNames(strip: HTMLElement): string[] {
 }
 
 async function pressOnlyUnchecked(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  await user.click(await screen.findByRole("button", { name: "定了" }));
+  await user.click(await screen.findByRole("button", { name: "确定" }));
 }
 
 const HINT = "排上时间的事会画在这里：把上面没排时间的事拖到时间线上，或者点开它排时间";
@@ -138,11 +138,11 @@ describe("块怎么画", () => {
     expect(segmentData(segmentOf(oct2, "民宿"))).toMatchObject({ track: "background", lane: "2", from: "0", to: "480" });
   });
 
-  it("颜色看类型、类型被删用灰色；划掉的画成划掉的样子", async () => {
+  it("颜色看类型、类型被删用灰色；完成的画成完成的样子", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-      setBlockMark(plan, [lake], "struck");
+      setBlockMark(plan, [lake], "done");
       block(plan, library, { baseId: oct1!, kindId: "food", title: "午饭", minute: 720, duration: 60 });
       const camping = addKind(library, { name: "露营", color: "#6b8fb0" });
       if (!camping.ok) throw new Error("建类型失败");
@@ -153,19 +153,19 @@ describe("块怎么画", () => {
     const row = await timelineRow("10.1");
     const lake = segmentOf(row, "西湖");
     expect(lake.style.getPropertyValue("--kind-color")).toBe("#77a389");
-    expect(lake.dataset.mark).toBe("struck");
+    expect(lake.dataset.mark).toBe("done");
     const lunch = segmentOf(row, "午饭");
     expect(lunch.style.getPropertyValue("--kind-color")).toBe("#c08d68");
     expect(lunch.dataset.mark).toBe("decided");
     expect(segmentOf(row, "营地").style.getPropertyValue("--kind-color")).toBe("#9aa3ad");
   });
 
-  it("只看没划掉的：只画通过筛选的块，重新分道", async () => {
+  it("只看没完成的：只画通过筛选的块，重新分道", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-      setBlockMark(plan, [lake], "struck");
+      setBlockMark(plan, [lake], "done");
       block(plan, library, { baseId: oct1!, kindId: "sight", title: "游船", minute: 600, duration: 60 });
     });
     expect(segmentData(segmentOf(await timelineRow("10.1"), "游船"))).toMatchObject({ lane: "2" });
@@ -188,30 +188,30 @@ describe("没排时间的那一条", () => {
     return { temple, street };
   }
 
-  it("按天、按整天上午下午晚上排，每件写日期；颜色和划没划掉同横条", async () => {
+  it("按天、按整天上午下午晚上排，每件写日期；颜色和划没完成同横条", async () => {
     await openStoredPlan((plan, library) => {
       const { temple } = listForOct1(plan, library);
-      setBlockMark(plan, [temple], "struck");
+      setBlockMark(plan, [temple], "done");
     });
 
     await screen.findByRole("region", { name: "时间线" });
-    expect(chipNames(tray())).toEqual(["河坊街 10.1 整天", "灵隐寺 10.1 上午 · 2 小时 · 划掉了", "宋城 10.1 下午"]);
+    expect(chipNames(tray())).toEqual(["河坊街 10.1 整天", "灵隐寺 10.1 上午 · 2 小时 · 已完成", "宋城 10.1 下午"]);
     const temple = within(tray())
-      .getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时 · 划掉了" })
+      .getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时 · 已完成" })
       .closest<HTMLElement>("[data-undated-chip]")!;
     expect(temple.style.getPropertyValue("--kind-color")).toBe("#77a389");
-    expect(temple.dataset.mark).toBe("struck");
+    expect(temple.dataset.mark).toBe("done");
     const songcheng = within(tray())
       .getByRole("button", { name: "宋城 10.1 下午" })
       .closest<HTMLElement>("[data-undated-chip]")!;
     expect(songcheng.dataset.mark).toBe("decided");
   });
 
-  it("只看没划掉的：条上也只剩没划掉的", async () => {
+  it("只看没完成的：条上也只剩没完成的", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const { temple, street } = listForOct1(plan, library);
-      setBlockMark(plan, [temple, street], "struck");
+      setBlockMark(plan, [temple, street], "done");
     });
 
     await pressOnlyUnchecked(user);
@@ -326,7 +326,7 @@ describe("空的时候", () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-      setBlockMark(plan, [lake], "struck");
+      setBlockMark(plan, [lake], "done");
     });
     expect(within(await timeline()).queryByText(HINT)).toBeNull();
 

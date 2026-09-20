@@ -25,7 +25,7 @@ export function useJustAdded(
   shown: readonly BlockView[],
   filter: StatsFilter | undefined,
 ): { hidden: BlockView | undefined; remember: (blockId: string) => void } {
-  // 新加的事都没划掉，「只看没划掉的」挡不住它：只看类型和标签
+  // 新加的事都没完成，「只看没完成的」挡不住它：只看类型和标签
   const filterKey = `${filter?.kindIds?.join(",") ?? ""}|${filter?.tagIds?.join(",") ?? ""}`;
   const [justAdded, setJustAdded] = useState<{ blockId: string; filterKey: string } | null>(null);
   const added = justAdded === null ? undefined : dayBlocks.find((block) => block.id === justAdded.blockId);
@@ -46,7 +46,7 @@ interface AddBlockProps {
   className?: string;
 }
 
-/** 「加一件事」：填标题回车就建，没排时间、在整天、没划掉，类型和标签用给的；建完清空，焦点留着接着加。日程和时间线共用。 */
+/** 「加一件事」：填标题回车就建，没排时间、在整天、没完成，类型和标签用给的；建完清空，焦点留着接着加。日程和时间线共用。 */
 export function AddBlock({ doc, library, baseId, kindId, tagIds, onAdded, className = "input-bare" }: AddBlockProps) {
   const [title, setTitle] = useState("");
   return (

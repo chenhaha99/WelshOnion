@@ -11,12 +11,12 @@ describe("打开资料库", () => {
   it("第一次打开：初始化，关掉再开还在", async () => {
     const first = await openLibrary();
     expect(readLibrary(first.doc).kinds.size).toBe(7);
-    expect(first.doc.getMap("meta").get("schema")).toBe(3);
+    expect(first.doc.getMap("meta").get("schema")).toBe(4);
     await first.close();
 
     const second = track(await openLibrary());
     expect(readLibrary(second.doc).kinds.size).toBe(7);
-    expect(second.doc.getMap("meta").get("schema")).toBe(3);
+    expect(second.doc.getMap("meta").get("schema")).toBe(4);
   });
 
   it("老资料库补上缺的预设，已有的不改", async () => {
@@ -43,19 +43,19 @@ describe("打开资料库", () => {
 
     const first = await openLibrary();
     expect(first.doc.getMap("statuses").size).toBe(0);
-    expect(first.doc.getMap("meta").get("schema")).toBe(3);
+    expect(first.doc.getMap("meta").get("schema")).toBe(4);
     expect(readLibrary(first.doc).kinds.size).toBe(7);
     await first.close();
 
     const second = track(await openLibrary());
     expect(second.doc.getMap("statuses").size).toBe(0);
-    expect(second.doc.getMap("meta").get("schema")).toBe(3);
+    expect(second.doc.getMap("meta").get("schema")).toBe(4);
   });
 
   it("版本比代码新：拒绝打开", async () => {
     await storeDoc(LIBRARY_DB, (doc) => {
       initLibraryDoc(doc);
-      doc.getMap("meta").set("schema", 4);
+      doc.getMap("meta").set("schema", 5);
     });
 
     await expect(openLibrary()).rejects.toMatchObject({ code: "SCHEMA_TOO_NEW" });

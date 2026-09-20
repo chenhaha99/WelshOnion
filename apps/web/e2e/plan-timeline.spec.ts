@@ -118,7 +118,7 @@ test("时间线：排出一天 → 按时长画 → 点开详情面板 → 电�
   await showView(page, "时间线");
   const lakeBar = segment(day1, "西湖").getByRole("button");
   await lakeBar.focus();
-  // 回车选中 → Tab 进快捷条（第一个是「划掉」）→ 再 Tab 到「详情…」→ 回车开详情 → Esc 关详情、再 Esc 取消选中
+  // 回车选中 → Tab 进快捷条（第一个是「完成」）→ 再 Tab 到「详情…」→ 回车开详情 → Esc 关详情、再 Esc 取消选中
   await page.keyboard.press("Enter");
   await expect(quickBar(page, "西湖")).toBeVisible();
   await page.keyboard.press("Tab");

@@ -21,7 +21,7 @@ function block(plan: Y.Doc, library: Y.Doc, input: AddBlockInput): string {
 
 /**
  * 三天：10.1「西湖」09:00 起 1 小时、没排时间的「西湖边喝茶」（餐饮，别的都是游玩）；
- * 10.2「灵隐寺」09:00 起（长备注「记得带伞」）；10.3「西湖夜游」19:00 起 2 小时，nightTourStruck 时划掉了。
+ * 10.2「灵隐寺」09:00 起（长备注「记得带伞」）；10.3「西湖夜游」19:00 起 2 小时，nightTourStruck 时完成了。
  */
 async function threeDays({ nightTourStruck = false } = {}): Promise<void> {
   await openStoredPlan((plan, library) => {
@@ -31,7 +31,7 @@ async function threeDays({ nightTourStruck = false } = {}): Promise<void> {
     const temple = block(plan, library, { baseId: oct2!, kindId: "sight", title: "灵隐寺", minute: 540, duration: 120 });
     updateBlock(plan, library, temple, { note: "记得带伞" });
     const nightTour = block(plan, library, { baseId: oct3!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 120 });
-    if (nightTourStruck) setBlockMark(plan, [nightTour], "struck");
+    if (nightTourStruck) setBlockMark(plan, [nightTour], "done");
   });
 }
 
@@ -128,7 +128,7 @@ describe("结果怎么列", () => {
   it("被筛掉的也列，写「筛掉了」", async () => {
     const user = userEvent.setup();
     await threeDays({ nightTourStruck: true });
-    await user.click(await screen.findByRole("button", { name: "定了" }));
+    await user.click(await screen.findByRole("button", { name: "确定" }));
 
     const panel = await search(user, "夜游");
 
@@ -215,15 +215,15 @@ describe("点结果跳过去", () => {
     await waitFor(() => expect(bar.getAttribute("aria-pressed")).toBe("true"));
   });
 
-  it("被「只看没划掉的」挡住的：也清掉再选中", async () => {
+  it("被「只看没完成的」挡住的：也清掉再选中", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖夜游", minute: 1140, duration: 60 });
-      setBlockMark(plan, [lake], "struck");
+      setBlockMark(plan, [lake], "done");
     });
     await showView("时间线");
-    const onlyDecided = await screen.findByRole("button", { name: "定了" });
+    const onlyDecided = await screen.findByRole("button", { name: "确定" });
     await user.click(onlyDecided);
 
     const panel = await search(user, "夜游");
