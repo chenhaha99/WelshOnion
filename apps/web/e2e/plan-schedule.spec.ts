@@ -138,3 +138,43 @@ test("日程往下滚：「第几天」停在页顶那一行下面，滚完这�
 
   expect(errors).toEqual([]);
 });
+
+/**
+ * 跨天的事在日程卡片上写「20:00–10.2 06:10」，比平常的「20:00–22:00」长一大截。
+ * 手机上字一大（安卓的 WebView 跟着系统字号走，中文又落到比电脑宽的兜底字体），
+ * 它就会顶到后面的时长上——真机上出现过，压成一团。
+ *
+ * 这里把整页的字按倍数放大来模拟，比真机更严苛：真机只放大文字，这里连留白也一起放大了。
+ * 最窄只测到 360（在产安卓机的最小宽度）配 1.3 倍（安卓最大的字号档）；
+ * 更窄的 320 配 1.3 倍还是会压到「⋯」上，没管——那比任何在产手机都窄。
+ */
+for (const { width, zoom } of [
+  { width: 390, zoom: 1 },
+  { width: 360, zoom: 1.15 },
+  { width: 360, zoom: 1.3 },
+]) {
+  test(`窄屏 ${width}、字放大 ${zoom} 倍：跨天的时间和时长不挤在一起`, async ({ page }) => {
+    await newPlan(page, 1, { width, height: 844 });
+    const table = page.getByRole("table", { name: DAY1 });
+    await addBlocks(page, table, ["夜车"]);
+    await schedule(page, table, "夜车", "20:00", "10", "10");
+    // 学安卓：整页的字按系统字号放大
+    await page.addStyleTag({ content: `html { font-size: ${16 * zoom}px }` });
+
+    const time = (await page.locator("[data-block-time]").first().boundingBox())!;
+    const duration = (await page.locator("[data-block-duration]").first().boundingBox())!;
+    const card = (await page.locator(".schedule-card").first().boundingBox())!;
+    expect(await page.locator("[data-block-time]").first().innerText()).toContain("06:10");
+    // 挤不下时时长会换到第二行，那不算压在一起——所以比的是两块地方有没有相交，不是谁在谁左边
+    const side = (a: number, b: number, c: number, d: number) => Math.max(0, Math.min(a + b, c + d) - Math.max(a, c));
+    const overlap =
+      side(time.x, time.width, duration.x, duration.width) * side(time.y, time.height, duration.y, duration.height);
+    expect(overlap, "时间和时长压在一起了").toBe(0);
+    // 也不能压到右上角那个「⋯」上
+    const menu = (await page.locator("button[aria-label='这件事的操作']").first().boundingBox())!;
+    const onMenu = side(time.x, time.width, menu.x, menu.width) * side(time.y, time.height, menu.y, menu.height);
+    expect(onMenu, "时间压到「这件事的操作」上了").toBe(0);
+    expect(duration.x + duration.width, "时长越出卡片了").toBeLessThanOrEqual(card.x + card.width + 0.5);
+    expect(time.x + time.width, "时间越出卡片了").toBeLessThanOrEqual(card.x + card.width + 0.5);
+  });
+}

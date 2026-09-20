@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { DAY1, addBlocks, newPlan, rowOf, schedule, showView } from "./timeline-helpers";
+import { DAY1, addBlocks, addMoney, newPlan, rowOf, schedule, showView } from "./timeline-helpers";
 import { watchErrors } from "./walkthrough";
 
 /** 竖排每小时多高（像素），和 DayTimeline 一样 */
@@ -110,5 +110,37 @@ test("手机上开销的编辑区：一笔开销分两行，说明框写着「�
   await editor.scrollIntoViewIfNeeded();
   await page.screenshot({ path: test.info().outputPath("04-desktop-money-editor.png") });
 
+  expect(errors).toEqual([]);
+});
+
+/**
+ * 手机上把系统字号调到最大（安卓最大一档约 1.3 倍）时，整页都不该横着滚。
+ * 安卓的 WebView 跟着系统字号走，rem 也跟着变大，页顶那一排图标、总览每类那一行以前都会撑出屏幕；
+ * 一横滚，右边的东西（重做按钮、条上的百分比）就看不见了。360 是在产安卓机的最小宽度。
+ */
+test("360 宽、系统字号调到最大：三个视图都不横着滚", async ({ page }) => {
+  const errors = watchErrors(page);
+  await newPlan(page, 3, { width: 360, height: 844 });
+  const day1 = page.getByRole("table", { name: DAY1 });
+  await addBlocks(page, day1, ["夜车去苏州看园林"]);
+  await schedule(page, day1, "夜车去苏州看园林", "20:00", "10", "10");
+  await addMoney(page, day1, "夜车去苏州看园林", "1280");
+  // 名字起长一点：标题该被截断，不该把整行撑出去
+  await page.getByRole("button", { name: "计划设置" }).first().click();
+  await page.getByLabel("名字").fill("国庆七天江浙沪深度游加苏州园林");
+  await page.getByRole("dialog").getByRole("button", { name: "关闭" }).click();
+  await page.addStyleTag({ content: "html { font-size: 20.8px }" });
+
+  for (const view of ["时间线", "日程", "总览"] as const) {
+    await showView(page, view);
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(over, `${view}横向多出来的`).toBeLessThanOrEqual(1);
+  }
+  // 右上角那几个图标一个都不能被挤出屏幕
+  for (const name of ["搜索", "计划设置", "撤销", "重做"]) {
+    const box = (await page.getByRole("button", { name, exact: true }).first().boundingBox())!;
+    expect(box.x + box.width, `「${name}」在屏幕里`).toBeLessThanOrEqual(360);
+    expect(box.x, `「${name}」在屏幕里`).toBeGreaterThanOrEqual(0);
+  }
   expect(errors).toEqual([]);
 });

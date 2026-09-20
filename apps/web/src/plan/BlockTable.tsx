@@ -341,24 +341,35 @@ function BlockRow({
         </td>
         <td>
           <div className="schedule-card" data-indent={indent}>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                aria-label="时间"
-                aria-expanded={timeOpen}
-                className="input-bare w-auto text-left text-sm whitespace-nowrap text-sage-deep"
-                onClick={() => setTimeOpen((value) => !value)}
-              >
-                <span data-block-time className="tabular-nums">
-                  {zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date)}
-                </span>
-              </button>
-              {duration > 0 && (
-                <span data-block-duration className="text-xs whitespace-nowrap text-ink-muted">
-                  {`· ${durationLabel(duration)}`}
-                </span>
-              )}
-              <span className="flex-1" />
+            {/*
+              时间和时长挤不下就换行，不硬挤成一行：跨天的写成「20:00–10.2 06:10」，比平常长一大截，
+              手机上字再大一点（安卓的 WebView 跟着系统字号走）就会顶到时长上。
+              min-w-0 是关键——不加的话这一组不肯缩，字直接溢出压到后面。
+            */}
+            <div className="flex items-start gap-1">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1">
+                <button
+                  type="button"
+                  aria-label="时间"
+                  aria-expanded={timeOpen}
+                  className="input-bare w-auto text-left text-sm text-sage-deep"
+                  onClick={() => setTimeOpen((value) => !value)}
+                >
+                  {/*
+                    这里不写 whitespace-nowrap：挤不下时让它自己换行。
+                    默认的断行规则不会把一个时刻拆开（「07:00」中间没有断点），最多断在中间那道横杠后面，
+                    多占一行而已；写了 nowrap 反而会溢出去压到「⋯」上。
+                  */}
+                  <span data-block-time className="tabular-nums">
+                    {zoneTimeLabel(plan, block) ?? blockTimeLabel(block, date)}
+                  </span>
+                </button>
+                {duration > 0 && (
+                  <span data-block-duration className="text-xs whitespace-nowrap text-ink-muted">
+                    {`· ${durationLabel(duration)}`}
+                  </span>
+                )}
+              </div>
               <Menu label="这件事的操作" items={items}>
                 ⋯
               </Menu>

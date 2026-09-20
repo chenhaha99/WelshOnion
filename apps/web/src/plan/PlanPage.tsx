@@ -94,15 +94,16 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
   // 页顶那一行：有天时交给 DayList，和筛选、切换按钮合成一块、往下滚时钉在顶上（你提的：滚动后这些都该是不动的）。
   // 三列，计划名在正中间（你提的）：用 grid，两边宽度不等也不会把名字推偏
   const topRow = (
-    <div data-top-row className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+    <div data-top-row className="top-row-grid">
       <div className="justify-self-start">
         <BackToList />
       </div>
-      <h1 className="justify-self-center text-lg font-medium text-ink">
+      {/* min-w-0：格子默认不肯比内容窄，不加这个，名字长了就把整行撑出屏幕 */}
+      <h1 className="min-w-0 text-center text-lg font-medium text-ink">
         <button
           type="button"
           title="计划设置"
-          className="max-w-[60vw] truncate rounded-lg hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
+          className="block max-w-full truncate rounded-lg hover:text-sage-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage"
           onClick={openSettings}
         >
           {plan.plan.name}
@@ -115,20 +116,20 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
           type="button"
           aria-label="搜索"
           title="搜索"
-          className="btn btn-ghost px-2.5"
+          className="btn btn-ghost btn-icon"
           disabled={plan.blocks.size === 0}
           onClick={(event) => setSearchAnchor(event.currentTarget)}
         >
           <SearchIcon />
         </button>
-        <button type="button" aria-label="计划设置" title="计划设置" className="btn btn-ghost px-2.5" onClick={openSettings}>
+        <button type="button" aria-label="计划设置" title="计划设置" className="btn btn-ghost btn-icon" onClick={openSettings}>
           <GearIcon />
         </button>
         <button
           type="button"
           aria-label="撤销"
           title="撤销"
-          className="btn btn-ghost px-2.5"
+          className="btn btn-ghost btn-icon"
           disabled={!undo.canUndo}
           onClick={undo.undo}
         >
@@ -138,7 +139,7 @@ function OpenPlan({ handle }: { handle: PlanHandle }) {
           type="button"
           aria-label="重做"
           title="重做"
-          className="btn btn-ghost px-2.5"
+          className="btn btn-ghost btn-icon"
           disabled={!undo.canRedo}
           onClick={undo.redo}
         >

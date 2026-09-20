@@ -102,6 +102,38 @@
   }
 }
 
+/*
+ * 只放一个图标的按钮：尺寸写成像素，不跟系统字号缩放。
+ * 安卓自己的规矩就是这样——文字用 sp（跟着系统字号变），图标和间距用 dp（不变）。
+ * 我们全用 rem，等于让图标也跟着膨胀：手机上把字调到最大时，页顶那一排图标会把整行撑出屏幕。
+ */
+/*
+ * 页顶那一行（返回、计划名、右边几个图标）。
+ * 窄屏：名字占剩下的地方，挤了就截断——真正居中做不到，两边宽度差得远（右边 4 个图标一百多像素，左边只有一个箭头），
+ * 硬要居中就只剩几像素给名字。宽屏有富余，才按你要的把名字摆正中间。
+ */
+@utility top-row-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+@media (min-width: 40rem) {
+  .top-row-grid {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+}
+
+@utility btn-icon {
+  height: 36px;
+  padding-inline: 8px;
+  & > svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
 @utility btn-primary {
   background-color: var(--color-sage);
   color: white;
@@ -836,15 +868,37 @@
   opacity: 0.3;
 }
 
+/* 数字限死在自己那一格里：字一大（手机跟着系统字号走）就省略，不许溢出去压隔壁那一格 */
 .ring-bar-val {
   position: absolute;
   top: 50%;
   right: 0.35rem;
+  left: 0.35rem;
   translate: 0 -50%;
+  overflow: hidden;
   font-size: 0.6875rem;
+  text-align: right;
+  text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--color-ink-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 卡片窄的时候（手机，或者手机上把系统字号调大）三列挤不下：
+ * 类型名单独占一行，两根条并排放到它下面，各拿一半宽——条里的数字才写得下，不至于截成「¥1,…」。
+ */
+@container (max-width: 26rem) {
+  .ring-heads,
+  .ring-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ring-heads > span:first-child {
+    display: none;
+  }
+  .ring-row-name {
+    grid-column: 1 / -1;
+  }
 }
 
 /* 卡片四角的切角 */
