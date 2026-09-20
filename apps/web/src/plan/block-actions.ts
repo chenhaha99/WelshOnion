@@ -1,7 +1,7 @@
 import { deleteBlock, moveUndated, setBlockIndent, type BlockView, type PlanView } from "@welshonion/core";
 import type * as Y from "yjs";
 import type { MenuItem } from "../app/Menu";
-import type { Deleted } from "./DeletedNotice";
+import type { DoneNotice } from "./DoneNotice";
 
 /**
  * 这件事现在在页面上的按钮：时间线上是它的横条、竖条或栏里的一件，日程里是它的行菜单按钮。
@@ -43,8 +43,8 @@ export function deleteLabel(followerCount: number): string {
   return followerCount > 0 ? `删除（连同里面的 ${followerCount} 个）` : "删除";
 }
 
-/** 删掉这件事（连同会被带走的块），返回删完的提示：删除不再确认，靠撤销。 */
-export function deleteBlockWithNotice(doc: Y.Doc, library: Y.Doc, block: BlockView, followerCount: number): Deleted {
+/** 删掉这件事（连同会被带走的块），返回刚做完的提示：删除不再确认，靠撤销。 */
+export function deleteBlockWithNotice(doc: Y.Doc, library: Y.Doc, block: BlockView, followerCount: number): DoneNotice {
   deleteBlock(doc, library, block.id);
   return {
     message: followerCount > 0 ? `删掉了「${block.title}」和里面的 ${followerCount} 件` : `删掉了「${block.title}」`,

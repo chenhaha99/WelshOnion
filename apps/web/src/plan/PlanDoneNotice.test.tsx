@@ -30,7 +30,7 @@ function lakeAndTemple(plan: Y.Doc, library: Y.Doc): void {
 
 /** 放删完提示的那块地方：一直在页面上，没有提示时是空的。 */
 function notice(): Promise<HTMLElement> {
-  return screen.findByRole("status", { name: "删完的提示" });
+  return screen.findByRole("status", { name: "刚做完的提示" });
 }
 
 async function deleteRow(user: User, day: string, title: string, item = "删除"): Promise<void> {
@@ -38,7 +38,7 @@ async function deleteRow(user: User, day: string, title: string, item = "删除"
   await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: item }));
 }
 
-describe("删完的提示", () => {
+describe("刚做完的提示", () => {
   it("删一件事再撤销：写删了什么，点「撤销」回来，提示不见，焦点在它的行菜单上", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeAndTemple);

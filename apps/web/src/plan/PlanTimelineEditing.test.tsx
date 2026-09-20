@@ -202,7 +202,7 @@ describe("时间线上每天的菜单", () => {
     await chooseDayMenu(user, await timelineRow("10.2"), "删除这天");
 
     await waitFor(async () => expect(await rowLabels()).toEqual(["第 1 天 · 10.1 周四", "第 2 天 · 10.3 周六"]));
-    const notice = screen.getByRole("status", { name: "删完的提示" });
+    const notice = screen.getByRole("status", { name: "刚做完的提示" });
     expect(within(notice).getByText("删掉了第 2 天 · 10.2 周五，连同这天的 1 件事")).toBeTruthy();
     await user.click(within(notice).getByRole("button", { name: "撤销" }));
 

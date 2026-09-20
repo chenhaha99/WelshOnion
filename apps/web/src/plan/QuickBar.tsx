@@ -12,7 +12,7 @@ import { Popover } from "../app/Popover";
 import { blockFocusSelector, deleteBlockWithNotice, deleteLabel } from "./block-actions";
 import { BlockMoney } from "./block-money";
 import { BlockTimeButton } from "./block-time-button";
-import { useNotifyDeleted } from "./DeletedNotice";
+import { useNotifyDone } from "./DoneNotice";
 import { CopyIcon, DetailsIcon, TrashIcon } from "./icons";
 import { MarkButton } from "./mark";
 import type { MoneyCell } from "./money-cells";
@@ -48,7 +48,7 @@ interface QuickBarProps {
 export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, copyHandlers }: QuickBarProps) {
   const selection = useBlockSelection();
   const openBlock = useOpenBlock();
-  const notifyDeleted = useNotifyDeleted();
+  const notifyDeleted = useNotifyDone();
   const timed = block.start_minute !== null;
   const kinds = [...libraryView.kinds.values()].sort(byOrder);
   const followerCount = followersOf(plan, libraryView, block.id).length;

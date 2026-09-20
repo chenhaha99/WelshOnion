@@ -4,15 +4,20 @@ import {
   insertDayAbove,
   insertDayBelow,
   moveDay,
+  passesFilter,
   setDayTz,
   type BaseView,
+  type LibraryView,
   type PlanView,
+  type StatsFilter,
 } from "@welshonion/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type * as Y from "yjs";
 import { Menu, type MenuItem } from "../app/Menu";
+import { bulkItems } from "./bulk-actions";
+import { blocksOfDay } from "./day-blocks";
 import { COMMON_TIME_ZONES, cityName } from "./day-labels";
-import { useNotifyDeleted } from "./DeletedNotice";
+import { useNotifyDone } from "./DoneNotice";
 
 type Direction = "above" | "below";
 
@@ -27,12 +32,16 @@ const NORMAL: Mode = { kind: "normal" };
 
 interface DayMenuOptions {
   doc: Y.Doc;
+  library: Y.Doc;
+  libraryView: LibraryView;
   plan: PlanView;
   base: BaseView;
   /** 这天的标签：「第 2 天 · 10.2 周五」 */
   label: string;
   index: number;
   count: number;
+  /** 正开着的筛选：「这天全部…」只作用于这天看得见的事 */
+  filter?: StatsFilter;
   /** 菜单按钮的样式；不给是普通大小的按钮 */
   triggerClassName?: string;
 }
@@ -51,13 +60,13 @@ export interface DayMenu {
  * 日程的组头、时间线的横排行、竖排共用：按钮和展开的表单由用它的地方各自摆。
  * 展开时焦点放进表单，收起后回到菜单按钮；竖排翻到别的天时，展开的收起，焦点不动。
  */
-export function useDayMenu({ doc, plan, base, label, index, count, triggerClassName }: DayMenuOptions): DayMenu {
+export function useDayMenu({ doc, library, libraryView, plan, base, label, index, count, filter, triggerClassName }: DayMenuOptions): DayMenu {
   // 记着是在哪天展开的：竖排翻到别的天，就不再显示这天的表单
   const [opened, setOpened] = useState<{ baseId: string; mode: Mode }>({ baseId: base.id, mode: NORMAL });
   const mode = opened.baseId === base.id ? opened.mode : NORMAL;
   const setMode = (next: Mode) => setOpened({ baseId: base.id, mode: next });
   const backToNormal = () => setMode(NORMAL);
-  const notifyDeleted = useNotifyDeleted();
+  const notifyDone = useNotifyDone();
 
   // 展开时焦点放进展开的东西里；收起后菜单按钮重新出现，焦点放回它（这几样只能用按钮或 Esc 收起，不会抢走点到别处的焦点）
   const menuSlot = useRef<HTMLSpanElement>(null);
@@ -79,13 +88,27 @@ export function useDayMenu({ doc, plan, base, label, index, count, triggerClassN
   const removeDay = () => {
     const blockCount = [...plan.blocks.values()].filter((block) => block.start_base_id === base.id).length;
     deleteDay(doc, base.id);
-    notifyDeleted({
+    notifyDone({
       message: blockCount > 0 ? `删掉了${label}，连同这天的 ${blockCount} 件事` : `删掉了${label}`,
       focusAfterUndo: `[data-base-id="${base.id}"] button[aria-label="这天的操作"]`,
     });
   };
 
+  // 这天看得见的事：「这天全部…」对它们一起做（和「对这 N 件…」同一列）
+  const shown = blocksOfDay(plan, base.id).filter((block) => passesFilter(block, filter));
   const items: MenuItem[] = [
+    {
+      label: "这天全部…",
+      disabled: shown.length === 0,
+      submenu: bulkItems({
+        doc,
+        library,
+        libraryView,
+        blocks: shown,
+        notify: notifyDone,
+        focusAfterUndo: `[data-base-id="${base.id}"] button[aria-label="这天的操作"]`,
+      }),
+    },
     { label: "在上面插一天", onSelect: () => insert("above") },
     { label: "在下面插一天", onSelect: () => insert("below") },
     { label: "上移", disabled: index === 0, onSelect: () => moveDay(doc, base.id, index - 1) },

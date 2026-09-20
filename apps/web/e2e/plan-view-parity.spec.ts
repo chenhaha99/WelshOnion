@@ -77,7 +77,7 @@ test("电脑上只在时间线里：加事 → 拖上去排时间、快捷条挂
   // 复制出来的那件接着选中：直接从快捷条删掉，提示能撤销，焦点落到 10.2 的「这天的操作」
   await quickBar(page, "西湖").getByRole("button", { name: "删除" }).click();
   await expect(segment(day2, "西湖")).toHaveCount(0);
-  await expect(page.getByRole("status", { name: "删完的提示" })).toContainText("删掉了「西湖」");
+  await expect(page.getByRole("status", { name: "刚做完的提示" })).toContainText("删掉了「西湖」");
   await expect(day2.getByRole("button", { name: "这天的操作" })).toBeFocused();
 
   // 每天的菜单：10.1 下面插一天，第 3 天改到东京，选完焦点回到菜单按钮

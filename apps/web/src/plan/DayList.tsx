@@ -9,7 +9,10 @@ import {
 } from "@welshonion/core";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type * as Y from "yjs";
+import { Menu } from "../app/Menu";
 import { blockFocusSelector } from "./block-actions";
+import { bulkItems } from "./bulk-actions";
+import { useNotifyDone } from "./DoneNotice";
 import { BlockPanel } from "./BlockPanel";
 import { dayNumbers, dayRowLabels } from "./day-labels";
 import { DayFilter, type FilterDay } from "./DayFilter";
@@ -17,7 +20,7 @@ import { DayRow } from "./DayRow";
 import { OverviewCards } from "./OverviewCards";
 import { FilterChips, chipClass } from "./FilterChips";
 import { MARK_LABEL, MarkIcon } from "./mark";
-import { CollapseIcon, ExpandIcon, PinIcon } from "./icons";
+import { BulkIcon, CollapseIcon, ExpandIcon, PinIcon } from "./icons";
 import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { OpenBlockContext, type OpenBlock } from "./open-block";
@@ -85,6 +88,7 @@ interface OpenedBlock {
 export function DayList({ top, doc, library, libraryView, plan, planId, searchAnchor, onSearchClosed }: DayListProps) {
   const bases = plan.bases;
   const labels = dayRowLabels(bases);
+  const notifyDone = useNotifyDone();
 
   // 类型、标签删掉了，按下过的就不算了
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
@@ -316,6 +320,11 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   // 三档都是「定了」时按下去也筛不掉：不出现；按下过就留着
   const showMarkFilter =
     selectedMarks.length > 0 || [...plan.blocks.values()].some((block) => block.mark !== "decided");
+  // 看得见的那几件：「对这 N 件…」对它们一起做
+  const shownBlocks = useMemo(
+    () => [...plan.blocks.values()].filter((block) => passesFilter(block, filter)),
+    [plan, filter],
+  );
   // 「天」：一天的计划筛了也没意义（选它和不选一样）
   const filterDays = useMemo<FilterDay[]>(() => {
     const numbers = dayNumbers(bases);
@@ -354,7 +363,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
       */}
       <div ref={topDrawer} data-top-drawer className="top-drawer flex flex-col gap-3" {...peek}>
         {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
-        {(showKindFilter || showTagFilter || showMarkFilter || showDayFilter) && (
+        {(showKindFilter || showTagFilter || showMarkFilter || showDayFilter || shownBlocks.length > 0) && (
           <div data-filter-row className="filter-row flex flex-wrap items-center gap-x-5 gap-y-2">
             {showKindFilter && (
               <FilterChips
@@ -407,6 +416,27 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
             {/* 天数可以十几个，一行摆不下：这个是按钮，点开才一天一行（见 DayFilter） */}
             {showDayFilter && (
               <DayFilter days={filterDays} selected={filter?.baseIds ?? []} onChange={setSelectedDays} />
+            )}
+            {/* 一键批量：范围就是现在看得见的那几件（你提的：全部打上、某天打上；某天在每天的菜单里） */}
+            {shownBlocks.length > 0 && (
+              <Menu
+                label={`对这 ${shownBlocks.length} 件事`}
+                triggerClassName="inline-flex h-8 items-center gap-1.5 rounded-full border border-ink/10 bg-white/70 px-3 text-sm text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage"
+                items={bulkItems({
+                  doc,
+                  library,
+                  libraryView,
+                  blocks: shownBlocks,
+                  notify: notifyDone,
+                  // 撤销后焦点回到这个按钮本身（件数变了名字也还是「对这 … 件事」）
+                  focusAfterUndo: 'button[aria-label^="对这 "]',
+                })}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <BulkIcon />
+                  {`对这 ${shownBlocks.length} 件…`}
+                </span>
+              </Menu>
             )}
           </div>
         )}

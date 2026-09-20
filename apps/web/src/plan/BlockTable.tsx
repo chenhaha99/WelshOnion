@@ -20,7 +20,7 @@ import { AddBlock, addKindIdFor, addTagIdsFor, useJustAdded } from "./AddBlock";
 import { deleteBlockWithNotice, deleteLabel, undatedArrangeItems } from "./block-actions";
 import { blockTimeLabel, clock, durationLabel } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
-import { useNotifyDeleted } from "./DeletedNotice";
+import { useNotifyDone } from "./DoneNotice";
 import { linkableExpenses } from "./expense-links";
 import { MoneyEditor } from "./MoneyEditor";
 import { moneyCellEmpty, moneyCellLabel, moneyCellNote, type MoneyCell } from "./money-cells";
@@ -287,7 +287,7 @@ function BlockRow({
   const [timeOpen, setTimeOpen] = useState(false);
   const [moneyOpen, setMoneyOpen] = useState(false);
   const row = useRef<HTMLTableRowElement>(null);
-  const notifyDeleted = useNotifyDeleted();
+  const notifyDeleted = useNotifyDone();
   const openBlock = useOpenBlock();
   const color = block.kind.deleted ? DELETED_COLOR : block.kind.color;
   const indent = block.indent ?? 0;

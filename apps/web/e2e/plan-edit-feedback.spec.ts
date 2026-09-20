@@ -22,8 +22,8 @@ test("手机上删完：滚到最后一天删一件事 → 提示和「撤销」
   await (await rowOf(lastDay, "河坊街")).getByRole("button", { name: "这件事的操作" }).click();
   await page.getByRole("menuitem", { name: "删除" }).click();
 
-  const region = page.getByRole("status", { name: "删完的提示" });
-  const notice = region.locator("[data-deleted-notice]");
+  const region = page.getByRole("status", { name: "刚做完的提示" });
+  const notice = region.locator("[data-done-notice]");
   await expect(notice).toContainText("删掉了「河坊街」");
   const undo = notice.getByRole("button", { name: "撤销" });
   await expectOnScreen(notice, "提示", 390, 844);

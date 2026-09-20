@@ -40,6 +40,7 @@ export {
   moveUndated,
   previewSetBlockTimed,
   resizeBlock,
+  setBlockKind,
   setBlockMark,
   nextMark,
   setBlockIndent,

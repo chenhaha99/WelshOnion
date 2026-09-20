@@ -98,7 +98,7 @@ export function BlockPanel({ doc, library, libraryView, plan, block, anchor, onC
               className="btn btn-ghost h-8 px-3"
               disabled={item.disabled}
               onClick={() => {
-                item.onSelect();
+                item.onSelect?.();
                 keepArrangeFocus();
               }}
             >

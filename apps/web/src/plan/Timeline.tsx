@@ -474,11 +474,14 @@ function TimelineRow({
   // 标签那一栏窄：菜单按钮做小，放在「第 1 天」后面；展开的表单占满整行，在这一行下面
   const dayMenu = useDayMenu({
     doc,
+    library,
+    libraryView,
     plan: currentPlan,
     base,
     label,
     index,
     count: currentPlan.bases.length,
+    filter,
     triggerClassName: "btn btn-ghost h-6 px-1.5",
   });
 

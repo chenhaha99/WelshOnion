@@ -12,7 +12,7 @@ import {
 import { useRef, useState, type KeyboardEvent } from "react";
 import type * as Y from "yjs";
 import { CommitInput } from "../app/CommitInput";
-import { useNotifyDeleted } from "./DeletedNotice";
+import { useNotifyDone } from "./DoneNotice";
 import { formatYuan, parseYuan } from "./money";
 import { ExpenseKindPicker } from "./pickers";
 
@@ -131,7 +131,7 @@ interface ExpenseRowProps {
  * 分两组：类型、金额、人均或总价一组，说明往后一组；放不下时第二组整个换到下一行，不会把「总价」和金额拆开。
  */
 function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId }: ExpenseRowProps) {
-  const notifyDeleted = useNotifyDeleted();
+  const notifyDeleted = useNotifyDone();
   const shared = blockId !== null && expense.block_ids.length > 1;
   return (
     <div data-expense-id={expense.id} className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
@@ -216,7 +216,7 @@ function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId }: E
   );
 }
 
-/** 删完的提示怎么说这笔开销：有说明说说明，没说明说金额。 */
+/** 刚做完的提示怎么说这笔开销：有说明说说明，没说明说金额。 */
 function deletedMessage(expense: ExpenseView): string {
   if (expense.title !== "") return `删掉了「${expense.title}」这笔开销`;
   if (expense.amount_cents !== null) return `删掉了 ${formatYuan(expense.amount_cents)} 这笔开销`;

@@ -25,7 +25,7 @@ interface DayRowProps {
  * 电脑上（这天宽 40rem 起）组头在左边一列，其余在右边；窄的时候组头在上面（见 index.css 的 day-layout）。
  */
 export function DayRow({ doc, library, libraryView, plan, base, label, index, count, moneyCells, filter }: DayRowProps) {
-  const dayMenu = useDayMenu({ doc, plan, base, label, index, count });
+  const dayMenu = useDayMenu({ doc, library, libraryView, plan, base, label, index, count, filter });
   const facts = dayFactsParts(plan, base, moneyCells, filter);
   // 「第 1 天 · 10.1 周四」拆成两截：电脑上「第 1 天」大字一行、日期（和城市）小字一行
   const split = label.indexOf(" · ");

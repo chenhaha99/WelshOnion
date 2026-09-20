@@ -193,6 +193,24 @@ export function nextMark(mark: BlockMark): BlockMark {
   return "decided";
 }
 
+/** 把一批事都改成同一个类型，一步撤销。类型要在资料库里；有事找不到就一件都不改。 */
+export function setBlockKind(
+  planDoc: Y.Doc,
+  library: Y.Doc,
+  blockIds: readonly string[],
+  kindId: string,
+): OpResult {
+  const blocks = blocksOf(planDoc);
+  const absent = blockIds.find((id) => !blocks.has(id));
+  if (absent !== undefined) return fail({ code: "NOT_FOUND", id: absent });
+  if (!library.getMap("kinds").has(kindId)) return fail({ code: "NOT_FOUND", id: kindId });
+
+  planDoc.transact(() => {
+    for (const id of blockIds) blocks.get(id)!.set("kind_id", kindId);
+  }, LOCAL_ORIGIN);
+  return done();
+}
+
 /**
  * 给一批事挂上或摘下一个标签，一步撤销。挂上时标签要在资料库里，已经挂着的不再挂；摘下不管标签还在不在。
  * 标签出现以前建的事没有 tag_ids，挂的时候再建；摘完留一个空数组。有事找不到就一件都不改。

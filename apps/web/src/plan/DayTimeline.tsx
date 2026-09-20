@@ -6,7 +6,7 @@ import { useNow, useTimeZone } from "../app/services";
 import { TimelineAddBlock } from "./AddBlock";
 import { blockTimeLabel, durationLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
-import { useDeletedShown } from "./DeletedNotice";
+import { useNoticeShown } from "./DoneNotice";
 import { DragLabel } from "./DragLabel";
 import { todayIn } from "./day-labels";
 import { moneyCellLabel, type MoneyCell } from "./money-cells";
@@ -96,7 +96,17 @@ export function DayTimeline({
   const index = Math.min(chosen, plan.bases.length - 1);
   const base = plan.bases[index]!;
   const inTrip = today >= plan.bases[0]!.date && today <= plan.bases[plan.bases.length - 1]!.date;
-  const dayMenu = useDayMenu({ doc, plan, base, label: labels[index]!, index, count: plan.bases.length });
+  const dayMenu = useDayMenu({
+    doc,
+    library,
+    libraryView,
+    plan,
+    base,
+    label: labels[index]!,
+    index,
+    count: plan.bases.length,
+    filter,
+  });
 
   const scroller = useRef<HTMLDivElement>(null);
   const selection = useBlockSelection();
@@ -158,7 +168,7 @@ export function DayTimeline({
   const undated = undatedBlocks(plan, base, filter);
   // 选中的那件的快捷条；拖动中不画
   const selectedBlock = drag.dragView || selection.selectedId === null ? undefined : plan.blocks.get(selection.selectedId);
-  const noticeShown = useDeletedShown();
+  const noticeShown = useNoticeShown();
 
   return (
     <div ref={drag.containerRef} data-timeline-dragging={drag.dragView ? true : undefined} className="flex flex-col gap-2">
@@ -280,7 +290,7 @@ export function DayTimeline({
       )}
       <TimelineAddBlock doc={doc} library={library} plan={plan} baseId={base.id} filter={filter} className="input-bare select-text" />
       {/* 贴着屏幕下边，拇指够得着。挂到页面最外层：卡片有背景模糊，fixed 放在里面会以卡片为准；
-          删完的提示也在底部，它在的时候让到它上面 */}
+          刚做完的提示也在底部，它在的时候让到它上面 */}
       {selectedBlock !== undefined &&
         createPortal(
           <div

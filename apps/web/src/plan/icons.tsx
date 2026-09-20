@@ -33,6 +33,18 @@ export function StrikeIcon() {
   );
 }
 
+/** 一键批量：三行都打上勾 */
+export function BulkIcon() {
+  return (
+    <Icon>
+      <path d="M2.5 4.5h6" />
+      <path d="M2.5 8h6" />
+      <path d="M2.5 11.5h6" />
+      <path d="m10.5 9.5 1.6 1.6 2.4-3.1" />
+    </Icon>
+  );
+}
+
 /** 标签：一个吊牌 */
 export function TagIcon() {
   return (

@@ -7,7 +7,7 @@ export interface UndoControls {
   canRedo: boolean;
   undo: () => void;
   redo: () => void;
-  /** 撤销栈到现在变过几次（加了一步、撤了一步、清空都算）；删完的提示靠它知道之后又改过没有 */
+  /** 撤销栈到现在变过几次（加了一步、撤了一步、清空都算）；刚做完的提示靠它知道之后又改过没有 */
   stackChanges: () => number;
 }
 

@@ -11,6 +11,7 @@ import {
   nextMark,
   setBlockMark,
   setBlockIndent,
+  setBlockKind,
   setBlockTag,
   setBlockTimed,
   setBlockUndated,
@@ -287,6 +288,40 @@ describe("批量划掉", () => {
       error: { code: "NOT_FOUND", id: "gone" },
     });
     expect(raw("k1")?.has("mark")).toBe(false);
+  });
+});
+
+describe("批量改类型", () => {
+  beforeEach(() => {
+    addBase(planDoc, "d1", "2026-10-01");
+    seedBlock(planDoc, "k1", { start_base_id: "d1", start_minute: 540, duration_min: 60 });
+    seedBlock(planDoc, "k2", { start_base_id: "d1", start_minute: 660, duration_min: 60 });
+  });
+
+  test("一次改两个，一步撤销", () => {
+    const undo = createPlanUndoManager(planDoc);
+
+    expect(setBlockKind(planDoc, library, ["k1", "k2"], "lodging").ok).toBe(true);
+    expect([raw("k1")?.get("kind_id"), raw("k2")?.get("kind_id")]).toEqual(["lodging", "lodging"]);
+
+    undo.undo();
+    expect([raw("k1")?.get("kind_id"), raw("k2")?.get("kind_id")]).toEqual(["sight", "sight"]);
+  });
+
+  test("有块找不到就一个都不改", () => {
+    expect(setBlockKind(planDoc, library, ["k1", "gone"], "lodging")).toEqual({
+      ok: false,
+      error: { code: "NOT_FOUND", id: "gone" },
+    });
+    expect(raw("k1")?.get("kind_id")).toBe("sight");
+  });
+
+  test("资料库里没有这个类型就不改", () => {
+    expect(setBlockKind(planDoc, library, ["k1"], "没有这个")).toEqual({
+      ok: false,
+      error: { code: "NOT_FOUND", id: "没有这个" },
+    });
+    expect(raw("k1")?.get("kind_id")).toBe("sight");
   });
 });
 
