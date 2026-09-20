@@ -108,24 +108,35 @@ export async function overviewCard(): Promise<HTMLElement> {
   return screen.findByRole("region", { name: "总览" });
 }
 
-/** 环外贴着的一圈标签上写的字，顺时针（也就是钱从多到少）。 */
-export function ringLabels(card: HTMLElement): string[] {
+/**
+ * 环下面每类那一行：类型名加上挑出来的那一格写的字，按钱从多到少（和环上的段一个顺序）。
+ * 两格永远都在，所以不管圆心的开关拨在哪边，读哪一格都行。
+ */
+export function ringRowCells(card: HTMLElement, which: "money" | "time"): string[] {
   return within(within(card).getByRole("list", { name: "按类型" }))
     .queryAllByRole("button")
-    .map((button) => button.textContent ?? "");
+    .map((button) => {
+      const name = button.querySelector("[data-row-name]")?.textContent ?? "";
+      return `${name} ${button.querySelector(`[data-row-${which}]`)?.textContent ?? ""}`;
+    });
 }
 
-/** 环上有几段：外圈是钱，内圈是时间。 */
-export function ringSliceCount(card: HTMLElement, ring: "money" | "time"): number {
-  return card.querySelectorAll(`[data-ring="${ring}"]`).length;
+/** 环上有几段（只有一个环，画的是圆心开关选的那个维度）。 */
+export function ringSliceCount(card: HTMLElement): number {
+  return card.querySelectorAll("[data-ring-seg]").length;
 }
 
-/** 环中间那行钱：没指着哪一类时是总开销。 */
+/** 拨圆心里的开关：让环改画开销或时间。 */
+export async function showRing(user: UserEvent, card: HTMLElement, which: "开销" | "时间"): Promise<void> {
+  await user.click(within(within(card).getByRole("group", { name: "环上画开销还是时间" })).getByRole("button", { name: which }));
+}
+
+/** 圆心那个钱数：没指着哪一类时是总开销。开关拨在时间那边时它缩成淡字，这里照样读得到。 */
 export function ringMoney(card: HTMLElement): string | null {
   return card.querySelector("[data-ring-money]")?.textContent ?? null;
 }
 
-/** 环中间那行时长：没指着哪一类时是一共排了多久。 */
+/** 圆心那个时长：没指着哪一类时是一共排了多久。 */
 export function ringTime(card: HTMLElement): string | null {
   return card.querySelector("[data-ring-time]")?.textContent ?? null;
 }

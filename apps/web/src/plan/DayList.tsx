@@ -591,6 +591,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                 library={library}
                 libraryView={libraryView}
                 plan={plan}
+                planId={planId}
                 filter={filter}
                 onJump={jumpToBlock}
                 onOnlyKind={(kindId) => setSelectedKinds([kindId])}

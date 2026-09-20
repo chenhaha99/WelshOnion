@@ -5,7 +5,15 @@ import { addBlock, addExpense, setBlockMark, setPlanSettings } from "@welshonion
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openStoredPlan, pressedView, showView } from "./test-helpers";
+import {
+  daysFromOct1,
+  openStoredPlan,
+  pressedView,
+  ringRowCells,
+  ringSliceCount,
+  showRing,
+  showView,
+} from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -47,13 +55,6 @@ async function card(): Promise<HTMLElement> {
   return screen.findByRole("region", { name: "总览" });
 }
 
-/** 环外贴着的一圈标签上写的字，顺时针（也就是钱从多到少）。 */
-function labels(box: HTMLElement): string[] {
-  return within(within(box).getByRole("list", { name: "按类型" }))
-    .getAllByRole("button")
-    .map((button) => button.textContent ?? "");
-}
-
 function center(box: HTMLElement): { money: string | null; time: string | null; detail: string | null } {
   return {
     money: box.querySelector("[data-ring-money]")?.textContent ?? null,
@@ -62,31 +63,68 @@ function center(box: HTMLElement): { money: string | null; time: string | null; 
   };
 }
 
+/** 圆心那个大字现在写的是哪个维度：开关拨到哪边，哪个就是大的。 */
+function bigOne(box: HTMLElement): string | null {
+  return box.querySelector("[data-ring-big]")?.textContent ?? null;
+}
+
 async function pickKind(user: User, box: HTMLElement, name: string): Promise<void> {
   await user.click(within(box).getByRole("button", { name: new RegExp(`^${name} `) }));
 }
 
-describe("总览：同心双环", () => {
-  it("中间两行：总开销加人均、排了多久", async () => {
+describe("总览：一个环加圆心的开关", () => {
+  it("圆心三行：开销是大字，时间缩成一行淡字，两个都看得到", async () => {
     await openStoredPlan(trip);
 
     const box = await card();
 
     expect(center(box).money).toBe("¥1,500");
+    expect(bigOne(box)).toBe("¥1,500");
     expect(box.textContent).toContain("人均 ¥500");
-    // 西湖 3 + 午饭 1 + 民宿 10 + 乌镇 2
+    // 西湖 3 + 午饭 1 + 民宿 10 + 乌镇 2；拨在开销时它在淡字那行，照样读得到
     expect(center(box).time).toBe("16 小时");
   });
 
-  it("一类一个标签，贴在环外，按钱从多到少", async () => {
+  it("拨到时间：大字换成时长，钱缩成淡字；环跟着改画时间", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(trip);
+    const box = await card();
+    expect(ringRowCells(box, "money")).toEqual([
+      "其他 ¥600 · 40%",
+      "住宿 ¥480 · 32%",
+      "游玩 ¥300 · 20%",
+      "餐饮 ¥120 · 8%",
+    ]);
+
+    await showRing(user, box, "时间");
+
+    expect(bigOne(box)).toBe("16 小时");
+    expect(center(box).money).toBe("¥1,500");
+    // 段的先后不变（永远按钱从多到少），只有宽度跟着变；「其他」没排时间，环上就没它那段
+    expect(ringRowCells(box, "money")[0]).toBe("其他 ¥600 · 40%");
+    expect(ringSliceCount(box)).toBe(3);
+  });
+
+  it("每类一行，开销和时间两格都在，按钱从多到少", async () => {
     await openStoredPlan(trip);
 
     const box = await card();
 
-    expect(labels(box)).toEqual(["其他 ¥600 · 40%", "住宿 ¥480 · 32%", "游玩 ¥300 · 20%", "餐饮 ¥120 · 8%"]);
+    expect(ringRowCells(box, "money")).toEqual([
+      "其他 ¥600 · 40%",
+      "住宿 ¥480 · 32%",
+      "游玩 ¥300 · 20%",
+      "餐饮 ¥120 · 8%",
+    ]);
+    expect(ringRowCells(box, "time")).toEqual([
+      "其他 没排时间",
+      "住宿 10 小时 · 63%",
+      "游玩 5 小时 · 31%",
+      "餐饮 1 小时 · 6%",
+    ]);
   });
 
-  it("停在一类上：中间换成这一类的钱和时间", async () => {
+  it("停在一类上：圆心换成这一类，开关不动；最后一行淡字是另一个维度", async () => {
     const user = userEvent.setup();
     await openStoredPlan(trip);
     const box = await card();
@@ -94,12 +132,29 @@ describe("总览：同心双环", () => {
     await user.hover(within(box).getByRole("button", { name: /^住宿 / }));
 
     await waitFor(() => expect(center(box).money).toBe("¥480"));
-    // 两行：一行钱、一行时间（挤在一行会顶出环中间那个洞）
     expect(center(box).detail).toBe("占开销 32%10 小时 · 占时间 63%");
     expect(box.textContent).toContain("住宿");
+    // 开关钉在原处：停在一类上时也点得着
+    expect(within(box).getByRole("group", { name: "环上画开销还是时间" })).toBeTruthy();
   });
 
-  it("只有时间没有钱的类型：标签写时长，中间写「没有开销」", async () => {
+  it("停着的时候开关不重建，照样点得着", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(trip);
+    const box = await card();
+    const before = within(box).getByRole("group", { name: "环上画开销还是时间" });
+
+    await user.hover(within(box).getByRole("button", { name: /^住宿 / }));
+    await waitFor(() => expect(center(box).money).toBe("¥480"));
+
+    // 圆心的字换成明细了，开关还是同一个元素——没被重建、没挪位，鼠标过去就点得着
+    expect(within(box).getByRole("group", { name: "环上画开销还是时间" })).toBe(before);
+    await showRing(user, box, "时间");
+    // 鼠标移向圆心的路上离开了那一行，圆心本来就该变回合计
+    expect(bigOne(box)).toBe("16 小时");
+  });
+
+  it("只有时间没有钱的类型：那一格写「没填」，圆心写「没有开销」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -109,12 +164,24 @@ describe("总览：同心双环", () => {
     });
     const box = await card();
 
-    expect(labels(box)).toEqual(["游玩 ¥300 · 100%", "交通 2 小时 · 40%"]);
+    expect(ringRowCells(box, "money")).toEqual(["游玩 ¥300 · 100%", "交通 没填"]);
+    expect(ringRowCells(box, "time")).toEqual(["游玩 3 小时 · 60%", "交通 2 小时 · 40%"]);
 
     await user.hover(within(box).getByRole("button", { name: /^交通 / }));
 
     await waitFor(() => expect(center(box).money).toBe("没有开销"));
     expect(center(box).detail).toBe("2 小时 · 占时间 40%");
+  });
+
+  it("记住上次拨的是哪个：回到计划列表再打开还是时间", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan(trip);
+    await showRing(user, await card(), "时间");
+
+    await user.click(screen.getByRole("link", { name: /我的计划/ }));
+    await user.click(await screen.findByRole("link", { name: /^测试计划/ }));
+
+    await waitFor(async () => expect(bigOne(await card())).toBe("16 小时"));
   });
 
   it("点一类：下面同时列这一类的每一笔和每一件，再点「收起」关掉", async () => {
@@ -207,10 +274,10 @@ describe("总览：同心双环", () => {
 
     expect(box.querySelector("[data-check-line]")?.textContent).toBe("完成 1 件，共 2 件");
     // 环只算没被筛掉的：这里没筛，完成的照样算
-    expect(labels(box)).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
+    expect(ringRowCells(box, "time")).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
   });
 
-  it("一分钱都没填：中间那行写出来，不画外圈", async () => {
+  it("一分钱都没填：圆心那行写出来，环画成一整圈淡灰", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
       const lake = timed(plan, library, oct1!, "西湖", "sight", 540, 180);

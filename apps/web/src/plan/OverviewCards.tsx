@@ -9,18 +9,21 @@ import {
 import { useRef, useState } from "react";
 import type * as Y from "yjs";
 import { durationLabel } from "./block-time";
-import { DualRing, ringLabelPlaces } from "./DualRing";
+import { KindRing, type RingKind } from "./KindRing";
 import { formatYuan } from "./money";
 import { MoneyEditor } from "./MoneyEditor";
 import { moneyOnHiddenBlocks } from "./money-cells";
 import { moneyItemsOfKind, timeItemsOfKind, type OverviewItem } from "./overview-items";
-import { checkLine, moneyNoteLabel, moneyShares, ringRows, timeShares, type RingRow } from "./shares";
+import { readOverviewRing, saveOverviewRing } from "./plan-overview-ring-memory";
+import { checkLine, moneyNoteLabel, moneyShares, ringRows, timeShares, type RingRow, type Rings } from "./shares";
 
 interface OverviewProps {
   doc: Y.Doc;
   library: Y.Doc;
   libraryView: LibraryView;
   plan: PlanView;
+  /** 记「环拨在哪个维度」用：这个设置跟着每个计划走 */
+  planId: string;
   filter?: StatsFilter;
   /** 点了展开里的一条：跳到那件事 */
   onJump: (blockId: string) => void;
@@ -29,15 +32,21 @@ interface OverviewProps {
 }
 
 /**
- * 「总览」视图：一张卡片、一个同心双环（你选的小样 B）——外圈是开销、内圈是时间，同一个类型两圈同色。
- * 中间写合计，鼠标停在一类上两圈一起亮、中间换成这一类的开销和时间；点一下在下面列出是哪几笔、哪几件。
+ * 「总览」视图：一张卡片、一个环，画开销还是画时间由圆心的开关定（你选的小样 2）。
+ * 环下面每个类型一行，开销和时间两根条挨着——同一类的两个数在一行里比，不用在圆上来回找。
+ * 停在一类上环和那一行一起亮、圆心换成这一类；点一下在下面列出是哪几笔、哪几件。
  */
-export function OverviewCards({ doc, library, libraryView, plan, filter, onJump, onOnlyKind }: OverviewProps) {
+export function OverviewCards({ doc, library, libraryView, plan, planId, filter, onJump, onOnlyKind }: OverviewProps) {
   const [includeBaseLayer, setIncludeBaseLayer] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
   const [opened, setOpened] = useState<string | null>(null);
   const [unattachedOpen, setUnattachedOpen] = useState(false);
+  const [ringKind, setRingKind] = useState<RingKind>(() => readOverviewRing(planId));
   const unattachedButton = useRef<HTMLButtonElement>(null);
+  const showRing = (kind: RingKind) => {
+    setRingKind(kind);
+    saveOverviewRing(planId, kind);
+  };
 
   const rings = ringRows(plan, libraryView, includeBaseLayer, filter);
   const summary = moneySummary(plan, filter);
@@ -46,7 +55,6 @@ export function OverviewCards({ doc, library, libraryView, plan, filter, onJump,
   const time = timeShares(plan, libraryView, includeBaseLayer, filter);
   const hiddenCents = moneyOnHiddenBlocks(plan, filter);
   const marks = checkLine(plan, filter);
-  const places = ringLabelPlaces(rings.rows, rings.unscheduledMinutes);
 
   const openedRow = opened === null ? null : (rings.rows.find((row) => (row.kindId || row.name) === opened) ?? null);
   // 点开的那一类被筛掉了、没了：自己收起
@@ -73,83 +81,102 @@ export function OverviewCards({ doc, library, libraryView, plan, filter, onJump,
       }}
     >
       <CornerBrackets />
-      {/* 哪圈是什么：不说一次没人知道外圈是开销 */}
-      <p className="flex justify-center gap-4 text-xs text-ink-muted">
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden className="ring-key ring-key-outer" />
-          外圈 · 开销
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden className="ring-key ring-key-inner" />
-          内圈 · 时间
-        </span>
-      </p>
 
-      {/* 上下留出一圈：标签贴在环外面，会超出这个方块，不留就压到下面的明细上 */}
-      <div className="relative mx-auto my-6 w-full max-w-[26rem]">
-        <DualRing
+      <div className="mx-auto w-full max-w-[24rem]">
+        <KindRing
           rows={rings.rows}
+          kind={ringKind}
           unscheduledMinutes={rings.unscheduledMinutes}
-          moneyEmpty={rings.moneyEmpty !== null}
-          timeEmpty={rings.timeEmpty !== null}
+          empty={(ringKind === "money" ? rings.moneyEmpty : rings.timeEmpty) !== null}
           hovered={hovered}
           onHover={setHovered}
           onPick={(key) => setOpened((current) => (current === key ? null : key))}
         >
-          {shownRow === null ? (
-            <>
-              <span data-ring-money className="text-2xl font-medium text-ink tabular-nums">
-                {rings.moneyEmpty === null ? formatYuan(rings.moneyTotalCents) : "—"}
-              </span>
-              <span className="text-xs text-ink-muted tabular-nums">
-                {rings.moneyEmpty ?? `人均 ${formatYuan(summary.perPersonCents)}`}
-              </span>
-              <span data-ring-time className="mt-2 text-base font-medium text-ink tabular-nums">
-                {rings.timeEmpty === null ? durationLabel(rings.minutesTotal) : "—"}
-              </span>
-              {(rings.timeEmpty !== null || rings.unscheduledMinutes > 0) && (
-                <span className="text-xs text-ink-muted tabular-nums">
-                  {rings.timeEmpty ?? `还有 ${durationLabel(rings.unscheduledMinutes)}没排`}
+          {/* 开关钉在圆心上半部，位置固定：停在某一类上、下面的字换成明细时，它不能跟着没了——没了就点不着 */}
+          <div role="group" aria-label="环上画开销还是时间" className="ring-switch" data-kind={ringKind}>
+            <span aria-hidden className="ring-switch-thumb" />
+            <button type="button" aria-pressed={ringKind === "money"} onClick={() => showRing("money")}>
+              开销
+            </button>
+            <button type="button" aria-pressed={ringKind === "time"} onClick={() => showRing("time")}>
+              时间
+            </button>
+          </div>
+          <div className="ring-center-text">
+            {shownRow === null ? (
+              <RingTotals rings={rings} perPersonCents={summary.perPersonCents} kind={ringKind} />
+            ) : (
+              <>
+                <span className="text-xs text-ink-muted">{shownRow.name}</span>
+                {ringKind === "money" ? (
+                  <span data-ring-big data-ring-money className="ring-center-big">
+                    {shownRow.cents > 0 ? formatYuan(shownRow.cents) : "没有开销"}
+                  </span>
+                ) : (
+                  <span data-ring-big data-ring-time className="ring-center-big">
+                    {shownRow.minutes > 0 ? durationLabel(shownRow.minutes) : "没排时间"}
+                  </span>
+                )}
+                <span data-ring-detail className="flex flex-col text-xs text-ink-muted tabular-nums">
+                  {ringCenterDetail(shownRow, ringKind).map((line) => (
+                    <span key={line}>{line}</span>
+                  ))}
                 </span>
-              )}
-            </>
-          ) : (
-            <>
-              <span className="text-xs text-ink-muted">{shownRow.name}</span>
-              <span data-ring-money className="text-2xl font-medium text-ink tabular-nums">
-                {shownRow.cents > 0 ? formatYuan(shownRow.cents) : "没有开销"}
-              </span>
-              <span data-ring-detail className="flex flex-col text-xs text-ink-muted tabular-nums">
-                {ringCenterDetail(shownRow).map((line) => (
-                  <span key={line}>{line}</span>
-                ))}
-              </span>
-            </>
-          )}
-        </DualRing>
-        {/* 贴在环外的一圈标签：每一类一个按钮，键盘和读屏走这里 */}
-        <ul aria-label="按类型">
-          {places.map(({ key, row, left, top }) => (
+              </>
+            )}
+          </div>
+        </KindRing>
+      </div>
+
+      {/* 环下面每类一行：同一行里开销和时间两根条挨着，不用在圆上来回找 */}
+      {rings.rows.length > 0 && (
+        <div aria-hidden className="ring-heads">
+          <span />
+          <span data-on={ringKind === "money" ? "" : undefined}>开销</span>
+          <span data-on={ringKind === "time" ? "" : undefined}>时间</span>
+        </div>
+      )}
+      <ul aria-label="按类型" className="flex flex-col">
+        {rings.rows.map((row) => {
+          const key = row.kindId || row.name;
+          return (
             <li key={key}>
               <button
                 type="button"
-                data-ring-label={key}
+                data-ring-row={key}
                 aria-expanded={opened === key}
-                className={`ring-label ${hovered === key ? "is-on" : ""}`}
-                style={{ left: `${left}%`, top: `${top}%` }}
+                aria-label={`${row.name} ${moneyAria(row)} · ${timeAria(row)}`}
+                className={`ring-row ${hovered === key ? "is-on" : ""}`}
                 onPointerEnter={(event) => event.pointerType === "mouse" && setHovered(key)}
                 onPointerLeave={() => setHovered(null)}
                 onFocus={() => setHovered(key)}
                 onBlur={() => setHovered(null)}
                 onClick={() => setOpened((current) => (current === key ? null : key))}
               >
-                <span aria-hidden className="kind-dot" style={{ backgroundColor: row.color }} />
-                {row.label}
+                <span className="ring-row-name">
+                  <span aria-hidden className="kind-dot" style={{ backgroundColor: row.color }} />
+                  <span data-row-name>{row.name}</span>
+                </span>
+                <span aria-hidden className="ring-bar">
+                  <span className="ring-bar-fill" style={{ width: `${row.moneyPercent ?? 0}%`, backgroundColor: row.color }} />
+                  <span data-row-money className="ring-bar-val">
+                    {moneyCell(row)}
+                  </span>
+                </span>
+                <span aria-hidden className="ring-bar">
+                  <span
+                    className="ring-bar-fill is-time"
+                    style={{ width: `${row.timePercent ?? 0}%`, backgroundColor: row.color }}
+                  />
+                  <span data-row-time className="ring-bar-val">
+                    {timeCell(row)}
+                  </span>
+                </span>
               </button>
             </li>
-          ))}
-        </ul>
-      </div>
+          );
+        })}
+      </ul>
 
       {openedRow !== null && (
         <OpenedKind
@@ -218,12 +245,77 @@ export function OverviewCards({ doc, library, libraryView, plan, filter, onJump,
   );
 }
 
-/** 停在一类上时，中间金额下面写的两行：占开销几成、排了多久占时间几成。分两行写，一行太长会顶出环中间那个洞。 */
-function ringCenterDetail(row: RingRow): string[] {
-  const money = row.moneyPercent === null ? null : `占开销 ${row.moneyPercent}%`;
-  const time =
+/** 每类那一行开销那一格写的字；一笔都没填金额写「没填」（用词表：格子里、句子里都写「没填」）。 */
+function moneyCell(row: RingRow): string {
+  return row.moneyPercent === null ? "没填" : `${formatYuan(row.cents)} · ${row.moneyPercent}%`;
+}
+
+/** 每类那一行时间那一格写的字；一件排了时间的事都没有写「没排时间」。 */
+function timeCell(row: RingRow): string {
+  return row.minutes === 0 || row.timePercent === null ? "没排时间" : `${durationLabel(row.minutes)} · ${row.timePercent}%`;
+}
+
+/** 读屏念这一行时用的字：比看得见的那两格多写「占开销」「占时间」，光念数字听不出是什么。 */
+const moneyAria = (row: RingRow) =>
+  row.moneyPercent === null ? "开销没填" : `${formatYuan(row.cents)} · 占开销 ${row.moneyPercent}%`;
+const timeAria = (row: RingRow) =>
+  row.minutes === 0 || row.timePercent === null ? "没排时间" : `${durationLabel(row.minutes)} · 占时间 ${row.timePercent}%`;
+
+/**
+ * 圆心的合计：当前维度是大字，另一个维度缩成一行淡字。
+ * 两个合计永远都看得到——「一共花多少钱」「一共多少小时」是总览最基本的两个数，不该要拨一下才看得见。
+ */
+function RingTotals({ rings, perPersonCents, kind }: { rings: Rings; perPersonCents: number; kind: RingKind }) {
+  const moneyFigure = rings.moneyEmpty === null ? formatYuan(rings.moneyTotalCents) : "—";
+  const moneyNote = rings.moneyEmpty ?? `人均 ${formatYuan(perPersonCents)}`;
+  const timeFigure = rings.timeEmpty === null ? durationLabel(rings.minutesTotal) : "—";
+  const timeNote =
+    rings.timeEmpty ?? (rings.unscheduledMinutes > 0 ? `还有 ${durationLabel(rings.unscheduledMinutes)}没排` : null);
+  const money = kind === "money";
+  const note = money ? moneyNote : timeNote;
+  const otherNote = money ? timeNote : moneyNote;
+
+  return (
+    <>
+      {money ? (
+        <span data-ring-big data-ring-money className="ring-center-big">
+          {moneyFigure}
+        </span>
+      ) : (
+        <span data-ring-big data-ring-time className="ring-center-big">
+          {timeFigure}
+        </span>
+      )}
+      {note !== null && <span className="text-xs text-ink-muted tabular-nums">{note}</span>}
+      <span className="ring-center-other">
+        {(money ? rings.timeEmpty : rings.moneyEmpty) !== null ? (
+          // 另一个维度也空着：只写那句话。再写个「—·」在前面，看着像出错了
+          <span>{otherNote}</span>
+        ) : (
+          <>
+            {money ? <span data-ring-time>{timeFigure}</span> : <span data-ring-money>{moneyFigure}</span>}
+            {otherNote !== null && (
+              <>
+                {" · "}
+                <span>{otherNote}</span>
+              </>
+            )}
+          </>
+        )}
+      </span>
+    </>
+  );
+}
+
+/** 停在一类上时，大字下面那两行：当前维度的占比，再一行淡字写另一个维度。分行写，一行太长会顶出圆心那个洞。 */
+function ringCenterDetail(row: RingRow, kind: RingKind): string[] {
+  const moneyShare = row.moneyPercent === null ? null : `占开销 ${row.moneyPercent}%`;
+  const timeShare = row.timePercent === null ? null : `占时间 ${row.timePercent}%`;
+  const timeFull =
     row.minutes > 0 && row.timePercent !== null ? `${durationLabel(row.minutes)} · 占时间 ${row.timePercent}%` : "没排时间";
-  return [money, time].filter((part): part is string => part !== null);
+  const moneyFull = row.moneyPercent === null ? "没有开销" : `${formatYuan(row.cents)} · 占开销 ${row.moneyPercent}%`;
+  const lines = kind === "money" ? [moneyShare, timeFull] : [timeShare, moneyFull];
+  return lines.filter((part): part is string => part !== null);
 }
 
 /** 卡片四角的切角：浅色底上的「未来感」之一（另外两样是环外的刻度和等宽数字） */

@@ -71,9 +71,10 @@ async function inList<T>(page: Page, action: () => Promise<T>): Promise<T> {
 }
 
 /**
- * 切到「总览」看一眼那个同心双环，看完切回原来的视图。
+ * 切到「总览」看一眼那个环，看完切回原来的视图。
  * 总览是第三个视图，别的走查大多在日程或时间线里做事，看一眼数字就回来。
- * `card` 是整张卡片，`total` 是环中间钱那行，`time` 是环中间时间那行，`note` 是环下面「还有几笔没填」那一句。
+ * `card` 是整张卡片，`total` 是圆心那个钱数，`time` 是圆心那个时长（开关拨在哪边都写得出，只是一个大一个淡），
+ * `note` 是几行下面「还有几笔没填」那一句。
  */
 export async function inOverview<T>(
   page: Page,

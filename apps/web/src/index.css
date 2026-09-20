@@ -631,86 +631,220 @@
 }
 
 /*
- * 总览的同心双环（你选的小样 B）：外圈钱、内圈时间。浅色底上的「未来感」靠环外的细刻度、切角、等宽数字和同色柔光，
- * 不靠发光——亮东西只有暗底才发得亮。段上的柔光用 drop-shadow，颜色跟着这一段自己的色。
+ * 总览那个环（你选的小样 2）：一个环，画开销还是画时间由圆心的开关定。浅色底上的「未来感」靠环外的细刻度、
+ * 切角和等宽数字，不靠发光——亮东西只有暗底才发得亮。
  */
-@utility dual-ring {
+@utility kind-ring {
   position: relative;
   width: 100%;
   aspect-ratio: 1;
 }
 
-.dual-ring-center {
+.kind-ring-center {
   position: absolute;
-  /* 只占内圈那个洞：字宽了会顶到环上，所以限死在洞里面（内圈半径 88、粗 24，洞的直径约占整幅的 45%） */
-  inset: 27.5%;
+  /* 只占环里那个洞：字宽了会顶到环上（半径 124、粗 30，洞的直径约占整幅的 64%） */
+  inset: 18%;
+  /*
+   * 上一行是开关、下面整块给文字。开关那一行的高度只由它自己决定，
+   * 所以字从三行变四行（停在某一类上）时开关一像素都不会挪——挪了就点不着。
+   * 洞是圆的，最上沿很窄，开关得往下让一点才不顶到环上。
+   */
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  justify-items: center;
+  padding-top: 6%;
+  text-align: center;
+  /* 圆心的字不挡鼠标：底下就是环。开关另外开了 pointer-events */
+  pointer-events: none;
+}
+
+.ring-center-text {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 0.1rem;
-  text-align: center;
-  /* 中间的字不挡鼠标：底下就是环 */
-  pointer-events: none;
+}
+
+.ring-center-big {
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 另一个维度那行：淡一档，看得到但不抢当前维度的大字 */
+.ring-center-other {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 圆心里的开关：钉在上半部不动，停在某一类上时也点得着 */
+.ring-switch {
+  position: relative;
+  display: inline-flex;
+  margin-bottom: 0.5rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  border: 1px solid rgb(47 58 69 / 0.12);
+  background-color: rgb(255 255 255 / 0.82);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 2px 8px rgb(47 58 69 / 0.07);
+  pointer-events: auto;
+}
+
+.ring-switch-thumb {
+  position: absolute;
+  top: 0.2rem;
+  bottom: 0.2rem;
+  left: 0.2rem;
+  width: calc(50% - 0.2rem);
+  border-radius: 999px;
+  background-color: var(--color-sage);
+  box-shadow: 0 0 14px rgb(111 154 130 / 0.5);
+  transition: translate 300ms cubic-bezier(0.35, 1.3, 0.4, 1);
+}
+
+.ring-switch[data-kind="time"] .ring-switch-thumb {
+  translate: 100% 0;
+}
+
+.ring-switch button {
+  position: relative;
+  z-index: 1;
+  padding: 0.25rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  transition: color 200ms ease;
+  &[aria-pressed="true"] {
+    color: #fff;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 2px;
+  }
 }
 
 .ring-tick {
   stroke: rgb(47 58 69 / 0.18);
 }
 
-.ring-arc circle {
+/*
+ * 换维度时段原地胀缩：靠 dasharray 过渡，所以 KindRing 里值是 0 的段也不卸载。
+ * 指着哪一类，别的就淡下去；淡到 0.3 还看得见形状，不至于「消失」。
+ */
+.ring-arc {
   cursor: pointer;
   transition:
     opacity 180ms ease,
-    stroke-width 180ms ease;
-  filter: drop-shadow(0 3px 8px color-mix(in srgb, currentColor 0%, transparent));
+    stroke-dasharray 550ms cubic-bezier(0.4, 0, 0.2, 1),
+    stroke-dashoffset 550ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 指着哪一类，别的就淡下去；淡到 0.3 还看得见形状，不至于「消失」 */
-.ring-arc.is-dim circle {
+.ring-arc.is-dim {
   opacity: 0.3;
 }
 
-/* 环外贴着的标签：绝对定位在那一段弧外面，本身是按钮（键盘、读屏走这里） */
-.ring-label {
-  position: absolute;
-  display: inline-flex;
+/* 环下面每类一行：表头那两列，环当前画的那一列加深、底下一条线 */
+.ring-heads {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0 0.5rem 0.15rem;
+  font-size: 0.6875rem;
+  color: var(--color-ink-muted);
+  & span {
+    justify-self: start;
+    padding-bottom: 0.1rem;
+    border-bottom: 2px solid transparent;
+    transition:
+      color 200ms ease,
+      border-color 200ms ease;
+  }
+  & span[data-on] {
+    color: var(--color-ink);
+    font-weight: 500;
+    border-bottom-color: var(--color-sage);
+  }
+}
+
+/* 一类一行，整行是按钮（键盘、读屏走这里）：色点、类型名、开销那格、时间那格 */
+.ring-row {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr 1fr;
+  gap: 0.5rem;
   align-items: center;
-  gap: 0.35rem;
-  translate: -50% -50%;
-  padding: 0.15rem 0.4rem;
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  line-height: 1.2;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.6rem;
+  text-align: left;
   color: var(--color-ink);
   cursor: pointer;
   &:hover,
   &.is-on {
-    background-color: rgb(111 154 130 / 0.12);
+    background-color: rgb(111 154 130 / 0.1);
   }
   &:focus-visible {
     outline: 2px solid var(--color-sage);
-    outline-offset: 1px;
+    outline-offset: -2px;
   }
 }
 
-/* 圈口说明里的两截色条 */
-@utility ring-key {
-  display: inline-block;
-  width: 1.1rem;
-  height: 0.35rem;
-  border-radius: 999px;
+.ring-row-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  & [data-row-name] {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
-@utility ring-key-outer {
-  background: linear-gradient(90deg, #9b8ab2, #77a389);
+.ring-bar {
+  position: relative;
+  display: block;
+  height: 1.25rem;
+  border-radius: 0.3rem;
+  background-color: rgb(47 58 69 / 0.05);
 }
 
-@utility ring-key-inner {
-  background: linear-gradient(90deg, #77a389, #c08d68);
-  opacity: 0.75;
+/*
+ * 条长就是占比，满格是 100%：不按最大值拉伸，不然 42% 会画成满格，看着像「这一类花光了」。
+ * 两根都不用满色：数字写在条里面，条一长就压到数字上，满色会看不清。
+ */
+.ring-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 0.3rem;
+  opacity: 0.55;
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 时间那根再浅一档：深＝钱、浅＝时间，不看表头也分得出哪根是哪根 */
+.ring-bar-fill.is-time {
+  opacity: 0.3;
+}
+
+.ring-bar-val {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  translate: 0 -50%;
+  font-size: 0.6875rem;
+  white-space: nowrap;
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 卡片四角的切角 */

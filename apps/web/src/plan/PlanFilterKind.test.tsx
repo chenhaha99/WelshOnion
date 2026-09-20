@@ -14,7 +14,7 @@ import {
   openOtherTab,
   openStoredPlan,
   overviewCard,
-  ringLabels,
+  ringRowCells,
   ringMoney,
   showView,
 } from "./test-helpers";
@@ -356,7 +356,7 @@ describe("筛选作用到开销、总览和这天怎么样", () => {
     await waitFor(async () =>
       expect((await dayRow("10.1")).querySelector("[data-day-facts]")?.textContent).toBe("18:00 起 · 19:00 收工"),
     );
-    expect(ringLabels(await overviewCard())).toEqual(["餐饮 1 小时 · 100%"]);
+    expect(ringRowCells(await overviewCard(), "time")).toEqual(["餐饮 1 小时 · 100%"]);
   });
 });
 

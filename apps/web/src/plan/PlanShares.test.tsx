@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { addBlock, addExpense, updateKind } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
@@ -9,10 +9,11 @@ import {
   daysFromOct1,
   openStoredPlan,
   overviewCard,
-  ringLabels,
   ringMoney,
+  ringRowCells,
   ringSliceCount,
   ringTime,
+  showRing,
   showView,
 } from "./test-helpers";
 
@@ -61,7 +62,7 @@ describe("总览这张卡片", () => {
 });
 
 describe("按类型的占比：钱", () => {
-  it("按类型分：外圈按比例分段，标签从多到少", async () => {
+  it("按类型分：环按比例分段，每类一行从多到少", async () => {
     await openStoredPlan((plan, library) => {
       oneDay(plan);
       money(plan, library, "transit", 20000);
@@ -69,8 +70,8 @@ describe("按类型的占比：钱", () => {
       money(plan, library, "food", 60000);
     });
     const card = await overviewCard();
-    expect(ringLabels(card)).toEqual(["住宿 ¥1,200 · 60%", "餐饮 ¥600 · 30%", "交通 ¥200 · 10%"]);
-    expect(ringSliceCount(card, "money")).toBe(3);
+    expect(ringRowCells(card, "money")).toEqual(["住宿 ¥1,200 · 60%", "餐饮 ¥600 · 30%", "交通 ¥200 · 10%"]);
+    expect(ringSliceCount(card)).toBe(3);
   });
 
   it("只算已填的：写明还有几笔没填，全没填的类不上环", async () => {
@@ -83,9 +84,9 @@ describe("按类型的占比：钱", () => {
     });
     const card = await overviewCard();
     expect(card.querySelector("[data-money-note]")?.textContent).toBe("只算已填的 2 笔，还有 2 笔没填");
-    // 全没填、也没排时间的「购物」两圈都画不出来：不上环、也没有标签（那几笔算在上面那句里）
-    expect(ringLabels(card)).toEqual(["住宿 ¥1,200 · 67%", "餐饮 ¥600 · 33%"]);
-    expect(ringSliceCount(card, "money")).toBe(2);
+    // 全没填、也没排时间的「购物」哪一格都画不出来：不上环、也没有那一行（那几笔算在上面那句里）
+    expect(ringRowCells(card, "money")).toEqual(["住宿 ¥1,200 · 67%", "餐饮 ¥600 · 33%"]);
+    expect(ringSliceCount(card)).toBe(2);
   });
 
   it("还没有填了金额的开销", async () => {
@@ -95,10 +96,10 @@ describe("按类型的占比：钱", () => {
     });
     const card = await overviewCard();
     expect(card.textContent).toContain("还没有填了金额的开销");
-    // 外圈一段都没有：中间那行写「—」
+    // 环上一段都没有，画成一整圈淡灰：圆心那行写「—」
     expect(ringMoney(card)).toBe("—");
-    expect(ringLabels(card)).toEqual([]);
-    expect(ringSliceCount(card, "money")).toBe(0);
+    expect(ringRowCells(card, "money")).toEqual([]);
+    expect(ringSliceCount(card)).toBe(0);
   });
 
   it("填了的加起来是 0", async () => {
@@ -109,7 +110,7 @@ describe("按类型的占比：钱", () => {
     const card = await overviewCard();
     expect(card.textContent).toContain("填了金额的 1 笔加起来是 ¥0");
     expect(ringMoney(card)).toBe("—");
-    expect(ringLabels(card)).toEqual([]);
+    expect(ringRowCells(card, "money")).toEqual([]);
   });
 
   it("填一笔开销，环跟着变", async () => {
@@ -124,7 +125,7 @@ describe("按类型的占比：钱", () => {
     const editor = screen.getByRole("group", { name: "不属于任何一天的开销" });
     await user.type(within(editor).getByRole("textbox", { name: "新一笔的金额" }), "600{Enter}");
 
-    expect(await within(card).findByText("其他 ¥600 · 100%")).toBeTruthy();
+    await waitFor(() => expect(ringRowCells(card, "money")).toEqual(["其他 ¥600 · 100%"]));
     expect(ringMoney(card)).toBe("¥600");
     expect(card.querySelector("[data-money-note]")).toBeNull();
   });
@@ -144,27 +145,30 @@ describe("按类型的占比：时间", () => {
     const card = await overviewCard();
     const baseLayer = within(card).getByRole<HTMLInputElement>("checkbox", { name: "算上最底层的类型（停留）" });
     expect(baseLayer.checked).toBe(false);
-    expect(ringLabels(card)).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
-    expect(ringSliceCount(card, "time")).toBe(2);
+    expect(ringRowCells(card, "time")).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
+    await showRing(user, card, "时间");
+    expect(ringSliceCount(card)).toBe(2);
 
     await user.click(baseLayer);
-    expect(ringLabels(card)).toEqual(["停留 20 小时 · 83%", "游玩 3 小时 · 13%", "餐饮 1 小时 · 4%"]);
-    expect(ringSliceCount(card, "time")).toBe(3);
+    expect(ringRowCells(card, "time")).toEqual(["停留 20 小时 · 83%", "游玩 3 小时 · 13%", "餐饮 1 小时 · 4%"]);
+    expect(ringSliceCount(card)).toBe(3);
 
     await user.click(baseLayer);
-    expect(ringLabels(card)).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
+    expect(ringRowCells(card, "time")).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
   });
 
   it("还没有排了时间的事", async () => {
+    const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       undated(plan, library, oneDay(plan), "灵隐寺", "sight");
     });
     const card = await overviewCard();
     expect(within(card).getByText("还没有排了时间的事")).toBeTruthy();
-    // 内圈一段都没有：中间那行写「—」
+    // 拨到时间那边：环上一段都没有，圆心大字写「—」
+    await showRing(user, card, "时间");
     expect(ringTime(card)).toBe("—");
-    expect(ringLabels(card)).toEqual([]);
-    expect(ringSliceCount(card, "time")).toBe(0);
+    expect(ringRowCells(card, "money")).toEqual([]);
+    expect(ringSliceCount(card)).toBe(0);
     expect(within(card).queryByRole("checkbox")).toBeNull();
   });
 
@@ -175,7 +179,7 @@ describe("按类型的占比：时间", () => {
       timed(plan, library, oct1, "西湖", "sight", 540, 180);
     });
     const card = await overviewCard();
-    expect(ringLabels(card)).toEqual(["游玩 3 小时 · 100%"]);
+    expect(ringRowCells(card, "time")).toEqual(["游玩 3 小时 · 100%"]);
     expect(within(card).queryByRole("checkbox")).toBeNull();
   });
 
@@ -188,7 +192,7 @@ describe("按类型的占比：时间", () => {
     expect(within(card).getByText("除了停留，还没有排了时间的事")).toBeTruthy();
 
     await user.click(within(card).getByRole("checkbox", { name: "算上最底层的类型（停留）" }));
-    expect(ringLabels(card)).toEqual(["停留 24 小时 · 100%"]);
+    expect(ringRowCells(card, "time")).toEqual(["停留 24 小时 · 100%"]);
     expect(within(card).queryByText("除了停留，还没有排了时间的事")).toBeNull();
   });
 
@@ -201,6 +205,6 @@ describe("按类型的占比：时间", () => {
     });
     const card = await overviewCard();
     expect(within(card).queryByRole("checkbox")).toBeNull();
-    expect(ringLabels(card)).toEqual(["停留 21 小时 · 88%", "游玩 3 小时 · 12%"]);
+    expect(ringRowCells(card, "time")).toEqual(["停留 21 小时 · 88%", "游玩 3 小时 · 12%"]);
   });
 });

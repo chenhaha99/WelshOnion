@@ -12,7 +12,7 @@ import {
   openDayMenu,
   openStoredPlan,
   overviewCard,
-  ringLabels,
+  ringRowCells,
   showView,
 } from "./test-helpers";
 
@@ -130,7 +130,7 @@ describe("按天筛选", () => {
     await user.click(within(screen.getByRole("group", { name: "按类型筛选" })).getByRole("button", { name: "游玩" }));
 
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["西湖"]));
-    expect(ringLabels(await overviewCard())).toEqual(["游玩 3 小时 · 100%"]);
+    expect(ringRowCells(await overviewCard(), "time")).toEqual(["游玩 3 小时 · 100%"]);
   });
 
   it("全部天：哪天都不筛了，按钮上写「天」", async () => {
