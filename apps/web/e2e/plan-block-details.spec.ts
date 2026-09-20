@@ -34,7 +34,7 @@ test("块的详情：键盘打开详情填备注 → 交通块自驾挂油费 �
   await page.keyboard.press("Escape");
   await expect(settings).toBeHidden();
 
-  const day1 = page.getByRole("list", { name: "日期列表" }).getByRole("listitem").nth(0);
+  const day1 = page.getByRole("list", { name: "每天" }).getByRole("listitem").nth(0);
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const rows = table.locator("tr[data-block-id]");
   await table.getByRole("textbox", { name: "加一件事" }).click();

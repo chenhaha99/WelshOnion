@@ -44,7 +44,7 @@ const VIEWS = [
   { value: "overview", label: "总览" },
 ] as const;
 
-/** 块上写什么：两个开关，各开各关 */
+/** 条上写什么：两个开关，各开各关 */
 const BLOCK_TEXT_PARTS = [
   { value: "title", label: "标题" },
   { value: "duration", label: "时长" },
@@ -99,7 +99,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
-  // 时间线的块上写标题、开销（各开各关）：也按计划记在这台设备上
+  // 时间线的条上写标题、开销（各开各关）：也按计划记在这台设备上
   const [blockText, setBlockText] = useState<BlockText>(() => readBlockText(planId));
   const toggleBlockText = (part: "title" | "duration" | "money") => {
     const next = { ...blockText, [part]: !blockText[part] };
@@ -462,12 +462,12 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
             ))}
           </div>
           {view === "timeline" && (
-            // 放不下时整组换到下一行，不挤扁组里的按钮（手机上「块上写」和「竖向放大」加起来正好一屏宽）
+            // 放不下时整组换到下一行，不挤扁组里的按钮（手机上「条上写」和「竖向放大」加起来正好一屏宽）
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {/* 块上写标题、开销：两个开关各开各关（记在这台设备上） */}
+              {/* 条上写标题、开销：两个开关各开各关（记在这台设备上） */}
               <div
                 role="group"
-                aria-label="块上写"
+                aria-label="条上写"
                 className="flex shrink-0 rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
               >
                 {BLOCK_TEXT_PARTS.map(({ value, label }) => (
@@ -548,7 +548,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                     type="range"
                     aria-label="文字行数"
                     aria-valuetext={`${titleLines} 行`}
-                    title={blockText.title ? `块上的标题写 ${titleLines} 行` : "关着「标题」时块上不写字"}
+                    title={blockText.title ? `条上的标题写 ${titleLines} 行` : "关着「标题」时条上不写字"}
                     className="timeline-lines"
                     min={TITLE_LINES_MIN}
                     max={TITLE_LINES_MAX}
@@ -620,7 +620,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                     {`有 ${formatYuan(hiddenCents)} 挂在被筛掉的事上`}
                   </p>
                 )}
-                <ol aria-label="日期列表" className="flex flex-col gap-3">
+                <ol aria-label="每天" className="flex flex-col gap-3">
                   {/* 按天筛时没选中的那天整天不画；序号和总数还按全部天算（菜单里的「上移」「下移」看的是真实位置） */}
                   {bases.map((base, index) =>
                     shownBaseIds !== undefined && !shownBaseIds.includes(base.id) ? null : (

@@ -73,7 +73,7 @@ describe("删除块", () => {
     });
 
     await user.click(within(await blockRow("10.1", "横店一整天")).getByRole("button", { name: "这件事的操作" }));
-    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "删除（连同里面的 1 个）" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "删除（连同里面的 1 件）" }));
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual([]));
   });
 });

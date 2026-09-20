@@ -69,7 +69,7 @@ const ROW_COLUMNS = "grid grid-cols-[6.5rem_1fr] gap-x-3";
 // 钉住的第一列：往左盖住卡片那 8 像素的内边距（横向滚的块会画到那儿），自己再用 pl-2 把字推回原位
 const FIRST_COLUMN = "sticky -left-2 z-10 -ml-2 bg-white/85 pl-2 backdrop-blur-[2px]";
 
-/** 「块上写」的两个选项 */
+/** 「条上写」的两个选项 */
 interface TimelineProps {
   doc: Y.Doc;
   library: Y.Doc;
@@ -77,9 +77,9 @@ interface TimelineProps {
   libraryView: LibraryView;
   /** 筛选；没开是 undefined */
   filter?: StatsFilter;
-  /** 每件事的开销格摘要（按筛选算过）：快捷条上的「开销」、块上写的开销用 */
+  /** 每件事的开销格摘要（按筛选算过）：快捷条上的「开销」、条上写的开销用 */
   moneyCells: Map<string, MoneyCell>;
-  /** 块上写标题、开销（各开各关） */
+  /** 条上写标题、开销（各开各关） */
   blockText: BlockText;
   /** 横向放到百分之几（横排才有） */
   zoom: number;

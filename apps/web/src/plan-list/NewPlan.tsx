@@ -54,7 +54,7 @@ export function NewPlan({ label }: { label: string }) {
         }}
       />
       <button type="submit" className="btn btn-primary" disabled={creating}>
-        创建
+        新建
       </button>
       <button type="button" className="btn btn-ghost" onClick={cancel}>
         取消

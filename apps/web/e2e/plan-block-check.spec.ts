@@ -54,7 +54,7 @@ test("电脑上：快捷条按一圈换三档、块跟着变样子、大小不�
   await expect(toggle).toHaveAttribute("aria-label", "标记：完成");
   await expect(toggle).toBeFocused();
   await expect(segment(day1, "西湖")).toHaveAttribute("data-mark", "done");
-  await expect(lake).toHaveAttribute("aria-label", "西湖 09:00–12:00 · 已完成");
+  await expect(lake).toHaveAttribute("aria-label", "西湖 09:00–12:00 · 完成");
   // 完成（你提的：统一灰色 + 实线）：边和底都换成灰的，字变淡，不划线；不是整块半透明，选中的描边照样看得清
   const done = await looks(lake);
   expect(done.borderStyle, "完成是实线").toBe("solid");
@@ -184,7 +184,7 @@ test("按标记筛：只用键盘在日程里挨个完成 → 焦点落到下一
   }
   await expect(filteredOut).toHaveText("筛掉了 3 件");
   // 一行都不剩：焦点落到这天的菜单按钮（不进输入框，Ctrl+Z 照样能用）
-  const day1 = page.getByRole("list", { name: "日期列表" }).getByRole("listitem").nth(0);
+  const day1 = page.getByRole("list", { name: "每天" }).getByRole("listitem").nth(0);
   await expect(day1.getByRole("button", { name: "这天的操作" })).toBeFocused();
   await shot(page, "05-all-done");
 

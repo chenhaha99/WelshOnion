@@ -235,7 +235,7 @@ export interface HitContext {
   /** 这一行的横轴在屏幕上的位置 */
   axis: AxisRect;
   orientation: "wide" | "day";
-  /** 横排主轨每道多高、套在里面的往下让多少（像素）：跟着块上写什么、写几行变；竖排不看 */
+  /** 横排主轨每道多高、套在里面的往下让多少（像素）：跟着条上写什么、写几行变；竖排不看 */
   metrics: WideMetrics;
   /** 横排横轴展开的那段（两头折起的钟点压在窄窄一截里）；竖排不看 */
   hours: HourWindow;

@@ -35,7 +35,7 @@ test("按天筛选：只看第 1–2 天 → 日程、总览、时间线都跟�
   // 只看第 1–2 天：日程只剩这两天，按钮上写「第 1–2 天」
   await pickDays(page, 1, 2);
   await expect(dayButton).toHaveText("第 1–2 天");
-  const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
+  const days = page.getByRole("list", { name: "每天" }).getByRole("listitem");
   await expect(days).toHaveCount(2);
   await expect(days.locator("[data-day-label]")).toHaveText([/^第 1 天/, /^第 2 天/]);
   await shot(page, "02-first-two-days");

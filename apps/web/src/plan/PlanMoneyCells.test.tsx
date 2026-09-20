@@ -68,7 +68,7 @@ describe("开销格怎么显示", () => {
     });
 
     expect(await moneyCellText("10.1", "灵隐寺")).toBe("填开销");
-    expect(await moneyCellText("10.1", "游船")).toBe("未填");
+    expect(await moneyCellText("10.1", "游船")).toBe("没填");
   });
 
   it("共用和含共用", async () => {

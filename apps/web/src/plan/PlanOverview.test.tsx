@@ -95,11 +95,11 @@ describe("总览：同心双环", () => {
 
     await waitFor(() => expect(center(box).money).toBe("¥480"));
     // 两行：一行钱、一行时间（挤在一行会顶出环中间那个洞）
-    expect(center(box).detail).toBe("32% 的钱10 小时 · 63% 的时间");
+    expect(center(box).detail).toBe("占开销 32%10 小时 · 占时间 63%");
     expect(box.textContent).toContain("住宿");
   });
 
-  it("只有时间没有钱的类型：标签写时长，中间写「没花钱」", async () => {
+  it("只有时间没有钱的类型：标签写时长，中间写「没有开销」", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -113,8 +113,8 @@ describe("总览：同心双环", () => {
 
     await user.hover(within(box).getByRole("button", { name: /^交通 / }));
 
-    await waitFor(() => expect(center(box).money).toBe("没花钱"));
-    expect(center(box).detail).toBe("2 小时 · 40% 的时间");
+    await waitFor(() => expect(center(box).money).toBe("没有开销"));
+    expect(center(box).detail).toBe("2 小时 · 占时间 40%");
   });
 
   it("点一类：下面同时列这一类的每一笔和每一件，再点「收起」关掉", async () => {

@@ -25,14 +25,14 @@ test("手机上：竖向放大三档 → 放到 200% 正中间的钟点不跳 �
   const axis = timeline.locator("[data-day-axis]");
   const zoom = page.getByRole("group", { name: "竖向放大" });
 
-  // 默认 100%：每小时 48 像素；三个按钮和「块上写」放在一行
+  // 默认 100%：每小时 48 像素；三个按钮和「条上写」放在一行
   await expect(zoom.getByRole("button", { name: "100%", pressed: true })).toBeVisible();
   expect((await box(axis)).height).toBeCloseTo(24 * 48, 0);
-  const blockText = await box(page.getByRole("group", { name: "块上写" }));
+  const blockText = await box(page.getByRole("group", { name: "条上写" }));
   expect(Math.abs((await box(zoom)).y - blockText.y)).toBeLessThan(4);
   // 按钮上的字不被挤成竖着的两行：数字排成了几行
   const lines = await page
-    .getByRole("group", { name: "块上写" })
+    .getByRole("group", { name: "条上写" })
     .getByRole("button", { name: "标题" })
     .evaluate((element) => {
       const range = document.createRange();

@@ -61,16 +61,16 @@ function axisHeight(): string {
 
 /** 点一下视图那一行右边的「标题」或「开销」开关。 */
 async function toggle(user: ReturnType<typeof userEvent.setup>, label: "标题" | "时长" | "开销"): Promise<void> {
-  await user.click(within(screen.getByRole("group", { name: "块上写" })).getByRole("button", { name: label }));
+  await user.click(within(screen.getByRole("group", { name: "条上写" })).getByRole("button", { name: label }));
 }
 
 function pressed(label: "标题" | "时长" | "开销"): string | null {
-  return within(screen.getByRole("group", { name: "块上写" }))
+  return within(screen.getByRole("group", { name: "条上写" }))
     .getByRole("button", { name: label })
     .getAttribute("aria-pressed");
 }
 
-describe("块上写标题、开销：两个开关各开各关", () => {
+describe("条上写标题、开销：两个开关各开各关", () => {
   it("默认只开标题：块上只有标题，主轨一道 28 像素", async () => {
     await dayWithMoney();
 

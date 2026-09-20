@@ -66,7 +66,7 @@ function axisHeight(): string {
 }
 
 async function toggle(user: User, label: "标题" | "时长" | "开销"): Promise<void> {
-  await user.click(within(screen.getByRole("group", { name: "块上写" })).getByRole("button", { name: label }));
+  await user.click(within(screen.getByRole("group", { name: "条上写" })).getByRole("button", { name: label }));
 }
 
 function linesSlider(): HTMLInputElement {
@@ -211,7 +211,7 @@ describe("中间那一区写几行：文字行数拉动条", () => {
     await toggle(user, "标题");
 
     await waitFor(() => expect(linesSlider().disabled).toBe(true));
-    expect(linesSlider().title).toBe("关着「标题」时块上不写字");
+    expect(linesSlider().title).toBe("关着「标题」时条上不写字");
   });
 
   it("细条不受行数影响", async () => {

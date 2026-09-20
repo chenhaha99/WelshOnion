@@ -149,7 +149,7 @@ test("导入旧版本导出的文件：状态不要了，勾上的是完成的",
   await showView(page, "时间线");
   await expect(page.getByRole("region", { name: "时间线" }).getByRole("button", { name: /^西湖 / })).toHaveAttribute(
     "aria-label",
-    "西湖 09:00–12:00 · 已完成",
+    "西湖 09:00–12:00 · 完成",
   );
   await shot(page, "05-old-file-imported");
 

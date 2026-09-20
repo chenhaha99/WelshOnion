@@ -75,7 +75,7 @@ test("手机上的时刻表：七个控件都在屏幕里、时间和操作在�
 
   // 电脑上：「第 1 天」「10.1 周四」「这天的操作」在时刻表左边；时刻表不横着滚
   await page.setViewportSize({ width: 1280, height: 900 });
-  const day = page.getByRole("list", { name: "日期列表" }).getByRole("listitem").first();
+  const day = page.getByRole("list", { name: "每天" }).getByRole("listitem").first();
   const tableBox = (await table.boundingBox())!;
   for (const [name, part] of [
     ["标签", day.locator("[data-day-label]")],

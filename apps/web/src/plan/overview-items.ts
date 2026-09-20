@@ -32,7 +32,7 @@ function dayOf(plan: PlanView, baseId: string): string {
 
 /**
  * 点开开销里的一类后列的每一笔：「房费 ¥480 · 10.1 民宿」。
- * 挂了几块写「挂在 2 件事上」，一块不挂写「不属于任何一天」；没填金额写「未填」；说明空着写「没写说明」。
+ * 挂了几块写「挂在 2 件事上」，一块不挂写「不属于任何一天」；没填金额写「没填」；说明空着写「没写说明」。
  * 按它最早那块在行程里的先后排，不属于任何一天的在最后。
  */
 export function moneyItemsOfKind(plan: PlanView, kindId: string, filter?: StatsFilter): OverviewItem[] {
@@ -55,7 +55,7 @@ export function moneyItemsOfKind(plan: PlanView, kindId: string, filter?: StatsF
             : `挂在 ${blocks.length} 件事上`;
       return {
         key: expense.id,
-        label: `${expense.title === "" ? "没写说明" : expense.title} ${cents === null ? "未填" : formatYuan(cents)} · ${where}`,
+        label: `${expense.title === "" ? "没写说明" : expense.title} ${cents === null ? "没填" : formatYuan(cents)} · ${where}`,
         blockId: blocks[0]?.id ?? null,
         rank: blocks.length === 0 ? Number.POSITIVE_INFINITY : (order.get(blocks[0]!.id) ?? 0),
       };

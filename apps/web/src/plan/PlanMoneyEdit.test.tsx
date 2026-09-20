@@ -156,7 +156,7 @@ describe("在块里填开销", () => {
     await user.type(amount, "80{Enter}");
     await waitFor(async () => expect(await moneyCellText("10.1", "晚饭")).toBe("¥80"));
 
-    await user.selectOptions(within(expenseRow(editor, "晚饭")).getByRole("combobox", { name: "算法" }), "per_person");
+    await user.selectOptions(within(expenseRow(editor, "晚饭")).getByRole("combobox", { name: "按总价还是人均" }), "per_person");
     await waitFor(async () => expect(await moneyCellText("10.1", "晚饭")).toBe("¥240"));
   });
 
@@ -270,7 +270,7 @@ describe("把已有的一笔挂到这件事上", () => {
       "游玩 ¥300 门票 · 挂在 10.1 周四 西湖",
       "餐饮 人均 ¥80 · 挂在 10.1 周四 晚饭",
       "其他 ¥600 签证 · 不属于任何一天",
-      "其他 未填 保险 · 不属于任何一天",
+      "其他 没填 保险 · 不属于任何一天",
     ]);
   });
 

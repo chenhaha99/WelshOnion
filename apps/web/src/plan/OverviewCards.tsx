@@ -29,8 +29,8 @@ interface OverviewProps {
 }
 
 /**
- * 「总览」视图：一张卡片、一个同心双环（你选的小样 B）——外圈是钱、内圈是时间，同一个类型两圈同色。
- * 中间写合计，鼠标停在一类上两圈一起亮、中间换成这一类的钱和时间；点一下在下面列出是哪几笔、哪几件。
+ * 「总览」视图：一张卡片、一个同心双环（你选的小样 B）——外圈是开销、内圈是时间，同一个类型两圈同色。
+ * 中间写合计，鼠标停在一类上两圈一起亮、中间换成这一类的开销和时间；点一下在下面列出是哪几笔、哪几件。
  */
 export function OverviewCards({ doc, library, libraryView, plan, filter, onJump, onOnlyKind }: OverviewProps) {
   const [includeBaseLayer, setIncludeBaseLayer] = useState(false);
@@ -73,11 +73,11 @@ export function OverviewCards({ doc, library, libraryView, plan, filter, onJump,
       }}
     >
       <CornerBrackets />
-      {/* 哪圈是什么：不说一次没人知道外圈是钱 */}
+      {/* 哪圈是什么：不说一次没人知道外圈是开销 */}
       <p className="flex justify-center gap-4 text-xs text-ink-muted">
         <span className="flex items-center gap-1.5">
           <span aria-hidden className="ring-key ring-key-outer" />
-          外圈 · 钱
+          外圈 · 开销
         </span>
         <span className="flex items-center gap-1.5">
           <span aria-hidden className="ring-key ring-key-inner" />
@@ -117,7 +117,7 @@ export function OverviewCards({ doc, library, libraryView, plan, filter, onJump,
             <>
               <span className="text-xs text-ink-muted">{shownRow.name}</span>
               <span data-ring-money className="text-2xl font-medium text-ink tabular-nums">
-                {shownRow.cents > 0 ? formatYuan(shownRow.cents) : "没花钱"}
+                {shownRow.cents > 0 ? formatYuan(shownRow.cents) : "没有开销"}
               </span>
               <span data-ring-detail className="flex flex-col text-xs text-ink-muted tabular-nums">
                 {ringCenterDetail(shownRow).map((line) => (
@@ -218,11 +218,11 @@ export function OverviewCards({ doc, library, libraryView, plan, filter, onJump,
   );
 }
 
-/** 停在一类上时，中间金额下面写的两行：占几成钱、排了多久占几成时间。分两行写，一行太长会顶出环中间那个洞。 */
+/** 停在一类上时，中间金额下面写的两行：占开销几成、排了多久占时间几成。分两行写，一行太长会顶出环中间那个洞。 */
 function ringCenterDetail(row: RingRow): string[] {
-  const money = row.moneyPercent === null ? null : `${row.moneyPercent}% 的钱`;
+  const money = row.moneyPercent === null ? null : `占开销 ${row.moneyPercent}%`;
   const time =
-    row.minutes > 0 && row.timePercent !== null ? `${durationLabel(row.minutes)} · ${row.timePercent}% 的时间` : "没排时间";
+    row.minutes > 0 && row.timePercent !== null ? `${durationLabel(row.minutes)} · 占时间 ${row.timePercent}%` : "没排时间";
   return [money, time].filter((part): part is string => part !== null);
 }
 

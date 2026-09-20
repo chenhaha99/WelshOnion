@@ -93,7 +93,7 @@ async function edges(locator: Locator): Promise<{ top: number; bottom: number }>
 
 /** 这天的组头（「第 1 天」、日期、「这天的操作」）。 */
 function dayHead(page: Page, table: Locator): Locator {
-  return page.getByRole("list", { name: "日期列表" }).locator(":scope > li", { has: table }).locator("[data-day-side]");
+  return page.getByRole("list", { name: "每天" }).locator(":scope > li", { has: table }).locator("[data-day-side]");
 }
 
 /** 离页顶那一行下边多远（组头停住时是十几像素）。 */

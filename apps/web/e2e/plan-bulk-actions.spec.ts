@@ -43,7 +43,7 @@ test("一键批量：对看得见的几件一起完成 → 撤销 → 改类型 
   await expect((await rowOf(day1, "午饭")).getByRole("button", { name: "类型：餐饮" })).toBeVisible();
 
   // 这天全部：只作用于 10.1（菜单按钮在这一天的组头上，不在时刻表里）
-  const firstDay = page.getByRole("list", { name: "日期列表" }).getByRole("listitem").nth(0);
+  const firstDay = page.getByRole("list", { name: "每天" }).getByRole("listitem").nth(0);
   await firstDay.getByRole("button", { name: "这天的操作" }).click();
   await page.getByRole("menu").getByRole("menuitem", { name: "这天全部…" }).click();
   await page.getByRole("menu").getByRole("menuitem", { name: "设成待定" }).click();

@@ -129,7 +129,7 @@ describe("三档怎么显示", () => {
 
     const lake = await blockButton("西湖");
     expect(markOf(lake)).toBe("done");
-    expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 已完成");
+    expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 完成");
     const temple = await blockButton("灵隐寺");
     expect(markOf(temple)).toBe("pending");
     expect(temple.getAttribute("aria-label")).toBe("灵隐寺 14:00–16:00 · 待定");

@@ -24,7 +24,7 @@ test("计划设置是居中的窗口：页顶四个图标 → 左边三块分开
   await shot(page, "01-settings-window");
 
   // 左边竖着三块，打开停在「基本」：出发日期这类不常改的在这儿，主版面上没有
-  const sections = settings.getByRole("tablist", { name: "设置分块" });
+  const sections = settings.getByRole("tablist", { name: "设置分区" });
   await expect(sections.getByRole("tab")).toHaveText(["基本", "类型", "标签"]);
   await expect(sections.getByRole("tab", { name: "基本", selected: true })).toBeVisible();
   await expect(settings.getByLabel("出发日期")).toHaveValue("2026-10-01");

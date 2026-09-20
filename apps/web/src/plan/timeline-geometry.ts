@@ -7,7 +7,7 @@ import type { PlacedSegment, RowLayout } from "./timeline-layout";
 /** 横排：背景条每条多高（像素） */
 export const STRIP_HEIGHT = 16;
 
-/** 块上写什么：标题、时长、开销三个开关，各自能开能关。按计划记在这台设备上（plan-block-text-memory）。 */
+/** 条上写什么：标题、时长、开销三个开关，各自能开能关。按计划记在这台设备上（plan-block-text-memory）。 */
 export interface BlockText {
   title: boolean;
   duration: boolean;

@@ -43,7 +43,7 @@ export async function newPlanKeepingView(
 export async function newPlan(page: Page, dayCount = 2, options: NewPlanOptions = {}): Promise<void> {
   await newPlanKeepingView(page, dayCount, options);
   await showView(page, "日程");
-  await expect(page.getByRole("list", { name: "日期列表" }).getByRole("listitem")).toHaveCount(dayCount);
+  await expect(page.getByRole("list", { name: "每天" }).getByRole("listitem")).toHaveCount(dayCount);
 }
 
 async function pressedView(page: Page): Promise<ViewName> {

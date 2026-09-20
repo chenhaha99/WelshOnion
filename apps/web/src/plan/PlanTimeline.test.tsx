@@ -195,9 +195,9 @@ describe("没排时间的那一条", () => {
     });
 
     await screen.findByRole("region", { name: "时间线" });
-    expect(chipNames(tray())).toEqual(["河坊街 10.1 整天", "灵隐寺 10.1 上午 · 2 小时 · 已完成", "宋城 10.1 下午"]);
+    expect(chipNames(tray())).toEqual(["河坊街 10.1 整天", "灵隐寺 10.1 上午 · 2 小时 · 完成", "宋城 10.1 下午"]);
     const temple = within(tray())
-      .getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时 · 已完成" })
+      .getByRole("button", { name: "灵隐寺 10.1 上午 · 2 小时 · 完成" })
       .closest<HTMLElement>("[data-undated-chip]")!;
     expect(temple.style.getPropertyValue("--kind-color")).toBe("#77a389");
     expect(temple.dataset.mark).toBe("done");

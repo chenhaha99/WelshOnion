@@ -46,7 +46,7 @@ interface DayTimelineProps {
   filter: StatsFilter | undefined;
   /** 每件事的开销格摘要（按筛选算过）：快捷条上的「开销」、竖条上写的开销用 */
   moneyCells: Map<string, MoneyCell>;
-  /** 块上写标题，还是标题加开销 */
+  /** 条上写标题，还是标题加开销 */
   blockText: BlockText;
   /** 每小时多高（像素）：视图那一行的「竖向放大」定 */
   hourHeight: number;
@@ -340,13 +340,13 @@ interface DaySegmentProps {
   item: PlacedSegment;
   /** 横向的位置：第几列、多宽 */
   place: CSSProperties;
-  /** 块上写标题、时长、开销（各开各关） */
+  /** 条上写标题、时长、开销（各开各关） */
   blockText: BlockText;
   /** 这个计划里有竖条挂着标签：竖条留书签栏 */
   tagBar: boolean;
   /** 每小时多高（像素）：竖条多高就是时长乘它，按高度分区 */
   hourHeight: number;
-  /** 块上写开销时这件事的开销格摘要；不写开销时是 undefined */
+  /** 条上写开销时这件事的开销格摘要；不写开销时是 undefined */
   money: MoneyCell | undefined;
   dragView: DragView | null;
   handlers: SegmentHandlers;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cityName, dayRowLabels, normalizeSystemTimeZone } from "./day-labels";
 
-describe("日期列表每行的标签", () => {
+describe("每天的列表每行的标签", () => {
   it("全程一个时区：不出现时区字眼", () => {
     const labels = dayRowLabels([
       { date: "2026-10-01", tz: "Asia/Shanghai" },

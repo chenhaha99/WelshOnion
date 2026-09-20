@@ -7,7 +7,7 @@ function keyOf(planId: string): string {
 
 const PARTS = ["title", "duration", "money"] as const;
 
-/** 这个计划上次开着「块上写」的哪几样；没存过、或者存的认不出，就是只写标题。 */
+/** 这个计划上次开着「条上写」的哪几样；没存过、或者存的认不出，就是只写标题。 */
 export function readBlockText(planId: string): BlockText {
   const stored = localStorage.getItem(keyOf(planId));
   if (stored === null) return BLOCK_TEXT_DEFAULT;

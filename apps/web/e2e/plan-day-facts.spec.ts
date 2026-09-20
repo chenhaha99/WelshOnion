@@ -26,7 +26,7 @@ test("这天怎么样：空的一天 → 排时间 → 取消时间留下没排�
   // 打开是时间线：这份走查从安排表开始，先切到日程
   await showView(page, "日程");
 
-  const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
+  const days = page.getByRole("list", { name: "每天" }).getByRole("listitem");
   const day1 = days.nth(0);
   const facts = day1.locator("[data-day-facts]");
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });

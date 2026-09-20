@@ -136,7 +136,7 @@ export function BlockTable({
         <thead className="sr-only">
           <tr>
             <th>开始</th>
-            <th>完成</th>
+            <th>标记</th>
             <th>这件事</th>
           </tr>
         </thead>

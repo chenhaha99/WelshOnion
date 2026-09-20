@@ -272,7 +272,7 @@ describe("按类型筛选时的开销", () => {
     expect(within(bar).getByRole("button", { name: "开销：填开销" })).toBeTruthy();
   });
 
-  it("挂在被筛掉的事上的开销：日期列表上面写一句，总览里的钱算上它", async () => {
+  it("挂在被筛掉的事上的开销：每天的列表上面写一句，总览里的钱算上它", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const { lake } = threeKinds(plan, library);
@@ -285,7 +285,7 @@ describe("按类型筛选时的开销", () => {
 
     await showView("日程");
     const line = await screen.findByText("有 ¥300 挂在被筛掉的事上");
-    const list = screen.getByRole("list", { name: "日期列表" });
+    const list = screen.getByRole("list", { name: "每天" });
     expect(line.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await blockTitles("10.1")).toEqual(["民宿"]);
     expect(ringMoney(await overviewCard())).toBe("¥300");

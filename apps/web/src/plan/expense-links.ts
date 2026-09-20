@@ -56,12 +56,12 @@ export function linkableExpenses(plan: PlanView, blockId: string): Array<{ id: s
   );
 }
 
-/** 「住宿 ¥800 民宿两晚」「餐饮 人均 ¥80」「其他 未填 保险」：金额是填的数，人均不乘人数。 */
+/** 「住宿 ¥800 民宿两晚」「餐饮 人均 ¥80」「其他 没填 保险」：金额是填的数，人均不乘人数。 */
 function expenseText(expense: ExpenseView): string {
   const kind = expense.kind.deleted ? "已删除的类型" : expense.kind.name;
   const amount =
     expense.amount_cents === null
-      ? "未填"
+      ? "没填"
       : `${expense.basis === "per_person" ? "人均 " : ""}${formatYuan(expense.amount_cents)}`;
   return [kind, amount, expense.title].filter((part) => part !== "").join(" ");
 }

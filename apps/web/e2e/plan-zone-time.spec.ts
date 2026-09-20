@@ -16,7 +16,7 @@ test("跨时区：北京那天加同日期的洛杉矶 → 18:00 起飞 12 小�
   await showView(page, "日程");
 
   // 北京那天下面加一个同日期、洛杉矶时区的天
-  const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
+  const days = page.getByRole("list", { name: "每天" }).getByRole("listitem");
   await expect(days).toHaveCount(1);
   await days.first().getByRole("button", { name: "这天的操作" }).click();
   await page.getByRole("menuitem", { name: "加一个另一时区的这天…" }).click();

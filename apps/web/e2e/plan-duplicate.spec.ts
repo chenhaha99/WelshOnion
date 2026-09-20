@@ -16,7 +16,7 @@ test("复制计划：有块有开销的计划 → 日程里复制到明年 → �
   await showView(page, "日程");
 
   // 源计划：10.1「西湖」完成了、挂 300 元
-  const days = page.getByRole("list", { name: "日期列表" }).getByRole("listitem");
+  const days = page.getByRole("list", { name: "每天" }).getByRole("listitem");
   const table = page.getByRole("table", { name: /10\.1 周四 的安排/ });
   const lake = table.locator("tr[data-block-id]").first();
   await table.getByRole("textbox", { name: "加一件事" }).fill("西湖");

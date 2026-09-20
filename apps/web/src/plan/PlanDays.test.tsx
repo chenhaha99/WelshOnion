@@ -36,7 +36,7 @@ function threeDaysFromOct1(doc: Y.Doc): string[] {
 
 async function dayLabels(): Promise<string[]> {
   await showView("日程");
-  const list = await screen.findByRole("list", { name: "日期列表" });
+  const list = await screen.findByRole("list", { name: "每天" });
   return within(list)
     .getAllByRole("listitem")
     .map((row) => row.querySelector("[data-day-label]")?.textContent ?? "");
@@ -76,7 +76,7 @@ describe("还没有天时只问几天", () => {
   });
 });
 
-describe("日期列表", () => {
+describe("每天的列表", () => {
   it("全程一个时区：没有城市名和小时差", async () => {
     await openStoredPlan(threeDaysFromOct1);
     expect(await dayLabels()).toEqual(["第 1 天 · 10.1 周四", "第 2 天 · 10.2 周五", "第 3 天 · 10.3 周六"]);

@@ -10,9 +10,9 @@ async function box(locator: Locator) {
   return (await locator.boundingBox())!;
 }
 
-/** 「块上写」里这个开关没按下就按下。 */
+/** 「条上写」里这个开关没按下就按下。 */
 async function turnOn(page: Page, label: "标题" | "时长" | "开销"): Promise<void> {
-  const button = page.getByRole("group", { name: "块上写" }).getByRole("button", { name: label, exact: true });
+  const button = page.getByRole("group", { name: "条上写" }).getByRole("button", { name: label, exact: true });
   if ((await button.getAttribute("aria-pressed")) !== "true") await button.click();
 }
 
@@ -98,7 +98,7 @@ test("电脑上：挂标签、开时长和开销、拉到 3 行 → 书签在上
   await expect.poll(async () => Math.round((await box(lakeSegment)).height)).toBe(46);
 
   // 关掉「标题」：拉动条按不了
-  await page.getByRole("group", { name: "块上写" }).getByRole("button", { name: "标题", exact: true }).click();
+  await page.getByRole("group", { name: "条上写" }).getByRole("button", { name: "标题", exact: true }).click();
   await expect(lines).toBeDisabled();
 
   expect(errors).toEqual([]);

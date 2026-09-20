@@ -51,7 +51,7 @@ test("电脑上：同心双环 → 停在一类上两圈一起亮 → 点一类�
   await hoverArc(page, 0.25, 128);
   await expect(card.locator("[data-ring-money]")).toHaveText("¥750");
   // 两行：一行钱、一行时间
-  await expect(card.locator("[data-ring-detail]")).toHaveText("100% 的钱11 小时 · 92% 的时间");
+  await expect(card.locator("[data-ring-detail]")).toHaveText("占开销 100%11 小时 · 占时间 92%");
   await shot(page, "02-hover", { screen: true });
 
   // 点标签展开这一类：开销和事各一列

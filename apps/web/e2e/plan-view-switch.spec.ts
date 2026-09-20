@@ -149,7 +149,7 @@ test("手机上：打开是时间线 → 页面在最上面时和原来一样、
 
   // 弹出来时点按下的「日程」：回到开头，页顶、筛选、切换按钮都在原处
   await clickInPlace(page, views.getByRole("button", { name: "日程" }));
-  await expectViewRightBelow(page, page.getByRole("list", { name: "日期列表" }));
+  await expectViewRightBelow(page, page.getByRole("list", { name: "每天" }));
 
   // 再滚下去，弹出来点「时间线」：时间线从开头看起（不停在日程滚到的地方）
   await moveAway(page);
@@ -163,7 +163,7 @@ test("手机上：打开是时间线 → 页面在最上面时和原来一样、
   // 切到日程、重新打开：还是日程（默认是时间线，所以这一下才看得出记住了）
   await page.reload();
   await expect(views.getByRole("button", { name: "日程", pressed: true })).toBeVisible();
-  await expect(page.getByRole("list", { name: "日期列表" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "每天" })).toBeVisible();
   await expect(page.getByRole("region", { name: "时间线" })).toHaveCount(0);
 
   expect(errors).toEqual([]);
@@ -182,7 +182,7 @@ test("手机上走到的输入框不被页顶那一行、停住的「第 1 天�
   await expect(title).toBeFocused();
   const box = await edges(title);
   expect(box.top, "标题框在页顶那一行下面").toBeGreaterThanOrEqual((await edges(topBar(page))).bottom - 1);
-  const dayHead = page.getByRole("list", { name: "日期列表" }).locator(":scope > li", { has: day1 }).locator("[data-day-side]");
+  const dayHead = page.getByRole("list", { name: "每天" }).locator(":scope > li", { has: day1 }).locator("[data-day-side]");
   expect(box.top, "标题框在停住的「第 1 天」下面").toBeGreaterThanOrEqual((await edges(dayHead)).bottom - 1);
   expect(box.bottom, "标题框在屏幕里").toBeLessThanOrEqual(844);
 

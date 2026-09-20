@@ -94,7 +94,7 @@ describe("新建计划", () => {
     const user = userEvent.setup();
     renderApp("#/");
     await user.click(await screen.findByRole("button", { name: "新建第一个计划" }));
-    await user.click(screen.getByRole("button", { name: "创建" }));
+    await user.click(screen.getByRole("button", { name: "新建" }));
 
     expect(await screen.findByRole("heading", { name: "未命名计划", level: 1 })).toBeTruthy();
   });

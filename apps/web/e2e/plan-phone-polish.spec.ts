@@ -90,7 +90,7 @@ test("手机上开销的编辑区：一笔开销分两行，说明框写着「�
 
   const kind = expense.getByRole("button", { name: /^类型：/ });
   await expectSameLine(kind, amount, "类型和金额");
-  await expectSameLine(kind, expense.getByRole("combobox", { name: "算法" }), "类型和「总价」");
+  await expectSameLine(kind, expense.getByRole("combobox", { name: "按总价还是人均" }), "类型和「总价」");
   const note = expense.getByRole("textbox", { name: "说明" });
   await expect(note).toHaveAttribute("placeholder", "说明");
   await expectSameLine(note, expense.getByRole("button", { name: "删除这笔" }), "说明框和「删除这笔」");
@@ -102,7 +102,7 @@ test("手机上开销的编辑区：一笔开销分两行，说明框写着「�
   await page.setViewportSize({ width: 1280, height: 900 });
   const onDesktop: Array<[string, Locator]> = [
     ["金额", amount],
-    ["「总价」", expense.getByRole("combobox", { name: "算法" })],
+    ["「总价」", expense.getByRole("combobox", { name: "按总价还是人均" })],
     ["说明框", note],
     ["「删除这笔」", expense.getByRole("button", { name: "删除这笔" })],
   ];

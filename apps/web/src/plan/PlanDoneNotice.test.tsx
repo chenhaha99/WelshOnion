@@ -66,7 +66,7 @@ describe("刚做完的提示", () => {
       setBlockLayer(plan, library, inner.value.blockId, outer.value.blockId);
     });
 
-    await deleteRow(user, "10.1", "横店一整天", "删除（连同里面的 1 个）");
+    await deleteRow(user, "10.1", "横店一整天", "删除（连同里面的 1 件）");
 
     const region = await notice();
     await waitFor(() => expect(region.textContent).toContain("删掉了「横店一整天」和里面的 1 件"));

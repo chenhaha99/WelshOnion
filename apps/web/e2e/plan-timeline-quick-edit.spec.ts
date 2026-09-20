@@ -123,7 +123,7 @@ test("电脑上：选中最后一行的事，快捷条整个露出来，时间�
   expect(errors).toEqual([]);
 });
 
-test("电脑上：点一下复制就地多一份；块上写开销，点金额就地改", async ({ page }) => {
+test("电脑上：点一下复制就地多一份；条上写开销，点金额就地改", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1);
   const table = page.getByRole("table", { name: DAY1 });
@@ -143,9 +143,9 @@ test("电脑上：点一下复制就地多一份；块上写开销，点金额�
   await page.keyboard.press("Control+z");
   expect(await countRows(table, "西湖")).toBe(1);
 
-  // 块上写开销：横条上多一行，点了就地改
+  // 条上写开销：横条上多一行，点了就地改
   await showView(page, "时间线");
-  await page.getByRole("group", { name: "块上写" }).getByRole("button", { name: "开销" }).click();
+  await page.getByRole("group", { name: "条上写" }).getByRole("button", { name: "开销" }).click();
   const money = segment(day1, "西湖").locator("[data-bar-money] button");
   await expect(money).toHaveText("¥300");
   // 开销那一行画在块里面，不许漏到块外面

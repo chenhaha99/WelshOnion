@@ -4,7 +4,7 @@ import type { RingRow } from "./shares";
 /** 画多大（SVG 里的单位，外面按容器缩放） */
 const SIZE = 340;
 const MID = SIZE / 2;
-/** 外圈（钱）、内圈（时间）各自的半径和粗细 */
+/** 外圈（开销）、内圈（时间）各自的半径和粗细 */
 const OUTER = { r: 128, w: 30 };
 const INNER = { r: 88, w: 24 };
 /** 段和段之间留的空（弧长）：不留就分不出两段 */
@@ -18,7 +18,7 @@ interface DualRingProps {
   rows: readonly RingRow[];
   /** 内圈末尾那一段灰的：还没排的时长 */
   unscheduledMinutes: number;
-  /** 外圈、内圈是不是空的（一分钱没填 / 一件排了时间的事都没有） */
+  /** 外圈、内圈是不是空的（一笔开销都没填金额 / 一件排了时间的事都没有） */
   moneyEmpty: boolean;
   timeEmpty: boolean;
   /** 现在指着哪一类（`kindId`，「其余 N 类」是空字符串用 name 认）；null 是都不指 */
@@ -32,7 +32,7 @@ interface DualRingProps {
 const keyOf = (row: RingRow) => row.kindId || row.name;
 
 /**
- * 同心双环（你选的小样 B）：外圈是钱、内圈是时间，同一个类型两圈同色。
+ * 同心双环（你选的小样 B）：外圈是开销、内圈是时间，同一个类型两圈同色。
  * 停在一类上两圈一起亮、别的变淡，中间的字由外面换（`children`）。
  * 环整个读屏跳过：能按的是环外贴着的那圈标签（在 `RingLabels` 里），键盘和读屏走那边。
  */
@@ -149,7 +149,7 @@ export function DualRing({
   );
 }
 
-/** 环外贴着的一圈标签：每一类一个按钮（键盘、读屏走这里）。位置按它在外圈（没钱就按内圈）的中点角度算。 */
+/** 环外贴着的一圈标签：每一类一个按钮（键盘、读屏走这里）。位置按它在外圈（没开销就按内圈）的中点角度算。 */
 export function ringLabelPlaces(rows: readonly RingRow[], unscheduledMinutes: number) {
   const totals = {
     money: rows.reduce((sum, row) => sum + row.cents, 0),

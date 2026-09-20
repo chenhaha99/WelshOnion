@@ -123,7 +123,7 @@ describe("块上画出标签", () => {
     await showView("时间线");
 
     const lake = await blockButton("西湖");
-    expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 必去 · 已完成");
+    expect(lake.getAttribute("aria-label")).toBe("西湖 09:00–12:00 · 必去 · 完成");
     expect(ribbonColors(lake)).toHaveLength(1);
   });
 

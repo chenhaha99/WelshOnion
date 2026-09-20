@@ -85,14 +85,14 @@ export function moneyCellEmpty(cell: MoneyCell | undefined): boolean {
   return cell === undefined || (cell.ownCount === 0 && !cell.sharedElsewhere);
 }
 
-/** 开销格的字：「填开销」「未填」「¥300」「¥158.50 · 2 笔」「共用」「¥30 含共用」。 */
+/** 开销格的字：「填开销」「没填」「¥300」「¥158.50 · 2 笔」「共用」「¥30 含共用」。 */
 export function moneyCellLabel(cell: MoneyCell | undefined): string {
   if (cell === undefined || moneyCellEmpty(cell)) return "填开销";
   if (cell.ownCount === 0) return "共用";
   const own =
     cell.ownCount === 1
       ? cell.unfilledCount === 1
-        ? "未填"
+        ? "没填"
         : formatYuan(cell.ownCents)
       : `${formatYuan(cell.ownCents)} · ${cell.ownCount} 笔`;
   return cell.sharedElsewhere ? `${own} 含共用` : own;

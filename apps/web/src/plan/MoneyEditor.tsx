@@ -158,7 +158,7 @@ function ExpenseRow({ doc, library, expense, kinds, countKindUsing, blockId }: E
           />
         </div>
         <select
-          aria-label="算法"
+          aria-label="按总价还是人均"
           className="input h-8"
           value={expense.basis}
           onChange={(event) =>

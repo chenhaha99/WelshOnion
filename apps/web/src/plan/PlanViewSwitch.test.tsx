@@ -44,7 +44,7 @@ describe("时间线和日程切换着看", () => {
     expect(within(views).getAllByRole("button").map((button) => button.textContent)).toEqual(["时间线", "日程", "总览"]);
     expect(pressedView()).toBe("时间线");
     const timeline = screen.getByRole("region", { name: "时间线" });
-    expect(screen.queryByRole("list", { name: "日期列表" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "每天" })).toBeNull();
     expect(screen.getByRole("group", { name: "按类型筛选" })).toBeTruthy();
     // 出发日期、总览都不在主版面上
     expect(screen.queryByLabelText("出发日期")).toBeNull();
@@ -62,25 +62,25 @@ describe("时间线和日程切换着看", () => {
 
     const views = await viewSwitch();
     const row = views.parentElement!;
-    expect(within(row).getByRole("group", { name: "块上写" })).toBeTruthy();
+    expect(within(row).getByRole("group", { name: "条上写" })).toBeTruthy();
     expect(within(row).getByRole("slider", { name: "横向放大" })).toBeTruthy();
 
     await showView("日程");
-    expect(screen.queryByRole("group", { name: "块上写" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "条上写" })).toBeNull();
     expect(screen.queryByRole("slider", { name: "横向放大" })).toBeNull();
 
     await showView("总览");
-    expect(screen.queryByRole("group", { name: "块上写" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "条上写" })).toBeNull();
   });
 
-  it("切到日程：只有日期列表，没有「分组」；筛选、总览还在", async () => {
+  it("切到日程：只有每天的列表，没有「分组」；筛选、总览还在", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeOnOct1);
 
     await user.click(within(await viewSwitch()).getByRole("button", { name: "日程" }));
 
     expect(pressedView()).toBe("日程");
-    expect(screen.getByRole("list", { name: "日期列表" })).toBeTruthy();
+    expect(screen.getByRole("list", { name: "每天" })).toBeTruthy();
     // 「按类型」分组撤掉了（你提的：按类型用上面的筛选）
     expect(screen.queryByRole("group", { name: "分组" })).toBeNull();
     expect(screen.queryByRole("region", { name: "时间线" })).toBeNull();
@@ -113,7 +113,7 @@ describe("时间线和日程切换着看", () => {
 
     await waitFor(() => expect(pressedView()).toBe("时间线"));
     expect(await screen.findByRole("region", { name: "时间线" })).toBeTruthy();
-    expect(screen.queryByRole("list", { name: "日期列表" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "每天" })).toBeNull();
   });
 });
 

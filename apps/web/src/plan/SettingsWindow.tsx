@@ -51,7 +51,7 @@ export function SettingsWindow({ doc, library, libraryView, plan, settings, onCl
   return (
     <Window title="计划设置" onClose={onClose}>
       <div className="flex gap-4">
-        <div role="tablist" aria-orientation="vertical" aria-label="设置分块" className="flex w-24 shrink-0 flex-col gap-1">
+        <div role="tablist" aria-orientation="vertical" aria-label="设置分区" className="flex w-24 shrink-0 flex-col gap-1">
           {SECTIONS.map(({ value, label }) => (
             <button
               key={value}

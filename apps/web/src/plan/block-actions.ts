@@ -38,9 +38,9 @@ export function undatedArrangeItems(doc: Y.Doc, plan: PlanView, block: BlockView
   ];
 }
 
-/** 删除的字：套着会被带走的块时写明几个。 */
+/** 删除的字：套着会被带走的事时写明几件。 */
 export function deleteLabel(followerCount: number): string {
-  return followerCount > 0 ? `删除（连同里面的 ${followerCount} 个）` : "删除";
+  return followerCount > 0 ? `删除（连同里面的 ${followerCount} 件）` : "删除";
 }
 
 /** 删掉这件事（连同会被带走的块），返回刚做完的提示：删除不再确认，靠撤销。 */

@@ -101,13 +101,13 @@ describe("开销格怎么显示", () => {
     expect(labelOf(view, "晚饭")).toBe("¥240");
   });
 
-  it("没挂开销写「填开销」，只有一笔没填写「未填」", () => {
+  it("没挂开销写「填开销」，只有一笔没填写「没填」", () => {
     const view = planWith(({ block, expense }) => {
       block(0, "灵隐寺");
       expense({ title: "游船", cents: null, blockIds: [block(0, "游船")] });
     });
     expect(labelOf(view, "灵隐寺")).toBe("填开销");
-    expect(labelOf(view, "游船")).toBe("未填");
+    expect(labelOf(view, "游船")).toBe("没填");
   });
 
   it("共用的开销只在最早那块显示；自己也有开销时加「含共用」", () => {

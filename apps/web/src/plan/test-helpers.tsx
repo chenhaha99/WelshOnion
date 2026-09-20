@@ -61,7 +61,7 @@ export function stubNarrowScreen(): void {
 
 /** 切到「时间线」「日程」或「总览」视图；已经是就不动。 */
 export async function showView(name: "时间线" | "日程" | "总览"): Promise<void> {
-  // 找日期列表的辅助函数每次都先调它，用 CSS 选择器找，比按读屏名找快
+  // 找每天的列表的辅助函数每次都先调它，用 CSS 选择器找，比按读屏名找快
   const button = await waitFor(() => {
     const found = [...document.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="视图"] button')].find(
       (item) => item.textContent === name,
@@ -80,7 +80,7 @@ export function pressedView(): string | null {
 /** 每天的标签。先切到日程。 */
 export async function dayLabels(): Promise<string[]> {
   await showView("日程");
-  const list = await screen.findByRole("list", { name: "日期列表" });
+  const list = await screen.findByRole("list", { name: "每天" });
   return within(list)
     .getAllByRole("listitem")
     .map((row) => row.querySelector("[data-day-label]")?.textContent ?? "");
@@ -89,7 +89,7 @@ export async function dayLabels(): Promise<string[]> {
 /** 标签里含 text 的那一行（比如「10.2」）。先切到日程：要断言「切到了日程」的，在调它之前看 pressedView。 */
 export async function dayRow(text: string): Promise<HTMLElement> {
   await showView("日程");
-  const list = await screen.findByRole("list", { name: "日期列表" });
+  const list = await screen.findByRole("list", { name: "每天" });
   const row = within(list)
     .getAllByRole("listitem")
     .find((item) => item.querySelector("[data-day-label]")?.textContent?.includes(text));
