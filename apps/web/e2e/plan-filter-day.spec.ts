@@ -40,14 +40,11 @@ test("按天筛选：只看第 1–2 天 → 日程、总览、时间线都跟�
   await expect(days.locator("[data-day-label]")).toHaveText([/^第 1 天/, /^第 2 天/]);
   await shot(page, "02-first-two-days");
 
-  // 总览：「每天」只列这两天，占比、总额只算这两天（灵隐寺的 ¥100 不算）
+  // 总览：总额、占比只算这两天（灵隐寺的 ¥100、1 小时都不算）
   await showView(page, "总览");
-  const daysTable = page.getByRole("region", { name: "每天" }).getByRole("table", { name: "每天" });
-  await expect(daysTable.getByRole("row")).toHaveCount(4); // 表头 + 两天 + 合计
-  await expect(daysTable.getByRole("rowheader")).toHaveText([/^第 1 天/, /^第 2 天/, "合计"]);
-  await expect(page.getByRole("region", { name: "开销总览" }).locator("[data-money-summary]")).toContainText("总额 ¥300");
-  const shares = page.getByRole("region", { name: "占比" });
-  await expect(shares.getByRole("group", { name: "时间的占比" }).getByRole("listitem")).toHaveText(["游玩 3 小时 · 100%"]);
+  await expect(page.getByRole("region", { name: "开销总览" }).locator("[data-donut-total]")).toHaveText("¥300");
+  const time = page.getByRole("region", { name: "时间总览" });
+  await expect(time.getByRole("listitem")).toHaveText(["游玩 3 小时 · 100%"]);
   await shot(page, "03-overview");
 
   // 时间线：三天的行都在（行是时间的格子，位置不变才拖得动），但第 3 天上不画块

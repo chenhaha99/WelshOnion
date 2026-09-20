@@ -5,7 +5,16 @@ import { addBlock, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockTitles, dayLabels, daysFromOct1, openDayMenu, openStoredPlan, showView } from "./test-helpers";
+import {
+  blockTitles,
+  dayLabels,
+  daysFromOct1,
+  openDayMenu,
+  openStoredPlan,
+  overviewLegend,
+  showView,
+  timeOverview,
+} from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -107,7 +116,7 @@ describe("按天筛选", () => {
     expect(await blockTitles("10.1")).toEqual(["民宿"]);
   });
 
-  it("和按类型筛一起：两样都符合才算，占比也只算这些", async () => {
+  it("和按类型筛一起：两样都符合才算，总览也只算这些", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1, oct2] = daysFromOct1(plan, 3);
@@ -121,10 +130,7 @@ describe("按天筛选", () => {
     await user.click(within(screen.getByRole("group", { name: "按类型筛选" })).getByRole("button", { name: "游玩" }));
 
     await waitFor(async () => expect(await blockTitles("10.1")).toEqual(["西湖"]));
-    await showView("总览");
-    const card = screen.getByRole("region", { name: "占比" });
-    const time = within(card).getByRole("group", { name: "时间的占比" });
-    expect(within(time).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["游玩 3 小时 · 100%"]);
+    expect(overviewLegend(await timeOverview())).toEqual(["游玩 3 小时 · 100%"]);
   });
 
   it("全部天：哪天都不筛了，按钮上写「天」", async () => {

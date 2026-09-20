@@ -276,7 +276,7 @@ test("按住 Alt 复制 → Esc 放弃 → 拖的时候块没了", async ({ page
   await expect.poll(() => timeOf(day2Table, "西湖")).toBe("09:00–12:00");
   expect(await timeOf(day1Table, "西湖")).toBe("09:00–12:00");
   await expect((await rowOf(day2Table, "西湖")).locator("[data-money-cell]")).toHaveText("¥300");
-  await inOverview(page, ({ money }) => expect(money).toContainText("总额 ¥600"));
+  await inOverview(page, ({ total }) => expect(total).toHaveText("¥600"));
 
   // Esc 放弃：画回拖之前的样子，松手后什么都不变，也不打开详情
   const lakeAgain = center(await box(segment(day1, "西湖")));

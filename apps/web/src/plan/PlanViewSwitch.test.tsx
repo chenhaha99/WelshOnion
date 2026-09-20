@@ -5,7 +5,15 @@ import { addBlock } from "@welshonion/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, moneyOverview, openStoredPlan, pressedView, showView, stubNarrowScreen } from "./test-helpers";
+import {
+  daysFromOct1,
+  moneyOverview,
+  openStoredPlan,
+  pressedView,
+  showView,
+  stubNarrowScreen,
+  timeOverview,
+} from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -30,7 +38,7 @@ function follows(first: Element, second: Element): boolean {
 }
 
 describe("时间线和日程切换着看", () => {
-  it("第一次打开是时间线：主版面只有筛选、切换和时间线，开销总览和占比在「总览」里", async () => {
+  it("第一次打开是时间线：主版面只有筛选、切换和时间线，开销总览和时间总览在「总览」里", async () => {
     await openStoredPlan(lakeOnOct1);
 
     const views = await viewSwitch();
@@ -39,17 +47,17 @@ describe("时间线和日程切换着看", () => {
     const timeline = screen.getByRole("region", { name: "时间线" });
     expect(screen.queryByRole("list", { name: "日期列表" })).toBeNull();
     expect(screen.getByRole("group", { name: "按类型筛选" })).toBeTruthy();
-    // 出发日期、开销总览、占比都不在主版面上
+    // 出发日期、开销总览、时间总览都不在主版面上
     expect(screen.queryByLabelText("出发日期")).toBeNull();
     expect(screen.queryByRole("region", { name: "开销总览" })).toBeNull();
-    expect(screen.queryByRole("region", { name: "占比" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "时间总览" })).toBeNull();
     // 切换按钮在筛选和视图中间
     expect(follows(screen.getByRole("group", { name: "按类型筛选" }), views)).toBe(true);
     expect(follows(views, timeline)).toBe(true);
 
     await showView("总览");
     expect(await moneyOverview()).toBeTruthy();
-    expect(screen.getByRole("region", { name: "占比" })).toBeTruthy();
+    expect(await timeOverview()).toBeTruthy();
   });
 
   it("「标题」「开销」和放大条在切换按钮那一行，只有看时间线时才有", async () => {
@@ -68,7 +76,7 @@ describe("时间线和日程切换着看", () => {
     expect(screen.queryByRole("group", { name: "块上写" })).toBeNull();
   });
 
-  it("切到日程：只有日期列表，没有「分组」；筛选、开销的总览、占比还在", async () => {
+  it("切到日程：只有日期列表，没有「分组」；筛选、开销总览还在", async () => {
     const user = userEvent.setup();
     await openStoredPlan(lakeOnOct1);
 

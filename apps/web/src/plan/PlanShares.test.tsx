@@ -5,7 +5,15 @@ import { addBlock, addExpense, updateKind } from "@welshonion/core";
 import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, moneyOverview, openStoredPlan, showView } from "./test-helpers";
+import {
+  daysFromOct1,
+  donutSliceCount,
+  moneyOverview,
+  openStoredPlan,
+  overviewLegend,
+  showView,
+  timeOverview,
+} from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -34,26 +42,7 @@ function money(plan: Y.Doc, library: Y.Doc, kindId: string, cents: number | null
   if (!result.ok) throw new Error("建开销失败");
 }
 
-/** 占比卡片里的一块：「开销的占比」「时间的占比」。 */
-async function part(name: string): Promise<HTMLElement> {
-  await showView("总览");
-  const card = await screen.findByRole("region", { name: "占比" });
-  return within(card).getByRole("group", { name });
-}
-
-/** 条下面的说明，按显示顺序。 */
-function legend(group: HTMLElement): string[] {
-  return within(group)
-    .queryAllByRole("listitem")
-    .map((item) => item.textContent ?? "");
-}
-
-/** 条上有几段。 */
-function segmentCount(group: HTMLElement): number {
-  return group.querySelectorAll("[data-share-segment]").length;
-}
-
-describe("占比卡片", () => {
+describe("总览的两张卡片", () => {
   it("在「总览」这个视图里，开销总览在上面", async () => {
     await openStoredPlan((plan) => {
       oneDay(plan);
@@ -61,32 +50,32 @@ describe("占比卡片", () => {
 
     await showView("总览");
 
-    const card = await screen.findByRole("region", { name: "占比" });
-    const overview = (await moneyOverview());
-    expect(overview.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const moneyCard = await moneyOverview();
+    const timeCard = await timeOverview();
+    expect(moneyCard.compareDocumentPosition(timeCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // 状态去掉了，不再写「定没定」
-    expect(within(card).queryByRole("group", { name: "定没定" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "定没定" })).toBeNull();
     // 时间线、日程里都没有它们
     await showView("时间线");
-    expect(screen.queryByRole("region", { name: "占比" })).toBeNull();
     expect(screen.queryByRole("region", { name: "开销总览" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "时间总览" })).toBeNull();
   });
 });
 
-describe("开销的占比", () => {
-  it("按类型分：条按比例分段，说明从多到少", async () => {
+describe("开销总览：按类型的占比", () => {
+  it("按类型分：环按比例分段，说明从多到少", async () => {
     await openStoredPlan((plan, library) => {
       oneDay(plan);
       money(plan, library, "transit", 20000);
       money(plan, library, "lodging", 120000);
       money(plan, library, "food", 60000);
     });
-    const group = await part("开销的占比");
-    expect(legend(group)).toEqual(["住宿 ¥1,200 · 60%", "餐饮 ¥600 · 30%", "交通 ¥200 · 10%"]);
-    expect(segmentCount(group)).toBe(3);
+    const card = await moneyOverview();
+    expect(overviewLegend(card)).toEqual(["住宿 ¥1,200 · 60%", "餐饮 ¥600 · 30%", "交通 ¥200 · 10%"]);
+    expect(donutSliceCount(card)).toBe(3);
   });
 
-  it("只算已填的：写明还有几笔没填，全没填的类不进条", async () => {
+  it("只算已填的：写明还有几笔没填，全没填的类不进环", async () => {
     await openStoredPlan((plan, library) => {
       oneDay(plan);
       money(plan, library, "lodging", 120000);
@@ -94,10 +83,10 @@ describe("开销的占比", () => {
       money(plan, library, "food", null);
       money(plan, library, "shopping", null);
     });
-    const group = await part("开销的占比");
-    expect(within(group).getByText("只算已填的 2 笔，还有 2 笔没填")).toBeTruthy();
-    expect(legend(group)).toEqual(["住宿 ¥1,200 · 67%", "餐饮 ¥600 · 33% · 还有 1 笔没填", "购物 · 还有 1 笔没填"]);
-    expect(segmentCount(group)).toBe(2);
+    const card = await moneyOverview();
+    expect(card.querySelector("[data-money-note]")?.textContent).toBe("只算已填的 2 笔，还有 2 笔没填");
+    expect(overviewLegend(card)).toEqual(["住宿 ¥1,200 · 67%", "餐饮 ¥600 · 33% · 还有 1 笔没填", "购物 · 还有 1 笔没填"]);
+    expect(donutSliceCount(card)).toBe(2);
   });
 
   it("还没有填了金额的开销", async () => {
@@ -105,10 +94,12 @@ describe("开销的占比", () => {
       oneDay(plan);
       money(plan, library, "food", null);
     });
-    const group = await part("开销的占比");
-    expect(within(group).getByText("还没有填了金额的开销")).toBeTruthy();
-    expect(legend(group)).toEqual([]);
-    expect(segmentCount(group)).toBe(0);
+    const card = await moneyOverview();
+    expect(card.querySelector("[data-money-note]")?.textContent).toBe("还没有填了金额的开销");
+    // 环上一段都没有：不画环，也就没有中间那个总额
+    expect(card.querySelector("[data-donut-total]")).toBeNull();
+    expect(overviewLegend(card)).toEqual(["餐饮 · 还有 1 笔没填"]);
+    expect(donutSliceCount(card)).toBe(0);
   });
 
   it("填了的加起来是 0", async () => {
@@ -116,30 +107,31 @@ describe("开销的占比", () => {
       oneDay(plan);
       money(plan, library, "sight", 0);
     });
-    const group = await part("开销的占比");
-    expect(within(group).getByText("填了金额的 1 笔加起来是 ¥0")).toBeTruthy();
-    expect(legend(group)).toEqual([]);
+    const card = await moneyOverview();
+    expect(card.querySelector("[data-money-note]")?.textContent).toBe("填了金额的 1 笔加起来是 ¥0");
+    expect(card.querySelector("[data-donut-total]")).toBeNull();
+    expect(overviewLegend(card)).toEqual([]);
   });
 
-  it("填一笔开销，占比跟着变", async () => {
+  it("填一笔开销，环跟着变", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => {
       oneDay(plan);
     });
-    const group = await part("开销的占比");
-    expect(within(group).getByText("还没有填了金额的开销")).toBeTruthy();
+    const card = await moneyOverview();
+    expect(card.querySelector("[data-money-note]")?.textContent).toBe("还没有填了金额的开销");
 
-    const overview = (await moneyOverview());
-    await user.click(within(overview).getByRole("button", { name: "不属于任何一天：¥0" }));
+    await user.click(within(card).getByRole("button", { name: "不属于任何一天：¥0" }));
     const editor = screen.getByRole("group", { name: "不属于任何一天的开销" });
     await user.type(within(editor).getByRole("textbox", { name: "新一笔的金额" }), "600{Enter}");
 
-    expect(await within(group).findByText("其他 ¥600 · 100%")).toBeTruthy();
-    expect(within(group).queryByText("还没有填了金额的开销")).toBeNull();
+    expect(await within(card).findByText("其他 ¥600 · 100%")).toBeTruthy();
+    expect(card.querySelector("[data-donut-total]")?.textContent).toBe("¥600");
+    expect(card.querySelector("[data-money-note]")).toBeNull();
   });
 });
 
-describe("时间的占比", () => {
+describe("时间总览：按类型的占比", () => {
   function hangzhouDay(plan: Y.Doc, library: Y.Doc): void {
     const oct1 = oneDay(plan);
     timed(plan, library, oct1, "在杭州", "stay", 0, 1440);
@@ -150,29 +142,30 @@ describe("时间的占比", () => {
   it("默认不算停留；勾上「算上最底层的类型」才算，取消又不算", async () => {
     const user = userEvent.setup();
     await openStoredPlan(hangzhouDay);
-    const group = await part("时间的占比");
-    const baseLayer = within(group).getByRole<HTMLInputElement>("checkbox", { name: "算上最底层的类型（停留）" });
+    const card = await timeOverview();
+    const baseLayer = within(card).getByRole<HTMLInputElement>("checkbox", { name: "算上最底层的类型（停留）" });
     expect(baseLayer.checked).toBe(false);
-    expect(legend(group)).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
-    expect(segmentCount(group)).toBe(2);
+    expect(overviewLegend(card)).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
+    expect(donutSliceCount(card)).toBe(2);
 
     await user.click(baseLayer);
-    expect(legend(group)).toEqual(["停留 20 小时 · 83%", "游玩 3 小时 · 13%", "餐饮 1 小时 · 4%"]);
-    expect(segmentCount(group)).toBe(3);
+    expect(overviewLegend(card)).toEqual(["停留 20 小时 · 83%", "游玩 3 小时 · 13%", "餐饮 1 小时 · 4%"]);
+    expect(donutSliceCount(card)).toBe(3);
 
     await user.click(baseLayer);
-    expect(legend(group)).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
+    expect(overviewLegend(card)).toEqual(["游玩 3 小时 · 75%", "餐饮 1 小时 · 25%"]);
   });
 
   it("还没有排了时间的事", async () => {
     await openStoredPlan((plan, library) => {
       undated(plan, library, oneDay(plan), "灵隐寺", "sight");
     });
-    const group = await part("时间的占比");
-    expect(within(group).getByText("还没有排了时间的事")).toBeTruthy();
-    expect(legend(group)).toEqual([]);
-    expect(segmentCount(group)).toBe(0);
-    expect(within(group).queryByRole("checkbox")).toBeNull();
+    const card = await timeOverview();
+    expect(within(card).getByText("还没有排了时间的事")).toBeTruthy();
+    expect(card.querySelector("[data-donut-total]")).toBeNull();
+    expect(overviewLegend(card)).toEqual([]);
+    expect(donutSliceCount(card)).toBe(0);
+    expect(within(card).queryByRole("checkbox")).toBeNull();
   });
 
   it("停留没排时间：不显示勾选（勾不勾都一样）", async () => {
@@ -181,9 +174,9 @@ describe("时间的占比", () => {
       undated(plan, library, oct1, "在杭州", "stay");
       timed(plan, library, oct1, "西湖", "sight", 540, 180);
     });
-    const group = await part("时间的占比");
-    expect(legend(group)).toEqual(["游玩 3 小时 · 100%"]);
-    expect(within(group).queryByRole("checkbox")).toBeNull();
+    const card = await timeOverview();
+    expect(overviewLegend(card)).toEqual(["游玩 3 小时 · 100%"]);
+    expect(within(card).queryByRole("checkbox")).toBeNull();
   });
 
   it("只排了停留的时间：写明除了停留还没有排；勾上就看得到停留", async () => {
@@ -191,12 +184,12 @@ describe("时间的占比", () => {
     await openStoredPlan((plan, library) => {
       timed(plan, library, oneDay(plan), "在杭州", "stay", 0, 1440);
     });
-    const group = await part("时间的占比");
-    expect(within(group).getByText("除了停留，还没有排了时间的事")).toBeTruthy();
+    const card = await timeOverview();
+    expect(within(card).getByText("除了停留，还没有排了时间的事")).toBeTruthy();
 
-    await user.click(within(group).getByRole("checkbox", { name: "算上最底层的类型（停留）" }));
-    expect(legend(group)).toEqual(["停留 24 小时 · 100%"]);
-    expect(within(group).queryByText("除了停留，还没有排了时间的事")).toBeNull();
+    await user.click(within(card).getByRole("checkbox", { name: "算上最底层的类型（停留）" }));
+    expect(overviewLegend(card)).toEqual(["停留 24 小时 · 100%"]);
+    expect(within(card).queryByText("除了停留，还没有排了时间的事")).toBeNull();
   });
 
   it("没有层为 0 的类型：不显示勾选，停留照常算", async () => {
@@ -206,8 +199,8 @@ describe("时间的占比", () => {
       timed(plan, library, oct1, "在杭州", "stay", 0, 1440);
       timed(plan, library, oct1, "西湖", "sight", 540, 180);
     });
-    const group = await part("时间的占比");
-    expect(within(group).queryByRole("checkbox")).toBeNull();
-    expect(legend(group)).toEqual(["停留 21 小时 · 88%", "游玩 3 小时 · 12%"]);
+    const card = await timeOverview();
+    expect(within(card).queryByRole("checkbox")).toBeNull();
+    expect(overviewLegend(card)).toEqual(["停留 21 小时 · 88%", "游玩 3 小时 · 12%"]);
   });
 });

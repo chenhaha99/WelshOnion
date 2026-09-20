@@ -599,6 +599,29 @@
   }
 }
 
+/*
+ * 环上停着的那一段跟出来的一小块：跟着鼠标走，所以用 left/top 定位（父框是环那个方块）。
+ * 不挡鼠标（pointer-events: none），不然鼠标一进它，段就以为鼠标走了。
+ */
+@utility donut-tip {
+  position: absolute;
+  z-index: 10;
+  translate: 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid rgb(255 255 255 / 0.8);
+  border-radius: 0.5rem;
+  background-color: rgb(253 253 252);
+  box-shadow:
+    0 1px 2px rgb(47 58 69 / 0.06),
+    0 12px 28px rgb(47 58 69 / 0.16);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 @utility kind-dot {
   display: inline-block;
   flex-shrink: 0;

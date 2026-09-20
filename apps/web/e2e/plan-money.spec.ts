@@ -63,9 +63,9 @@ test("开销：填第一笔 → 一块多笔 → 不属于任何一天 → 总�
   await unattached.getByRole("textbox", { name: "新一笔的金额" }).fill("600");
   await page.keyboard.press("Enter");
   await expect(overview.getByRole("button", { name: "不属于任何一天：¥600" })).toBeVisible();
-  await expect(overview.locator("[data-money-summary]")).toHaveText(
-    "总额 ¥1,058.50 · 人均 ¥1,058.50 · 已填 4 / 共 4 笔 · 另有 1 件事还没填开销",
-  );
+  await expect(overview.locator("[data-donut-total]")).toHaveText("¥1,058.50");
+  await expect(overview.locator("[data-donut-note]")).toHaveText("人均 ¥1,058.50");
+  await expect(overview.locator("[data-money-note]")).toHaveText("另有 1 件事还没填开销");
   await shot(page, "03-overview");
 
   // 收起后撤销：签证那笔没了
@@ -82,9 +82,12 @@ test("开销：填第一笔 → 一块多笔 → 不属于任何一天 → 总�
   await page.keyboard.type("45");
   await page.keyboard.press("Enter");
   await expect(rows.nth(2).locator("[data-money-cell]")).toHaveText("¥45");
-  await inOverview(page, ({ summary }) =>
-    expect(summary).toHaveText("总额 ¥503.50 · 人均 ¥503.50 · 已填 4 / 共 4 笔"),
-  );
+  // 四笔全填了：环中间只有总额和人均，不再写「还有几笔没填」
+  await inOverview(page, async ({ total, money, note }) => {
+    await expect(total).toHaveText("¥503.50");
+    await expect(money.locator("[data-donut-note]")).toHaveText("人均 ¥503.50");
+    await expect(note).toHaveCount(0);
+  });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await shot(page, "04-mobile");

@@ -122,7 +122,7 @@ test("电脑上：快捷条按一圈换三档、块跟着变样子、大小不�
 
   // 总览：划掉 2 件，共 3 件
   await showView(page, "总览");
-  await expect(page.getByRole("region", { name: "占比" }).getByText("划掉 2 件，共 3 件")).toBeVisible();
+  await expect(page.getByRole("region", { name: "时间总览" }).getByText("划掉 2 件，共 3 件")).toBeVisible();
 
   expect(errors).toEqual([]);
 });

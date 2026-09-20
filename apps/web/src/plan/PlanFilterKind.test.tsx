@@ -14,7 +14,9 @@ import {
   openDetails,
   openOtherTab,
   openStoredPlan,
+  overviewLegend,
   showView,
+  timeOverview,
 } from "./test-helpers";
 
 afterEach(async () => {
@@ -248,7 +250,7 @@ describe("按类型筛选时的开销", () => {
     await pressKind(user, "住宿");
 
     await waitFor(async () => expect(await moneyCellOf("10.1", "民宿")).toEqual({ label: "¥480", note: "另有别的类型的开销" }));
-    expect((await moneyOverview()).textContent).toContain("总额 ¥480");
+    expect((await moneyOverview()).querySelector("[data-donut-total]")?.textContent).toBe("¥480");
   });
 
   it("只挂着别的类型的开销：写「填开销」、另写一行；时间线上点开，面板的「开销」也这么写", async () => {
@@ -286,7 +288,7 @@ describe("按类型筛选时的开销", () => {
     const list = screen.getByRole("list", { name: "日期列表" });
     expect(line.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await blockTitles("10.1")).toEqual(["民宿"]);
-    expect((await moneyOverview()).textContent).toContain("总额 ¥300");
+    expect((await moneyOverview()).querySelector("[data-donut-total]")?.textContent).toBe("¥300");
   });
 
   it("没有这样的开销就不写", async () => {
@@ -303,8 +305,8 @@ describe("按类型筛选时的开销", () => {
   });
 });
 
-describe("筛选作用到开销、占比和这天怎么样", () => {
-  it("开销的总览：挂在被筛掉的块上的开销不算，不属于任何一天不变", async () => {
+describe("筛选作用到开销、总览和这天怎么样", () => {
+  it("开销总览：挂在被筛掉的块上的开销不算，不属于任何一天不变", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -318,9 +320,10 @@ describe("筛选作用到开销、占比和这天怎么样", () => {
 
     await pressOnlyUnchecked(user);
     const overview = (await moneyOverview());
-    await waitFor(() =>
-      expect(overview.querySelector("[data-money-summary]")?.textContent).toBe("总额 ¥720 · 人均 ¥720 · 已填 2 / 共 2 笔"),
-    );
+    await waitFor(() => expect(overview.querySelector("[data-donut-total]")?.textContent).toBe("¥720"));
+    expect(overview.querySelector("[data-donut-note]")?.textContent).toBe("人均 ¥720");
+    // 两笔都填了金额、也没有哪件事空着：不写没填的那句
+    expect(overview.querySelector("[data-money-note]")).toBeNull();
     expect(within(overview).getByRole("button", { name: "不属于任何一天：¥600" })).toBeTruthy();
   });
 
@@ -340,7 +343,7 @@ describe("筛选作用到开销、占比和这天怎么样", () => {
     );
   });
 
-  it("占比和这天怎么样", async () => {
+  it("时间总览和这天怎么样", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
@@ -353,10 +356,7 @@ describe("筛选作用到开销、占比和这天怎么样", () => {
     await waitFor(async () =>
       expect((await dayRow("10.1")).querySelector("[data-day-facts]")?.textContent).toBe("18:00 起 · 19:00 收工"),
     );
-    await showView("总览");
-    const card = screen.getByRole("region", { name: "占比" });
-    const time = within(card).getByRole("group", { name: "时间的占比" });
-    expect(within(time).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["餐饮 1 小时 · 100%"]);
+    expect(overviewLegend(await timeOverview())).toEqual(["餐饮 1 小时 · 100%"]);
   });
 });
 

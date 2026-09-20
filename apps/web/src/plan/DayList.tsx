@@ -14,13 +14,12 @@ import { BlockPanel } from "./BlockPanel";
 import { dayNumbers, dayRowLabels } from "./day-labels";
 import { DayFilter, type FilterDay } from "./DayFilter";
 import { DayRow } from "./DayRow";
-import { DaysCard } from "./DaysCard";
+import { OverviewCards } from "./OverviewCards";
 import { FilterChips, chipClass } from "./FilterChips";
 import { MARK_LABEL, MarkIcon } from "./mark";
 import { CollapseIcon, ExpandIcon, PinIcon } from "./icons";
 import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
-import { MoneyOverview } from "./MoneyOverview";
 import { OpenBlockContext, type OpenBlock } from "./open-block";
 import { readBlockText, saveBlockText } from "./plan-block-text-memory";
 import { DAY_ZOOMS, readTimelineDayZoom, saveTimelineDayZoom, type DayZoom } from "./plan-timeline-day-zoom-memory";
@@ -33,7 +32,6 @@ import { PlanSearch } from "./PlanSearch";
 import { SelectBlockContext, type BlockSelection } from "./select-block";
 import { HOUR_HEIGHT, type BlockText } from "./timeline-geometry";
 import { FULL_DAY, hourWindow } from "./timeline-window";
-import { SharesCard } from "./SharesCard";
 import { Timeline } from "./Timeline";
 import { useTopPeek } from "./use-top-peek";
 
@@ -558,11 +556,15 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
           */}
           <div className="isolate flex min-h-[calc(100dvh-var(--top-area,8rem)-3rem)] flex-col gap-4">
             {view === "overview" ? (
-              <>
-                <MoneyOverview doc={doc} library={library} libraryView={libraryView} plan={plan} filter={filter} />
-                <DaysCard plan={plan} labels={labels} cells={cells} filter={filter} onJump={jumpToDay} />
-                <SharesCard libraryView={libraryView} plan={plan} filter={filter} />
-              </>
+              <OverviewCards
+                doc={doc}
+                library={library}
+                libraryView={libraryView}
+                plan={plan}
+                filter={filter}
+                onJump={jumpToBlock}
+                onOnlyKind={(kindId) => setSelectedKinds([kindId])}
+              />
             ) : view === "timeline" ? (
               <Timeline
                 doc={doc}

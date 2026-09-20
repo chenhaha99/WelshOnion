@@ -212,7 +212,7 @@ describe("块上写标题、开销：两个开关各开各关", () => {
     await user.type(amount, "280{Enter}");
 
     await waitFor(async () => expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥280"));
-    expect((await moneyOverview()).textContent).toContain("总额 ¥280");
+    expect((await moneyOverview()).querySelector("[data-donut-total]")?.textContent).toBe("¥280");
   });
 
   it("记在这台设备上：切走再回来还是那两个开关，另一个计划回到默认", async () => {

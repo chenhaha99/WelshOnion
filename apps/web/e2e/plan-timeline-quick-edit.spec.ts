@@ -64,7 +64,7 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 划掉�
   await page.getByRole("dialog", { name: "改开销" }).getByRole("textbox", { name: "金额" }).fill("300");
   await page.keyboard.press("Enter");
   await expect(bar.getByRole("button", { name: "开销：¥300" })).toBeVisible();
-  await inOverview(page, ({ money }) => expect(money).toContainText("总额 ¥300"));
+  await inOverview(page, ({ total }) => expect(total).toHaveText("¥300"));
 
   // 切去总览看一眼再回来，选中就没了（切视图会取消选中）：重新点一下
   await segment(day1, "西湖").getByRole("button", { name: /^西湖 / }).click();
@@ -85,7 +85,7 @@ test("电脑上：点一下选中 → 快捷条贴着块的右下角 → 划掉�
   await expect(segment(day1, "西湖")).toHaveAttribute("data-from", "540");
   // 复制出来的那一份连开销一起复制，接着被选中（先看选中：切到日程数行数会取消选中）
   await expect(quickBar(page, "西湖")).toBeVisible();
-  await inOverview(page, ({ money }) => expect(money).toContainText("总额 ¥600"));
+  await inOverview(page, ({ total }) => expect(total).toHaveText("¥600"));
   expect(await countRows(page.getByRole("table", { name: DAY1 }), "西湖")).toBe(1);
 
   // 删除：屏幕底部出提示，焦点落到这天的操作

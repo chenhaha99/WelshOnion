@@ -34,7 +34,7 @@ test("两晚共用一笔房费：第二晚挂上第一晚那笔 → 共用 → �
   await expect(firstNight.locator("[data-money-cell]")).toHaveText("¥800");
   await page.keyboard.press("Escape");
   await expect(money).toBeHidden();
-  await inOverview(page, ({ summary }) => expect(summary).toContainText("另有 1 件事还没填开销"));
+  await inOverview(page, ({ note }) => expect(note).toContainText("另有 1 件事还没填开销"));
 
   // 第二晚挂上第一晚那笔
   await secondNight.getByRole("button", { name: "开销" }).click();
@@ -42,7 +42,7 @@ test("两晚共用一笔房费：第二晚挂上第一晚那笔 → 共用 → �
   await expect(secondNight.locator("[data-money-cell]")).toHaveText("共用");
   await expect(firstNight.locator("[data-money-cell]")).toHaveText("¥800");
   await expect(money.getByText("也挂在别的事上")).toBeVisible();
-  await inOverview(page, ({ summary }) => expect(summary).not.toContainText("还没填开销"));
+  await inOverview(page, ({ note }) => expect(note).toHaveCount(0));
   await shot(page, "01-shared");
   await page.keyboard.press("Escape");
   await expect(money).toBeHidden();
@@ -52,7 +52,7 @@ test("两晚共用一笔房费：第二晚挂上第一晚那笔 → 共用 → �
   await page.getByRole("menuitem", { name: "删除" }).click();
   await expect(firstDay.locator("tr[data-block-id]")).toHaveCount(0);
   await expect(secondNight.locator("[data-money-cell]")).toHaveText("¥800");
-  await inOverview(page, ({ summary }) => expect(summary).toContainText("总额 ¥800"));
+  await inOverview(page, ({ total }) => expect(total).toHaveText("¥800"));
 
   // 撤销删除：回到共用
   await page.keyboard.press("Control+z");

@@ -108,6 +108,24 @@ export async function moneyOverview(): Promise<HTMLElement> {
   return screen.findByRole("region", { name: "开销总览" });
 }
 
+/** 「总览」视图里的时间总览卡片；会先切到「总览」。 */
+export async function timeOverview(): Promise<HTMLElement> {
+  await showView("总览");
+  return screen.findByRole("region", { name: "时间总览" });
+}
+
+/** 一张总览卡片里说明那一列的字，按显示顺序。别在点开某一类时调：展开的那块里也有 listitem。 */
+export function overviewLegend(card: HTMLElement): string[] {
+  return within(card)
+    .queryAllByRole("listitem")
+    .map((item) => item.textContent ?? "");
+}
+
+/** 一张总览卡片的环上有几段。 */
+export function donutSliceCount(card: HTMLElement): number {
+  return card.querySelectorAll("[data-slice]").length;
+}
+
 /** 打开计划设置，切到某一块（默认「基本」），返回设置窗口。 */
 export async function openPlanSettings(
   user: UserEvent,

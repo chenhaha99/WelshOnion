@@ -5,7 +5,7 @@ import { addBlock, setBlockMark, type AddBlockInput, type BlockMark } from "@wel
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockRow, daysFromOct1, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
+import { blockRow, daysFromOct1, openStoredPlan, showView, stubNarrowScreen, timeOverview } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -202,27 +202,28 @@ describe("按标记筛选", () => {
 });
 
 describe("待定、划掉各几件", () => {
-  it("总览里写「待定 X · 划掉 Y，共 N 件」", async () => {
+  it("时间总览最下面写「待定 X · 划掉 Y，共 N 件」", async () => {
     await oneDay({ 西湖: "struck", 河坊街: "pending" });
-    await showView("总览");
 
-    const card = await screen.findByRole("region", { name: "占比" });
-    expect(within(card).getByText("待定 1 件 · 划掉 1 件，共 3 件")).toBeTruthy();
+    const card = await timeOverview();
+
+    expect(card.querySelector("[data-check-line]")?.textContent).toBe("待定 1 件 · 划掉 1 件，共 3 件");
   });
 
   it("只有划掉的就只写划掉", async () => {
     await oneDay({ 西湖: "struck" });
-    await showView("总览");
 
-    const card = await screen.findByRole("region", { name: "占比" });
-    expect(within(card).getByText("划掉 1 件，共 3 件")).toBeTruthy();
+    const card = await timeOverview();
+
+    expect(card.querySelector("[data-check-line]")?.textContent).toBe("划掉 1 件，共 3 件");
   });
 
   it("三档都是「定了」就不写", async () => {
     await oneDay();
-    await showView("总览");
 
-    const card = await screen.findByRole("region", { name: "占比" });
+    const card = await timeOverview();
+
+    expect(card.querySelector("[data-check-line]")).toBeNull();
     expect(within(card).queryByText(/划掉|待定/)).toBeNull();
   });
 });

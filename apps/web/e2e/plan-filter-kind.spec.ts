@@ -38,7 +38,7 @@ test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被
   await expect(inn.locator("[data-money-cell]")).toHaveText("¥480");
   await expect(inn.locator("[data-money-note]")).toHaveText("另有别的类型的开销");
   await expect(page.getByText("有 ¥300 挂在被筛掉的事上")).toBeVisible();
-  await inOverview(page, ({ money }) => expect(money).toContainText("总额 ¥780"));
+  await inOverview(page, ({ total }) => expect(total).toHaveText("¥780"));
   await showView(page, "时间线");
   await expect(page.getByRole("region", { name: "时间线" }).locator("[data-segment]")).toHaveCount(1);
   await showView(page, "日程");
