@@ -51,7 +51,7 @@ import {
   type HourWindow,
 } from "./timeline-window";
 import { UndatedStrip } from "./UndatedTray";
-import type { MinuteRange } from "./timeline-drag";
+import { blankPieceInRow, type MinuteRange } from "./timeline-drag";
 import {
   isBlankPress,
   useTimelineDrag,
@@ -263,6 +263,14 @@ function WideTimeline({
   });
   // 正在拖出的一段先画；拖完弹框时画框贴着的那一段
   const newRange = drag.blankRange ?? adding;
+  // 跨天的一段每一行画自己那一截，时间只写在开始那一行上（「22:00–10.2 02:00」）
+  const newRangeLabel =
+    newRange === null || plan.bases[newRange.row] === undefined
+      ? null
+      : blockTimeLabel(
+          { start_minute: newRange.from, duration_min: newRange.to - newRange.from, slot: null },
+          plan.bases[newRange.row]!.date,
+        );
   const shownPlan = drag.dropped?.plan ?? plan;
   const shownRows = drag.dropped?.rows ?? rows;
   // 选中的那件旁边出快捷条；拖动中不画
@@ -351,7 +359,8 @@ function WideTimeline({
               onExpandHours={onExpandHours}
               quickBarBlock={index === barRow && selectedUndated === null ? selectedBlock! : null}
               copyHandlers={drag.copyHandlers}
-              newRange={newRange?.row === index ? newRange : null}
+              newRange={newRange === null ? null : blankPieceInRow(newRange, index)}
+              newRangeLabel={newRange?.row === index ? newRangeLabel : null}
               ghostRef={newRange?.row === index ? setGhost : undefined}
               blankHandlers={drag.blankHandlers}
             />
@@ -412,6 +421,7 @@ interface TimelineRowProps {
   copyHandlers: CopyHandlers;
   /** 在这一行空白处拖出的、弹「加一件事」贴着的那一段；没有是 null */
   newRange: MinuteRange | null;
+  newRangeLabel: string | null;
   ghostRef: ((element: HTMLDivElement | null) => void) | undefined;
   blankHandlers: BlankHandlers;
 }
@@ -440,6 +450,7 @@ function TimelineRow({
   quickBarBlock,
   copyHandlers,
   newRange,
+  newRangeLabel,
   ghostRef,
   blankHandlers,
 }: TimelineRowProps) {
@@ -569,7 +580,7 @@ function TimelineRow({
               width: offsetCss(spanOffset(hours, newRange.from, newRange.to)),
             }}
           >
-            {blockTimeLabel({ start_minute: newRange.from, duration_min: newRange.to - newRange.from, slot: null }, base.date)}
+            {newRangeLabel}
           </div>
         )}
         {barSegment && (

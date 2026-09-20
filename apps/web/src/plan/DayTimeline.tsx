@@ -27,6 +27,7 @@ import {
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { FULL_DAY } from "./timeline-window";
+import { blankPieceInRow } from "./timeline-drag";
 import { isBlankPress, useTimelineDrag, type BlankRange, type DragView, type SegmentHandlers } from "./use-timeline-drag";
 import { AddAtTime } from "./AddAtTime";
 import { zoneTimeLabel } from "./zone-time";
@@ -123,6 +124,8 @@ export function DayTimeline({
   });
   const openAdding = adding?.row === index ? adding : null;
   const newRange = drag.blankRange ?? openAdding;
+  // 拖过 24 点就跨天了：这一天里只画到 24:00，时间照旧写整段（「22:00–10.2 02:00」）
+  const newPiece = newRange === null ? null : blankPieceInRow(newRange, newRange.row);
   // 框正中间是第几分钟：滚动时记下，换档时照它滚回正中间（换档后再读 scrollTop，缩小时浏览器已经把它夹过了）
   const centerMinute = useRef(0);
   const rememberCenter = () => {
@@ -249,7 +252,7 @@ export function DayTimeline({
                 ref={setGhost}
                 data-new-range
                 className="timeline-new-range absolute inset-x-0"
-                style={{ top: percent(newRange.from), height: percent(newRange.to - newRange.from) }}
+                style={{ top: percent(newPiece!.from), height: percent(newPiece!.to - newPiece!.from) }}
               >
                 {blockTimeLabel({ start_minute: newRange.from, duration_min: newRange.to - newRange.from, slot: null }, base.date)}
               </div>

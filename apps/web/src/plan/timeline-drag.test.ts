@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   blankClickRange,
   blankDragRange,
+  blankDragSpan,
+  blankPieceInRow,
   clampLinear,
   clampToDay,
   dragLabelPlace,
@@ -193,6 +195,30 @@ describe("在空白处加一件事：从几点到几点", () => {
   it("拖：至少 15 分钟，正好在 15 分钟上也是", () => {
     expect(blankDragRange(850, 853)).toEqual({ from: 840, to: 855 });
     expect(blankDragRange(840, 840)).toEqual({ from: 840, to: 855 });
+  });
+
+  it("跨天拖：指针挪到别的行，从按下的钟点一直画到那里", () => {
+    // 10.1 22:10 按下，拖到 10.2 01:50：22:00 起 4 小时
+    expect(blankDragSpan({ row: 0, minute: 1330 }, { row: 1, minute: 110 }, 3)).toEqual({ row: 0, from: 1320, to: 1560 });
+    // 反过来拖一样
+    expect(blankDragSpan({ row: 1, minute: 110 }, { row: 0, minute: 1330 }, 3)).toEqual({ row: 0, from: 1320, to: 1560 });
+    // 跨好几天
+    expect(blankDragSpan({ row: 0, minute: 600 }, { row: 2, minute: 600 }, 3)).toEqual({ row: 0, from: 600, to: 3480 });
+  });
+
+  it("跨天拖：两头夹在计划的第一天 00:00 和最后一天 24:00", () => {
+    expect(blankDragSpan({ row: 2, minute: 1400 }, { row: 2, minute: 1700 }, 3)).toEqual({ row: 2, from: 1395, to: 1440 });
+    expect(blankDragSpan({ row: 0, minute: 30 }, { row: -1, minute: 600 }, 3)).toEqual({ row: 0, from: 0, to: 30 });
+  });
+
+  it("跨天的那一段：每一行画自己那一截", () => {
+    const range = { row: 0, from: 1320, to: 1560 };
+    expect(blankPieceInRow(range, 0)).toEqual({ from: 1320, to: 1440 });
+    expect(blankPieceInRow(range, 1)).toEqual({ from: 0, to: 120 });
+    expect(blankPieceInRow(range, 2)).toBeNull();
+    // 不跨天的那一段只画在自己那一行
+    expect(blankPieceInRow({ row: 1, from: 600, to: 660 }, 1)).toEqual({ from: 600, to: 660 });
+    expect(blankPieceInRow({ row: 1, from: 600, to: 660 }, 0)).toBeNull();
   });
 
   it("拖：两头夹在 0–24 点里", () => {

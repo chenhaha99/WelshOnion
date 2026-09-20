@@ -30,11 +30,11 @@ import type * as Y from "yjs";
 import { blockTimeLabel, slotLabel } from "./block-time";
 import {
   blankClickRange,
-  blankDragRange,
+  blankDragSpan,
   edgeScrollStep,
   slotOfMinute,
   type DragMode,
-  type MinuteRange,
+  type BlankRange,
   type PointerSpot,
 } from "./timeline-drag";
 import {
@@ -160,10 +160,7 @@ export interface BlankHandlers {
   onPointerDown: (event: ReactPointerEvent<HTMLElement>, row: number) => void;
 }
 
-/** 在空白处拖出来的一段：第几行、这一天从几点到几点。 */
-export interface BlankRange extends MinuteRange {
-  row: number;
-}
+export type { BlankRange };
 
 interface TimelineDragOptions {
   doc: Y.Doc;
@@ -538,7 +535,7 @@ export function useTimelineDrag({
    */
   const finishBlank = (done: Drag) => {
     if (done.cancelled || (!done.active && (done.touch || done.blankBusy))) return;
-    latest.current.onBlankRange?.(blankRangeOf(done));
+    latest.current.onBlankRange?.(blankRangeOf(done, latest.current.plan.bases.length));
   };
 
   /** 松手：按 dropAction 调一个操作（一步撤销）；结果和原来一样就不调。 */
@@ -738,7 +735,7 @@ export function useTimelineDrag({
   const pressing = drag?.active && !drag.cancelled ? drag : null;
   // 在空白处拖出一段不挪任何事：拖事的那些（松手后的样子、拿起来的块、进栏）都不算它
   const live = pressing?.source === "blank" ? null : pressing;
-  const blankRange = pressing?.source === "blank" ? blankRangeOf(pressing) : null;
+  const blankRange = pressing?.source === "blank" ? blankRangeOf(pressing, plan.bases.length) : null;
   const onAxis = live?.zone.kind === "axis";
   const copying = live !== null && live.source === "segment" && live.mode === "move" && live.alt && onAxis;
   // 松手后的样子：指针挪了但吸附后要做的事没变，就不重算
@@ -794,10 +791,13 @@ export function useTimelineDrag({
   };
 }
 
-/** 在空白处按下后的一段：挪过的按按下和现在两个钟点，没挪的（鼠标点一下、手指按住没动）从按下的钟点起 1 小时。只在按下的那一行里。 */
-function blankRangeOf(drag: Drag): BlankRange {
-  const range = drag.moved ? blankDragRange(drag.down.minute, drag.now.minute) : blankClickRange(drag.down.minute);
-  return { row: drag.down.row, ...range };
+/**
+ * 在空白处按下后的一段：挪过的按按下和现在两处算，跨天就跨天（见 timeline-drag 的 blankDragSpan）；
+ * 没挪的（鼠标点一下、手指按住没动）从按下的钟点起 1 小时，只在按下的那一行里。
+ */
+function blankRangeOf(drag: Drag, dayCount: number): BlankRange {
+  if (drag.moved) return blankDragSpan(drag.down, drag.now, dayCount);
+  return { row: drag.down.row, ...blankClickRange(drag.down.minute) };
 }
 
 /** 一段写成时间：同安排表的时间格（「14:00–15:00」，画到半夜写「24:00」）。 */

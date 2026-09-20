@@ -92,6 +92,35 @@ export function blankClickRange(minute: number): MinuteRange {
   return { from, to: Math.min(from + BLANK_ADD_MIN, MINUTES_PER_DAY) };
 }
 
+/** 在空白处拖出的一段：从第 row 行的 from 分钟到 to 分钟；跨天时 to 大于 1440（从开始那一行的 00:00 算起）。 */
+export interface BlankRange extends MinuteRange {
+  row: number;
+}
+
+/**
+ * 在空白处拖出一段，可以跨天（**你提的**：拖到 24 点就停住了，不能往下继续）：
+ * 按下和现在两处按「线性分钟」算（第几行 × 1440 + 这一行第几分钟），早的往前、晚的往后取到 15 分钟，至少 15 分钟；
+ * 两头夹在计划第一天的 00:00 和最后一天的 24:00。
+ */
+export function blankDragSpan(down: PointerSpot, now: PointerSpot, dayCount: number): BlankRange {
+  const last = dayCount * MINUTES_PER_DAY;
+  const inPlan = (value: number) => Math.min(Math.max(value, 0), last);
+  const a = inPlan(linear(down));
+  const b = inPlan(linear(now));
+  const from = Math.min(floorSnap(Math.min(a, b)), last - SNAP_MIN);
+  const to = Math.max(Math.ceil(Math.max(a, b) / SNAP_MIN) * SNAP_MIN, from + SNAP_MIN);
+  const start = splitLinear(from);
+  return { row: start.row, from: start.minute, to: start.minute + (to - from) };
+}
+
+/** 这一段落在第 row 行的那一截：跨天时每一行画自己那一截，沾不到的行是 null。 */
+export function blankPieceInRow(range: BlankRange, row: number): MinuteRange | null {
+  const start = (range.row - row) * MINUTES_PER_DAY + range.from;
+  const from = Math.max(start, 0);
+  const to = Math.min(start + (range.to - range.from), MINUTES_PER_DAY);
+  return to > from ? { from, to } : null;
+}
+
 /** 在空白处拖出一段：按下和现在两个钟点，早的往前、晚的往后取到 15 分钟，至少 15 分钟；夹在 0–24 点里。 */
 export function blankDragRange(a: number, b: number): MinuteRange {
   const inDay = (minute: number) => Math.min(Math.max(minute, 0), MINUTES_PER_DAY);
