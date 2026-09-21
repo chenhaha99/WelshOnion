@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { addBlock } from "@welshonion/core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
 import {
@@ -11,7 +11,6 @@ import {
   overviewCard,
   pressedView,
   showView,
-  stubNarrowScreen,
 } from "./test-helpers";
 
 afterEach(async () => {
@@ -117,10 +116,8 @@ describe("时间线和日程切换着看", () => {
   });
 });
 
+// 手指按住横条要拿起来拖：宽屏的触屏设备（平板）上时间线能拖，手机上这一版不能拖，所以在宽屏上测
 describe("切视图和手指按住", () => {
-  beforeEach(() => stubNarrowScreen());
-  afterEach(() => vi.unstubAllGlobals());
-
   it("手指刚抬起就切到日程再切回来，新按住的这次页面还是不能选字", async () => {
     await openStoredPlan(lakeOnOct1);
     await showView("时间线");

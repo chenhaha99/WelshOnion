@@ -25,7 +25,6 @@ import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { OpenBlockContext, type OpenBlock } from "./open-block";
 import { readBlockText, saveBlockText } from "./plan-block-text-memory";
-import { DAY_ZOOMS, readTimelineDayZoom, saveTimelineDayZoom, type DayZoom } from "./plan-timeline-day-zoom-memory";
 import { readTimelineFullDay, saveTimelineFullDay } from "./plan-timeline-full-day-memory";
 import { readTimelineZoom, saveTimelineZoom, ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
 import { readTitleLines, saveTitleLines, TITLE_LINES_MAX, TITLE_LINES_MIN } from "./plan-title-lines-memory";
@@ -33,7 +32,7 @@ import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memor
 import { useWideScreen } from "../app/use-wide-screen";
 import { PlanSearch } from "./PlanSearch";
 import { SelectBlockContext, type BlockSelection } from "./select-block";
-import { HOUR_HEIGHT, type BlockText } from "./timeline-geometry";
+import type { BlockText } from "./timeline-geometry";
 import { FULL_DAY, hourWindow } from "./timeline-window";
 import { Timeline } from "./Timeline";
 import { useTopPeek } from "./use-top-peek";
@@ -112,17 +111,11 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
     setZoom(next);
     saveTimelineZoom(planId, next);
   };
-  // 竖排（手机）每小时多高：三档，也按计划记在这台设备上
   // 横条上的标题写几行（你提的：跟横向放大一样的上下维度拉动条）：也按计划记在这台设备上
   const [titleLines, setTitleLines] = useState(() => readTitleLines(planId));
   const setShownTitleLines = (next: number) => {
     setTitleLines(next);
     saveTitleLines(planId, next);
-  };
-  const [dayZoom, setDayZoom] = useState<DayZoom>(() => readTimelineDayZoom(planId));
-  const showDayZoom = (next: DayZoom) => {
-    setDayZoom(next);
-    saveTimelineDayZoom(planId, next);
   };
   // 横排横轴画哪几个钟点：没按「0–24 点」时折起没事的凌晨和深夜；按没按下也按计划记在这台设备上
   const [fullDay, setFullDay] = useState(() => readTimelineFullDay(planId));
@@ -133,7 +126,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   const foldedHours = useMemo(() => hourWindow(plan, libraryView, false), [plan, libraryView]);
   const foldable = foldedHours.from > FULL_DAY.from || foldedHours.to < FULL_DAY.to;
   const wide = useWideScreen();
-  // 竖排看的是哪天（底座 id）：切到日程时时间线卸掉，切回来接着看这天
+  // 手机上时间线展开的是哪天（底座 id）：切到日程时时间线卸掉，切回来还是这天
   const shownDay = useRef<string | null>(null);
   // 零高度的标记放在页顶那一行本来的位置：页顶那一行钉在顶上时，靠它量出不钉住该在哪
   const viewsMarker = useRef<HTMLDivElement>(null);
@@ -276,8 +269,8 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [selected]);
   // 搜索里点了一条：跳到那件事。被筛选挡住先清筛选；总览切到时间线；
-  // 时间线上选中它，手机竖排翻到它那天（DayTimeline 看 jump.seq 变了就换天）。画完再滚到屏幕中间、焦点放上去。
-  // 总览「每天」里点了一天的日期（blockId 是 null）：切到时间线、竖排翻到那天，焦点放到那天的「这天的操作」
+  // 时间线上选中它，手机上展开它那天（PhoneTimeline 看 jump.seq 变了就展开那天）。画完再滚到屏幕中间、焦点放上去。
+  // 总览「每天」里点了一天的日期（blockId 是 null）：切到时间线、手机上展开那天，焦点放到那天的「这天的操作」
   const [jump, setJump] = useState<{ blockId: string | null; baseId: string; seq: number } | null>(null);
   const jumpToBlock = (blockId: string) => {
     const block = plan.blocks.get(blockId)!;
@@ -461,8 +454,9 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
               </button>
             ))}
           </div>
-          {view === "timeline" && (
-            // 放不下时整组换到下一行，不挤扁组里的按钮（手机上「条上写」和「竖向放大」加起来正好一屏宽）
+          {/* 这一整组只在电脑上：手机上的条一个字都不写（「条上写」没意义），横轴固定不放大、不折起 */}
+          {view === "timeline" && wide && (
+            // 放不下时整组换到下一行，不挤扁组里的按钮
             <div className="flex flex-wrap items-center justify-end gap-2">
               {/* 条上写标题、开销：两个开关各开各关（记在这台设备上） */}
               <div
@@ -484,28 +478,6 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                   </button>
                 ))}
               </div>
-              {/* 竖向放大：三档按钮，手指一下点到（只有竖排有；手机上拖动条拖不准） */}
-              {!wide && (
-                <div
-                  role="group"
-                  aria-label="竖向放大"
-                  className="flex shrink-0 rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur"
-                >
-                  {DAY_ZOOMS.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      aria-pressed={dayZoom === value}
-                      className={`inline-flex h-8 items-center rounded-full px-2 text-sm whitespace-nowrap tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage ${
-                        dayZoom === value ? "bg-sage text-white" : "text-ink-muted hover:text-ink"
-                      }`}
-                      onClick={() => showDayZoom(value)}
-                    >
-                      {`${value}%`}
-                    </button>
-                  ))}
-                </div>
-              )}
               {/* 0–24 点：按下是整天按真实比例画，没按下折起没事的凌晨和深夜（只有横排有） */}
               {wide && (
                 <div className="flex rounded-full border border-ink/10 bg-white/85 p-1 shadow-sm backdrop-blur">
@@ -541,7 +513,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                   <span className="w-10 text-right tabular-nums">{`${zoom}%`}</span>
                 </div>
               )}
-              {/* 文字行数：横条中间写标题的那一区写几行，上下的书签栏、附件栏不变（只有横排有；竖条的高度就是时长） */}
+              {/* 文字行数：横条中间写标题的那一区写几行，上下的书签栏、附件栏不变（只在宽屏有；手机上的色块不写字） */}
               {wide && (
                 <div className="flex items-center gap-2 text-xs text-ink-muted">
                   <input
@@ -607,7 +579,6 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                 blockText={blockText}
                 zoom={zoom}
                 titleLines={titleLines}
-                hourHeight={(HOUR_HEIGHT * dayZoom) / 100}
                 hours={fullDay ? FULL_DAY : foldedHours}
                 onExpandHours={() => showFullDay(true)}
                 shownDay={shownDay}

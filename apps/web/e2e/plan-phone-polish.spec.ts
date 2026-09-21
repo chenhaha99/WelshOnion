@@ -2,54 +2,12 @@ import { expect, test, type Locator } from "@playwright/test";
 import { DAY1, addBlocks, addMoney, newPlan, rowOf, schedule, showView } from "./timeline-helpers";
 import { watchErrors } from "./walkthrough";
 
-/** 竖排每小时多高（像素），和 DayTimeline 一样 */
-const HOUR_HEIGHT = 48;
-
 /** 两个元素在同一行：竖着的中线差不到 8 像素。 */
 async function expectSameLine(a: Locator, b: Locator, name: string): Promise<void> {
   const boxA = (await a.boundingBox())!;
   const boxB = (await b.boundingBox())!;
   expect(Math.abs(boxA.y + boxA.height / 2 - (boxB.y + boxB.height / 2)), `${name}在同一行`).toBeLessThan(8);
 }
-
-test("手机竖排：切到时间线滚到整点、框的上边不切开钟点字 → 正在进行的「西湖」开头在框外，名字贴着框的上边", async ({ page }) => {
-  const errors = watchErrors(page);
-  // 行程 9.13–9.15，「现在」固定在 9.14 11:08（北京）：往前 1 小时是 10:08，不取整点的话「10」会被切掉一半
-  await page.clock.setFixedTime(new Date("2026-09-14T03:08:00Z"));
-  await newPlan(page, 3, { startDate: "2026-09-13", width: 390, height: 844 });
-  const today = page.getByRole("table", { name: /9\.14 周一 的安排/ });
-  await addBlocks(page, today, ["西湖"]);
-  await schedule(page, today, "西湖", "09:30", "3");
-  // 框只在打开时间线、翻天时滚：在日程里排好再切到时间线
-  await showView(page, "时间线");
-
-  const timeline = page.getByRole("region", { name: "时间线" });
-  const scroller = timeline.locator("[data-day-scroll]");
-  await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 2 天 · 9.14 周一");
-  await expect
-    .poll(() => scroller.evaluate((element, hourHeight) => Math.round((element.scrollTop / hourHeight) * 60), HOUR_HEIGHT))
-    .toBe(10 * 60);
-  await scroller.scrollIntoViewIfNeeded();
-  const frame = (await scroller.boundingBox())!;
-  const ten = (await timeline.locator("[data-hour-tick]").filter({ hasText: /^10$/ }).boundingBox())!;
-  expect(ten.y, "「10」的上边").toBeGreaterThanOrEqual(frame.y);
-  // 钟点字只标在双数的整点上；哪个字都不被框的上边切开
-  const ticks = await timeline
-    .locator("[data-hour-tick]")
-    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()).map(({ top, bottom }) => ({ top, bottom })));
-  for (const tick of ticks) {
-    expect(tick.top >= frame.y - 0.5 || tick.bottom <= frame.y + 0.5, "钟点字没被框的上边切开").toBe(true);
-  }
-
-  const bar = (await timeline.locator("[data-segment]").filter({ has: page.getByRole("button", { name: /^西湖 / }) }).boundingBox())!;
-  const title = (await timeline.locator("[data-bar-title]").filter({ hasText: "西湖" }).boundingBox())!;
-  expect(bar.y, "「西湖」的开头在框外").toBeLessThan(frame.y);
-  expect(title.y, "名字的上边").toBeGreaterThanOrEqual(frame.y - 1);
-  expect(title.y + title.height, "名字的下边").toBeLessThanOrEqual(frame.y + frame.height);
-  await page.screenshot({ path: test.info().outputPath("01-phone-today-scroll.png") });
-
-  expect(errors).toEqual([]);
-});
 
 test("手机上时间的编辑区：「开始」和它的框、「时长」和小时分钟不拆开", async ({ page }) => {
   const errors = watchErrors(page);

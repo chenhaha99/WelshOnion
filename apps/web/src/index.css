@@ -347,8 +347,8 @@
 
 /*
  * 手机上：
- * - 顶上两截往外伸进页面边距 0.75rem、里面只缩 0.75rem：字的位置和以前一样，一行照旧放得下「条上写」和「竖向放大」两组按钮
- *   （它们加起来正好一屏宽；缩进 1.25rem 就挤到两行）。钉住时这张卡片比每天的卡片左右各宽 12 像素
+ * - 顶上两截往外伸进页面边距 0.75rem、里面只缩 0.75rem：字的位置和以前一样，一行放得下的东西多一些。
+ *   钉住时这张卡片比每天的卡片左右各宽 12 像素
  * - 筛选不折行：一行放不下左右滑，两头淡出看得出还有；弹出来、固定时那一截不长高（电脑上照旧放不下就折行）
  */
 @media (width < 720px) {
@@ -1038,7 +1038,7 @@
 
 /* 时间线的横条：类型色的淡底和边；完成的虚线、变淡、字上划一道；接着下一行的那头是平的 */
 @utility timeline-bar {
-  /* 标签的书签、竖条里的附件栏按它定位 */
+  /* 标签的书签按它定位 */
   position: relative;
   display: flex;
   /* 只有一行字时竖直居中；同时写标题和开销时贴上边（下面那条规则） */
@@ -1305,7 +1305,7 @@
   cursor: grabbing !important;
 }
 
-/* 手指长按横条、竖条、栏里的一件是要拿起来拖：不弹 iOS 的系统长按菜单 */
+/* 手指长按横条、手机上的色块、栏里的一件：不弹 iOS 的系统长按菜单（横排上长按是要拿起来拖） */
 [data-segment],
 [data-undated-chip] {
   -webkit-touch-callout: none;
@@ -1356,7 +1356,6 @@
   outline-offset: 2px;
 }
 
-/* 窄屏竖排：竖条的字靠上；接着前一天、后一天的那头（上、下）是平的，横排是左、右 */
 /* 背景细条里的标题：只写一行，写不下截断加「…」。按钮不是 flex：标题照样按块排，截断才生效（压在折起那一截里的住宿只有十几像素宽） */
 .timeline-strip > [data-bar-title] {
   display: block;
@@ -1367,7 +1366,7 @@
 }
 
 /*
- * 横条、竖条分上中下三区（你提的）：上面书签栏（挂标签的书签），中间标题，最下面附件栏（时长、开销，靠右）。
+ * 横条分上中下三区（你提的）：上面书签栏（挂标签的书签），中间标题，最下面附件栏（时长、开销，靠右）。
  * 哪几区有由外框的 data-tag-bar、data-foot 定，标题写几行由外框的 --title-lines 定；块多高由 timeline-geometry 算好。
  * 书签栏 12、上边没有书签栏时留 2；附件栏 16、没有附件栏时下边留 4。
  */
@@ -1425,20 +1424,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 竖条上它在按钮里面（开销只写不点）：贴着按钮的内边 */
-.timeline-bar > .timeline-foot {
-  inset-inline: 0;
-  bottom: 0;
-}
-
-/* 完成的块上的附件栏：横条上它不在块的按钮里、竖条上它单独摆在按钮最下面，颜色和划线都传不过来，单独写 */
+/* 完成的块上的附件栏：它不在块的按钮里，颜色和划线都传不过来，单独写 */
 [data-mark="done"] .timeline-foot,
 [data-mark="done"] .timeline-foot .timeline-money {
   color: var(--color-ink-muted);
   text-decoration-line: line-through;
 }
 
-/* 时间线上面那条里的一件：按字宽（竖排那一栏里是占满一行），太长就截断 */
+/* 时间线上面那条里的一件：按字宽（手机上展开那天下面的那一栏里是占满一行），太长就截断 */
 [data-timeline-tray="strip"] [data-undated-chip] > .timeline-chip {
   width: auto;
   max-width: 11rem;
@@ -1446,7 +1439,7 @@
 
 /*
  * 块上的标签（你提的：像挂上面的书签，以颜色区分，鼠标停上去看名字）：一排小书签从块的上边挂下来，靠右。
- * 横条、竖条上它们在书签栏里，标题在下面，不会压字；只有一行的细条、「没排时间」的一件，右边留出书签那一截（--tag-space 由 BlockButton 按个数算）
+ * 横条上它们在书签栏里，标题在下面，不会压字；只有一行的细条、「没排时间」的一件，右边留出书签那一截（--tag-space 由 BlockButton 按个数算）
  */
 .block-tags {
   position: absolute;
@@ -1473,7 +1466,7 @@
 .timeline-chip:has(> .block-tags) {
   padding-right: calc(0.5rem + var(--tag-space));
 }
-/* 块窄到写不下开销，也就挂不下书签（竖排里的背景细条也是）；附件栏也不写 */
+/* 块窄到写不下开销，也就挂不下书签；附件栏也不写 */
 @container (max-width: 28px) {
   .block-tags,
   [data-bar-foot] {
@@ -1491,81 +1484,14 @@
 .timeline-bar[aria-pressed="true"],
 .timeline-strip[aria-pressed="true"],
 .timeline-chip[aria-pressed="true"],
-.timeline-marker[aria-pressed="true"],
-.timeline-marker-h[aria-pressed="true"] {
+.timeline-marker[aria-pressed="true"] {
   outline: 2px solid var(--color-sage);
   outline-offset: -2px;
-}
-
-/* 竖排里标题单独一段：竖条开头滚出框的上边时，标题贴着框的上边。
-   按钮剪掉溢出但不当滚动容器（clip），标题的 sticky 才以外面的框为准；不认识 clip 的浏览器照旧 hidden */
-[data-day-axis] [data-segment] > .timeline-bar {
-  overflow: clip;
-}
-[data-day-axis] .timeline-bar > [data-bar-title] {
-  position: sticky;
-  top: 0;
 }
 
 /* 块窄到写不下开销就不写（量的是外框的宽） */
 [data-segment] {
   container-type: inline-size;
-}
-[data-day-axis] [data-segment] {
-  container-type: size;
-}
-
-[data-day-axis] [data-segment] > .timeline-bar,
-[data-day-axis] [data-segment] > .timeline-strip {
-  border-width: 1px;
-  border-radius: 0.375rem;
-}
-
-[data-day-axis] [data-continues-before="true"] > .timeline-bar,
-[data-day-axis] [data-continues-before="true"] > .timeline-strip {
-  border-top-width: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
-[data-day-axis] [data-continues-after="true"] > .timeline-bar,
-[data-day-axis] [data-continues-after="true"] > .timeline-strip {
-  border-bottom-width: 0;
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-/* 竖排里时长为 0 的块：一条类型色的横线，点击区域上下各放宽 6 像素 */
-@utility timeline-marker-h {
-  position: absolute;
-  top: -0.375rem;
-  left: 0;
-  width: 100%;
-  height: 0.75rem;
-  cursor: pointer;
-  &::before {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    top: calc(50% - 1px);
-    height: 2px;
-    border-radius: 1px;
-    background-color: var(--kind-color);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--color-sage);
-    outline-offset: 1px;
-  }
-  [data-mark="pending"] > &::before {
-    background: repeating-linear-gradient(
-      to right,
-      color-mix(in srgb, var(--kind-color) 55%, white) 0 3px,
-      transparent 3px 5px
-    );
-  }
-  [data-mark="done"] > &::before {
-    background-color: var(--mark-done-line);
-  }
 }
 
 /* 计划列表页的月历：一周一行，第一行写日期，下面每道一条计划横条 */
@@ -1632,4 +1558,215 @@
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
+}
+
+/*
+ * 手机竖屏上的时间线：一天一条横的，整趟的天竖着堆起来（见 PhoneTimeline.tsx）。
+ * 色块上一个字都不写，名字排在展开那天的条下面——这是你定的（「统一色块在上，然后字全部放下面」）。
+ */
+@utility phone-timeline {
+  /* 左边写哪天那一列多宽 */
+  --phone-gut: 42px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+@utility phone-axis {
+  position: relative;
+  height: 12px;
+  margin-left: var(--phone-gut);
+  /* 右边让出角标那一格（20）和它前面的空隙（6），刻度才和条对齐 */
+  margin-right: 26px;
+  font-size: 0.625rem;
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
+  & span {
+    position: absolute;
+    top: 0;
+    translate: -50% 0;
+  }
+}
+
+.phone-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 2px 0;
+}
+
+/* 点这一列展开或收起这天；色块自己会吃掉点击，点块是选中那件事 */
+.phone-day-name {
+  display: flex;
+  width: calc(var(--phone-gut) - 6px);
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 0.625rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  &:focus-visible {
+    outline: 2px solid var(--color-sage);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+}
+
+.phone-day-date {
+  color: color-mix(in srgb, var(--color-ink-muted) 70%, white);
+}
+
+.phone-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-radius: 0.3rem;
+  background-color: rgb(47 58 69 / 0.045);
+}
+
+.phone-bar {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.25rem;
+  background-color: var(--kind-color);
+  cursor: pointer;
+  &[aria-pressed="true"] {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 1px;
+  }
+}
+
+/* 三档（你提的）：确定＝完整颜色；待定＝完整颜色的变淡版，边框也淡，虚线；完成＝统一灰色 */
+.phone-bar {
+  border: 1px solid transparent;
+}
+
+[data-mark="pending"] > .phone-bar:not(.phone-bar-back) {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--kind-color) 60%, white);
+  background-color: color-mix(in srgb, var(--kind-color) 22%, white);
+}
+
+[data-mark="done"] > .phone-bar:not(.phone-bar-back) {
+  background-color: var(--mark-done-line);
+}
+
+/* 色块上没字划不了线，完成的那件把线划在下面那条名字上 */
+.phone-tag[data-mark="done"] {
+  color: var(--color-ink-muted);
+  text-decoration-line: line-through;
+}
+
+/* 底层类型（停留这些）铺在整条底下：一眼看出这天在哪个城市，还不占地方 */
+.phone-bar-back {
+  border-radius: 0.3rem;
+  background-color: color-mix(in srgb, var(--kind-color) 22%, white);
+}
+
+/* 现在走到哪了 */
+.phone-now {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  border-radius: 999px;
+  background-color: #d2705a;
+}
+
+/* 角标那一格：每天都留，没角标就空着，所有天的条才一样宽 */
+.phone-undated-slot {
+  display: flex;
+  width: 20px;
+  flex: none;
+  justify-content: flex-end;
+}
+
+/* 折起的那一截：钟点压在里面 */
+.phone-fold {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(135deg, rgb(47 58 69 / 0.07) 0 3px, transparent 3px 6px);
+  border-radius: 0.3rem;
+  pointer-events: none;
+}
+
+/* 这天还有几件没排时间 */
+.phone-undated {
+  flex: none;
+  border: 1px solid rgb(47 58 69 / 0.12);
+  border-radius: 999px;
+  background-color: rgb(255 255 255 / 0.9);
+  padding: 0 3px;
+  font-size: 0.5625rem;
+  color: var(--color-ink-muted);
+}
+
+/* 展开的那一天：条下面的字、概况、没排时间的、加一件事，都从条的起点开始 */
+.phone-open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0.125rem 0 0.5rem var(--phone-gut);
+}
+
+/* 展开那天条下面的几行字 */
+.phone-tags {
+  position: relative;
+}
+
+.phone-tag {
+  position: absolute;
+  font-size: 0.625rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--color-ink);
+  /* 点钉在块的左边沿，一像素都不挪：点在哪儿，那件事就从哪儿开始 */
+  &::before {
+    content: "";
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    margin-right: 2px;
+    vertical-align: middle;
+    background-color: var(--kind-color);
+  }
+}
+
+/* 右边放不下时字翻到点左边，点还在原处：改成把点画在字后面，不能靠 direction 翻，那会把中文和数字的顺序一起翻掉 */
+.phone-tag.is-flipped::before {
+  content: none;
+}
+
+.phone-tag.is-flipped::after {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  margin-left: 2px;
+  vertical-align: middle;
+  background-color: var(--kind-color);
+}
+
+/* 同色的淡线：从块底直上直下连到点上 */
+.phone-lead {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  background-color: color-mix(in srgb, var(--kind-color) 45%, transparent);
+}
+
+.phone-day-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.625rem;
+  color: var(--color-ink-muted);
 }

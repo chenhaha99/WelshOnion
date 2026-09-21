@@ -3,7 +3,7 @@ import { createContext, useContext, type CSSProperties, type ReactNode } from "r
 import { TagRibbon } from "./tag-ribbon";
 
 /**
- * 时间线上选中的是哪一件：DayList 拿着，横条、竖条、「没排时间」栏里的一件都从这里读。
+ * 时间线上选中的是哪一件：DayList 拿着，横条、手机上的色块、「没排时间」栏里的一件都从这里读。
  * 选中的那件旁边出快捷条（QuickBar）；详情面板从快捷条的「详情…」打开。
  */
 export interface BlockSelection {
@@ -32,16 +32,17 @@ interface BlockButtonProps {
   name: string;
   /** 挂着的标签：块上挂一排书签，读屏名里写出名字 */
   tags: readonly TagView[];
-  /** 画不画书签：时长为 0 的竖线（横线）上没地方，竖条矮得放不下书签栏时也不画 */
+  /** 画不画书签：时长为 0 的竖线上没地方，手机上的色块也不画 */
   tagMarks?: boolean;
   /** 三档标记：样子由外面那一层的 data-mark 画 */
   mark: BlockMark;
   className: string;
-  children: ReactNode;
+  /** 块里写什么；手机上的条一个字都不写（名字在条下面那几行），所以可以不给 */
+  children?: ReactNode;
 }
 
 /**
- * 时间线上的一件事（横条、竖条、「没排时间」栏里的一件）：点一下选中它，再点一下取消；
+ * 时间线上的一件事（横条、手机上的色块、「没排时间」栏里的一件）：点一下选中它，再点一下取消；
  * 选中的按钮 aria-pressed 是 true（读屏报得出来），描边在 index.css 里按这个属性画。
  */
 export function BlockButton({ blockId, name, tags, tagMarks = true, mark, className, children }: BlockButtonProps) {

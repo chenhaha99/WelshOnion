@@ -2,7 +2,7 @@ import { expect, test, type Locator } from "@playwright/test";
 import { addBlocks, DAY1, newPlan, pickKind, quickBar, rowOf, schedule, segment, showView, timelineRow } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-// 「现在」固定在 9.14，行程 10.1 还没出发：手机竖排打开是第一天
+// 「现在」固定在 9.14，行程 10.1 还没出发：手机上打开展开第一天
 const BEFORE_TRIP = new Date("2026-09-14T06:20:00Z");
 
 /** 画出来的样子：边框虚实、边框色、底色、字色、有没有划线、整块透明度、选中的描边色。 */
@@ -133,7 +133,7 @@ test("电脑上：快捷条按一圈换三档、块跟着变样子、大小不�
   expect(errors).toEqual([]);
 });
 
-test("手机上：竖条选中，底部快捷条第一个按钮完成，竖条变成灰的", async ({ page }) => {
+test("手机上：色块选中，底部快捷条第一个按钮完成，色块变成灰的、下面的名字划一道", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 1, { width: 390, height: 844 });
@@ -144,6 +144,7 @@ test("手机上：竖条选中，底部快捷条第一个按钮完成，竖条�
   const timeline = page.getByRole("region", { name: "时间线" });
   const lake = timeline.getByRole("button", { name: /^西湖 / });
 
+  const plain = await looks(lake);
   await lake.click();
   const toggle = quickBar(page, "西湖").getByRole("button", { name: /^标记：/ });
   await expect(toggle).toBeInViewport();
@@ -151,7 +152,11 @@ test("手机上：竖条选中，底部快捷条第一个按钮完成，竖条�
   await expect(timeline.locator("[data-segment]").first()).toHaveAttribute("data-mark", "done");
   const phoneDone = await looks(lake);
   expect(phoneDone.borderStyle, "完成是实线").toBe("solid");
-  expect(phoneDone.decoration, "完成的字上划一道").toBe("line-through");
+  expect(phoneDone.background, "完成的色块换成灰的，不是类型色").not.toBe(plain.background);
+  // 色块上没字：完成的划线划在展开那天条下面的名字上
+  const name = timeline.locator('.phone-tag[data-mark="done"]');
+  await expect(name).toHaveText(/^西湖/);
+  expect(await name.evaluate((node) => getComputedStyle(node).textDecorationLine)).toBe("line-through");
   await shot(page, "03-phone-done");
 
   expect(errors).toEqual([]);

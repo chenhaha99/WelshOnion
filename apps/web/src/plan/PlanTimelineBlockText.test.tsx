@@ -5,7 +5,7 @@ import { addBlock, addExpense, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { daysFromOct1, openStoredPlan, overviewCard, ringMoney, showView, stubNarrowScreen } from "./test-helpers";
+import { daysFromOct1, openStoredPlan, overviewCard, ringMoney, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -233,17 +233,5 @@ describe("条上写标题、开销：两个开关各开各关", () => {
     await dayWithMoney();
     expect(pressed("标题")).toBe("true");
     expect(pressed("开销")).toBe("false");
-  });
-
-  it("手机上竖条最下面的附件栏里写开销", async () => {
-    stubNarrowScreen();
-    const user = userEvent.setup();
-    await dayWithMoney();
-
-    await toggle(user, "开销");
-
-    await waitFor(async () => expect(moneyLine(await segmentOf("西湖"))?.textContent).toBe("¥300"));
-    expect(moneyLine(await segmentOf("西湖"))?.closest("[data-bar-foot]")).not.toBeNull();
-    expect(titleText(await segmentOf("西湖"))?.textContent).toBe("西湖");
   });
 });

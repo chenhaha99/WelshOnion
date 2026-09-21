@@ -57,11 +57,12 @@ export interface DayMenu {
 
 /**
  * 每天的菜单：插天（被块跨过先问放哪边）、上移下移、改时区、加一个另一时区的这天、删天。
- * 日程的组头、时间线的横排行、竖排共用：按钮和展开的表单由用它的地方各自摆。
- * 展开时焦点放进表单，收起后回到菜单按钮；竖排翻到别的天时，展开的收起，焦点不动。
+ * 日程的组头、电脑上时间线的每一行、手机上展开的那天共用：按钮和展开的表单由用它的地方各自摆。
+ * 展开时焦点放进表单，收起后回到菜单按钮；这个菜单换成了别的天时，展开的收起，焦点不动。
+ * （手机上展开另一天时，原来那天的菜单整个卸掉、表单跟着没了，走不到这条。）
  */
 export function useDayMenu({ doc, library, libraryView, plan, base, label, index, count, filter, triggerClassName }: DayMenuOptions): DayMenu {
-  // 记着是在哪天展开的：竖排翻到别的天，就不再显示这天的表单
+  // 记着是在哪天展开的：换成别的天，就不再显示这天的表单
   const [opened, setOpened] = useState<{ baseId: string; mode: Mode }>({ baseId: base.id, mode: NORMAL });
   const mode = opened.baseId === base.id ? opened.mode : NORMAL;
   const setMode = (next: Mode) => setOpened({ baseId: base.id, mode: next });
@@ -70,7 +71,7 @@ export function useDayMenu({ doc, library, libraryView, plan, base, label, index
 
   // 展开时焦点放进展开的东西里；收起后菜单按钮重新出现，焦点放回它（这几样只能用按钮或 Esc 收起，不会抢走点到别处的焦点）
   const menuSlot = useRef<HTMLSpanElement>(null);
-  // 展开着的是哪天：翻到别的天、表单不见了，不算收起，不抢焦点
+  // 展开着的是哪天：换成别的天、表单不见了，不算收起，不抢焦点
   const expandedFor = useRef<string | null>(null);
   useEffect(() => {
     if (mode.kind === "normal" && expandedFor.current === base.id) menuSlot.current?.querySelector("button")?.focus();

@@ -73,7 +73,7 @@ async function timeline(): Promise<HTMLElement> {
   return screen.findByRole("region", { name: "时间线" });
 }
 
-/** 时间线上读屏名以「title 」开头的那个按钮（横条、竖条、条上的一件）。 */
+/** 时间线上读屏名以「title 」开头的那个按钮（横条、手机上的色块、条上的一件）。 */
 async function blockButton(title: string): Promise<HTMLElement> {
   return within(await timeline()).getByRole("button", { name: new RegExp(`^${title} `) });
 }
@@ -136,12 +136,12 @@ describe("块上画出标签", () => {
     expect(tide.getAttribute("aria-label")).toBe("看潮 12:30 · 必去");
   });
 
-  it("「没排时间」条上的一件、手机上的竖条也画", async () => {
+  it("手机上：「没排时间」里的一件照样画；色块上不画——手机上的色块只有颜色", async () => {
     stubNarrowScreen();
     await oneDay({ tags: { 西湖: ["必去"], 河坊街: ["下雨也能去"] } });
     await showView("时间线");
 
-    expect(ribbonColors(await blockButton("西湖"))).toEqual(["#c08d68"]);
+    expect(ribbonColors(await blockButton("西湖"))).toEqual([]);
     expect(ribbonColors(await blockButton("河坊街"))).toEqual(["#6b8fb0"]);
   });
 });

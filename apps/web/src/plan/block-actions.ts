@@ -4,7 +4,7 @@ import type { MenuItem } from "../app/Menu";
 import type { DoneNotice } from "./DoneNotice";
 
 /**
- * 这件事现在在页面上的按钮：时间线上是它的横条、竖条或栏里的一件，日程里是它的行菜单按钮。
+ * 这件事现在在页面上的按钮：时间线上是它的横条（手机上是色块）或栏里的一件，日程里是它的行菜单按钮。
  * 关掉详情面板后找回焦点、撤销删除后放焦点用；两个视图一次只画一个，找到的就是看得见的那个。
  */
 export function blockFocusSelector(blockId: string): string {

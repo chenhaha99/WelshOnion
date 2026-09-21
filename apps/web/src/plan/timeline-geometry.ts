@@ -1,8 +1,7 @@
 import { kindLayer, type LibraryView, type PlanView } from "@welshonion/core";
-import type { CSSProperties } from "react";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 
-// 横条、竖条画在哪：画（Timeline、DayTimeline）和拖动中量指针落在哪块上（timeline-drop）共用这一份
+// 横条画在哪：画（Timeline、PhoneTimeline）和拖动中量指针落在哪块上（timeline-drop）共用这一份
 
 /** 横排：背景条每条多高（像素） */
 export const STRIP_HEIGHT = 16;
@@ -18,7 +17,7 @@ export interface BlockText {
 export const BLOCK_TEXT_DEFAULT: BlockText = { title: true, duration: false, money: false };
 
 /**
- * 横条、竖条分上中下三区（你提的：上面一行是书签栏，中间是标题，最下面是附件栏），各多高（像素）：
+ * 横条分上中下三区（你提的：上面一行是书签栏，中间是标题，最下面是附件栏），各多高（像素）：
  * 书签栏是书签 11 加下面空 1；标题一行 16；附件栏是上面空 2 加一行 14。
  * 没有书签栏时上边留 2，没有附件栏时下边留 4；块的上下边框各 1。
  */
@@ -73,8 +72,8 @@ export function wideMetrics(zones: BarZones): WideMetrics {
 }
 
 /**
- * 这个计划里有没有画成横条（竖排是竖条）的事挂着标签：排上了时间、有时长、画在主轨上（类型层是资料库里最上层）。
- * 有才给横条、竖条留书签栏；背景细条、时长为 0 的竖线挂着标签不算，它们不画书签栏。
+ * 这个计划里有没有画成横条的事挂着标签：排上了时间、有时长、画在主轨上（类型层是资料库里最上层）。
+ * 有才给横条留书签栏；背景细条、时长为 0 的竖线挂着标签不算，它们不画书签栏。
  * 看整个计划、不看筛选，点筛选时版面不上下跳。
  */
 export function planHasBarTags(plan: PlanView, library: LibraryView): boolean {
@@ -86,26 +85,12 @@ export function planHasBarTags(plan: PlanView, library: LibraryView): boolean {
   return false;
 }
 
-/**
- * 竖排一根竖条怎么分区：竖条的高度就是时长，中间的标题能写几整行写几行（至少一行）。
- * 放不下「书签栏 + 一行字」就不要书签栏（书签也不画），放不下附件栏就不要附件栏。
- */
-export function dayBarZones(heightPx: number, blockText: BlockText, tagBar: boolean): BarZones {
-  const title = blockText.title ? TITLE_LINE : 0;
-  const withTagBar = tagBar && heightPx >= BORDERS + TAG_BAR + title + BOTTOM_PAD;
-  const top = withTagBar ? TAG_BAR : TOP_PAD;
-  const foot = (blockText.duration || blockText.money) && heightPx >= BORDERS + top + title + FOOT_BAR;
-  const room = heightPx - BORDERS - top - (foot ? FOOT_BAR : BOTTOM_PAD);
-  return { tagBar: withTagBar, lines: blockText.title ? Math.max(1, Math.floor(room / TITLE_LINE)) : 0, foot };
-}
-
-/** 块和块之间留多少（像素），横排竖排一样；竖排里叠在上面的块每级往右缩多少 */
+/** 块和块之间留多少（像素）；DEPTH_INSET 是竖排里叠在上面的块每级往右缩多少，拖拽的落点判定还在用，等拖拽改成横排一起删 */
 export const GAP = 2;
 export const DEPTH_INSET = 4;
-/** 竖排：放大 100% 时每小时多高、背景细条每条多宽（像素） */
-export const HOUR_HEIGHT = 48;
+/** 竖排背景细条每条多宽（像素）：拖到竖排上的落点判定还在用，等拖拽改成横排一起删 */
 export const STRIP_WIDTH = 12;
-/** 时长为 0 的块画成一条线，点和量都按这么宽（像素），同 index.css 的 timeline-marker、timeline-marker-h */
+/** 时长为 0 的块画成一条线，点和量都按这么宽（像素），同 index.css 的 timeline-marker */
 export const MARKER_HIT = 12;
 /** 拖动中拿起来的块压在别的块上面（别的块是 1 + 缩几级） */
 export const LIFTED_Z_INDEX = 10;
@@ -154,24 +139,6 @@ export function wideSegmentBox(item: PlacedSegment, layout: RowLayout, metrics: 
   };
 }
 
-/** 竖排左边背景细条那一栏一共多宽。 */
-export function dayStripsWidth(layout: RowLayout): number {
-  return layout.backgroundCount * STRIP_WIDTH;
-}
-
-/**
- * 竖排一段的左边和宽度，写成 CSS：背景块在左边的细条里；主轨在细条右边按道数平分成列，叠在上面的从左边往右缩。
- * 和 daySegmentPixels 是同一套算法。
- */
-export function daySegmentStyle(item: PlacedSegment, layout: RowLayout): CSSProperties {
-  if (item.track === "background") return { left: (item.lane - 1) * STRIP_WIDTH, width: STRIP_WIDTH - GAP };
-  const { offset, inset } = dayColumnParts(item, layout);
-  return {
-    left: `calc(${offset}px + (100% - ${offset}px) * ${(item.lane - 1) / layout.laneCount} + ${inset}px)`,
-    width: `calc((100% - ${offset}px) / ${layout.laneCount} - ${inset + GAP}px)`,
-  };
-}
-
 /** 竖排一段在宽 axisWidth 像素的横轴里，左边和宽度（像素）。 */
 export function daySegmentPixels(
   item: PlacedSegment,
@@ -187,6 +154,6 @@ export function daySegmentPixels(
 }
 
 function dayColumnParts(item: PlacedSegment, layout: RowLayout): { offset: number; inset: number } {
-  const stripsWidth = dayStripsWidth(layout);
+  const stripsWidth = layout.backgroundCount * STRIP_WIDTH;
   return { offset: stripsWidth === 0 ? 0 : stripsWidth + GAP, inset: item.depth * DEPTH_INSET };
 }

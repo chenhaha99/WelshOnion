@@ -176,13 +176,13 @@ describe("没事的凌晨和深夜默认折起", () => {
     expect((fullDayButton() as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("手机上不折，没有「0–24 点」", async () => {
+  it("手机上也折起没事的凌晨和深夜（每天一条都折），但没有「0–24 点」", async () => {
     stubNarrowScreen();
     await openStoredPlan(lakePlan());
 
     const region = await timeline();
-    expect(region.querySelectorAll("[data-hour-tick]")).toHaveLength(13);
-    expect(folds(region)).toEqual([]);
+    // 手机上一小时本来就只有十几像素，不折的话块全挤在一起；横轴固定，不给展开成整天
+    expect(new Set(folds(region))).toEqual(new Set(["before", "after"]));
     expect(screen.queryByRole("button", { name: "0–24 点" })).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import { addBlock, addTag, initLibraryDoc, initPlanDoc, readLibrary, readPlan, setBlockTag, setDays } from "@welshonion/core";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { barHeight, barZones, dayBarZones, planHasBarTags, wideMetrics, type BlockText } from "./timeline-geometry";
+import { barHeight, barZones, planHasBarTags, wideMetrics, type BlockText } from "./timeline-geometry";
 
 const TITLE: BlockText = { title: true, duration: false, money: false };
 const TITLE_MONEY: BlockText = { title: true, duration: false, money: true };
@@ -40,34 +40,6 @@ describe("套在里面的块每级往下让多少", () => {
     ["关掉「标题」：最少也让 18", MONEY, 1, true, 18],
   ])("%s", (_name, blockText, lines, tagBar, nest) => {
     expect(wideMetrics(barZones(blockText, lines, tagBar)).nest).toBe(nest);
-  });
-});
-
-describe("竖条按自己的高度分区", () => {
-  it("3 小时（100% 时 144 像素）：书签栏、附件栏都有，中间写 7 行", () => {
-    expect(dayBarZones(144, ALL, true)).toEqual({ tagBar: true, lines: 7, foot: true });
-  });
-
-  it("半小时（24 像素）：只写一行标题，没有书签栏、附件栏", () => {
-    expect(dayBarZones(24, ALL, true)).toEqual({ tagBar: false, lines: 1, foot: false });
-  });
-
-  it("40 像素：放得下书签栏加一行字，放不下附件栏", () => {
-    expect(dayBarZones(40, ALL, true)).toEqual({ tagBar: true, lines: 1, foot: false });
-  });
-
-  it("没有书签栏时 36 像素就放得下附件栏", () => {
-    expect(dayBarZones(36, ALL, false)).toEqual({ tagBar: false, lines: 1, foot: true });
-    expect(dayBarZones(35, ALL, false)).toEqual({ tagBar: false, lines: 1, foot: false });
-  });
-
-  it("有书签栏时要 46 像素才放得下附件栏", () => {
-    expect(dayBarZones(46, ALL, true).foot).toBe(true);
-    expect(dayBarZones(45, ALL, true).foot).toBe(false);
-  });
-
-  it("关掉「标题」：不写字", () => {
-    expect(dayBarZones(144, MONEY, false)).toEqual({ tagBar: false, lines: 0, foot: true });
   });
 });
 

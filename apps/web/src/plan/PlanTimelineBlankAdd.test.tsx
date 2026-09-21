@@ -5,7 +5,7 @@ import { addBlock, type AddBlockInput } from "@welshonion/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { blockTexts, daysFromOct1, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
+import { blockTexts, daysFromOct1, openStoredPlan, showView } from "./test-helpers";
 
 afterEach(async () => {
   cleanup();
@@ -166,50 +166,5 @@ describe("电脑上点空白处加一件事", () => {
     expect(await within(card).findByText("刚加的「宋城」被筛掉了")).toBeTruthy();
     expect((within(card).getByRole("textbox", { name: "加一件事" }) as HTMLInputElement).value).toBe("");
     expect(within(region).queryByRole("button", { name: /^宋城 / })).toBeNull();
-  });
-});
-
-describe("手机上按住空白处加一件事", () => {
-  /**
-   * 竖排：能上下滚的框占屏幕 0–768；框里的竖轴高 1440、一分钟一像素，滚到 14:10 在 y=400 处
-   * （指针离框边远，拖到框边框自己滚的那一套不动）。
-   */
-  async function dayTimeline(): Promise<HTMLElement> {
-    await showView("时间线");
-    const region = await screen.findByRole("region", { name: "时间线" });
-    const scroller = region.querySelector<HTMLElement>("[data-day-scroll]")!;
-    vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(DOMRect.fromRect({ x: 0, y: 0, width: 320, height: 768 }));
-    const axis = region.querySelector<HTMLElement>("[data-day-axis]")!;
-    vi.spyOn(axis, "getBoundingClientRect").mockReturnValue(DOMRect.fromRect({ x: 0, y: -450, width: 300, height: 1440 }));
-    return axis;
-  }
-
-  it("按住 0.5 秒：画 1 小时，抬起弹框", async () => {
-    stubNarrowScreen();
-    await openStoredPlan(lakePlan());
-    const axis = await dayTimeline();
-
-    fireEvent.pointerDown(axis, { clientX: 150, clientY: 400, pointerType: "touch", pointerId: 7 });
-    await waitFor(() => expect(axis.querySelector("[data-new-range]")?.textContent).toBe("14:00–15:00"), { timeout: 1500 });
-    fireEvent.pointerUp(window, { clientX: 150, clientY: 400, pointerType: "touch", pointerId: 7 });
-
-    const card = await screen.findByRole("dialog", { name: "加一件事" });
-    expect(within(card).getByText("第 1 天 · 10.1 周四 · 14:00–15:00")).toBeTruthy();
-    // 手机上从底部浮起，后面压着暗底
-    expect(card.dataset.sheet).toBe("true");
-    expect(document.querySelector("[data-card-backdrop]")).not.toBeNull();
-  });
-
-  it("轻点：不弹", async () => {
-    stubNarrowScreen();
-    await openStoredPlan(lakePlan());
-    const axis = await dayTimeline();
-
-    fireEvent.pointerDown(axis, { clientX: 150, clientY: 400, pointerType: "touch", pointerId: 8 });
-    fireEvent.pointerUp(window, { clientX: 150, clientY: 400, pointerType: "touch", pointerId: 8 });
-
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    expect(addCard()).toBeNull();
-    expect(axis.querySelector("[data-new-range]")).toBeNull();
   });
 });

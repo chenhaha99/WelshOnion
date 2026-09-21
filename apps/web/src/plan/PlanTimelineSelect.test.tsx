@@ -38,7 +38,7 @@ async function onePlanDay(): Promise<void> {
   await showView("时间线");
 }
 
-/** 时间线上读屏名以「title 」开头的那个按钮（横条、竖条或栏里的一件）。 */
+/** 时间线上读屏名以「title 」开头的那个按钮（横条、手机上的色块或栏里的一件）。 */
 async function blockButton(title: string): Promise<HTMLElement> {
   const timeline = await screen.findByRole("region", { name: "时间线" });
   return within(timeline).getByRole("button", { name: new RegExp(`^${title} `) });

@@ -247,18 +247,19 @@ describe("点结果跳过去", () => {
     await waitFor(() => expect(document.activeElement).toBe(chip));
   });
 
-  it("手机竖排：翻到那天再选中", async () => {
+  it("手机上：展开那天再选中", async () => {
     stubNarrowScreen();
     const user = userEvent.setup();
     await threeDays();
     await showView("时间线");
     const region = await timeline();
-    await waitFor(() => expect(region.querySelector("[data-timeline-day]")?.textContent).toContain("10.1"));
+    const openDay = () => region.querySelector("li[data-open]")?.getAttribute("aria-label");
+    await waitFor(() => expect(openDay()).toContain("10.1"));
 
     const panel = await search(user, "夜游");
     await user.click(results(panel)[0]!);
 
-    await waitFor(() => expect(region.querySelector("[data-timeline-day]")?.textContent).toBe("第 3 天 · 10.3 周六"));
+    await waitFor(() => expect(openDay()).toBe("第 3 天 · 10.3 周六"));
     const bar = within(region).getByRole("button", { name: /^西湖夜游 / });
     await waitFor(() => expect(bar.getAttribute("aria-pressed")).toBe("true"));
   });

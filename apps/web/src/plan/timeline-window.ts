@@ -28,13 +28,22 @@ export const FULL_DAY: HourWindow = { from: 0, to: MINUTES_PER_DAY };
  * 画哪几个钟点。按下了「0–24 点」是整天；否则从 07:00–21:00 起，看整个计划（不看筛选：点筛选时横轴不跟着伸缩）：
  * 主轨上的事每一段都整个画得下（放到它开始、结束的整点）；背景条按一件事算，
  * 有一段和放过以后的范围沾边就露得出来（晚到的民宿第二天早上那段看得见），每一段都不沾的才放到画得下它。
+ * `foldTails`：手机上用，前一天延续过来的那一截不算。
  */
-export function hourWindow(plan: PlanView, library: LibraryView, fullDay: boolean): HourWindow {
+export function hourWindow(
+  plan: PlanView,
+  library: LibraryView,
+  fullDay: boolean,
+  { foldTails = false }: { foldTails?: boolean } = {},
+): HourWindow {
   if (fullDay) return FULL_DAY;
   const topKindLayer = Math.max(...[...library.kinds.values()].map((kind) => kind.layer));
   const range = { from: DEFAULT_FROM, to: DEFAULT_TO };
   const background = new Map<string, Segment[]>();
   for (const segment of timelineSegments(plan)) {
+    // 手机上：前一天延续过来的那一截（夜车、住宿的第二天早上）不撑开横轴，挤进左边折起的那一截。
+    // 手机上一小时本来就只有十几像素，被它撑到 0 点就只剩 9 像素，块全挤在一起
+    if (foldTails && segment.continuesBefore) continue;
     if (kindLayer(plan.blocks.get(segment.blockId)!, library) < topKindLayer) {
       background.set(segment.blockId, [...(background.get(segment.blockId) ?? []), segment]);
     } else {

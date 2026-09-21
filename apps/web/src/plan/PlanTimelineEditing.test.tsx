@@ -51,7 +51,7 @@ async function timelineRow(day: string): Promise<HTMLElement> {
   return row;
 }
 
-/** container 里「没排时间」那一串每件的读屏名，按顺序（横排的条在时间线上面，竖排的在框下面）。 */
+/** container 里「没排时间」那一串每件的读屏名，按顺序（电脑上的条在时间线上面，手机上在展开那天的下面）。 */
 function chipNames(container: HTMLElement): string[] {
   return [
     ...within(container).getByRole("group", { name: "没排时间" }).querySelectorAll("[data-undated-chip] > button"),
@@ -121,14 +121,14 @@ describe("在时间线上加一件事", () => {
     expect(screen.queryByText("刚加的「宋城」被筛掉了")).toBeNull();
   });
 
-  it("竖排：框下面加到正在看的这一天", async () => {
+  it("手机上：加到展开的那一天", async () => {
     stubNarrowScreen();
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 2));
 
     const region = await timeline();
-    await user.click(within(region).getByRole("button", { name: "后一天" }));
-    await waitFor(() => expect(region.querySelector("[data-timeline-day]")?.textContent).toBe("第 2 天 · 10.2 周五"));
+    await user.click(within(region).getByRole("button", { name: /^第 2 天/ }));
+    await waitFor(() => expect(region.querySelector("li[data-open]")?.getAttribute("aria-label")).toBe("第 2 天 · 10.2 周五"));
     expect(within(region).queryByRole("group", { name: "没排时间" })).toBeNull();
 
     await user.type(within(region).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");

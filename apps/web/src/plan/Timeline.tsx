@@ -15,7 +15,7 @@ import { AddAtTime } from "./AddAtTime";
 import { TimelineAddBlock } from "./AddBlock";
 import { blockTimeLabel, durationLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
-import { DayTimeline } from "./DayTimeline";
+import { PhoneTimeline } from "./PhoneTimeline";
 import { DragLabel } from "./DragLabel";
 import { dayRowLabels } from "./day-labels";
 import { BlockMoney } from "./block-money";
@@ -85,20 +85,18 @@ interface TimelineProps {
   zoom: number;
   /** 横条上的标题写几行（横排才有） */
   titleLines: number;
-  /** 竖排每小时多高（像素，竖排才有） */
-  hourHeight: number;
   /** 横排横轴展开的那段：没事的凌晨和深夜折起（按计划算，见 timeline-window） */
   hours: HourWindow;
   /** 点了折起的那一截：展开成 0–24 点 */
   onExpandHours: () => void;
-  /** 竖排看的是哪天（底座 id）：DayList 记着，切到日程再切回来接着看这天 */
+  /** 手机上展开的是哪天（底座 id）：DayList 记着，切到日程再切回来还是这天 */
   shownDay: { current: string | null };
-  /** 搜索里点了一条：竖排翻到这天（seq 变了才算一次新的） */
+  /** 搜索里点了一条：手机上展开那天（seq 变了才算一次新的） */
   jump: { baseId: string; seq: number } | null;
 }
 
 /**
- * 时间线：屏幕够宽时横着铺（一天一行），窄屏上竖着铺、一次一天（见 DayTimeline）；两种都能拖（见 use-timeline-drag）。
+ * 时间线：一天一行横着铺。屏幕够宽时每行写字、能拖（见 use-timeline-drag）；窄屏上是精简版，色块不写字、点开某天才列名字（见 PhoneTimeline）。
  * 两种都用同一份几何：每个块画在哪几行、一行里分到哪一道。点一件事选中它、旁边出快捷条；每天有「加一件事」和「这天的操作」。
  */
 export function Timeline({
@@ -111,7 +109,6 @@ export function Timeline({
   blockText,
   zoom,
   titleLines,
-  hourHeight,
   hours,
   onExpandHours,
   shownDay,
@@ -131,7 +128,8 @@ export function Timeline({
   }, [plan, libraryView, filter]);
   const hasTimed = [...plan.blocks.values()].some((block) => block.start_minute !== null);
   const wide = useWideScreen();
-  // 「加第一件事」：横排点开第 1 天那一行的「＋」（弹出的框自己拿焦点），竖排直接给那个框焦点
+  // 「加第一件事」：电脑上点开第 1 天那一行的「＋」（弹出的框自己拿焦点）；
+  // 手机上给展开那天的框焦点，一天都没展开（框不在）就先展开第 1 天，画完再给焦点
   const focusFirstAdd = () => {
     const add = section.current!.querySelector<HTMLButtonElement>('button[aria-label="加一件事"]');
     if (add !== null) {
@@ -139,7 +137,12 @@ export function Timeline({
       add.click();
       return;
     }
-    const input = section.current!.querySelector<HTMLInputElement>('input[aria-label="加一件事"]')!;
+    const input = section.current!.querySelector<HTMLInputElement>('input[aria-label="加一件事"]');
+    if (input === null) {
+      section.current!.querySelector<HTMLButtonElement>("li button[aria-expanded]")!.click();
+      requestAnimationFrame(focusFirstAdd);
+      return;
+    }
     input.scrollIntoView({ block: "center" });
     input.focus({ preventScroll: true });
   };
@@ -156,7 +159,7 @@ export function Timeline({
           </button>
         </div>
       ) : (
-        // 竖排没有右边的栏
+        // 手机上没排时间的事在展开那天的下面
         !hasTimed && (
           <p className="text-sm text-ink-muted">
             {wide
@@ -182,17 +185,15 @@ export function Timeline({
           onExpandHours={onExpandHours}
         />
       ) : (
-        <DayTimeline
+        <PhoneTimeline
           doc={doc}
           library={library}
-          moneyCells={moneyCells}
-          blockText={blockText}
           plan={plan}
           libraryView={libraryView}
           rows={rows}
           labels={labels}
           filter={filter}
-          hourHeight={hourHeight}
+          moneyCells={moneyCells}
           shownDay={shownDay}
           jump={jump}
         />

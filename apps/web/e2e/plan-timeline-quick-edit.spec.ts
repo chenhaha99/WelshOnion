@@ -169,7 +169,7 @@ test("电脑上：点一下复制就地多一份；条上写开销，点金额�
   expect(errors).toEqual([]);
 });
 
-test("手机上：竖条选中后，快捷条固定在屏幕底部", async ({ page }) => {
+test("手机上：色块选中后，快捷条固定在屏幕底部", async ({ page }) => {
   const errors = watchErrors(page);
   await newPlan(page, 1, { width: 390, height: 844 });
   const table = page.getByRole("table", { name: DAY1 });

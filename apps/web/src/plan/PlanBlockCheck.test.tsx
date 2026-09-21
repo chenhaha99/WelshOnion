@@ -36,12 +36,12 @@ async function timeline(): Promise<HTMLElement> {
   return screen.findByRole("region", { name: "时间线" });
 }
 
-/** 时间线上读屏名以「title 」开头的那个按钮（横条、竖条、条上的一件）。 */
+/** 时间线上读屏名以「title 」开头的那个按钮（横条、手机上的色块、条上的一件）。 */
 async function blockButton(title: string): Promise<HTMLElement> {
   return within(await timeline()).getByRole("button", { name: new RegExp(`^${title} `) });
 }
 
-/** 画这件事的那一层（横条、竖条的外框，条上的一件，日程的一行）上记着哪一档，样子按它画。 */
+/** 画这件事的那一层（横条、手机色块的外框，条上的一件，日程的一行）上记着哪一档，样子按它画。 */
 function markOf(element: HTMLElement): string | undefined {
   return element.closest<HTMLElement>("[data-block-id]")!.dataset.mark;
 }
@@ -109,7 +109,7 @@ describe("在哪换标记", () => {
     await waitFor(async () => expect(markOf(await blockRow("10.1", "西湖"))).toBe("pending"));
   });
 
-  it("手机上：竖条选中，屏幕底部快捷条第一个按钮", async () => {
+  it("手机上：色块选中，屏幕底部快捷条第一个按钮", async () => {
     stubNarrowScreen();
     const user = userEvent.setup();
     await oneDay();
@@ -146,7 +146,7 @@ describe("三档怎么显示", () => {
     expect(markOf(await blockButton("河坊街"))).toBe("done");
   });
 
-  it("手机上的竖条也是", async () => {
+  it("手机上的色块也是", async () => {
     stubNarrowScreen();
     await oneDay({ 西湖: "done", 灵隐寺: "pending" });
     await showView("时间线");

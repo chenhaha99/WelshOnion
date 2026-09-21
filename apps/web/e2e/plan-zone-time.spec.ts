@@ -47,12 +47,12 @@ test("跨时区：北京那天加同日期的洛杉矶 → 18:00 起飞 12 小�
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "飞洛杉矶" })).toBeHidden();
 
-  // 手机宽度：日程卡片上的时间格、时间线竖排里点竖条
+  // 手机宽度：日程卡片上的时间格、时间线上点色块
   await page.setViewportSize({ width: 390, height: 844 });
   await showView(page, "日程");
   await expect(flight.locator("[data-block-time]")).toHaveText("北京 18:00 → 洛杉矶 15:00");
   await showView(page, "时间线");
-  // 手机上停不上去也就没有鼠标提示：点一下竖条，快捷条的「时间」写着两地时刻
+  // 手机上停不上去也就没有鼠标提示：点一下色块，快捷条的「时间」写着两地时刻
   await timeline.getByRole("button", { name: /^飞洛杉矶 / }).first().click();
   await expect(quickBar(page, "飞洛杉矶").getByRole("button", { name: "时间：北京 18:00 → 洛杉矶 15:00" })).toBeVisible();
   await shot(page, "02-phone");

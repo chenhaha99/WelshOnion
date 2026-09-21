@@ -13,7 +13,7 @@ import {
 } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-// 「现在」固定在 9.14，行程 10.1 还没出发：手机竖排打开是第一天
+// 「现在」固定在 9.14，行程 10.1 还没出发：手机上打开展开第一天
 const BEFORE_TRIP = new Date("2026-09-14T06:20:00Z");
 
 /** 在打开着的「选择标签」里新建一个标签（建好就挂上）。 */
@@ -102,15 +102,16 @@ test("电脑上：快捷条里新建两个标签挂上 → 块的上边挂着两
   expect(errors).toEqual([]);
 });
 
-test("手机上：竖条选中，底部快捷条里挂标签，竖条上边挂着书签", async ({ page }) => {
+test("手机上：色块选中，底部快捷条里挂标签，色块上不画书签只写进读屏名 → 没排时间的那一件挂上书签", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 1, { width: 390, height: 844 });
   const table = page.getByRole("table", { name: DAY1 });
-  await addBlocks(page, table, ["西湖"]);
+  await addBlocks(page, table, ["西湖", "灵隐寺"]);
   await schedule(page, table, "西湖", "09:00", "3");
   await showView(page, "时间线");
-  const lake = page.getByRole("region", { name: "时间线" }).getByRole("button", { name: /^西湖 / });
+  const timeline = page.getByRole("region", { name: "时间线" });
+  const lake = timeline.getByRole("button", { name: /^西湖 / });
 
   await lake.click();
   const tagButton = quickBar(page, "西湖").getByRole("button", { name: "标签：没有" });
@@ -124,12 +125,22 @@ test("手机上：竖条选中，底部快捷条里挂标签，竖条上边挂�
   await shot(page, "05-phone-picker");
   await page.keyboard.press("Escape");
 
-  const dots = lake.locator("[data-block-tags]");
+  // 色块上一个字都不写，书签也不画（太窄挂不下）：标签只写在读屏名里
+  await expect(lake).toHaveAccessibleName("西湖 09:00–12:00 · 必去");
+  await expect(lake.locator("[data-tag-ribbon]")).toHaveCount(0);
+
+  // 展开那天「没排时间」里的一件：挂上标签，右上角挂着书签
+  const temple = timeline.getByRole("group", { name: "没排时间" }).getByRole("button", { name: /^灵隐寺/ });
+  await temple.click();
+  await quickBar(page, "灵隐寺").getByRole("button", { name: "标签：没有" }).click();
+  await picker.getByRole("button", { name: "必去", exact: true }).click();
+  await page.keyboard.press("Escape");
+  const dots = temple.locator("[data-block-tags]");
   await expect(dots.locator("[data-tag-ribbon]")).toHaveCount(1);
-  const barBox = await box(lake);
+  const chipBox = await box(temple);
   const dotsBox = await box(dots);
-  expect(barBox.x + barBox.width - (dotsBox.x + dotsBox.width)).toBeLessThan(6);
-  expect(dotsBox.y - barBox.y).toBeLessThan(6);
+  expect(chipBox.x + chipBox.width - (dotsBox.x + dotsBox.width)).toBeLessThan(6);
+  expect(dotsBox.y - chipBox.y).toBeLessThan(6);
   await shot(page, "06-phone-ribbons");
 
   expect(errors).toEqual([]);

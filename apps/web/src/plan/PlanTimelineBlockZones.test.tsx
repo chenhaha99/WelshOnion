@@ -253,28 +253,3 @@ describe("套在里面的块往下让「书签栏 + 标题那几行」", () => {
     expect(innerTop - outerTop).toBe(44);
   });
 });
-
-describe("手机上的竖条按自己的高度分区", () => {
-  it("3 小时的竖条书签栏、附件栏都有，中间写满；半小时的只写标题", async () => {
-    stubNarrowScreen();
-    const user = userEvent.setup();
-    await oneDay({ lakeTagged: true });
-    await showView("时间线");
-
-    await toggle(user, "时长");
-    await toggle(user, "开销");
-
-    const lake = await waitFor(async () => {
-      const segment = await segmentOf("西湖");
-      expect(segment.dataset.foot).toBe("true");
-      return segment;
-    });
-    expect(lake.dataset.tagBar).toBe("true");
-    expect(titleLines(lake)).toBe("7");
-    expect(lake.querySelectorAll("[data-tag-ribbon]")).toHaveLength(1);
-    expect(lake.querySelector("[data-bar-foot]")?.textContent).toBe("¥3003 小时");
-
-    const tide = await segmentOf("看潮");
-    expect([tide.dataset.tagBar, tide.dataset.foot, titleLines(tide)]).toEqual([undefined, undefined, "1"]);
-  });
-});

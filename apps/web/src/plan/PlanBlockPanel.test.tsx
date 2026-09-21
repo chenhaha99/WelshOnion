@@ -60,7 +60,7 @@ async function timelineRow(day: string): Promise<HTMLElement> {
   return row;
 }
 
-/** 读屏名以「title 」开头的第一个按钮：横条、竖条或栏里的一件。 */
+/** 读屏名以「title 」开头的第一个按钮：横条、手机上的色块或栏里的一件。 */
 function thing(container: HTMLElement, title: string): HTMLElement {
   return within(container).getAllByRole("button", { name: new RegExp(`^${title} `) })[0]!;
 }

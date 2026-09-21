@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { addBlocks, DAY1, DAY2, DAY3, newPlan, quickBar, schedule, segment, showView, timelineRow } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-// 「现在」固定在 9.14，行程 10.1 还没出发：手机竖排打开是第一天
+// 「现在」固定在 9.14，行程 10.1 还没出发：手机上打开展开第一天
 const BEFORE_TRIP = new Date("2026-09-14T06:20:00Z");
 
 /** 元素整个在浏览器窗口里（上下左右都没出去）。 */
@@ -73,7 +73,7 @@ test("电脑上：放大到 400% 搜一件 → 跳过去选中、横条在屏幕
   expect(errors).toEqual([]);
 });
 
-test("手机上：页顶四个图标放得下 → 竖排看着第 1 天，搜第 3 天的事 → 翻过去选中", async ({ page }) => {
+test("手机上：页顶四个图标放得下 → 时间线展开着第 1 天，搜第 3 天的事 → 展开那天、选中", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 3, { width: 390, height: 844 });
@@ -90,7 +90,9 @@ test("手机上：页顶四个图标放得下 → 竖排看着第 1 天，搜第
 
   await showView(page, "时间线");
   const timeline = page.getByRole("region", { name: "时间线" });
-  await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 1 天 · 10.1 周四");
+  const days = timeline.getByRole("list", { name: "每天" }).getByRole("listitem");
+  await expect(days.nth(0)).toHaveAttribute("data-open", "true");
+  await expect(days.nth(2)).not.toHaveAttribute("data-open", "true");
 
   // 面板占满屏幕
   const panel = await searchFor(page, "夜游");
@@ -100,14 +102,14 @@ test("手机上：页顶四个图标放得下 → 竖排看着第 1 天，搜第
   await shot(page, "03-phone-search");
 
   await panel.getByRole("button", { name: /^西湖夜游/ }).click();
-  await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 3 天 · 10.3 周六");
-  const bar = timeline.getByRole("button", { name: /^西湖夜游 / });
+  // 第 3 天展开（一次只展开一天），那件事的色块选中、在屏幕里，底部浮出快捷条
+  await expect(days.nth(2)).toHaveAttribute("aria-label", "第 3 天 · 10.3 周六");
+  await expect(days.nth(2)).toHaveAttribute("data-open", "true");
+  await expect(days.nth(0)).not.toHaveAttribute("data-open", "true");
+  const bar = days.nth(2).getByRole("button", { name: /^西湖夜游 / });
   await expect(bar).toHaveAttribute("aria-pressed", "true");
-  // 竖条在那个会上下滚的框里看得见
-  const frame = (await timeline.locator("[data-day-scroll]").boundingBox())!;
-  const barRect = (await bar.boundingBox())!;
-  expect(barRect.y).toBeGreaterThanOrEqual(frame.y);
-  expect(barRect.y).toBeLessThan(frame.y + frame.height);
+  await expect(bar).toBeInViewport();
+  await expect(quickBar(page, "西湖夜游")).toBeVisible();
   await shot(page, "04-phone-jumped");
 
   expect(errors).toEqual([]);

@@ -43,7 +43,7 @@ interface QuickBarProps {
  * 已经排上时间的，在时间线上拖着改更快（你提的「时间这类在时间轴操作会更好」）；
  * 「时间」按钮管的是拖不出来的那几样：排上时间、取消时间、换天、填时长。
  * 条是浮着的，不占时间线的行高，不然点一下整条时间线会往下跳（你提的）。
- * 摆在哪由外面决定：横排贴着这件事的右下角，竖排固定在屏幕底部。
+ * 摆在哪由外面决定：电脑上贴着这件事的右下角，手机上固定在屏幕底部。
  */
 export function QuickBar({ doc, library, libraryView, plan, block, moneyCell, copyHandlers }: QuickBarProps) {
   const selection = useBlockSelection();

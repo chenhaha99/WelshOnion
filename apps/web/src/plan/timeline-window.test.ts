@@ -83,6 +83,16 @@ describe("画哪几个钟点", () => {
     expect(windowOf(2, [{ title: "夜车", minute: hour(20), duration: 720 }])).toEqual(FULL_DAY);
   });
 
+  it("手机上：前一天延续过来的那一截不撑开横轴，挤进左边折起的那一截", () => {
+    // 夜车 20:00 起 10 小时到第二天 06:00；电脑上两段都要画得下（整天），手机上第二天那一截不算
+    const { plan, library } = build(2, [
+      { title: "早饭", minute: hour(8), duration: 60 },
+      { title: "夜车", minute: hour(20), duration: 600 },
+    ]);
+
+    expect(hourWindow(plan, library, false, { foldTails: true })).toEqual({ from: hour(7), to: hour(24) });
+  });
+
   it("时长为 0 的前后各多留半小时", () => {
     expect(windowOf(1, [{ title: "集合", minute: hour(7), duration: 0 }])).toEqual({ from: hour(6), to: hour(21) });
     expect(windowOf(1, [{ title: "闭馆", minute: hour(21), duration: 0 }])).toEqual({ from: hour(7), to: hour(22) });

@@ -144,9 +144,10 @@ test("时间线：排出一天 → 按时长画 → 点开详情面板 → 电�
   expect((await axisWidth()) / 24).toBeGreaterThanOrEqual(30);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(900);
 
-  // 手机上换成竖排的一天，页面本身不横着滚
+  // 手机上换成一天一条横的、时间轴固定不横滚（没有卡片里横着滚的那一层），页面本身不横着滚
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(timeline.locator("[data-day-scroll]")).toBeVisible();
+  await expect(timeline.getByRole("list", { name: "每天" }).getByRole("listitem")).toHaveCount(2);
+  await expect(timeline.locator("li[data-open]")).toHaveCount(1);
   await expect(scroller).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await timeline.scrollIntoViewIfNeeded();

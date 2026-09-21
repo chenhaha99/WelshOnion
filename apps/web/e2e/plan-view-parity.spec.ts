@@ -103,15 +103,16 @@ test("电脑上只在时间线里：加事 → 拖上去排时间、快捷条挂
   expect(errors).toEqual([]);
 });
 
-test("手机上只在时间线里：框下面加事 → 点开从底部浮起、点暗底关掉 → 快捷条上排时间 → 这天的菜单插一天", async ({ page }) => {
+test("手机上只在时间线里：展开那天下面加事 → 点开从底部浮起、点暗底关掉 → 快捷条上排时间 → 这天的菜单插一天", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 2, { width: 390, height: 844 });
   await showView(page, "时间线");
   const timeline = page.getByRole("region", { name: "时间线" });
-  await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 1 天 · 10.1 周四");
+  const days = timeline.getByRole("list", { name: "每天" }).getByRole("listitem");
+  await expect(days.nth(0)).toHaveAttribute("data-open", "true");
 
-  // 框下面加「西湖」：出现「没排时间」和它
+  // 展开那天下面加「西湖」：出现「没排时间」和它
   await timeline.getByRole("textbox", { name: "加一件事" }).fill("西湖");
   await page.keyboard.press("Enter");
   const tray = timeline.getByRole("group", { name: "没排时间" });
@@ -132,7 +133,7 @@ test("手机上只在时间线里：框下面加事 → 点开从底部浮起、
   await page.mouse.click(195, box.y / 2);
   await expect(panel).toBeHidden();
 
-  // 快捷条上的「时间」：排上 09:00 起 1 小时（手机上条里的事拖不上竖轴，这是排时间的入口）
+  // 快捷条上的「时间」：排上 09:00 起 1 小时（手机上不能拖，这是排时间的入口）
   const bar = quickBar(page, "西湖");
   await bar.getByRole("button", { name: "时间：整天" }).click();
   const time = page.getByRole("group", { name: "西湖 的时间" });
@@ -140,17 +141,15 @@ test("手机上只在时间线里：框下面加事 → 点开从底部浮起、
   await time.getByRole("spinbutton", { name: "小时" }).fill("1");
   await time.getByRole("spinbutton", { name: "分钟" }).fill("0");
   await time.getByRole("button", { name: "排上时间" }).click();
-  const lake = segment(timeline, "西湖");
-  await expect(lake).toHaveAttribute("data-from", "540");
+  await expect(days.nth(0).getByRole("button", { name: "西湖 09:00–10:00" })).toBeVisible();
   await expect(tray).toHaveCount(0);
   await expect(bar.getByRole("button", { name: "时间：09:00–10:00" })).toBeVisible();
 
-  // 这天的菜单：在下面插一天，往后翻两天是第 3 天
-  await timeline.getByRole("button", { name: "这天的操作" }).click();
+  // 这天的菜单：在下面插一天，变成三天，原来的第 2 天成了「第 3 天 · 10.3 周六」
+  await days.nth(0).getByRole("button", { name: "这天的操作" }).click();
   await page.getByRole("menuitem", { name: "在下面插一天" }).click();
-  await timeline.getByRole("button", { name: "后一天" }).click();
-  await timeline.getByRole("button", { name: "后一天" }).click();
-  await expect(timeline.locator("[data-timeline-day]")).toHaveText("第 3 天 · 10.3 周六");
+  await expect(days).toHaveCount(3);
+  await expect(days.nth(2)).toHaveAttribute("aria-label", "第 3 天 · 10.3 周六");
   await expectView(page, "时间线");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
