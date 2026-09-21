@@ -23,11 +23,21 @@ import { BlockButton, useBlockSelection } from "./select-block";
 import { useTimelineDrag, type DragView, type HandleHandlers, type SegmentHandlers } from "./use-timeline-drag";
 import { zoneTimeLabel } from "./zone-time";
 
-/** 没展开的那些天，一条多高（像素） */
-const THIN = 16;
-/** 展开那天一道多高、整条至少多高（像素） */
-const LANE = 13;
-const FAT = 30;
+/**
+ * 每一道多高（像素）：展开的那天、没展开的天。一道固定高，并排几道这一天就高几道——照剪辑软件的轨道，
+ * 多了轨道时间线变高，片段不变细（Final Cut Pro for iPad、LumaFusion）。曾经是一天总高度固定、并排几道平分，
+ * 三道并排收起时每道只剩 4 像素（你提的：「有3色块并排的那天，色块就非常细了」）
+ */
+const LANE_OPEN = 24;
+const LANE_CLOSED = 10;
+/** 道和道之间的缝 */
+const LANE_GAP = 1;
+
+/** 这一天的条多高：几道 × 每道高 + 缝；一件事都没有也按一道算 */
+function trackHeight(laneCount: number, open: boolean): number {
+  const lane = open ? LANE_OPEN : LANE_CLOSED;
+  return laneCount * lane + (laneCount - 1) * LANE_GAP;
+}
 /** 条下面一行字多高（像素） */
 const ROW_H = 14;
 /** 右边角标那一格连同前面的空隙多宽（像素），和 .phone-undated-slot 对上。
@@ -257,7 +267,7 @@ export function PhoneTimeline({
               const undated = undatedBlocks(plan, base, filter).length;
               const [dayNumber, date] = labels[index]!.split(" · ");
               const laneCount = Math.max(layout.laneCount, 1);
-              const height = on ? Math.max(FAT, laneCount * LANE + 2) : THIN;
+              const height = trackHeight(laneCount, on);
               return (
                 <li
                   key={base.id}
@@ -310,7 +320,7 @@ export function PhoneTimeline({
                           item={item}
                           hours={hours}
                           height={height}
-                          lanes={1}
+                          lane={height}
                           background
                           drag={on ? drag : null}
                         />
@@ -323,7 +333,7 @@ export function PhoneTimeline({
                           item={item}
                           hours={hours}
                           height={height}
-                          lanes={laneCount}
+                          lane={on ? LANE_OPEN : LANE_CLOSED}
                           drag={on ? drag : null}
                           handles={on && !drag.dragView && selection.selectedId === item.blockId}
                         />
@@ -460,7 +470,7 @@ function Bar({
   item,
   hours,
   height,
-  lanes,
+  lane,
   background = false,
   drag,
   handles = false,
@@ -469,8 +479,10 @@ function Bar({
   plan: PlanView;
   item: PlacedSegment;
   hours: HourWindow;
+  /** 这一天的条多高（背景铺满它） */
   height: number;
-  lanes: number;
+  /** 一道多高 */
+  lane: number;
   background?: boolean;
   /** 展开那天才给：接长按拖；没展开的天是 null，点哪儿都是展开 */
   drag: { dragView: DragView | null; handlers: SegmentHandlers; handleHandlers: HandleHandlers } | null;
@@ -481,8 +493,7 @@ function Bar({
 }) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
-  // 道从 1 数
-  const laneHeight = background ? height : Math.max((height - 2) / lanes, 4);
+  // 道从 1 数；每道固定高（见 LANE_OPEN），背景铺满整条
   return (
     <div
       data-segment
@@ -502,8 +513,8 @@ function Bar({
         zIndex: drag?.dragView?.liftedId === item.blockId ? 10 : undefined,
         left: offsetCss(axisOffset(hours, item.from)),
         width: offsetCss(spanOffset(hours, item.from, item.to)),
-        top: background ? 0 : 1 + (item.lane - 1) * laneHeight,
-        height: background ? height : laneHeight - 1,
+        top: background ? 0 : (item.lane - 1) * (lane + LANE_GAP),
+        height: background ? height : lane,
         ...kindColor(plan, item.blockId),
       }}
     >

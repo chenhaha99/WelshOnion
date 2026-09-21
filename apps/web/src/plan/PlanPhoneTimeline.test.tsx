@@ -237,6 +237,53 @@ describe("整条时间线放大（双指捏合）", () => {
   });
 });
 
+describe("每一道固定高度（照剪辑软件的轨道：多了轨道时间线变高，片段不变细）", () => {
+  /** 三件事互相重叠，排成三道 */
+  function threeLanes(plan: Y.Doc, library: Y.Doc, baseId: string): void {
+    block(plan, library, { baseId, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
+    block(plan, library, { baseId, kindId: "sight", title: "午饭", minute: 600, duration: 120 });
+    block(plan, library, { baseId, kindId: "sight", title: "咖啡", minute: 660, duration: 120 });
+  }
+  const style = (element: HTMLElement) => [element.style.top, element.style.height];
+
+  it("展开的那天每道 24 像素，只有一道的也是 24；三道时整条 74 高", async () => {
+    await openStoredPlan((plan, library) => {
+      const [oct1, oct2] = daysFromOct1(plan, 2);
+      threeLanes(plan, library, oct1!);
+      block(plan, library, { baseId: oct2!, kindId: "sight", title: "拙政园", minute: 600, duration: 120 });
+    });
+    const region = await timeline();
+
+    expect(["西湖", "午饭", "咖啡"].map((title) => style(segmentsOf(region, title)[0]!))).toEqual([
+      ["0px", "24px"],
+      ["25px", "24px"],
+      ["50px", "24px"],
+    ]);
+    expect((region.querySelectorAll(".phone-track")[0] as HTMLElement).style.height).toBe("74px");
+
+    // 展开第 2 天：只有一道，色块一样 24 高
+    await userEvent.setup().click(within(region).getByRole("button", { name: /^第 2 天/ }));
+    expect(style(segmentsOf(region, "拙政园")[0]!)).toEqual(["0px", "24px"]);
+  });
+
+  it("收起的天每道 10 像素：三道并排的那天整条 32 高，不再挤成细线", async () => {
+    await openStoredPlan((plan, library) => {
+      const [, oct2] = daysFromOct1(plan, 2);
+      threeLanes(plan, library, oct2!);
+    });
+    const region = await timeline();
+
+    expect(["西湖", "午饭", "咖啡"].map((title) => style(segmentsOf(region, title)[0]!))).toEqual([
+      ["0px", "10px"],
+      ["11px", "10px"],
+      ["22px", "10px"],
+    ]);
+    expect((region.querySelectorAll(".phone-track")[1] as HTMLElement).style.height).toBe("32px");
+    // 第 1 天一件都没有、默认展开着：按一道算，24 高
+    expect((region.querySelectorAll(".phone-track")[0] as HTMLElement).style.height).toBe("24px");
+  });
+});
+
 describe("第一次打开展开哪天", () => {
   it.each([
     ["还没出发：第一天", ["2026-10-01", "2026-10-02"], 0],
