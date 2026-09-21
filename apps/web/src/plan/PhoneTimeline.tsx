@@ -7,10 +7,11 @@ import { TimelineAddBlock } from "./AddBlock";
 import { blockTimeLabel, durationLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
 import { useNoticeShown } from "./DoneNotice";
-import type { MoneyCell } from "./money-cells";
+import { moneyCellEmpty, moneyCellLabel, type MoneyCell } from "./money-cells";
 import { QuickBar } from "./QuickBar";
 import { todayIn } from "./day-labels";
 import { kindColor } from "./timeline-draw";
+import type { BlockText } from "./timeline-geometry";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { makeMeasure, packLabels, type LabelInput } from "./timeline-labels";
 import { axisOffset, foldWidths, hourLines, hourWindow, offsetCss, spanOffset, type HourWindow } from "./timeline-window";
@@ -41,8 +42,10 @@ interface PhoneTimelineProps {
   /** 每一行的标签：「第 1 天 · 10.1 周四」 */
   labels: readonly string[];
   filter: StatsFilter | undefined;
-  /** 每件事的开销格摘要（按筛选算过）：快捷条上的「开销」用 */
+  /** 每件事的开销格摘要（按筛选算过）：快捷条上的「开销」、条下面那几行的金额用 */
   moneyCells: Map<string, MoneyCell>;
+  /** 「条上写」开着哪几样：手机上管展开那天条下面那几行写什么 */
+  blockText: BlockText;
   /** 展开的是哪天（底座 id），记在 DayList 里：切到日程时这里卸掉，切回来还是这天 */
   shownDay: { current: string | null };
   /** 搜索里点了一条、总览里点了一天：展开那天（seq 变了才算一次新的） */
@@ -60,7 +63,19 @@ interface PhoneTimelineProps {
  * 分工：时间线管「整趟什么形状」（哪天满、哪天空），日程管「这一天具体有什么、能改」。
  * 所以**色块上一个字都不写**，点开某一天才在条下面列出名字。
  */
-export function PhoneTimeline({ doc, library, plan, libraryView, rows, labels, filter, moneyCells, shownDay, jump }: PhoneTimelineProps) {
+export function PhoneTimeline({
+  doc,
+  library,
+  plan,
+  libraryView,
+  rows,
+  labels,
+  filter,
+  moneyCells,
+  blockText,
+  shownDay,
+  jump,
+}: PhoneTimelineProps) {
   const selection = useBlockSelection();
   const timeZone = useTimeZone();
   const now = useNow();
@@ -198,6 +213,7 @@ export function PhoneTimeline({ doc, library, plan, libraryView, rows, labels, f
                   width={trackWidth}
                   measure={measure}
                   filter={filter}
+                  tagText={(blockId, minutes) => tagText(plan, blockId, minutes, blockText, moneyCells)}
                 />
               )}
             </li>
@@ -308,6 +324,7 @@ function OpenDay({
   width,
   measure,
   filter,
+  tagText,
 }: {
   doc: Y.Doc;
   library: Y.Doc;
@@ -321,12 +338,13 @@ function OpenDay({
   width: number;
   measure: (text: string) => number;
   filter: StatsFilter | undefined;
+  tagText: TagText;
 }) {
   const dayMenu = useDayMenu({ doc, library, libraryView, plan, base, label, index, count: plan.bases.length, filter });
   const undated = undatedBlocks(plan, base, filter);
   return (
     <div className="phone-open">
-      {width > 0 && <DayLabels plan={plan} layout={layout} hours={hours} width={width} measure={measure} />}
+      {width > 0 && <DayLabels plan={plan} layout={layout} hours={hours} width={width} measure={measure} tagText={tagText} />}
       <div className="phone-day-foot">
         <span>{dayFoot(plan, layout, undated.length)}</span>
         {dayMenu.menu}
@@ -357,6 +375,27 @@ function OpenDay({
 
 const noop = () => {};
 
+/** 条下面一件事写什么：full 写得下写全，short 是右边放不下时退回的那版；「条上写」全关了是 null，这件事不写字也不画点 */
+type TagText = (blockId: string, minutes: number) => { full: string; short: string } | null;
+
+/** 按「条上写」拼：标题、时长、开销依次，退回时只留第一样；没填开销的不写「填开销」（那是电脑上点了能填的按钮） */
+export function tagText(
+  plan: PlanView,
+  blockId: string,
+  minutes: number,
+  shown: BlockText,
+  moneyCells: Map<string, MoneyCell>,
+): { full: string; short: string } | null {
+  const cell = moneyCells.get(blockId);
+  const parts = [
+    shown.title ? plan.blocks.get(blockId)!.title : null,
+    shown.duration ? durationLabel(minutes) : null,
+    shown.money && !moneyCellEmpty(cell) ? moneyCellLabel(cell) : null,
+  ].filter((part): part is string => part !== null && part !== "");
+  if (parts.length === 0) return null;
+  return { full: parts.join(" "), short: parts[0]! };
+}
+
 /** 展开那天条下面的几行字：点钉在块的左边沿，一条同色的淡线直上直下连过去 */
 function DayLabels({
   plan,
@@ -364,22 +403,25 @@ function DayLabels({
   hours,
   width,
   measure,
+  tagText,
 }: {
   plan: PlanView;
   layout: RowLayout;
   hours: HourWindow;
   width: number;
   measure: (text: string) => number;
+  tagText: TagText;
 }) {
-  const items: LabelInput[] = layout.main.map((item) => {
-    const block = plan.blocks.get(item.blockId)!;
-    const minutes = item.to - item.from;
-    return {
-      key: `${item.blockId}-${item.from}`,
-      x: (axisOffset(hours, item.from).pct / 100) * width + axisOffset(hours, item.from).px,
-      full: `${block.title} ${durationLabel(minutes)}`,
-      short: block.title,
-    };
+  const items: LabelInput[] = layout.main.flatMap((item) => {
+    const text = tagText(item.blockId, item.to - item.from);
+    if (text === null) return [];
+    return [
+      {
+        key: `${item.blockId}-${item.from}`,
+        x: (axisOffset(hours, item.from).pct / 100) * width + axisOffset(hours, item.from).px,
+        ...text,
+      },
+    ];
   });
   const placed = packLabels(items, measure, width + SLOT);
   const rowCount = placed.length === 0 ? 0 : Math.max(...placed.map((label) => label.row)) + 1;

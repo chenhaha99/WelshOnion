@@ -15,6 +15,8 @@ export interface BlockText {
 
 /** 没选过就是只写标题。 */
 export const BLOCK_TEXT_DEFAULT: BlockText = { title: true, duration: false, money: false };
+/** 手机上「条上写」管的是展开那天条下面那几行：默认写名字和时长（你看小样时就是这样） */
+export const PHONE_BLOCK_TEXT_DEFAULT: BlockText = { title: true, duration: true, money: false };
 
 /**
  * 横条分上中下三区（你提的：上面一行是书签栏，中间是标题，最下面是附件栏），各多高（像素）：

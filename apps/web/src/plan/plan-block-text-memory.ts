@@ -7,12 +7,12 @@ function keyOf(planId: string): string {
 
 const PARTS = ["title", "duration", "money"] as const;
 
-/** 这个计划上次开着「条上写」的哪几样；没存过、或者存的认不出，就是只写标题。 */
-export function readBlockText(planId: string): BlockText {
+/** 这个计划上次开着「条上写」的哪几样；没存过、或者存的认不出，就用 fallback（电脑上只写标题，手机上写标题和时长）。 */
+export function readBlockText(planId: string, fallback: BlockText = BLOCK_TEXT_DEFAULT): BlockText {
   const stored = localStorage.getItem(keyOf(planId));
-  if (stored === null) return BLOCK_TEXT_DEFAULT;
+  if (stored === null) return fallback;
   const parts = stored.split(",").filter((part) => part !== "");
-  if (parts.some((part) => !PARTS.includes(part as (typeof PARTS)[number]))) return BLOCK_TEXT_DEFAULT;
+  if (parts.some((part) => !PARTS.includes(part as (typeof PARTS)[number]))) return fallback;
   return { title: parts.includes("title"), duration: parts.includes("duration"), money: parts.includes("money") };
 }
 

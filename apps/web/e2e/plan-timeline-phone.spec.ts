@@ -25,7 +25,7 @@ async function trip(page: Page): Promise<void> {
   await schedule(page, d3, "寒山寺", "10:00", "2");
 }
 
-test("手机上的时间线：一天一条横的 → 每天的条一样宽 → 展开那天字排在下面、点对准块的左边 → 点另一天展开 → 点色块浮出快捷条", async ({ page }) => {
+test("手机上的时间线：一天一条横的 → 每天的条一样宽 → 展开那天字排在下面、点对准块的左边 → 点另一天展开 → 点色块浮出快捷条 → 没展开的天点色块是展开 → 条上写管下面的字", async ({ page }) => {
   const errors = watchErrors(page);
   await trip(page);
   await showView(page, "时间线");
@@ -84,6 +84,19 @@ test("手机上的时间线：一天一条横的 → 每天的条一样宽 → �
   await region.getByRole("button", { name: /^苏州园林 / }).click();
   await expect(page.getByRole("toolbar", { name: "「苏州园林」的操作" })).toBeVisible();
   await shot(page, "02-selected", { screen: true });
+
+  // 没展开的第 3 天：点它的色块是展开这天，不选中
+  await region.getByRole("button", { name: /^寒山寺 / }).click();
+  await expect(days.nth(2)).toHaveAttribute("data-open", "true");
+  await expect(page.getByRole("toolbar", { name: "「寒山寺」的操作" })).toHaveCount(0);
+
+  // 条上写：关掉「时长」只写名字，再关掉「标题」一个字都不写
+  const textParts = page.getByRole("group", { name: "条上写" });
+  await expect(days.nth(2).locator(".phone-tag")).toHaveText(["寒山寺 2 小时"]);
+  await textParts.getByRole("button", { name: "时长" }).click();
+  await expect(days.nth(2).locator(".phone-tag")).toHaveText(["寒山寺"]);
+  await textParts.getByRole("button", { name: "标题" }).click();
+  await expect(days.nth(2).locator(".phone-tag")).toHaveCount(0);
 
   expect(errors).toEqual([]);
 });

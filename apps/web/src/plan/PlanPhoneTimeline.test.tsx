@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { addBlock, deleteDay, setDays, type AddBlockInput } from "@welshonion/core";
+import { addBlock, deleteDay, setDays, type AddBlockInput, type PlanView } from "@welshonion/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
-import { firstOpenDay } from "./PhoneTimeline";
+import type { MoneyCell } from "./money-cells";
+import { firstOpenDay, tagText } from "./PhoneTimeline";
 import { daysFromOct1, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
 
 // 测试里「现在」是 2026-09-14 18:00（北京），系统时区是北京，见 app/test-render.tsx
@@ -64,8 +65,7 @@ describe("手机上：一天一条横的，整趟的天堆起来", () => {
     expect(within(region).queryByRole("button", { name: "前一天" })).toBeNull();
     expect(within(region).queryByRole("button", { name: "后一天" })).toBeNull();
     expect(screen.queryByRole("group", { name: "竖向放大" })).toBeNull();
-    // 手机上的条一个字都不写，「条上写」那组开关也就不要了
-    expect(screen.queryByRole("group", { name: "条上写" })).toBeNull();
+    // 色块上不写字，没有「文字行数」；「条上写」管的是条下面那几行（见下面）
     expect(screen.queryByRole("slider", { name: "文字行数" })).toBeNull();
   });
 
@@ -105,6 +105,62 @@ describe("手机上：一天一条横的，整趟的天堆起来", () => {
     const region = await timeline();
 
     expect(segmentsOf(region, "西湖")[0]!.dataset.mark).toBe("decided");
+  });
+});
+
+describe("条上写：管展开那天条下面那几行写什么", () => {
+  const toggle = (label: string) => within(screen.getByRole("group", { name: "条上写" })).getByRole("button", { name: label });
+
+  it("手机上也有这组开关，默认写标题和时长，不写开销", async () => {
+    await openStoredPlan((plan) => daysFromOct1(plan, 1));
+    await timeline();
+
+    expect(toggle("标题").getAttribute("aria-pressed")).toBe("true");
+    expect(toggle("时长").getAttribute("aria-pressed")).toBe("true");
+    expect(toggle("开销").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  // 画出来的字要量条宽，测试环境没有排版：拼字规则在这里测，画出来的样子在 e2e 里量
+  describe("拼字规则", () => {
+    const plan = { blocks: new Map([["lake", { title: "西湖" }]]) } as unknown as PlanView;
+    const cells = (cell?: Partial<MoneyCell>) =>
+      new Map(cell ? [["lake", { ownCents: 0, ownCount: 0, unfilledCount: 0, sharedElsewhere: false, otherKinds: false, ...cell }]] : []);
+    const all = { title: true, duration: true, money: true };
+
+    it("三样都开：标题 时长 金额；退回时只留第一样", () => {
+      expect(tagText(plan, "lake", 180, all, cells({ ownCents: 8000, ownCount: 1 }))).toEqual({ full: "西湖 3 小时 ¥80", short: "西湖" });
+    });
+
+    it("只开开销：只写金额", () => {
+      expect(tagText(plan, "lake", 180, { title: false, duration: false, money: true }, cells({ ownCents: 8000, ownCount: 1 }))).toEqual({
+        full: "¥80",
+        short: "¥80",
+      });
+    });
+
+    it("没填开销的不写「填开销」", () => {
+      expect(tagText(plan, "lake", 180, all, cells())).toEqual({ full: "西湖 3 小时", short: "西湖" });
+    });
+
+    it("三样都关：不写字（也不画点）", () => {
+      expect(tagText(plan, "lake", 180, { title: false, duration: false, money: false }, cells())).toBeNull();
+    });
+  });
+});
+
+describe("批量：手机上「对这 N 件…」在筛选那一行最前面", () => {
+  it("类型再多也不用左右滑就看得到", async () => {
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      for (const [kindId, title] of [["sight", "西湖"], ["food", "午饭"], ["transit", "高铁"], ["stay", "酒店"]] as const) {
+        block(plan, library, { baseId: oct1!, kindId, title, slot: "day" });
+      }
+    });
+    await timeline();
+
+    const row = document.querySelector<HTMLElement>("[data-filter-row]")!;
+    const first = row.querySelector("button")!;
+    expect(first.getAttribute("aria-label") ?? first.textContent).toMatch(/^对这 4 件/);
   });
 });
 

@@ -32,7 +32,7 @@ import { readPlanView, savePlanView, type PlanViewName } from "./plan-view-memor
 import { useWideScreen } from "../app/use-wide-screen";
 import { PlanSearch } from "./PlanSearch";
 import { SelectBlockContext, type BlockSelection } from "./select-block";
-import type { BlockText } from "./timeline-geometry";
+import { BLOCK_TEXT_DEFAULT, PHONE_BLOCK_TEXT_DEFAULT, type BlockText } from "./timeline-geometry";
 import { FULL_DAY, hourWindow } from "./timeline-window";
 import { Timeline } from "./Timeline";
 import { useTopPeek } from "./use-top-peek";
@@ -98,8 +98,11 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
   const [view, setView] = useState<PlanViewName>(() => readPlanView(planId));
-  // 时间线的条上写标题、开销（各开各关）：也按计划记在这台设备上
-  const [blockText, setBlockText] = useState<BlockText>(() => readBlockText(planId));
+  const wide = useWideScreen();
+  // 时间线的条上写标题、时长、开销（各开各关）：也按计划记在这台设备上。手机上管的是展开那天条下面那几行，默认多写时长
+  const [blockText, setBlockText] = useState<BlockText>(() =>
+    readBlockText(planId, wide ? BLOCK_TEXT_DEFAULT : PHONE_BLOCK_TEXT_DEFAULT),
+  );
   const toggleBlockText = (part: "title" | "duration" | "money") => {
     const next = { ...blockText, [part]: !blockText[part] };
     setBlockText(next);
@@ -125,7 +128,6 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   };
   const foldedHours = useMemo(() => hourWindow(plan, libraryView, false), [plan, libraryView]);
   const foldable = foldedHours.from > FULL_DAY.from || foldedHours.to < FULL_DAY.to;
-  const wide = useWideScreen();
   // 手机上时间线展开的是哪天（底座 id）：切到日程时时间线卸掉，切回来还是这天
   const shownDay = useRef<string | null>(null);
   // 零高度的标记放在页顶那一行本来的位置：页顶那一行钉在顶上时，靠它量出不钉住该在哪
@@ -328,6 +330,29 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   // 按天筛时，没选中的那天整天不出现在日程里：筛的就是「只看这几天」，留一排空日子只会挡路
   const shownBaseIds = filter?.baseIds;
 
+  // 一键批量：范围就是现在看得见的那几件（你提的：全部打上、某天打上；某天在每天的菜单里）。
+  // 手机上放在筛选那一行最前面：那一行摆不下时左右滑，放在最后类型一多就被挤到屏幕外面，等于找不着
+  const bulkMenu = shownBlocks.length > 0 && (
+              <Menu
+                label={`对这 ${shownBlocks.length} 件事`}
+                triggerClassName="inline-flex h-8 items-center gap-1.5 rounded-full border border-ink/10 bg-white/70 px-3 text-sm text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage"
+                items={bulkItems({
+                  doc,
+                  library,
+                  libraryView,
+                  blocks: shownBlocks,
+                  notify: notifyDone,
+                  // 撤销后焦点回到这个按钮本身（件数变了名字也还是「对这 … 件事」）
+                  focusAfterUndo: 'button[aria-label^="对这 "]',
+                })}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <BulkIcon />
+                  {`对这 ${shownBlocks.length} 件…`}
+                </span>
+              </Menu>
+  );
+
   return (
     // -mt-2 抵掉页顶那一行上边留的 8 像素：页面在最上面时页顶还在原处，和还没加天时一样
     <section ref={topArea} data-top-pinned={topPinned || undefined} className="-mt-2 flex flex-col gap-4">
@@ -358,6 +383,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
         {/* 筛选挤在一行里：主版面只留筛选、切换和视图本身，出发日期这类不常改的进了计划设置 */}
         {(showKindFilter || showTagFilter || showMarkFilter || showDayFilter || shownBlocks.length > 0) && (
           <div data-filter-row className="filter-row flex flex-wrap items-center gap-x-5 gap-y-2">
+            {!wide && bulkMenu}
             {showKindFilter && (
               <FilterChips
                 label="按类型筛选"
@@ -410,27 +436,7 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
             {showDayFilter && (
               <DayFilter days={filterDays} selected={filter?.baseIds ?? []} onChange={setSelectedDays} />
             )}
-            {/* 一键批量：范围就是现在看得见的那几件（你提的：全部打上、某天打上；某天在每天的菜单里） */}
-            {shownBlocks.length > 0 && (
-              <Menu
-                label={`对这 ${shownBlocks.length} 件事`}
-                triggerClassName="inline-flex h-8 items-center gap-1.5 rounded-full border border-ink/10 bg-white/70 px-3 text-sm text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage"
-                items={bulkItems({
-                  doc,
-                  library,
-                  libraryView,
-                  blocks: shownBlocks,
-                  notify: notifyDone,
-                  // 撤销后焦点回到这个按钮本身（件数变了名字也还是「对这 … 件事」）
-                  focusAfterUndo: 'button[aria-label^="对这 "]',
-                })}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  <BulkIcon />
-                  {`对这 ${shownBlocks.length} 件…`}
-                </span>
-              </Menu>
-            )}
+            {wide && bulkMenu}
           </div>
         )}
         {/* 右边是只在时间线上有意义的两样（你提的：放到这一行，居右） */}
@@ -454,11 +460,11 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
               </button>
             ))}
           </div>
-          {/* 这一整组只在电脑上：手机上的条一个字都不写（「条上写」没意义），横轴固定不放大、不折起 */}
-          {view === "timeline" && wide && (
+          {/* 「条上写」两边都有（手机上管展开那天条下面那几行）；后面三样只在电脑上：手机上横轴固定不放大、不折起，色块不写字 */}
+          {view === "timeline" && (
             // 放不下时整组换到下一行，不挤扁组里的按钮
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {/* 条上写标题、开销：两个开关各开各关（记在这台设备上） */}
+              {/* 条上写标题、时长、开销：各开各关（记在这台设备上） */}
               <div
                 role="group"
                 aria-label="条上写"

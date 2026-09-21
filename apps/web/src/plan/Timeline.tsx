@@ -194,6 +194,7 @@ export function Timeline({
           labels={labels}
           filter={filter}
           moneyCells={moneyCells}
+          blockText={blockText}
           shownDay={shownDay}
           jump={jump}
         />

@@ -59,11 +59,11 @@ test("按类型筛选：只看住宿 → 开销格另有别的类型、挂在被
   await expect(page.getByText(/挂在被筛掉的事上/)).toHaveCount(0);
   await expect((await rowOf(table, "民宿")).locator("[data-money-note]")).toHaveCount(0);
 
-  // 手机：两排按钮放不下就换行，不撑出屏幕
+  // 手机：筛选那一行放不下就在行里左右滑（最前面是「对这 N 件…」），不撑出屏幕
   await page.setViewportSize({ width: 390, height: 844 });
   await kinds.getByRole("button", { name: "住宿", exact: true }).click();
   await expect(rows).toHaveCount(1);
-  const box = (await kinds.boundingBox())!;
+  const box = (await page.locator("[data-filter-row]").boundingBox())!;
   expect(box.x + box.width).toBeLessThanOrEqual(390);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await shot(page, "02-mobile");
