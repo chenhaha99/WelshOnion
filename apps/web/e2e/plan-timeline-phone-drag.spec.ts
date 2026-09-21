@@ -126,3 +126,24 @@ test("双指捏合放大整条时间线，所有天一起；「看全部」回�
   await page.getByRole("button", { name: "看全部" }).click();
   await expect(scroller).toHaveAttribute("data-zoom", "1");
 });
+
+test("放大着看上午时加一件事：落在屏幕外的钟点，时间线自己滚过去让它露出来", async ({ page }) => {
+  await trip(page);
+  const scroller = page.locator("[data-phone-scroll]");
+  const rect = (await scroller.boundingBox())!;
+  const mid = { x: rect.x + rect.width / 2, y: rect.y + 20 };
+  await pinch(page, { x: mid.x - 20, y: mid.y }, { x: mid.x + 20, y: mid.y }, { x: mid.x - 80, y: mid.y }, { x: mid.x + 80, y: mid.y });
+  await scroller.evaluate((node) => (node.scrollLeft = 0));
+
+  // 第 1 天最后一件西湖 13:00 结束：新加的排在 13:00–14:00，放大着从最左边看是在屏幕外
+  await page.getByRole("region", { name: "时间线" }).getByRole("textbox", { name: "加一件事" }).fill("午饭");
+  await page.keyboard.press("Enter");
+  const lunch = days(page).nth(0).getByRole("button", { name: /^午饭 13:00–14:00/ });
+  await expect(lunch).toBeVisible();
+  await expect
+    .poll(async () => {
+      const box = (await lunch.boundingBox())!;
+      return box.x >= rect.x && box.x + box.width <= rect.x + rect.width;
+    })
+    .toBe(true);
+});

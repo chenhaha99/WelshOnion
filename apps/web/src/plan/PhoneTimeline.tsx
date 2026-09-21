@@ -398,6 +398,18 @@ export function PhoneTimeline({
   );
 }
 
+/**
+ * 刚加的那件滚进看得见的地方：放大着看上午时，排到下午的那件在屏幕外，看不到它出现在哪。
+ * 等它画出来再滚（加进文档到画出来隔一两帧），左右只滚到刚好露出来
+ */
+function revealBlock(blockId: string, triesLeft = 3): void {
+  requestAnimationFrame(() => {
+    const segment = document.querySelector(`[data-segment][data-block-id="${blockId}"]:not([data-ghost])`);
+    if (segment !== null) segment.scrollIntoView({ inline: "nearest", block: "nearest" });
+    else if (triesLeft > 0) revealBlock(blockId, triesLeft - 1);
+  });
+}
+
 /** 手机上加一件事默认多长（分钟），和电脑上点空白处建的一样 */
 const ADD_MINUTES = 60;
 /** 这天还空着时从几点起 */
@@ -600,7 +612,10 @@ function OpenDay({
           className="input-bare select-text"
           at={{ minute: afterLastMinute(lastEnds), duration: ADD_MINUTES }}
           // 建完选中它：两端出把手、底部出快捷条，拖一下或点「时间」就能调（照 iMovie 点片段出黄色把手）
-          onAdded={(blockId) => selection.select(blockId, base.id)}
+          onAdded={(blockId) => {
+            selection.select(blockId, base.id);
+            revealBlock(blockId);
+          }}
         />
         {dayMenu.menu}
       </div>
