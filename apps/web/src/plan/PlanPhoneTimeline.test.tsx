@@ -153,6 +153,32 @@ describe("点开哪天看哪天", () => {
     expect(openDay(region)).toBeNull();
   });
 
+  it("没展开的天：点条上哪儿都是展开这天，点到色块、底色也不选中", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [, oct2] = daysFromOct1(plan, 2);
+      block(plan, library, { baseId: oct2!, kindId: "stay", title: "在苏州", minute: 0, duration: 1440 });
+      block(plan, library, { baseId: oct2!, kindId: "sight", title: "拙政园", minute: 540, duration: 180 });
+    });
+    const region = await timeline();
+    expect(openDay(region)).toBe("第 1 天 · 10.1 周四");
+
+    await user.click(within(region).getByRole("button", { name: /^拙政园 / }));
+
+    expect(openDay(region)).toBe("第 2 天 · 10.2 周五");
+    expect(screen.queryByRole("toolbar", { name: "「拙政园」的操作" })).toBeNull();
+
+    // 展开以后再点色块才是选中
+    await user.click(within(region).getByRole("button", { name: /^拙政园 / }));
+    expect(await screen.findByRole("toolbar", { name: "「拙政园」的操作" })).toBeTruthy();
+
+    // 收起后点底色（整条的停留）：也是展开，不选中「在苏州」
+    await user.click(within(region).getByRole("button", { name: /^第 2 天/ }));
+    await user.click(within(region).getByRole("button", { name: /^在苏州 / }));
+    expect(openDay(region)).toBe("第 2 天 · 10.2 周五");
+    expect(screen.queryByRole("toolbar", { name: "「在苏州」的操作" })).toBeNull();
+  });
+
   it("切到日程再切回来：还是切走前展开的那天", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan) => daysFromOct1(plan, 3));

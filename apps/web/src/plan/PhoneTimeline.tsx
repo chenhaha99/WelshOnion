@@ -141,9 +141,15 @@ export function PhoneTimeline({ doc, library, plan, libraryView, rows, labels, f
                   ref={index === 0 ? axis : undefined}
                   className="phone-track"
                   style={{ height }}
-                  // 点条上的空白处也展开或收起这天（点到色块是选中那件事，色块自己接了点击）
+                  // 没展开的天：点条上哪儿都是展开这天，点到色块、底色也不选中——细条上的块太小点不准，看不见名字时选中也没用；
+                  // 抢在色块自己的点击之前接住。展开的那天：点色块是选中，点空白处收起
+                  onClickCapture={(event) => {
+                    if (on) return;
+                    event.stopPropagation();
+                    setOpen(index);
+                  }}
                   onClick={(event) => {
-                    if (event.target === event.currentTarget) setOpen(on ? -1 : index);
+                    if (event.target === event.currentTarget) setOpen(-1);
                   }}
                 >
                   {/* 折起的那一截：钟点压在里面，画斜纹让人看出来 */}
