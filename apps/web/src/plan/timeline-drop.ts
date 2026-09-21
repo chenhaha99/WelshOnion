@@ -11,16 +11,16 @@ import {
 } from "@welshonion/core";
 import {
   clampLinear,
-  clampToDay,
   dragResult,
   slotOfMinute,
   splitLinear,
   undatedStartMinute,
   type DragMode,
   type PointerSpot,
+  type Magnet,
   type Span,
 } from "./timeline-drag";
-import { daySegmentPixels, MARKER_HIT, wideSegmentBox, type WideMetrics } from "./timeline-geometry";
+import { MARKER_HIT, wideSegmentBox, type WideMetrics } from "./timeline-geometry";
 import { layoutRow, timelineSegments, type PlacedSegment, type RowLayout } from "./timeline-layout";
 import { axisPixel, type HourWindow } from "./timeline-window";
 
@@ -29,16 +29,14 @@ import { axisPixel, type HourWindow } from "./timeline-window";
  * 松手后的计划和行怎么画，指针落在哪块的中间（叠上去还是放旁边）。不碰 DOM：屏幕上的位置由调用方量好传进来。
  */
 
-const MINUTES_PER_DAY = 1440;
 /** 没填时长的事拖上时间线给多长（分钟），和安排表「排上时间」的默认一样 */
 const DEFAULT_DURATION_MIN = 60;
-/** 落在一块的这一段（横排从上往下、竖排从左往右）算中间，叠上去；两边放旁边 */
-/** 块的上下边（竖排左右边）各留这么多算「边上」：横排按道高的比例，竖排按这一段自己的宽度 */
+/** 块的上下边各留这么多（道高的比例）算「边上」、放旁边；中间那段叠上去 */
 const EDGE_RATIO = 0.3;
 
 /** 算松手后的事要用的拖拽状态。 */
 export interface DropInput {
-  /** 按住的是横条、「没排时间」栏里的一件（只能挪），还是横轴、竖轴上的空白处（拖出一段来加一件事，不走松手写入） */
+  /** 按住的是横条、「没排时间」栏里的一件（只能挪），还是横轴上的空白处（拖出一段来加一件事，不走松手写入） */
   source: "segment" | "chip" | "blank";
   blockId: string;
   mode: DragMode;
@@ -56,6 +54,8 @@ export interface DropInput {
   moved: boolean;
   /** 松手会叠上去的块；null 是放旁边 */
   ontoId: string | null;
+  /** 手机上：吸到落点那一天别的事的边（见 timeline-drag 的 Magnet）；电脑上不给 */
+  magnet?: Magnet;
 }
 
 /** 松手调哪个操作、带什么参数。挪和改开始的分钟是从第一天 0 点起的线性分钟，底座给第一天，由 core 换算。 */
@@ -73,9 +73,9 @@ export function placementOf(ontoId: string | null): { placement: Placement; onto
 
 /**
  * 松手会做什么：块没了、栏里的一件拖回原来的栏、块已经不是拖的时候的样子（别的标签页刚改了），是 null。
- * 开始时刻横排夹在计划里，竖排（day 是正在看的那一行）夹在块开始的那天。
+ * 开始时刻夹在计划里。
  */
-export function dropAction(input: DropInput, plan: PlanView, day: number | null): DropAction | null {
+export function dropAction(input: DropInput, plan: PlanView): DropAction | null {
   if (input.source === "blank") return null;
   const block = plan.blocks.get(input.blockId);
   if (!block) return null;
@@ -109,19 +109,14 @@ export function dropAction(input: DropInput, plan: PlanView, day: number | null)
 
   if (block.start_minute === null) return null;
   const origin = plan.bases[0]!.id;
-  const result = input.moved ? dragResult(input.mode, input.down, input.now, input.span) : input.span;
-  const start = clampStart(result.start, input.span, plan.bases.length, day);
+  const result = input.moved ? dragResult(input.mode, input.down, input.now, input.span, input.magnet) : input.span;
+  const start = clampLinear(result.start, plan.bases.length);
   if (input.mode === "end") return { kind: "resize-end", blockId, duration: result.duration };
   if (input.mode === "start") {
     // 结束不动：夹过开始时，时长跟着按结束算
     return { kind: "resize-start", blockId, baseId: origin, minute: start, duration: input.span.start + input.span.duration - start };
   }
   return { kind: "move", blockId, copy: input.alt, baseId: origin, minute: start, ontoId: input.ontoId };
-}
-
-/** 松手后的开始时刻夹在哪：横排夹在计划里，竖排夹在块开始的那天（不换天）。 */
-export function clampStart(value: number, span: Span, rowCount: number, day: number | null): number {
-  return day === null ? clampLinear(value, rowCount) : clampToDay(value, Math.floor(span.start / MINUTES_PER_DAY));
 }
 
 /**
@@ -167,14 +162,13 @@ function withBlock(plan: PlanView, blockId: string, patch: Partial<BlockView>): 
 
 /**
  * 拖动中画的每一行：松手后的计划按画时间线的同一套摆好。
- * keepHeights（横排）时每行的道数、背景条数不比拖之前少：块离开的那一行不变矮，指针下面不会换成下一行。
+ * 每行的道数、背景条数不比拖之前少：块离开的那一行不变矮，指针下面不会换成下一行。
  */
 export function droppedRows(
   plan: PlanView,
   library: LibraryView,
   filter: StatsFilter | undefined,
   before: readonly RowLayout[],
-  keepHeights: boolean,
 ): RowLayout[] {
   const segments = timelineSegments(plan, filter);
   return plan.bases.map((_, row) =>
@@ -184,25 +178,24 @@ export function droppedRows(
         plan,
         library,
       ),
-      keepHeights ? before[row]! : null,
+      before[row]!,
     ),
   );
 }
 
-/** 只摆一行，同 droppedRows 里的那一行：拖动中判定叠上去还是放旁边时用。before 给了就不比它矮。 */
+/** 只摆一行，同 droppedRows 里的那一行：拖动中判定叠上去还是放旁边时用。不比 before 矮。 */
 export function droppedRow(
   plan: PlanView,
   library: LibraryView,
   filter: StatsFilter | undefined,
   row: number,
-  before: RowLayout | null,
+  before: RowLayout,
 ): RowLayout {
   const segments = timelineSegments(plan, filter).filter((segment) => segment.row === row);
   return shownRow(layoutRow(segments, plan, library), before);
 }
 
-function shownRow(layout: RowLayout, before: RowLayout | null): RowLayout {
-  if (!before) return layout;
+function shownRow(layout: RowLayout, before: RowLayout): RowLayout {
   return {
     ...layout,
     laneCount: Math.max(layout.laneCount, before.laneCount),
@@ -230,14 +223,13 @@ export interface AxisRect {
 export interface HitContext {
   plan: PlanView;
   library: LibraryView;
-  /** 指针所在那一行（竖排是正在看的那一天）画着的样子 */
+  /** 指针所在那一行画着的样子 */
   layout: RowLayout;
   /** 这一行的横轴在屏幕上的位置 */
   axis: AxisRect;
-  orientation: "wide" | "day";
-  /** 横排主轨每道多高、套在里面的往下让多少（像素）：跟着条上写什么、写几行变；竖排不看 */
+  /** 主轨每道多高、套在里面的往下让多少（像素）：跟着条上写什么、写几行变 */
   metrics: WideMetrics;
-  /** 横排横轴展开的那段（两头折起的钟点压在窄窄一截里）；竖排不看 */
+  /** 横轴展开的那段（两头折起的钟点压在窄窄一截里） */
   hours: HourWindow;
   /** 不算的块：被拖的块、跟着它走的块，复制时还有复制出来的 */
   excluded: ReadonlySet<string>;
@@ -249,53 +241,41 @@ export interface HitContext {
  * 指针落在哪块的中间就叠到哪块上，返回那块的 id；落在它的边上、没落在类型层一样的块上，是 null（放旁边）。
  * 几块叠着时从画在最上面的看起（缩得深的在上，一样深的后画的在上），类型层不一样的跳过、接着往下看。
  *
- * 横排的「边」按**道高**量（0.3 道高，28 像素的道约 8 像素），不按这一段自己的高度量：
+ * 「边」按**道高**量（0.3 道高，28 像素的道约 8 像素），不按这一段自己的高度量：
  * 一叠进去，那一道就高出一行字，这一段跟着变高；按自己的高度量的话，刚够叠上去的那个点，
  * 叠上去以后又不够了（decideOnto 第二步不认），得对准 4 像素的窄缝才叠得进去。
- * 竖排的列宽不随叠放变，还是按这一段自己的宽度取两边各 30%。
  */
 export function ontoAt(point: Point, context: HitContext): string | null {
-  const { plan, library, layout, axis, orientation, excluded, metrics, hours } = context;
+  const { plan, library, layout, axis, excluded, metrics, hours } = context;
   const under = [...layout.background, ...layout.main]
-    .map((item, order) => ({ item, order, rect: segmentRect(item, layout, axis, orientation, metrics, hours) }))
+    .map((item, order) => ({ item, order, rect: segmentRect(item, layout, axis, metrics, hours) }))
     .filter(({ item, rect }) => !excluded.has(item.blockId) && inside(point, rect))
     .sort((a, b) => b.item.depth - a.item.depth || b.order - a.order);
   for (const { item, rect } of under) {
     if (kindLayer(plan.blocks.get(item.blockId)!, library) !== context.kindLayer) continue;
-    if (orientation === "wide") {
-      const edge = EDGE_RATIO * metrics.lane;
-      const middle = point.y >= rect.top + edge && point.y <= rect.top + rect.height - edge;
-      return middle ? item.blockId : null;
-    }
-    const share = (point.x - rect.left) / rect.width;
-    return share >= EDGE_RATIO && share <= 1 - EDGE_RATIO ? item.blockId : null;
+    const edge = EDGE_RATIO * metrics.lane;
+    const middle = point.y >= rect.top + edge && point.y <= rect.top + rect.height - edge;
+    return middle ? item.blockId : null;
   }
   return null;
 }
 
 /**
- * 一段在屏幕上占的矩形，和 Timeline、DayTimeline 画的一样（timeline-geometry）；时长为 0 的沿时间方向放宽到 12 像素。
- * 横排按折起后的位置量（timeline-window），竖排是整天按比例。
+ * 一段在屏幕上占的矩形，和 Timeline 画的一样（timeline-geometry）；时长为 0 的沿时间方向放宽到 12 像素。
+ * 按折起后的位置量（timeline-window）。
  */
 function segmentRect(
   item: PlacedSegment,
   layout: RowLayout,
   axis: AxisRect,
-  orientation: "wide" | "day",
   metrics: WideMetrics,
   hours: HourWindow,
 ): AxisRect {
-  const start =
-    orientation === "wide" ? axisPixel(hours, item.from, axis.width) : (item.from / MINUTES_PER_DAY) * axis.height;
-  const end = orientation === "wide" ? axisPixel(hours, item.to, axis.width) : (item.to / MINUTES_PER_DAY) * axis.height;
-  const length = end - start;
+  const start = axisPixel(hours, item.from, axis.width);
+  const length = axisPixel(hours, item.to, axis.width) - start;
   const [from, size] = length === 0 ? [start - MARKER_HIT / 2, MARKER_HIT] : [start, length];
-  if (orientation === "wide") {
-    const { top, height } = wideSegmentBox(item, layout, metrics);
-    return { left: axis.left + from, width: size, top: axis.top + top, height };
-  }
-  const { left, width } = daySegmentPixels(item, layout, axis.width);
-  return { left: axis.left + left, width, top: axis.top + from, height: size };
+  const { top, height } = wideSegmentBox(item, layout, metrics);
+  return { left: axis.left + from, width: size, top: axis.top + top, height };
 }
 
 function inside(point: Point, rect: AxisRect): boolean {

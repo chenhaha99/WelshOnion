@@ -87,7 +87,6 @@ function wideContext(built: Built, excluded: string[], kindLayer = 2): HitContex
     library: built.library,
     layout: built.rows[0]!,
     axis: WIDE_AXIS,
-    orientation: "wide",
     metrics: wideMetrics(barZones(BLOCK_TEXT_DEFAULT, 1, false)),
     hours: FULL_DAY,
     excluded: new Set(excluded),
@@ -152,22 +151,6 @@ describe("指针落在哪块的中间", () => {
     ]);
     // y=32 落在明清宫苑（20–44）的中间那一段
     expect(ontoAt({ x: 660, y: 32 }, wideContext(built, [built.ids["拍照"]!]))).toBe(built.ids["明清宫苑"]);
-  });
-
-  it("竖排：落在中间叠上去，落在左右边放旁边", () => {
-    const built = build(1, [
-      { title: "横店", minute: 480, duration: 720 },
-      { title: "游船", minute: 1320, duration: 60 },
-    ]);
-    const context: HitContext = {
-      ...wideContext(built, [built.ids["游船"]!]),
-      axis: { left: 0, top: 0, width: 300, height: 1440 },
-      orientation: "day",
-    };
-
-    expect(ontoAt({ x: 150, y: 600 }, context)).toBe(built.ids["横店"]);
-    expect(ontoAt({ x: 20, y: 600 }, context)).toBeNull();
-    expect(ontoAt({ x: 280, y: 600 }, context)).toBeNull();
   });
 
   it("刚够叠上去的那个点，叠上去以后那一道变高了也还算叠上去", () => {
@@ -263,7 +246,7 @@ describe("松手后做什么、松手后的计划", () => {
     const built = build(2, twoLanes);
     const input = segmentDrag(built, "明清宫苑", { ontoId: built.ids["横店"]! });
 
-    const action = dropAction(input, built.plan, null)!;
+    const action = dropAction(input, built.plan)!;
     expect(action).toEqual({ kind: "move", blockId: built.ids["明清宫苑"], copy: false, baseId: built.plan.bases[0]!.id, minute: 600, ontoId: built.ids["横店"] });
     const rows = rowsOf(droppedPlan(built.plan, built.library, action)!, built.library);
     expect(placeOf(rows, 0, built.ids["明清宫苑"]!)).toMatchObject({ lane: 1, depth: 1 });
@@ -273,7 +256,7 @@ describe("松手后做什么、松手后的计划", () => {
     const built = build(2, twoLanes);
     const input = segmentDrag(built, "明清宫苑", { alt: true, now: { row: 1, minute: 600 } });
 
-    const dropped = droppedPlan(built.plan, built.library, dropAction(input, built.plan, null)!)!;
+    const dropped = droppedPlan(built.plan, built.library, dropAction(input, built.plan)!)!;
     const rows = rowsOf(dropped, built.library);
     expect(placeOf(rows, 0, built.ids["明清宫苑"]!)).toMatchObject({ lane: 2, from: 600 });
     expect(placeOf(rows, 1, `${built.ids["明清宫苑"]}:copy`)).toMatchObject({ lane: 1, from: 600, to: 720 });
@@ -282,7 +265,7 @@ describe("松手后做什么、松手后的计划", () => {
   it("从栏里拖到横轴上：排上时间，吸附到 15 分钟，没填时长给 1 小时", () => {
     const built = build(1, [{ title: "河坊街" }]);
 
-    const action = dropAction(chipDrag(built, "河坊街", { now: { row: 0, minute: 842 } }), built.plan, null)!;
+    const action = dropAction(chipDrag(built, "河坊街", { now: { row: 0, minute: 842 } }), built.plan)!;
     expect(action).toMatchObject({ kind: "timed", minute: 840, duration: 60 });
     const block = droppedPlan(built.plan, built.library, action)!.blocks.get(built.ids["河坊街"]!)!;
     expect([block.start_minute, block.duration_min]).toEqual([840, 60]);
@@ -292,8 +275,8 @@ describe("松手后做什么、松手后的计划", () => {
     const built = build(1, [{ title: "西湖", minute: 540, duration: 180 }]);
     const lake = built.ids["西湖"]!;
 
-    const longer = dropAction(segmentDrag(built, "西湖", { mode: "end", down: { row: 0, minute: 720 }, now: { row: 0, minute: 780 } }), built.plan, null)!;
-    const later = dropAction(segmentDrag(built, "西湖", { mode: "start", down: { row: 0, minute: 540 }, now: { row: 0, minute: 600 } }), built.plan, null)!;
+    const longer = dropAction(segmentDrag(built, "西湖", { mode: "end", down: { row: 0, minute: 720 }, now: { row: 0, minute: 780 } }), built.plan)!;
+    const later = dropAction(segmentDrag(built, "西湖", { mode: "start", down: { row: 0, minute: 540 }, now: { row: 0, minute: 600 } }), built.plan)!;
 
     const ended = droppedPlan(built.plan, built.library, longer)!.blocks.get(lake)!;
     expect([ended.start_minute, ended.duration_min]).toEqual([540, 240]);
@@ -304,7 +287,7 @@ describe("松手后做什么、松手后的计划", () => {
   it("拖进条里：时间线不重排、留在原来那一天；条里的拖回条里：什么都不做", () => {
     const built = build(2, [{ title: "西湖", minute: 540, duration: 180 }, { title: "河坊街" }]);
 
-    const intoTray = dropAction(segmentDrag(built, "西湖", { zone: { kind: "tray" } }), built.plan, null)!;
+    const intoTray = dropAction(segmentDrag(built, "西湖", { zone: { kind: "tray" } }), built.plan)!;
     expect(intoTray).toMatchObject({ kind: "undated", slot: "morning", baseId: built.plan.bases[0]!.id });
     expect(droppedPlan(built.plan, built.library, intoTray)).toBeNull();
 
@@ -312,27 +295,24 @@ describe("松手后做什么、松手后的计划", () => {
     const fromRow2 = dropAction(
       segmentDrag(built, "西湖", { zone: { kind: "tray" }, now: { row: 1, minute: 600 } }),
       built.plan,
-      null,
     )!;
     expect(fromRow2).toMatchObject({ kind: "undated", baseId: built.plan.bases[0]!.id });
 
-    expect(dropAction(chipDrag(built, "河坊街", { zone: { kind: "tray" } }), built.plan, null)).toBeNull();
+    expect(dropAction(chipDrag(built, "河坊街", { zone: { kind: "tray" } }), built.plan)).toBeNull();
   });
 });
 
 describe("画的行", () => {
-  it("横排：拖动中一行不比拖之前矮，竖排照松手后的", () => {
+  it("拖动中一行不比拖之前矮", () => {
     const built = build(2, [
       { title: "横店", minute: 480, duration: 720 },
       { title: "游船", minute: 600, duration: 120 },
     ]);
     const input = segmentDrag(built, "游船", { now: { row: 1, minute: 600 } });
-    const dropped = droppedPlan(built.plan, built.library, dropAction(input, built.plan, null)!)!;
+    const dropped = droppedPlan(built.plan, built.library, dropAction(input, built.plan)!)!;
 
-    const wide = droppedRows(dropped, built.library, undefined, built.rows, true);
+    const wide = droppedRows(dropped, built.library, undefined, built.rows);
     expect(wide.map((row) => row.laneCount)).toEqual([2, 1]);
     expect(placeOf(wide, 1, built.ids["游船"]!)).toMatchObject({ lane: 1 });
-    const day = droppedRows(dropped, built.library, undefined, built.rows, false);
-    expect(day.map((row) => row.laneCount)).toEqual([1, 1]);
   });
 });

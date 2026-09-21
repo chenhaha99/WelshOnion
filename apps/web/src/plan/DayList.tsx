@@ -25,6 +25,7 @@ import { formatYuan } from "./money";
 import { moneyCells, moneyOnHiddenBlocks } from "./money-cells";
 import { OpenBlockContext, type OpenBlock } from "./open-block";
 import { readBlockText, saveBlockText } from "./plan-block-text-memory";
+import { readPhoneZoom, savePhoneZoom } from "./plan-phone-zoom-memory";
 import { readTimelineFullDay, saveTimelineFullDay } from "./plan-timeline-full-day-memory";
 import { readTimelineZoom, saveTimelineZoom, ZOOM_MAX, ZOOM_MIN } from "./plan-timeline-zoom-memory";
 import { readTitleLines, saveTitleLines, TITLE_LINES_MAX, TITLE_LINES_MIN } from "./plan-title-lines-memory";
@@ -113,6 +114,12 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   const setShownZoom = (next: number) => {
     setZoom(next);
     saveTimelineZoom(planId, next);
+  };
+  // 手机上整条时间线放大几倍（双指捏合）：也按计划记在这台设备上
+  const [phoneZoom, setPhoneZoom] = useState(() => readPhoneZoom(planId));
+  const setShownPhoneZoom = (next: number) => {
+    setPhoneZoom(next);
+    savePhoneZoom(planId, next);
   };
   // 横条上的标题写几行（你提的：跟横向放大一样的上下维度拉动条）：也按计划记在这台设备上
   const [titleLines, setTitleLines] = useState(() => readTitleLines(planId));
@@ -584,6 +591,8 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                 moneyCells={cells}
                 blockText={blockText}
                 zoom={zoom}
+                phoneZoom={phoneZoom}
+                onPhoneZoom={setShownPhoneZoom}
                 titleLines={titleLines}
                 hours={fullDay ? FULL_DAY : foldedHours}
                 onExpandHours={() => showFullDay(true)}

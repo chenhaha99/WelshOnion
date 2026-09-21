@@ -83,6 +83,9 @@ interface TimelineProps {
   blockText: BlockText;
   /** 横向放到百分之几（横排才有） */
   zoom: number;
+  /** 手机上整条时间线放大几倍（双指捏合），和电脑的横向放大分开记 */
+  phoneZoom: number;
+  onPhoneZoom: (zoom: number) => void;
   /** 横条上的标题写几行（横排才有） */
   titleLines: number;
   /** 横排横轴展开的那段：没事的凌晨和深夜折起（按计划算，见 timeline-window） */
@@ -108,6 +111,8 @@ export function Timeline({
   moneyCells,
   blockText,
   zoom,
+  phoneZoom,
+  onPhoneZoom,
   titleLines,
   hours,
   onExpandHours,
@@ -197,6 +202,8 @@ export function Timeline({
           blockText={blockText}
           shownDay={shownDay}
           jump={jump}
+          zoom={phoneZoom}
+          onZoom={onPhoneZoom}
         />
       )}
     </section>
@@ -257,7 +264,6 @@ function WideTimeline({
     libraryView,
     rows,
     filter,
-    day: null,
     metrics,
     hours,
     onDropped: (blockId) => selection.select(blockId, null),

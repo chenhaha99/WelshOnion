@@ -87,11 +87,8 @@ export function planHasBarTags(plan: PlanView, library: LibraryView): boolean {
   return false;
 }
 
-/** 块和块之间留多少（像素）；DEPTH_INSET 是竖排里叠在上面的块每级往右缩多少，拖拽的落点判定还在用，等拖拽改成横排一起删 */
+/** 块和块之间留多少（像素） */
 export const GAP = 2;
-export const DEPTH_INSET = 4;
-/** 竖排背景细条每条多宽（像素）：拖到竖排上的落点判定还在用，等拖拽改成横排一起删 */
-export const STRIP_WIDTH = 12;
 /** 时长为 0 的块画成一条线，点和量都按这么宽（像素），同 index.css 的 timeline-marker */
 export const MARKER_HIT = 12;
 /** 拖动中拿起来的块压在别的块上面（别的块是 1 + 缩几级） */
@@ -139,23 +136,4 @@ export function wideSegmentBox(item: PlacedSegment, layout: RowLayout, metrics: 
     top: wideLaneTop(layout, metrics, item.lane) + GAP + item.depth * metrics.nest,
     height: wideLaneHeight(layout, metrics, item.lane) - 2 * GAP - item.depth * metrics.nest,
   };
-}
-
-/** 竖排一段在宽 axisWidth 像素的横轴里，左边和宽度（像素）。 */
-export function daySegmentPixels(
-  item: PlacedSegment,
-  layout: RowLayout,
-  axisWidth: number,
-): { left: number; width: number } {
-  if (item.track === "background") return { left: (item.lane - 1) * STRIP_WIDTH, width: STRIP_WIDTH - GAP };
-  const { offset, inset } = dayColumnParts(item, layout);
-  return {
-    left: offset + ((axisWidth - offset) * (item.lane - 1)) / layout.laneCount + inset,
-    width: (axisWidth - offset) / layout.laneCount - inset - GAP,
-  };
-}
-
-function dayColumnParts(item: PlacedSegment, layout: RowLayout): { offset: number; inset: number } {
-  const stripsWidth = layout.backgroundCount * STRIP_WIDTH;
-  return { offset: stripsWidth === 0 ? 0 : stripsWidth + GAP, inset: item.depth * DEPTH_INSET };
 }

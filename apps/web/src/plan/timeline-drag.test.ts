@@ -5,9 +5,9 @@ import {
   blankDragSpan,
   blankPieceInRow,
   clampLinear,
-  clampToDay,
   dragLabelPlace,
   dragResult,
+  magnetEdge,
   edgeScrollStep,
   slotOfMinute,
   splitLinear,
@@ -72,6 +72,45 @@ describe("松手后块的开始和时长", () => {
   });
 });
 
+describe("吸到前后事的边（手机上）", () => {
+  // 同一天别的事：早饭 07:00–08:20（结束 500），午饭 12:00 开始（720）；10 分钟以内吸上
+  const magnet = { edges: [420, 500, 720], tolerance: 10 };
+  const lunchWalk = { start: 600, duration: 60 };
+
+  it("挪：开始离前一件的结束不到 10 分钟，吸上去，不按 15 分钟取整", () => {
+    // 往前挪 95 分钟：开始在 505，不吸是 510
+    expect(dragResult("move", { row: 0, minute: 600 }, { row: 0, minute: 505 }, lunchWalk, magnet)).toEqual({ start: 500, duration: 60 });
+    expect(magnetEdge("move", { row: 0, minute: 600 }, { row: 0, minute: 505 }, lunchWalk, magnet)).toBe(500);
+  });
+
+  it("挪：结束离后一件的开始近，结束吸上去", () => {
+    // 结束在 723：开始跟着变成 660
+    expect(dragResult("move", { row: 0, minute: 600 }, { row: 0, minute: 663 }, lunchWalk, magnet)).toEqual({ start: 660, duration: 60 });
+  });
+
+  it("两头都够得着：吸更近的那头", () => {
+    const tight = { edges: [500, 562], tolerance: 10 };
+    // 开始 506（离 500 差 6），结束 566（离 562 差 4）：吸结束
+    expect(dragResult("move", { row: 0, minute: 600 }, { row: 0, minute: 506 }, lunchWalk, tight)).toEqual({ start: 502, duration: 60 });
+  });
+
+  it("超过 10 分钟：照旧按 15 分钟取整，没吸上", () => {
+    // 开始 526：离 500 差 26，取整到 525
+    expect(dragResult("move", { row: 0, minute: 600 }, { row: 0, minute: 526 }, lunchWalk, magnet)).toEqual({ start: 525, duration: 60 });
+    expect(magnetEdge("move", { row: 0, minute: 600 }, { row: 0, minute: 526 }, lunchWalk, magnet)).toBeNull();
+  });
+
+  it("拖把手：右端吸到后一件的开始，左端吸到前一件的结束", () => {
+    expect(dragResult("end", { row: 0, minute: 660 }, { row: 0, minute: 714 }, lunchWalk, magnet)).toEqual({ start: 600, duration: 120 });
+    expect(dragResult("start", { row: 0, minute: 600 }, { row: 0, minute: 506 }, lunchWalk, magnet)).toEqual({ start: 500, duration: 160 });
+  });
+
+  it("不给磁铁：和原来一样", () => {
+    expect(magnetEdge("move", { row: 0, minute: 600 }, { row: 0, minute: 505 }, lunchWalk)).toBeNull();
+    expect(dragResult("move", { row: 0, minute: 600 }, { row: 0, minute: 505 }, lunchWalk)).toEqual({ start: 510, duration: 60 });
+  });
+});
+
 describe("线性位置", () => {
   it("拆成第几行第几分钟", () => {
     expect(splitLinear(0)).toEqual({ row: 0, minute: 0 });
@@ -115,35 +154,21 @@ describe("从栏里拖出来的开始时刻", () => {
   });
 });
 
-describe("竖排里夹在块开始的那一天", () => {
-  it("开始最早 00:00，最晚 23:45", () => {
-    expect(clampToDay(-60, 0)).toBe(0);
-    expect(clampToDay(600, 0)).toBe(600);
-    expect(clampToDay(1440, 0)).toBe(1425);
-  });
-
-  it("第 2 行的块按第 2 行算", () => {
-    expect(clampToDay(1380, 1)).toBe(1440);
-    expect(clampToDay(2000, 1)).toBe(2000);
-    expect(clampToDay(2880, 1)).toBe(2865);
-  });
-});
-
 describe("框边自己滚", () => {
-  // 框露在屏幕里的部分：纵坐标 100 到 548
+  // 框露在屏幕里的部分：坐标 100 到 548
   it("离两边都超过 40 像素不滚", () => {
     expect(edgeScrollStep(300, 100, 548)).toBe(0);
     expect(edgeScrollStep(140, 100, 548)).toBe(0);
     expect(edgeScrollStep(508, 100, 548)).toBe(0);
   });
 
-  it("离上边 40 像素以内往上滚，越靠边越快，至少 1 像素", () => {
+  it("离靠前的边 40 像素以内往前滚，越靠边越快，至少 1 像素", () => {
     expect(edgeScrollStep(139, 100, 548)).toBe(-1);
     expect(edgeScrollStep(120, 100, 548)).toBe(-5);
     expect(edgeScrollStep(100, 100, 548)).toBe(-10);
   });
 
-  it("离下边 40 像素以内往下滚", () => {
+  it("离靠后的边 40 像素以内往后滚", () => {
     expect(edgeScrollStep(509, 100, 548)).toBe(1);
     expect(edgeScrollStep(528, 100, 548)).toBe(5);
     expect(edgeScrollStep(548, 100, 548)).toBe(10);

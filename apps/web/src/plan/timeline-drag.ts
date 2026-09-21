@@ -31,20 +31,59 @@ export interface Span {
 }
 
 /**
+ * 磁铁（手机上）：落点那一天别的事的开始、结束（线性分钟），离得不到 tolerance 分钟就吸上去，不按 15 分钟取整。
+ * 照 Final Cut Pro 的吸附到片段边沿；tolerance 由调用方按当时的缩放把 10 像素换成分钟。
+ */
+export interface Magnet {
+  edges: readonly number[];
+  tolerance: number;
+}
+
+/**
  * 松手后块的开始和时长。三种拖法都按指针移动的距离算、吸附到 15 分钟：
  * 只看差值，按在块的哪一段、按在端点里面几像素，没动时都还在原位。
  * 左端不晚于结束，右端不早于开始；没动的那一头保持原值，不跟着吸附。
+ * 给了磁铁、又够得着别的事的边，就吸到那条边上（挪的时候开始、结束哪头近吸哪头）。
  */
-export function dragResult(mode: DragMode, down: PointerSpot, now: PointerSpot, block: Span): Span {
+export function dragResult(mode: DragMode, down: PointerSpot, now: PointerSpot, block: Span, magnet?: Magnet): Span {
   const delta = linear(now) - linear(down);
   const end = block.start + block.duration;
-  if (mode === "move") return { start: snap(block.start + delta), duration: block.duration };
+  const hit = magnetHit(mode, delta, block, magnet);
+  if (mode === "move") {
+    const start = hit === null ? snap(block.start + delta) : hit.side === "start" ? hit.edge : hit.edge - block.duration;
+    return { start, duration: block.duration };
+  }
   if (mode === "start") {
-    const start = Math.min(snap(block.start + delta), end);
+    const start = Math.min(hit?.edge ?? snap(block.start + delta), end);
     return { start, duration: end - start };
   }
-  const movedEnd = Math.max(snap(end + delta), block.start);
+  const movedEnd = Math.max(hit?.edge ?? snap(end + delta), block.start);
   return { start: block.start, duration: movedEnd - block.start };
+}
+
+/** 吸上了哪条边（线性分钟）；没吸上、没给磁铁是 null。吸上的那一刻手机轻震一下，靠它看变没变。 */
+export function magnetEdge(mode: DragMode, down: PointerSpot, now: PointerSpot, block: Span, magnet?: Magnet): number | null {
+  return magnetHit(mode, linear(now) - linear(down), block, magnet)?.edge ?? null;
+}
+
+function magnetHit(
+  mode: DragMode,
+  delta: number,
+  block: Span,
+  magnet: Magnet | undefined,
+): { edge: number; side: "start" | "end" } | null {
+  if (magnet === undefined) return null;
+  const sides: Array<{ side: "start" | "end"; at: number }> = [];
+  if (mode !== "end") sides.push({ side: "start", at: block.start + delta });
+  if (mode !== "start") sides.push({ side: "end", at: block.start + block.duration + delta });
+  let best: { edge: number; side: "start" | "end"; distance: number } | null = null;
+  for (const { side, at } of sides) {
+    for (const edge of magnet.edges) {
+      const distance = Math.abs(at - edge);
+      if (distance <= magnet.tolerance && (best === null || distance < best.distance)) best = { edge, side, distance };
+    }
+  }
+  return best && { edge: best.edge, side: best.side };
 }
 
 export function linear(spot: PointerSpot): number {
@@ -62,7 +101,6 @@ export function clampLinear(value: number, rowCount: number): number {
   if (value < 0) return 0;
   return Math.min(value, rowCount * MINUTES_PER_DAY - 1);
 }
-
 
 /**
  * 开始时刻换算成变回没排时间时的格子：06:00–11:59 上午、12:00–17:59 下午、18:00–23:59 晚上；
@@ -129,21 +167,16 @@ export function blankDragRange(a: number, b: number): MinuteRange {
   return { from, to };
 }
 
-/** 竖排里拖不换天：开始时刻夹在块开始那天（第 row 行）的 00:00–23:45。 */
-export function clampToDay(start: number, row: number): number {
-  const dayStart = row * MINUTES_PER_DAY;
-  return Math.min(Math.max(start, dayStart), dayStart + MINUTES_PER_DAY - SNAP_MIN);
-}
-
 /**
- * 竖排拖动中这一帧框要滚多少像素，负数往上、正数往下。top、bottom 是框露在屏幕里那部分的上下边。
- * 指针离上边或下边 40 像素以内往那边滚，越靠边越快、至少 1 像素；拖出了边按最快。
+ * 拖动中这一帧框要滚多少像素，只看一个方向的坐标：pointer 是指针，low、high 是框露在屏幕里那部分靠前、靠后的两条边；
+ * 负数往靠前的方向滚、正数往靠后的方向滚。
+ * 指针离靠前或靠后的边 40 像素以内往那边滚，越靠边越快、至少 1 像素；拖出了边按最快。
  */
-export function edgeScrollStep(pointerY: number, top: number, bottom: number): number {
-  const fromTop = pointerY - top;
-  const fromBottom = bottom - pointerY;
-  if (fromTop < EDGE_ZONE_PX && fromTop <= fromBottom) return -edgeSpeed(fromTop);
-  if (fromBottom < EDGE_ZONE_PX) return edgeSpeed(fromBottom);
+export function edgeScrollStep(pointer: number, low: number, high: number): number {
+  const fromLow = pointer - low;
+  const fromHigh = high - pointer;
+  if (fromLow < EDGE_ZONE_PX && fromLow <= fromHigh) return -edgeSpeed(fromLow);
+  if (fromHigh < EDGE_ZONE_PX) return edgeSpeed(fromHigh);
   return 0;
 }
 

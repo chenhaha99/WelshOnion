@@ -1567,9 +1567,87 @@
 @utility phone-timeline {
   /* 左边写哪天那一列多宽 */
   --phone-gut: 42px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  position: relative;
+}
+
+/* 放大以后左右滚的那一层（双指捏合放大，照 iMovie、Final Cut Pro for iPad）：一根手指照常滚，浏览器自己不缩放页面 */
+.phone-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+  scrollbar-width: none;
+  & > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+
+/* 放大后「第 N 天」那一列钉在左边，底下滚过去的块糊掉（同日程停住的组头） */
+.phone-scroll[data-zoomed] .phone-day-name {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  align-self: stretch;
+  justify-content: center;
+  background-color: rgb(255 255 255 / 0.94);
+  backdrop-filter: blur(12px) saturate(1.2);
+}
+
+/* 放大后展开那天下面的名字跟着滚，没排时间的几件、加一件事那一行钉在看得见的宽度里 */
+.phone-scroll[data-zoomed] .phone-open > :not(.phone-tags) {
+  position: sticky;
+  left: var(--phone-gut);
+  width: calc(var(--phone-view) - var(--phone-gut));
+}
+
+/* 拖动中被拖的那件原来的段：手指按着它，得留在页面上，但看不见、不接点击（见 PhoneTimeline 的 withGhosts） */
+[data-segment][data-ghost] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 选中的块两端的把手（照 iMovie 的黄色把手）：往块外伸，热区 20 像素宽，按住直接拖，浏览器不拿它滚动 */
+.phone-handle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  z-index: 11;
+  width: 20px;
+  touch-action: none;
+  cursor: ew-resize;
+  &[data-handle="start"] {
+    left: -10px;
+  }
+  &[data-handle="end"] {
+    right: -10px;
+  }
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 7px;
+    width: 6px;
+    border-radius: 3px;
+    background-color: var(--color-ink);
+    box-shadow: 0 0 0 1.5px white;
+  }
+}
+
+/* 放大以后右上角：一点回到整趟一屏 */
+.phone-fit {
+  position: absolute;
+  top: -0.25rem;
+  right: 0;
+  z-index: 4;
+  border: 1px solid rgb(47 58 69 / 0.12);
+  border-radius: 999px;
+  background-color: rgb(255 255 255 / 0.94);
+  padding: 0.0625rem 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--color-ink);
+  box-shadow: 0 1px 3px rgb(47 58 69 / 0.08);
 }
 
 @utility phone-axis {

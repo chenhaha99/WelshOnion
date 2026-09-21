@@ -22,23 +22,25 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
-  type RefObject,
 } from "react";
 import type * as Y from "yjs";
 import { blockTimeLabel, slotLabel } from "./block-time";
 import {
   blankClickRange,
   blankDragSpan,
+  clampLinear,
   edgeScrollStep,
+  magnetEdge,
   slotOfMinute,
+  type Magnet,
   type DragMode,
   type BlankRange,
   type PointerSpot,
 } from "./timeline-drag";
 import {
-  clampStart,
   decideOnto,
   dropAction,
   droppedPlan,
@@ -55,6 +57,9 @@ import { minuteAtPixel, type HourWindow } from "./timeline-window";
 const MINUTES_PER_DAY = 1440;
 /** 按下后移动多少像素才算开始拖（也是「挪过」的门槛）；端点多宽；横条至少多宽才有端点（像素） */
 const DRAG_THRESHOLD_PX = 4;
+/** 手机上离别的事的边多少像素以内吸上去；最多几分钟：不超过一格（1 倍时 10 像素约 45 分钟，不设上限就什么都往边上吸） */
+const MAGNET_PX = 10;
+const MAGNET_MAX_MIN = 15;
 const EDGE_PX = 6;
 const MIN_EDGE_BAR_PX = 24;
 /** 手指、笔要按住多久才拿起来（毫秒）；拿起来之前挪了多远就算在滚动、不拿了（像素） */
@@ -80,7 +85,7 @@ function recordBusyPress(event: PointerEvent): void {
 
 /**
  * 按住一段横条或栏里一件以后的状态：鼠标过了 4 像素的门槛、手指按满 0.5 秒才算在拖；放弃了的留到松手再清掉。
- * 算松手后做什么要的那几样见 DropInput；moved 在这里是「离按下的点挪过 4 像素，或者框自己滚过」。
+ * 算松手后做什么要的那几样见 DropInput；moved 在这里是「离按下的点挪过 4 像素」。
  */
 interface Drag extends DropInput {
   /** 按下的是哪个指针；不是鼠标的（手指、笔）要先长按 */
@@ -92,10 +97,20 @@ interface Drag extends DropInput {
   downY: number;
   active: boolean;
   cancelled: boolean;
-  /** 最后一次指针在屏幕上的位置：框自己滚时用它重算落点，也用来摆松手后的时间 */
+  /** 最后一次指针在屏幕上的位置：量落在哪块上、摆松手后的时间用 */
   lastX: number;
   lastY: number;
   followers: readonly string[];
+  /** 要先长按才拿得起（手指、笔按在块上）；按在把手上的手指、鼠标是挪过门槛就开始 */
+  hold: boolean;
+  /** 现在吸在哪条边上（线性分钟），没吸上是 null：从没吸上变成吸上时震一下 */
+  snapEdge: number | null;
+}
+
+/** 选中的块两端的把手（手机上）：按住直接拖改长短，不用长按（照 iMovie 的黄色把手） */
+export interface HandleHandlers {
+  onPointerDown: (event: ReactPointerEvent<HTMLElement>, item: PlacedSegment, edge: "start" | "end") => void;
+  onClickCapture: (event: ReactMouseEvent<HTMLElement>) => void;
 }
 
 /** 快捷条上的「复制」：按住拖出来的那一份（点一下不拖是原地复制，由快捷条自己做）。 */
@@ -155,7 +170,7 @@ export function isBlankPress(target: EventTarget): boolean {
   return target instanceof Element && target.closest(taken) === null;
 }
 
-/** 横轴、竖轴上的空白处：按下的是第几行（竖排是正在看的那一天）。落点是不是空白由调用方先用 isBlankPress 看。 */
+/** 横轴上的空白处：按下的是第几行。落点是不是空白由调用方先用 isBlankPress 看。 */
 export interface BlankHandlers {
   onPointerDown: (event: ReactPointerEvent<HTMLElement>, row: number) => void;
 }
@@ -171,18 +186,21 @@ interface TimelineDragOptions {
   rows: readonly RowLayout[];
   /** 筛选；没开是 undefined */
   filter: StatsFilter | undefined;
-  /** 竖排正在看第几行；横排是 null */
-  day: number | null;
-  /** 横排主轨每道多高、套在里面的往下让多少（像素）：量指针落在哪块上要用；竖排不看 */
-  metrics: WideMetrics;
-  /** 横排横轴展开的那段：指针换算时刻、量落在哪块上都按折起后的位置；竖排不看 */
+  /**
+   * 主轨每道多高、套在里面的往下让多少（像素）：量指针落在哪块中间、要不要叠上去用。
+   * 手机上给 null：展开那天和别的天高度不同，量不准，一律放旁边（叠放走详情里的「叠放」）
+   */
+  metrics: WideMetrics | null;
+  /** 横轴展开的那段：指针换算时刻、量落在哪块上都按折起后的位置 */
   hours: HourWindow;
-  /** 竖排能上下滚的框：拖到框边时它自己滚；横排不给 */
-  scroller?: RefObject<HTMLDivElement | null>;
   /** 松手写进计划以后：拖的那一件（复制的是复制出来的那一份）；外面用它接着选中 */
   onDropped?: (blockId: string) => void;
   /** 在空白处点了一下、拖出一段、按住后抬起：外面弹「加一件事」 */
   onBlankRange?: (range: BlankRange) => void;
+  /** 手机上：给了就吸到落点那一天别的事的边上，吸上那一刻调它（轻震一下） */
+  onSnap?: () => void;
+  /** 手机上放大后左右滚的那一层：拖到它左右边时它自己滚（照 Final Cut Pro） */
+  edgeScroller?: RefObject<HTMLElement | null>;
 }
 
 export interface TimelineDrag {
@@ -195,6 +213,7 @@ export interface TimelineDrag {
   /** 正在空白处拖出的一段（手指按住还没抬起也算）；别的时候是 null */
   blankRange: BlankRange | null;
   handlers: SegmentHandlers;
+  handleHandlers: HandleHandlers;
   chipHandlers: ChipHandlers;
   blankHandlers: BlankHandlers;
   copyHandlers: CopyHandlers;
@@ -207,10 +226,9 @@ export interface TimelineDrag {
 }
 
 /**
- * 时间线上拖，横排、竖排共用：
- * - 横条、竖条：中间挪时间，按住 Alt 复制；横排上下拖换天、用鼠标拖两端改长度、拖进「没排时间」栏就变回没排时间
- * - 横排栏里的一件：拖到横轴上排上时间，拖进另一天的栏换天
- * - 竖排不换天（开始夹在块开始的那天），拖到框边时框自己滚
+ * 时间线上拖：
+ * - 横条：中间挪时间，按住 Alt 复制；上下拖换天、用鼠标拖两端改长度、拖进「没排时间」栏就变回没排时间
+ * - 栏里的一件：拖到横轴上排上时间，拖进另一天的栏换天
  * - 鼠标按下挪 4 像素开始拖；手指、笔要先按住 0.5 秒拿起来，拿起来之前挪动是滚动
  * 拖动中画成松手后的样子（dropped），叠上去还是放旁边照那个样子判定（timeline-drop）。
  * 松手才写进计划，一次拖拽一步撤销。按下后在窗口上听移动、松手、Esc：不做指针捕获，否则松手会被改到外框上，点一下就打不开详情。
@@ -222,12 +240,12 @@ export function useTimelineDrag({
   libraryView,
   rows,
   filter,
-  day,
   metrics,
   hours,
-  scroller,
   onDropped,
   onBlankRange,
+  onSnap,
+  edgeScroller,
 }: TimelineDragOptions): TimelineDrag {
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
@@ -271,22 +289,18 @@ export function useTimelineDrag({
   const swallowTouchEnd = useRef(false);
   /** 最近一次在时间线里按下的是不是鼠标：手指长按弹出的系统菜单要拦，鼠标右键的不拦 */
   const lastPressByMouse = useRef(true);
-  // 窗口上的监听、长按计时、每帧的滚动都经过这里读最新的计划
-  const latest = useRef({ doc, library, plan, libraryView, rows, filter, day, metrics, hours, onBlankRange });
+  // 窗口上的监听、长按计时都经过这里读最新的计划
+  const latest = useRef({ doc, library, plan, libraryView, rows, filter, metrics, hours, onBlankRange, onSnap });
   useEffect(() => {
-    latest.current = { doc, library, plan, libraryView, rows, filter, day, metrics, hours, onBlankRange };
+    latest.current = { doc, library, plan, libraryView, rows, filter, metrics, hours, onBlankRange, onSnap };
   });
 
   /**
    * 指针落在第几行、这一行第几分钟（不夹在 0–1440 里）。
-   * 横排：纵坐标找行（第一行上面算第一行，最后一行下面算最后一行），横坐标按折起后的位置算分钟；竖排：行就是正在看的那一行，纵坐标算分钟。
+   * 纵坐标找行（第一行上面算第一行，最后一行下面算最后一行），横坐标按折起后的位置算分钟。
    */
   const spotAt = (clientX: number, clientY: number): PointerSpot => {
-    const { plan, day, hours } = latest.current;
-    if (day !== null) {
-      const axis = axisElements.current[day]!.getBoundingClientRect();
-      return { row: day, minute: ((clientY - axis.top) / axis.height) * MINUTES_PER_DAY };
-    }
+    const { plan, hours } = latest.current;
     const elements = rowElements.current.slice(0, plan.bases.length);
     let row = elements.findIndex((element) => element !== null && clientY < element.getBoundingClientRect().bottom);
     if (row === -1) row = elements.length - 1;
@@ -294,9 +308,9 @@ export function useTimelineDrag({
     return { row, minute: minuteAtPixel(hours, clientX - axis.left, axis.width) };
   };
 
-/** 横排：指针落在时间线上面那条「没排时间」里就是在条里（条是整个计划一条）。竖排没有条。 */
+  /** 指针落在时间线上面那条「没排时间」里就是在条里（条是整个计划一条）。 */
   const zoneAt = (clientX: number, clientY: number): Drag["zone"] => {
-    const tray = latest.current.day === null ? trayElement.current?.getBoundingClientRect() : undefined;
+    const tray = trayElement.current?.getBoundingClientRect();
     const inside =
       tray !== undefined && clientX >= tray.left && clientX <= tray.right && clientY >= tray.top && clientY <= tray.bottom;
     return inside ? { kind: "tray" } : { kind: "axis" };
@@ -316,16 +330,17 @@ export function useTimelineDrag({
 
   /**
    * 松手会叠到哪块上：照松手后的样子量指针落在哪块的中间（timeline-drop 的 ontoAt、decideOnto），previous 是现在的判定。
-   * 只量指针所在那一行（竖排是正在看的那一天）：块画在哪按道、缩进、时间算，这一行的横轴在屏幕上的位置读 DOM。
+   * 只量指针所在那一行：块画在哪按道、缩进、时间算，这一行的横轴在屏幕上的位置读 DOM。
    */
   const ontoAfterDrop = (next: Drag, previous: string | null): string | null => {
-    const { plan, libraryView, rows, filter, day, metrics, hours } = latest.current;
-    const row = day ?? next.now.row;
+    const { plan, libraryView, rows, filter, metrics, hours } = latest.current;
+    if (metrics === null) return null;
+    const row = next.now.row;
     const axis = axisElements.current[row]!.getBoundingClientRect();
     const excluded = new Set([next.blockId, ...next.followers]);
     if (next.alt) for (const id of [...excluded]) excluded.add(previewCopyId(id));
     const hitWith = (ontoId: string | null) => {
-      const action = dropAction({ ...next, ontoId }, plan, day);
+      const action = dropAction({ ...next, ontoId }, plan);
       const dropped = action && droppedPlan(plan, libraryView, action);
       if (!dropped) return null;
       return ontoAt(
@@ -333,9 +348,8 @@ export function useTimelineDrag({
         {
           plan: dropped,
           library: libraryView,
-          layout: droppedRow(dropped, libraryView, filter, row, day === null ? rows[row]! : null),
+          layout: droppedRow(dropped, libraryView, filter, row, rows[row]!),
           axis,
-          orientation: day === null ? "wide" : "day",
           metrics,
           hours,
           excluded,
@@ -346,9 +360,34 @@ export function useTimelineDrag({
     return decideOnto(previous, hitWith);
   };
 
-  /** 指针到了 (clientX, clientY)：重算落点、跟着走的块、会叠上去的块。 */
+  /**
+   * 手机上的磁铁：指针所在那一行别的事的开始、结束（跨天接过来、接到下一天的那一头不算，那不是真的边），
+   * 再加这件事自己原来的开始、结束钟点（上下拖换天时粘在原来的钟点上，不被 15 分钟取整挪开）；
+   * 离得不到 10 像素（按这一行横轴现在的缩放换成分钟，最多一格 15 分钟）就吸上去。
+   */
+  const magnetAt = (current: Drag, row: number, clientX: number): Magnet => {
+    const { rows, hours } = latest.current;
+    const axis = axisElements.current[row]!.getBoundingClientRect();
+    const x = clientX - axis.left;
+    const tolerance = Math.min(
+      Math.abs(minuteAtPixel(hours, x + MAGNET_PX, axis.width) - minuteAtPixel(hours, x, axis.width)),
+      MAGNET_MAX_MIN,
+    );
+    const skip = new Set([current.blockId, ...current.followers]);
+    const edges = rows[row]!.main
+      .filter((item) => !skip.has(item.blockId))
+      .flatMap((item) => [
+        ...(item.continuesBefore ? [] : [row * MINUTES_PER_DAY + item.from]),
+        ...(item.continuesAfter ? [] : [row * MINUTES_PER_DAY + item.to]),
+      ]);
+    const ownStart = current.span.start % MINUTES_PER_DAY;
+    edges.push(row * MINUTES_PER_DAY + ownStart, row * MINUTES_PER_DAY + ownStart + current.span.duration);
+    return { edges, tolerance };
+  };
+
+  /** 指针到了 (clientX, clientY)：重算落点、跟着走的块、会叠上去的块、吸没吸上边。 */
   const moveTo = (current: Drag, clientX: number, clientY: number, alt: boolean, moved: boolean) => {
-    const { plan, libraryView } = latest.current;
+    const { plan, libraryView, onSnap } = latest.current;
     const now = spotAt(clientX, clientY);
     // 改长度、在空白处拖出一段都不会进栏
     const blank = current.source === "blank";
@@ -371,6 +410,11 @@ export function useTimelineDrag({
       followers,
       ontoId: null,
     };
+    if (onSnap && current.source === "segment" && zone.kind === "axis") {
+      next.magnet = magnetAt(next, now.row, clientX);
+      next.snapEdge = moved ? magnetEdge(next.mode, next.down, now, next.span, next.magnet) : null;
+      if (next.snapEdge !== null && next.snapEdge !== current.snapEdge) onSnap();
+    }
     update(
       current.mode === "move" && zone.kind === "axis" && !blank ? { ...next, ontoId: ontoAfterDrop(next, current.ontoId) } : next,
     );
@@ -393,7 +437,7 @@ export function useTimelineDrag({
       const distance = Math.hypot(event.clientX - current.downX, event.clientY - current.downY);
       if (!current.active) {
         // 手指长按之前挪远了：是在滚动，交给浏览器
-        if (current.touch) {
+        if (current.hold) {
           if (distance >= LONG_PRESS_SLOP_PX) update(null);
           return;
         }
@@ -464,20 +508,20 @@ export function useTimelineDrag({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pressed]);
 
-  // 竖排拖动中每帧看一次：指针到了框边，框自己往那边滚，再用最后的指针位置重算落点（手指没动，底下的画布挪了）
-  const edgeScrolling = day !== null && drag !== null && drag.active && !drag.cancelled;
+  // 手机上放大后拖动中每帧看一次：指针到了左右滚那一层的边，它自己往那边滚，再用最后的指针位置重算落点（手指没动，底下的画布挪了）
+  const edgeScrolling = edgeScroller !== undefined && drag !== null && drag.active && !drag.cancelled;
   useEffect(() => {
     if (!edgeScrolling) return;
     let frame = requestAnimationFrame(function step() {
       const current = dragRef.current;
-      const box = scroller?.current;
+      const box = edgeScroller?.current;
       if (current?.active && !current.cancelled && box) {
         const rect = box.getBoundingClientRect();
-        const delta = edgeScrollStep(current.lastY, Math.max(rect.top, 0), Math.min(rect.bottom, window.innerHeight));
-        const before = box.scrollTop;
-        if (delta !== 0) box.scrollTop = before + delta;
-        // 滚到头 scrollTop 不再变，就不重算
-        if (box.scrollTop !== before) moveTo(current, current.lastX, current.lastY, current.alt, true);
+        const delta = edgeScrollStep(current.lastX, Math.max(rect.left, 0), Math.min(rect.right, window.innerWidth));
+        const before = box.scrollLeft;
+        if (delta !== 0) box.scrollLeft = before + delta;
+        // 滚到头 scrollLeft 不再变，就不重算
+        if (box.scrollLeft !== before) moveTo(current, current.lastX, current.lastY, current.alt, true);
       }
       frame = requestAnimationFrame(step);
     });
@@ -509,10 +553,10 @@ export function useTimelineDrag({
       swallowTouchEnd.current = false;
       event.preventDefault();
     };
-    // 手指按住横条、竖条、栏里的一件是要拿起来拖，不弹系统的长按菜单；输入框里长按要粘贴，鼠标右键也照常
+    // 手指按住横条、栏里的一件是要拿起来拖，不弹系统的长按菜单；输入框里长按要粘贴，鼠标右键也照常
     const onContextMenu = (event: MouseEvent) => {
       if (lastPressByMouse.current) return;
-      const pressable = "[data-segment], [data-undated-chip], [data-timeline-axis], [data-day-axis]";
+      const pressable = "[data-segment], [data-undated-chip], [data-timeline-axis]";
       if (event.target instanceof Element && event.target.closest(pressable)) {
         event.preventDefault();
       }
@@ -540,8 +584,8 @@ export function useTimelineDrag({
 
   /** 松手：按 dropAction 调一个操作（一步撤销）；结果和原来一样就不调。 */
   const commit = (done: Drag) => {
-    const { doc, library, plan, libraryView, day } = latest.current;
-    const action = dropAction(done, plan, day);
+    const { doc, library, plan, libraryView } = latest.current;
+    const action = dropAction(done, plan);
     if (!action) return;
     switch (action.kind) {
       case "undated": {
@@ -593,7 +637,7 @@ export function useTimelineDrag({
         }
         const block = plan.blocks.get(action.blockId)!;
         const layerAfter = action.ontoId === null ? null : layerWhenOnto(plan, libraryView, block, action.ontoId);
-        const unmoved = action.minute === clampStart(done.span.start, done.span, plan.bases.length, day);
+        const unmoved = action.minute === clampLinear(done.span.start, plan.bases.length);
         // 拖回原地什么都不用改，但拖过的那一件照样接着选中
         if (unmoved && layerAfter === block.layer) {
           onDropped?.(action.blockId);
@@ -620,9 +664,12 @@ export function useTimelineDrag({
       forceCopy?: boolean;
       downRow?: number;
       blankBusy?: boolean;
+      /** 按在把手上：手指也不用长按 */
+      immediate?: boolean;
     },
   ) => {
     const touch = event.pointerType !== "mouse";
+    const hold = touch && !fields.immediate;
     const spot = spotAt(event.clientX, event.clientY);
     // 挪多远按「指针走了多远」算。从快捷条的「复制」按下时，指针在浮着的快捷条上（盖着下一行），
     // 起点的行要按这件事自己那一行算，不然往下拖一行反而没换天
@@ -646,8 +693,10 @@ export function useTimelineDrag({
       ontoId: null,
       followers: [],
       blankBusy: fields.blankBusy ?? false,
+      hold,
+      snapEdge: null,
     });
-    if (touch) longPress.current = window.setTimeout(lift, LONG_PRESS_MS);
+    if (hold) longPress.current = window.setTimeout(lift, LONG_PRESS_MS);
   };
 
   const handlers: SegmentHandlers = {
@@ -659,22 +708,38 @@ export function useTimelineDrag({
       startPress(event, {
         source: "segment",
         blockId: item.blockId,
-        // 手指按不准端点，竖排没有端点：都是挪
-        mode:
-          event.pointerType === "mouse" && day === null
-            ? edgeAt(event.currentTarget.getBoundingClientRect(), event.clientX, item)
-            : "move",
+        // 手指按不准端点：都是挪
+        mode: event.pointerType === "mouse" ? edgeAt(event.currentTarget.getBoundingClientRect(), event.clientX, item) : "move",
         span: { start: startRow * MINUTES_PER_DAY + block.start_minute!, duration: block.duration_min ?? 0 },
         zone: { kind: "axis" },
       });
     },
-    // 横排上鼠标停在端点上时换成左右箭头
+    // 鼠标停在端点上时换成左右箭头
     onPointerMove: (event, item) => {
-      if (dragRef.current || event.pointerType !== "mouse" || day !== null) return;
+      if (dragRef.current || event.pointerType !== "mouse") return;
       const frame = event.currentTarget;
       const edge = edgeAt(frame.getBoundingClientRect(), event.clientX, item);
       if (edge === "move") delete frame.dataset.edge;
       else frame.dataset.edge = edge;
+    },
+    onClickCapture: suppressClickAfterDrag,
+  };
+
+  const handleHandlers: HandleHandlers = {
+    onPointerDown: (event, item, edge) => {
+      if (dragRef.current || (event.pointerType === "mouse" && event.button !== 0)) return;
+      // 把手在块里面，别让块自己再按一次
+      event.stopPropagation();
+      const block = plan.blocks.get(item.blockId)!;
+      const startRow = plan.bases.findIndex((base) => base.id === block.start_base_id);
+      startPress(event, {
+        source: "segment",
+        blockId: item.blockId,
+        mode: edge,
+        span: { start: startRow * MINUTES_PER_DAY + block.start_minute!, duration: block.duration_min ?? 0 },
+        zone: { kind: "axis" },
+        immediate: true,
+      });
     },
     onClickCapture: suppressClickAfterDrag,
   };
@@ -739,16 +804,16 @@ export function useTimelineDrag({
   const onAxis = live?.zone.kind === "axis";
   const copying = live !== null && live.source === "segment" && live.mode === "move" && live.alt && onAxis;
   // 松手后的样子：指针挪了但吸附后要做的事没变，就不重算
-  const action = live && onAxis ? dropAction(live, plan, day) : null;
+  const action = live && onAxis ? dropAction(live, plan) : null;
   const actionKey = action === null ? "" : JSON.stringify(action);
   const dropped = useMemo<DroppedView | null>(
     () => {
       const shownPlan = action && droppedPlan(plan, libraryView, action);
-      return shownPlan ? { plan: shownPlan, rows: droppedRows(shownPlan, libraryView, filter, rows, day === null) } : null;
+      return shownPlan ? { plan: shownPlan, rows: droppedRows(shownPlan, libraryView, filter, rows) } : null;
     },
     // action 每次渲染都是新对象，按它的内容缓存
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [actionKey, plan, libraryView, filter, rows, day],
+    [actionKey, plan, libraryView, filter, rows],
   );
   const liftedId = live && dropped ? (copying ? previewCopyId(live.blockId) : live.blockId) : null;
   const dragView: DragView | null = live
@@ -775,6 +840,7 @@ export function useTimelineDrag({
           : null,
     blankRange,
     handlers,
+    handleHandlers,
     chipHandlers,
     blankHandlers,
     copyHandlers,

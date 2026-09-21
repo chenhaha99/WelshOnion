@@ -7,6 +7,8 @@ import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
 import type { MoneyCell } from "./money-cells";
 import { firstOpenDay, tagItems, tagText } from "./PhoneTimeline";
+import { readPhoneZoom, savePhoneZoom } from "./plan-phone-zoom-memory";
+import { renderApp } from "../app/test-render";
 import type { RowLayout } from "./timeline-layout";
 import { daysFromOct1, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
 
@@ -162,6 +164,36 @@ describe("批量：手机上「对这 N 件…」在筛选那一行最前面", (
     const row = document.querySelector<HTMLElement>("[data-filter-row]")!;
     const first = row.querySelector("button")!;
     expect(first.getAttribute("aria-label") ?? first.textContent).toMatch(/^对这 4 件/);
+  });
+});
+
+describe("整条时间线放大（双指捏合）", () => {
+  it("1 倍时没有「看全部」；放大着打开有，点了回到 1 倍、记住", async () => {
+    const user = userEvent.setup();
+    const planId = await openStoredPlan((plan) => daysFromOct1(plan, 2));
+    await timeline();
+    expect(screen.queryByRole("button", { name: "看全部" })).toBeNull();
+    cleanup();
+
+    savePhoneZoom(planId, 3);
+    renderApp(`#/plans/${planId}`);
+    const region = await timeline();
+    expect(region.querySelector("[data-phone-scroll]")!.getAttribute("data-zoom")).toBe("3");
+
+    await user.click(within(region).getByRole("button", { name: "看全部" }));
+
+    expect(region.querySelector("[data-phone-scroll]")!.getAttribute("data-zoom")).toBe("1");
+    expect(within(region).queryByRole("button", { name: "看全部" })).toBeNull();
+    expect(readPhoneZoom(planId)).toBe(1);
+  });
+
+  it("记住的倍数认不出、超出范围：夹回 1 到 8 倍", () => {
+    localStorage.setItem("welshonion.phone-zoom.p", "abc");
+    expect(readPhoneZoom("p")).toBe(1);
+    localStorage.setItem("welshonion.phone-zoom.p", "20");
+    expect(readPhoneZoom("p")).toBe(8);
+    localStorage.setItem("welshonion.phone-zoom.p", "0.5");
+    expect(readPhoneZoom("p")).toBe(1);
   });
 });
 

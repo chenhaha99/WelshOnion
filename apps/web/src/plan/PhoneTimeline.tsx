@@ -1,11 +1,13 @@
 import { baseStartUtcMs, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type * as Y from "yjs";
+import { snapTick } from "../app/haptics";
 import { useNow, useTimeZone } from "../app/services";
 import { TimelineAddBlock } from "./AddBlock";
 import { blockTimeLabel, durationLabel } from "./block-time";
 import { useDayMenu } from "./day-menu";
+import { DragLabel } from "./DragLabel";
 import { useNoticeShown } from "./DoneNotice";
 import { moneyCellEmpty, moneyCellLabel, type MoneyCell } from "./money-cells";
 import { QuickBar } from "./QuickBar";
@@ -14,9 +16,11 @@ import { kindColor } from "./timeline-draw";
 import type { BlockText } from "./timeline-geometry";
 import type { PlacedSegment, RowLayout } from "./timeline-layout";
 import { makeMeasure, packLabels, type LabelInput } from "./timeline-labels";
+import { anchoredScroll, pinchZoom } from "./phone-zoom";
 import { axisOffset, foldWidths, hourLines, hourWindow, offsetCss, spanOffset, type HourWindow } from "./timeline-window";
 import { UndatedTray, undatedBlocks } from "./UndatedTray";
 import { BlockButton, useBlockSelection } from "./select-block";
+import { useTimelineDrag, type DragView, type HandleHandlers, type SegmentHandlers } from "./use-timeline-drag";
 import { zoneTimeLabel } from "./zone-time";
 
 /** 没展开的那些天，一条多高（像素） */
@@ -29,6 +33,8 @@ const ROW_H = 14;
 /** 右边角标那一格连同前面的空隙多宽（像素），和 .phone-undated-slot 对上。
  * 条下面那几行字可以用到这一格：那一格只有条那一行有东西，下面是空的 */
 const SLOT = 26;
+/** 左边写哪天那一列连同后面的空隙多宽（像素），和 index.css 的 --phone-gut 对上 */
+const GUT = 42;
 /** 量字用的字号，和 .phone-tag 的 font-size 对上 */
 const LABEL_FONT = '10px system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
 
@@ -50,6 +56,9 @@ interface PhoneTimelineProps {
   shownDay: { current: string | null };
   /** 搜索里点了一条、总览里点了一天：展开那天（seq 变了才算一次新的） */
   jump: { baseId: string; seq: number } | null;
+  /** 整条时间线放大几倍（1 是整趟一屏）；双指捏合、「看全部」改它 */
+  zoom: number;
+  onZoom: (zoom: number) => void;
 }
 
 /**
@@ -75,6 +84,8 @@ export function PhoneTimeline({
   blockText,
   shownDay,
   jump,
+  zoom,
+  onZoom,
 }: PhoneTimelineProps) {
   const selection = useBlockSelection();
   const timeZone = useTimeZone();
@@ -109,119 +120,259 @@ export function PhoneTimeline({
     return () => observer.disconnect();
   }, []);
   const measure = useMemo(() => makeMeasure(LABEL_FONT), []);
+
+  // 缩放（你提的：整体放大缩小，像电脑上的百分比）：放大的是横轴那一截，外面一层左右滚，「第 N 天」那一列钉在左边
+  const scroller = useRef<HTMLDivElement>(null);
+  const [viewWidth, setViewWidth] = useState(0);
+  useLayoutEffect(() => {
+    const node = scroller.current;
+    if (node === null) return;
+    const observer = new ResizeObserver(() => setViewWidth(node.clientWidth));
+    observer.observe(node);
+    setViewWidth(node.clientWidth);
+    return () => observer.disconnect();
+  }, []);
+  /** 1 倍时横轴多宽：可见宽度减去左边那一列和右边角标那一格 */
+  const baseAxis = Math.max(viewWidth - GUT - SLOT, 0);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const baseAxisRef = useRef(baseAxis);
+  baseAxisRef.current = baseAxis;
+  /** 捏合改了倍数：画完以后按它滚，两指中间那个钟点留在原处 */
+  const anchor = useRef<{ focusX: number; scrollLeft: number; oldWidth: number } | null>(null);
+  useLayoutEffect(() => {
+    const node = scroller.current;
+    const pending = anchor.current;
+    anchor.current = null;
+    if (node === null || pending === null) return;
+    node.scrollLeft = anchoredScroll({ ...pending, gutter: GUT, newWidth: baseAxis * zoom });
+  }, [zoom, baseAxis]);
+  // 双指捏合：照 iMovie、Final Cut Pro for iPad，不显示百分比。一根手指照常滚，两根手指才拦下浏览器自己的缩放
+  const onZoomRef = useRef(onZoom);
+  onZoomRef.current = onZoom;
+  useEffect(() => {
+    const node = scroller.current;
+    if (node === null) return;
+    let pinch: { distance: number; zoom: number; focusX: number } | null = null;
+    const spread = (touches: TouchList) =>
+      Math.hypot(touches[0]!.clientX - touches[1]!.clientX, touches[0]!.clientY - touches[1]!.clientY);
+    const onStart = (event: TouchEvent) => {
+      if (event.touches.length !== 2) return;
+      const middle = (event.touches[0]!.clientX + event.touches[1]!.clientX) / 2;
+      pinch = { distance: spread(event.touches), zoom: zoomRef.current, focusX: middle - node.getBoundingClientRect().left };
+    };
+    const onMove = (event: TouchEvent) => {
+      if (pinch === null || event.touches.length !== 2) return;
+      event.preventDefault();
+      const next = pinchZoom(pinch.zoom, pinch.distance, spread(event.touches));
+      if (next === zoomRef.current) return;
+      anchor.current = { focusX: pinch.focusX, scrollLeft: node.scrollLeft, oldWidth: baseAxisRef.current * zoomRef.current };
+      onZoomRef.current(next);
+    };
+    const onEnd = (event: TouchEvent) => {
+      if (event.touches.length < 2) pinch = null;
+    };
+    node.addEventListener("touchstart", onStart, { passive: true });
+    node.addEventListener("touchmove", onMove, { passive: false });
+    node.addEventListener("touchend", onEnd);
+    node.addEventListener("touchcancel", onEnd);
+    return () => {
+      node.removeEventListener("touchstart", onStart);
+      node.removeEventListener("touchmove", onMove);
+      node.removeEventListener("touchend", onEnd);
+      node.removeEventListener("touchcancel", onEnd);
+    };
+  }, []);
+  const zoomed = zoom > 1 && baseAxis > 0;
+
   // 画哪几个钟点：整趟共用一把尺（不共用就没法比），前一天延续过来的那一截不撑开它
   const hours = useMemo(() => hourWindow(plan, libraryView, false, { foldTails: true }), [plan, libraryView]);
+
+  // 拖（照 iMovie：长按到块浮起再拖、选中后拖两端把手）：只有展开那天的块接（你提的：展开「只是作为防止误触」）。
+  // 不判叠上去（metrics 给 null，一律放旁边）；吸到别的事的边上轻震一下；放大后拖到左右边外面那层自己滚
+  const drag = useTimelineDrag({
+    doc,
+    library,
+    plan,
+    libraryView,
+    rows,
+    filter,
+    metrics: null,
+    hours,
+    onDropped: (blockId) => selection.select(blockId, null),
+    onSnap: snapTick,
+    edgeScroller: scroller,
+  });
+  const shownPlan = drag.dropped?.plan ?? plan;
+  const shownRows = drag.dropped?.rows ?? rows;
   const folds = foldWidths(hours);
 
-  const selectedBlock = selection.selectedId === null ? undefined : plan.blocks.get(selection.selectedId);
+  // 拖动中不画快捷条
+  const selectedBlock = drag.dragView || selection.selectedId === null ? undefined : plan.blocks.get(selection.selectedId);
   const noticeShown = useNoticeShown();
   // 展开的那天被删了（天数变少了）：回到第一天。-1 是一天都没展开，不算
   if (open >= plan.bases.length && plan.bases.length > 0) setOpen(0);
 
   return (
-    <div className="phone-timeline">
-      {/* 钟点刻度：整趟共用，固定不横滚 */}
-      <div className="phone-axis">
-        {/* 刻度下面那条和条一样宽：右边也留出角标那一格 */}
-        {hourLines(hours)
-          .filter((hour) => hour % 3 === 0)
-          .map((hour) => (
-            <span key={hour} style={{ left: offsetCss(axisOffset(hours, hour * 60)) }}>
-              {String(hour).padStart(2, "0")}
-            </span>
-          ))}
-      </div>
-      <ol aria-label="每天">
-        {plan.bases.map((base, index) => {
-          const layout = rows[index]!;
-          const on = index === open;
-          const undated = undatedBlocks(plan, base, filter).length;
-          const [dayNumber, date] = labels[index]!.split(" · ");
-          const laneCount = Math.max(layout.laneCount, 1);
-          const height = on ? Math.max(FAT, laneCount * LANE + 2) : THIN;
-          return (
-            <li key={base.id} aria-label={labels[index]} data-base-id={base.id} data-open={on ? true : undefined}>
-              <div className="phone-day">
-                <button
-                  type="button"
-                  aria-expanded={on}
-                  className="phone-day-name"
-                  onClick={() => setOpen(on ? -1 : index)}
+    <div ref={drag.containerRef} className="phone-timeline" data-timeline-dragging={drag.dragView ? true : undefined}>
+      {/* 放大以后一点回到整趟一屏（代替 LumaFusion 的点两下：我们点一下是展开那天，点两下容易误触） */}
+      {zoom > 1 && (
+        <button
+          type="button"
+          className="phone-fit"
+          onClick={() => {
+            anchor.current = null;
+            if (scroller.current !== null) scroller.current.scrollLeft = 0;
+            onZoom(1);
+          }}
+        >
+          看全部
+        </button>
+      )}
+      <div
+        ref={scroller}
+        data-phone-scroll
+        data-zoom={zoom}
+        data-zoomed={zoomed ? true : undefined}
+        className="phone-scroll"
+        style={{ "--phone-view": `${viewWidth}px` } as CSSProperties}
+      >
+        <div style={zoomed ? { width: GUT + baseAxis * zoom + SLOT } : undefined}>
+          {/* 钟点刻度：整趟共用，放大时跟着一起滚 */}
+          <div className="phone-axis">
+            {/* 刻度下面那条和条一样宽：右边也留出角标那一格 */}
+            {hourLines(hours)
+              // 放大到 3 倍以上一小时有 40 像素，每个钟点都写得下
+              .filter((hour) => hour % (zoom >= 3 ? 1 : 3) === 0)
+              .map((hour) => (
+                <span key={hour} style={{ left: offsetCss(axisOffset(hours, hour * 60)) }}>
+                  {String(hour).padStart(2, "0")}
+                </span>
+              ))}
+          </div>
+          <ol aria-label="每天">
+            {plan.bases.map((base, index) => {
+              const layout = shownRows[index]!;
+              const on = index === open;
+              const undated = undatedBlocks(plan, base, filter).length;
+              const [dayNumber, date] = labels[index]!.split(" · ");
+              const laneCount = Math.max(layout.laneCount, 1);
+              const height = on ? Math.max(FAT, laneCount * LANE + 2) : THIN;
+              return (
+                <li
+                  key={base.id}
+                  ref={drag.rowRef(index)}
+                  aria-label={labels[index]}
+                  data-base-id={base.id}
+                  data-open={on ? true : undefined}
                 >
-                  {/* 「第 1 天」「10.1」两行；星期不写，那一列只有 42 像素，写了就换行 */}
-                  <span>{dayNumber}</span>
-                  {date !== undefined && <span className="phone-day-date">{date.replace(/\s*周.$/, "")}</span>}
-                </button>
-                <div
-                  ref={index === 0 ? axis : undefined}
-                  className="phone-track"
-                  style={{ height }}
-                  // 没展开的天：点条上哪儿都是展开这天，点到色块、底色也不选中——细条上的块太小点不准，看不见名字时选中也没用；
-                  // 抢在色块自己的点击之前接住。展开的那天：点色块是选中，点空白处收起
-                  onClickCapture={(event) => {
-                    if (on) return;
-                    event.stopPropagation();
-                    setOpen(index);
-                  }}
-                  onClick={(event) => {
-                    if (event.target === event.currentTarget) setOpen(-1);
-                  }}
-                >
-                  {/* 折起的那一截：钟点压在里面，画斜纹让人看出来 */}
-                  {folds.before > 0 && (
-                    <span aria-hidden data-fold="before" className="phone-fold" style={{ left: 0, width: folds.before }} />
-                  )}
-                  {folds.after > 0 && (
-                    <span aria-hidden data-fold="after" className="phone-fold" style={{ right: 0, width: folds.after }} />
-                  )}
-                  {layout.background.map((item) => (
-                    <Bar key={`${item.blockId}-${item.from}`} plan={plan} item={item} hours={hours} height={height} lanes={1} background />
-                  ))}
-                  {layout.main.map((item) => (
-                    <Bar key={`${item.blockId}-${item.from}`} plan={plan} item={item} hours={hours} height={height} lanes={laneCount} />
-                  ))}
-                  {base.date === today && (
-                    <span
-                      aria-hidden
-                      className="phone-now"
-                      style={{
-                        left: offsetCss(axisOffset(hours, (Date.parse(now()) - baseStartUtcMs(base.date, base.tz)) / 60_000)),
+                  <div className="phone-day">
+                    <button
+                      type="button"
+                      aria-expanded={on}
+                      className="phone-day-name"
+                      onClick={() => setOpen(on ? -1 : index)}
+                    >
+                      {/* 「第 1 天」「10.1」两行；星期不写，那一列只有 42 像素，写了就换行 */}
+                      <span>{dayNumber}</span>
+                      {date !== undefined && <span className="phone-day-date">{date.replace(/\s*周.$/, "")}</span>}
+                    </button>
+                    <div
+                      ref={(element) => {
+                        drag.axisRef(index)(element);
+                        if (index === 0) axis.current = element;
                       }}
+                      className="phone-track"
+                      style={{ height }}
+                      // 没展开的天：点条上哪儿都是展开这天，点到色块、底色也不选中——细条上的块太小点不准，看不见名字时选中也没用；
+                      // 抢在色块自己的点击之前接住。展开的那天：点色块是选中，点空白处收起
+                      onClickCapture={(event) => {
+                        if (on) return;
+                        event.stopPropagation();
+                        setOpen(index);
+                      }}
+                      onClick={(event) => {
+                        if (event.target === event.currentTarget) setOpen(-1);
+                      }}
+                    >
+                      {/* 折起的那一截：钟点压在里面，画斜纹让人看出来 */}
+                      {folds.before > 0 && (
+                        <span aria-hidden data-fold="before" className="phone-fold" style={{ left: 0, width: folds.before }} />
+                      )}
+                      {folds.after > 0 && (
+                        <span aria-hidden data-fold="after" className="phone-fold" style={{ right: 0, width: folds.after }} />
+                      )}
+                      {withGhosts(layout.background, rows[index]!.background, drag.dragView).map(({ item, ghost }) => (
+                        <Bar
+                          key={`${item.blockId}-${item.from}`}
+                          ghost={ghost}
+                          plan={shownPlan}
+                          item={item}
+                          hours={hours}
+                          height={height}
+                          lanes={1}
+                          background
+                          drag={on ? drag : null}
+                        />
+                      ))}
+                      {withGhosts(layout.main, rows[index]!.main, drag.dragView).map(({ item, ghost }) => (
+                        <Bar
+                          key={`${item.blockId}-${item.from}`}
+                          ghost={ghost}
+                          plan={shownPlan}
+                          item={item}
+                          hours={hours}
+                          height={height}
+                          lanes={laneCount}
+                          drag={on ? drag : null}
+                          handles={on && !drag.dragView && selection.selectedId === item.blockId}
+                        />
+                      ))}
+                      {base.date === today && (
+                        <span
+                          aria-hidden
+                          className="phone-now"
+                          style={{
+                            left: offsetCss(axisOffset(hours, (Date.parse(now()) - baseStartUtcMs(base.date, base.tz)) / 60_000)),
+                          }}
+                        />
+                      )}
+                    </div>
+                    {/* 这一格每天都留，没角标就空着：不然有角标的那天条短一截，块在天与天之间对不齐 */}
+                    <span className="phone-undated-slot">
+                      {undated > 0 && (
+                        <span className="phone-undated" title={`还有 ${undated} 件没排时间`}>
+                          +{undated}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  {on && (
+                    <OpenDay
+                      doc={doc}
+                      library={library}
+                      plan={plan}
+                      libraryView={libraryView}
+                      base={base}
+                      label={labels[index]!}
+                      index={index}
+                      layout={layout}
+                      hours={hours}
+                      width={trackWidth}
+                      measure={measure}
+                      filter={filter}
+                      tagText={(blockId, minutes, background) => tagText(plan, blockId, minutes, blockText, moneyCells, background)}
                     />
                   )}
-                </div>
-                {/* 这一格每天都留，没角标就空着：不然有角标的那天条短一截，块在天与天之间对不齐 */}
-                <span className="phone-undated-slot">
-                  {undated > 0 && (
-                    <span className="phone-undated" title={`还有 ${undated} 件没排时间`}>
-                      +{undated}
-                    </span>
-                  )}
-                </span>
-              </div>
-              {on && (
-                <OpenDay
-                  doc={doc}
-                  library={library}
-                  plan={plan}
-                  libraryView={libraryView}
-                  base={base}
-                  label={labels[index]!}
-                  index={index}
-                  layout={layout}
-                  hours={hours}
-                  width={trackWidth}
-                  measure={measure}
-                  filter={filter}
-                  tagText={(blockId, minutes, background) => tagText(plan, blockId, minutes, blockText, moneyCells, background)}
-                />
-              )}
-            </li>
-          );
-        })}
-      </ol>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </div>
       {/* 选中的那件：快捷条贴着屏幕下边，拇指够得着。挂到页面最外层——卡片有背景模糊，fixed 放在里面会以卡片为准；
           刚做完的提示也在底部，它在的时候让到它上面 */}
+      {drag.pointerLabel && <DragLabel label={drag.pointerLabel} />}
       {selectedBlock !== undefined &&
         createPortal(
           <div
@@ -256,6 +407,25 @@ export function firstOpenDay(bases: ReadonlyArray<{ date: string }>, today: stri
   return upcoming >= 0 ? upcoming : bases.length - 1;
 }
 
+/**
+ * 拖动中这一行要画的段：松手后的样子，再加上被拖的那件原来的段（隐形、不接点击）。
+ * 手指按着的就是原来那段：它要是从页面上拿掉了（挪到别的天、换了开始时刻），浏览器后面的触摸就找不到人拦，
+ * 当成滚动页面，把这次拖拽取消掉。原来那段还在松手后的样子里（没挪）就不用另画
+ */
+function withGhosts(
+  shown: readonly PlacedSegment[],
+  original: readonly PlacedSegment[],
+  dragView: DragView | null,
+): Array<{ item: PlacedSegment; ghost: boolean }> {
+  const items = shown.map((item) => ({ item, ghost: false }));
+  if (dragView === null || dragView.copying) return items;
+  const keys = new Set(shown.map((item) => `${item.blockId}-${item.from}`));
+  for (const item of original) {
+    if (item.blockId === dragView.blockId && !keys.has(`${item.blockId}-${item.from}`)) items.push({ item, ghost: true });
+  }
+  return items;
+}
+
 /** 一段横条。色块上一个字都不写：字在下面那几行 */
 function Bar({
   plan,
@@ -264,6 +434,9 @@ function Bar({
   height,
   lanes,
   background = false,
+  drag,
+  handles = false,
+  ghost = false,
 }: {
   plan: PlanView;
   item: PlacedSegment;
@@ -271,6 +444,12 @@ function Bar({
   height: number;
   lanes: number;
   background?: boolean;
+  /** 展开那天才给：接长按拖；没展开的天是 null，点哪儿都是展开 */
+  drag: { dragView: DragView | null; handlers: SegmentHandlers; handleHandlers: HandleHandlers } | null;
+  /** 选中着：两端画把手，按住直接拖改长短（照 iMovie 的黄色把手） */
+  handles?: boolean;
+  /** 拖动中被拖的那件原来的段：隐形留在原处，见 withGhosts */
+  ghost?: boolean;
 }) {
   const block = plan.blocks.get(item.blockId)!;
   const date = plan.bases.find((base) => base.id === block.start_base_id)!.date;
@@ -284,8 +463,15 @@ function Bar({
       data-track={item.track}
       data-continues-before={item.continuesBefore}
       data-continues-after={item.continuesAfter}
+      data-lifted={!ghost && drag?.dragView?.liftedId === item.blockId ? true : undefined}
+      data-ghost={ghost ? true : undefined}
+      data-follower={drag?.dragView?.followers.includes(item.blockId) ? true : undefined}
       className="absolute"
+      onPointerDown={drag ? (event) => drag.handlers.onPointerDown(event, item) : undefined}
+      onPointerMove={drag ? (event) => drag.handlers.onPointerMove(event, item) : undefined}
+      onClickCapture={drag?.handlers.onClickCapture}
       style={{
+        zIndex: drag?.dragView?.liftedId === item.blockId ? 10 : undefined,
         left: offsetCss(axisOffset(hours, item.from)),
         width: offsetCss(spanOffset(hours, item.from, item.to)),
         top: background ? 0 : 1 + (item.lane - 1) * laneHeight,
@@ -303,6 +489,24 @@ function Bar({
       >
         {/* 色块上一个字都不写：名字在条下面那几行 */}
       </BlockButton>
+      {handles && drag && !item.continuesBefore && (
+        <span
+          aria-hidden
+          data-handle="start"
+          className="phone-handle"
+          onPointerDown={(event) => drag.handleHandlers.onPointerDown(event, item, "start")}
+          onClickCapture={drag.handleHandlers.onClickCapture}
+        />
+      )}
+      {handles && drag && !item.continuesAfter && (
+        <span
+          aria-hidden
+          data-handle="end"
+          className="phone-handle"
+          onPointerDown={(event) => drag.handleHandlers.onPointerDown(event, item, "end")}
+          onClickCapture={drag.handleHandlers.onClickCapture}
+        />
+      )}
     </div>
   );
 }

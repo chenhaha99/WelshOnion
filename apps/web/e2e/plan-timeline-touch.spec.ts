@@ -28,8 +28,8 @@ async function pageScrollY(page: Page): Promise<number> {
   return page.evaluate(() => window.scrollY);
 }
 
-// 手机上这一版故意不能拖（长按拿起挪时间、拖到框边自己滚都没有了）：手指只管点，长按也不拿起来
-test("手机上用手指：点色块选中 → 没排时间的一件点一下选中 → 长按再挪也不拿起来、时间不变", async ({ page }) => {
+// 手机上点一下是选中；长按拿起来拖、把手、捏合见 plan-timeline-phone-drag.spec.ts
+test("手机上用手指：点色块选中 → 没排时间的一件点一下选中", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 2, { width: 390, height: 844 });
@@ -53,14 +53,7 @@ test("手机上用手指：点色块选中 → 没排时间的一件点一下选
   await page.keyboard.press("Escape");
   await expect(quickBar(page, "河坊街")).toBeHidden();
 
-  // 长按再往右挪（放最后：Chromium 模拟的手指挪过以后一两秒里点不出点击）：不拿起来、没有时间提示，计划不变
-  const lake = center(await box(segment(timeline, "西湖")));
-  await longPress(page, lake);
-  await fingerMove(page, lake, { x: lake.x + 60, y: lake.y });
-  await expect(page.locator("[data-lifted]")).toHaveCount(0);
-  await expect(page.locator("[data-drag-label]")).toHaveCount(0);
-  await fingerUp(page);
-  expect(await timeOf(day1Table, "西湖")).toBe("09:00–12:00");
+  // 长按拿起来拖见 plan-timeline-phone-drag.spec.ts
 
   expect(errors).toEqual([]);
 });
