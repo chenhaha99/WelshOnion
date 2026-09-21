@@ -147,3 +147,35 @@ test("放大着看上午时加一件事：落在屏幕外的钟点，时间线�
     })
     .toBe(true);
 });
+
+test("有事并排时：每个色块铺满自己那一道，选中后两端把手和色块一样高", async ({ page }) => {
+  await page.clock.setFixedTime(BEFORE_TRIP);
+  await newPlan(page, 1, { width: 390, height: 844 });
+  const d1 = page.getByRole("table", { name: DAY1 });
+  await addBlocks(page, d1, ["西湖", "午饭", "咖啡"]);
+  await schedule(page, d1, "西湖", "09:00", "3");
+  await schedule(page, d1, "午饭", "10:00", "2");
+  await schedule(page, d1, "咖啡", "11:00", "2");
+  await showView(page, "时间线");
+  const first = days(page).nth(0);
+
+  // 三道：色块（按钮）和它那一道（外框）上下对齐
+  const offsets = await first.locator("[data-segment]").evaluateAll((segments) =>
+    segments.map((segment) => {
+      const frame = segment.getBoundingClientRect();
+      const bar = segment.querySelector("button")!.getBoundingClientRect();
+      return Math.abs(bar.top - frame.top) + Math.abs(bar.bottom - frame.bottom);
+    }),
+  );
+  expect(offsets.length).toBe(3);
+  for (const offset of offsets) expect(offset).toBeLessThanOrEqual(0.5);
+
+  // 选中中间那道的「午饭」：点得到它，两端把手的上下和色块一样
+  await first.getByRole("button", { name: /^午饭 / }).click();
+  const bar = (await first.getByRole("button", { name: /^午饭 / }).boundingBox())!;
+  for (const edge of ["start", "end"]) {
+    const handle = (await page.locator(`[data-handle="${edge}"]`).boundingBox())!;
+    expect(Math.abs(handle.y - bar.y)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(handle.height - bar.height)).toBeLessThanOrEqual(0.5);
+  }
+});

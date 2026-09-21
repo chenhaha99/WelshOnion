@@ -1613,8 +1613,9 @@
  */
 .phone-handle {
   position: absolute;
-  top: -3px;
-  bottom: -3px;
+  /* 和色块一样高：并排时一道只有十几像素，伸出去就压到上下两道 */
+  top: 0;
+  bottom: 0;
   z-index: 11;
   width: 20px;
   touch-action: none;
@@ -1716,6 +1717,8 @@
 }
 
 .phone-bar {
+  /* 块级铺满自己那一道：按钮默认是行内块，道只有十几像素高时会按文字基线往下掉一截，和外框、把手对不上 */
+  display: block;
   width: 100%;
   height: 100%;
   border-radius: 0.25rem;
