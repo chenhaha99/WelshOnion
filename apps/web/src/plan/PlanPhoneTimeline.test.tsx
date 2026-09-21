@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
 import type { MoneyCell } from "./money-cells";
-import { firstOpenDay, tagItems, tagText } from "./PhoneTimeline";
+import { afterLastMinute, firstOpenDay, tagItems, tagText } from "./PhoneTimeline";
 import { readPhoneZoom, savePhoneZoom } from "./plan-phone-zoom-memory";
 import { renderApp } from "../app/test-render";
 import type { RowLayout } from "./timeline-layout";
@@ -164,6 +164,46 @@ describe("批量：手机上「对这 N 件…」在筛选那一行最前面", (
     const row = document.querySelector<HTMLElement>("[data-filter-row]")!;
     const first = row.querySelector("button")!;
     expect(first.getAttribute("aria-label") ?? first.textContent).toMatch(/^对这 4 件/);
+  });
+});
+
+describe("手机上加一件事：接在这天最后一件后面（照剪辑 App 加在播放头处）", () => {
+  it("接在主轨最后一件的结尾，1 小时；建完选中它，底部出快捷条；停留不算", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan, library) => {
+      const [oct1] = daysFromOct1(plan, 1);
+      block(plan, library, { baseId: oct1!, kindId: "stay", title: "在杭州", minute: 0, duration: 1440 });
+      block(plan, library, { baseId: oct1!, kindId: "food", title: "早饭", minute: 420, duration: 100 });
+      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 600, duration: 180 });
+    });
+    const region = await timeline();
+
+    await user.type(within(region).getByRole("textbox", { name: "加一件事" }), "午饭{Enter}");
+
+    expect(await within(region).findByRole("button", { name: /^午饭 13:00–14:00/ })).toBeTruthy();
+    expect(await screen.findByRole("toolbar", { name: "「午饭」的操作" })).toBeTruthy();
+    // 焦点还在框里，接着加：接在刚加的后面
+    await user.type(within(region).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");
+    expect(await within(region).findByRole("button", { name: /^河坊街 14:00–15:00/ })).toBeTruthy();
+  });
+
+  it("这天还空着：从 09:00 起", async () => {
+    const user = userEvent.setup();
+    await openStoredPlan((plan) => daysFromOct1(plan, 1));
+    const region = await timeline();
+
+    await user.type(within(region).getByRole("textbox", { name: "加一件事" }), "早饭{Enter}");
+
+    expect(await within(region).findByRole("button", { name: /^早饭 09:00–10:00/ })).toBeTruthy();
+  });
+
+  it.each([
+    ["空的一天：09:00", [], 540],
+    ["最后一件 10:00–13:00：13:00", [{ start: 600, duration: 180 }], 780],
+    ["先后不按顺序也取最晚的结尾", [{ start: 600, duration: 60 }, { start: 420, duration: 100 }], 660],
+    ["最后一件过了午夜：夹在 23:45", [{ start: 1320, duration: 180 }], 1425],
+  ])("落点：%s", (_name, blocks, expected) => {
+    expect(afterLastMinute(blocks)).toBe(expected);
   });
 });
 

@@ -398,6 +398,22 @@ export function PhoneTimeline({
   );
 }
 
+/** 手机上加一件事默认多长（分钟），和电脑上点空白处建的一样 */
+const ADD_MINUTES = 60;
+/** 这天还空着时从几点起 */
+const EMPTY_DAY_START = 540;
+/** 开始最晚几点：排上时间只收 00:00–23:45（同从栏里拖上时间线） */
+const LATEST_START = 1425;
+
+/**
+ * 手机上加一件事排在几点：这天主轨上各件事结尾最晚的那个（照 LumaFusion 播放头停在末尾时连着往后加）；
+ * 这天还空着从 09:00 起；最晚那件过了午夜就夹在 23:45。
+ */
+export function afterLastMinute(blocks: ReadonlyArray<{ start: number; duration: number }>): number {
+  if (blocks.length === 0) return EMPTY_DAY_START;
+  return Math.min(Math.max(...blocks.map((block) => block.start + block.duration)), LATEST_START);
+}
+
 /**
  * 第一次打开展开哪天：日期不早于今天的第一天，一天都没有就最后一天。
  * 一条规则管四种情况——还没出发是第一天，进行中是今天，今天那天被删了是今天之后最近的一天，已经结束是最后一天。
@@ -545,6 +561,12 @@ function OpenDay({
   tagText: TagText;
 }) {
   const dayMenu = useDayMenu({ doc, library, libraryView, plan, base, label, index, count: plan.bases.length, filter });
+  const selection = useBlockSelection();
+  // 加一件事落在这天主轨最后一件的结尾（照剪辑 App 加在播放头处；你同意的），停留、住宿这些底层的不算，前一天接过来的那截也不算
+  const lastEnds = layout.main
+    .filter((item) => !item.continuesBefore)
+    .map((item) => plan.blocks.get(item.blockId)!)
+    .map((block) => ({ start: block.start_minute!, duration: block.duration_min ?? 0 }));
   const undated = undatedBlocks(plan, base, filter);
   return (
     <div className="phone-open">
@@ -569,7 +591,17 @@ function OpenDay({
       )}
       {/* 最后一行：加一件事，右边是这天的操作（原来单独一行概况「在杭州 · 排了 N 小时 · 还有 K 件没排时间」，和角标、条下面的名字重复，去掉了） */}
       <div data-add-row className="phone-add-row">
-        <TimelineAddBlock doc={doc} library={library} plan={plan} baseId={base.id} filter={filter} className="input-bare select-text" />
+        <TimelineAddBlock
+          doc={doc}
+          library={library}
+          plan={plan}
+          baseId={base.id}
+          filter={filter}
+          className="input-bare select-text"
+          at={{ minute: afterLastMinute(lastEnds), duration: ADD_MINUTES }}
+          // 建完选中它：两端出把手、底部出快捷条，拖一下或点「时间」就能调（照 iMovie 点片段出黄色把手）
+          onAdded={(blockId) => selection.select(blockId, base.id)}
+        />
         {dayMenu.menu}
       </div>
       {dayMenu.form !== null && <div className="select-text">{dayMenu.form}</div>}

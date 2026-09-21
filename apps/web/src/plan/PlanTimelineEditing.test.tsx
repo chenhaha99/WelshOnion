@@ -133,7 +133,8 @@ describe("在时间线上加一件事", () => {
 
     await user.type(within(region).getByRole("textbox", { name: "加一件事" }), "河坊街{Enter}");
 
-    await waitFor(() => expect(chipNames(region)).toEqual(["河坊街 整天"]));
+    // 这天还空着：从 09:00 起 1 小时，直接排在时间线上（见 PlanPhoneTimeline「手机上加一件事」）
+    await waitFor(() => expect(within(region).getByRole("button", { name: /^河坊街 09:00–10:00/ })).toBeTruthy());
     expect(await blockTitles("10.2")).toEqual(["河坊街"]);
   });
 

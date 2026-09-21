@@ -1607,7 +1607,10 @@
   pointer-events: none;
 }
 
-/* 选中的块两端的把手（照 iMovie 的黄色把手）：往块外伸，热区 20 像素宽，按住直接拖，浏览器不拿它滚动 */
+/*
+ * 选中的块两端的把手（照 iMovie 的黄色把手）：热区 20 像素宽，整个在块外面——1 倍时一小时的块只有 13 像素，
+ * 把手要是伸进块里就把块盖满了，点它、长按拖它都按不到。按住把手直接拖，浏览器不拿它滚动
+ */
 .phone-handle {
   position: absolute;
   top: -3px;
@@ -1617,21 +1620,27 @@
   touch-action: none;
   cursor: ew-resize;
   &[data-handle="start"] {
-    left: -10px;
+    right: 100%;
   }
   &[data-handle="end"] {
-    right: -10px;
+    left: 100%;
   }
+  /* 画出来的那一条贴着块的边 */
   &::before {
     content: "";
     position: absolute;
     top: 0;
     bottom: 0;
-    left: 7px;
-    width: 6px;
+    width: 5px;
     border-radius: 3px;
     background-color: var(--color-ink);
     box-shadow: 0 0 0 1.5px white;
+  }
+  &[data-handle="start"]::before {
+    right: 0;
+  }
+  &[data-handle="end"]::before {
+    left: 0;
   }
 }
 

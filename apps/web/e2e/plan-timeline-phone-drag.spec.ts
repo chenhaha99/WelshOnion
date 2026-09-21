@@ -89,9 +89,11 @@ test("选中后两端有把手：按住右把手直接拖长（不用长按）�
   const handle = page.locator('[data-handle="end"]');
   await expect(handle).toHaveCount(1);
   const grip = center((await handle.boundingBox())!);
+  const breakfast = await box(segment(first, "早饭"));
   const lake = await box(segment(first, "西湖"));
+  // 把手在块外面：按的是把手中间，拖的距离让早饭的右沿落到西湖左沿左边 3 像素
   await fingerDown(page, grip);
-  await fingerMove(page, grip, { x: lake.x - 3, y: grip.y });
+  await fingerMove(page, grip, { x: grip.x + (lake.x - 3 - (breakfast.x + breakfast.width)), y: grip.y });
   await fingerUp(page);
   await expect(first.getByRole("button", { name: /^早饭 07:00–10:00/ })).toBeVisible();
 });

@@ -44,10 +44,12 @@ interface AddBlockProps {
   tagIds: string[];
   onAdded: (blockId: string) => void;
   className?: string;
+  /** 给了就直接排在这天这个钟点、这么长（手机时间线上）；不给是没排时间、在整天 */
+  at?: { minute: number; duration: number };
 }
 
-/** 「加一件事」：填标题回车就建，没排时间、在整天、没完成，类型和标签用给的；建完清空，焦点留着接着加。日程和时间线共用。 */
-export function AddBlock({ doc, library, baseId, kindId, tagIds, onAdded, className = "input-bare" }: AddBlockProps) {
+/** 「加一件事」：填标题回车就建，没完成，类型和标签用给的；建完清空，焦点留着接着加。日程和时间线共用。 */
+export function AddBlock({ doc, library, baseId, kindId, tagIds, onAdded, className = "input-bare", at }: AddBlockProps) {
   const [title, setTitle] = useState("");
   return (
     <input
@@ -61,7 +63,8 @@ export function AddBlock({ doc, library, baseId, kindId, tagIds, onAdded, classN
           event.preventDefault();
           const text = title.trim();
           if (text !== "") {
-            const added = addBlock(doc, library, { baseId, kindId, tagIds, title: text, slot: "day" });
+            const when = at === undefined ? { slot: "day" as const } : { minute: at.minute, duration: at.duration };
+            const added = addBlock(doc, library, { baseId, kindId, tagIds, title: text, ...when });
             if (added.ok) onAdded(added.value.blockId);
           }
           setTitle("");
@@ -80,10 +83,14 @@ interface TimelineAddBlockProps {
   baseId: string;
   filter: StatsFilter | undefined;
   className: string;
+  /** 见 AddBlock 的 at */
+  at?: { minute: number; duration: number };
+  /** 建好以后（在「被筛掉了」那一句之外）外面还要做的，比如选中它 */
+  onAdded?: (blockId: string) => void;
 }
 
 /** 时间线上一天的「加一件事」：时间线上没有「筛掉了 N 件」那一行，加的被筛掉了就在框下面写一句。 */
-export function TimelineAddBlock({ doc, library, plan, baseId, filter, className }: TimelineAddBlockProps) {
+export function TimelineAddBlock({ doc, library, plan, baseId, filter, className, at, onAdded }: TimelineAddBlockProps) {
   const dayBlocks = blocksOfDay(plan, baseId);
   const shown = dayBlocks.filter((block) => passesFilter(block, filter));
   const justAdded = useJustAdded(dayBlocks, shown, filter);
@@ -95,8 +102,12 @@ export function TimelineAddBlock({ doc, library, plan, baseId, filter, className
         baseId={baseId}
         kindId={addKindIdFor(filter)}
         tagIds={addTagIdsFor(filter)}
-        onAdded={justAdded.remember}
+        onAdded={(blockId) => {
+          justAdded.remember(blockId);
+          onAdded?.(blockId);
+        }}
         className={className}
+        at={at}
       />
       {justAdded.hidden !== undefined && (
         <p className="px-1.5 text-[11px] leading-4 text-ink-muted">{`刚加的「${justAdded.hidden.title}」被筛掉了`}</p>

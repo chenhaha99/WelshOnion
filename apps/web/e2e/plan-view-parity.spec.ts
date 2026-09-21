@@ -103,7 +103,7 @@ test("电脑上只在时间线里：加事 → 拖上去排时间、快捷条挂
   expect(errors).toEqual([]);
 });
 
-test("手机上只在时间线里：展开那天下面加事 → 点开从底部浮起、点暗底关掉 → 快捷条上排时间 → 这天的菜单插一天", async ({ page }) => {
+test("手机上只在时间线里：展开那天下面加事（直接排上时间、选中） → 点开从底部浮起、点暗底关掉 → 快捷条上改时间 → 这天的菜单插一天", async ({ page }) => {
   const errors = watchErrors(page);
   await page.clock.setFixedTime(BEFORE_TRIP);
   await newPlan(page, 2, { width: 390, height: 844 });
@@ -112,14 +112,16 @@ test("手机上只在时间线里：展开那天下面加事 → 点开从底部
   const days = timeline.getByRole("list", { name: "每天" }).getByRole("listitem");
   await expect(days.nth(0)).toHaveAttribute("data-open", "true");
 
-  // 展开那天下面加「西湖」：出现「没排时间」和它
+  // 展开那天下面加「西湖」：这天还空着，直接排在 09:00 起 1 小时，选中它（照剪辑 App 加在播放头处），没有「没排时间」
   await timeline.getByRole("textbox", { name: "加一件事" }).fill("西湖");
   await page.keyboard.press("Enter");
-  const tray = timeline.getByRole("group", { name: "没排时间" });
-  await expect(tray.getByRole("button", { name: "西湖 整天" })).toBeVisible();
+  const lake = days.nth(0).getByRole("button", { name: /^西湖 09:00–10:00/ });
+  await expect(lake).toBeVisible();
+  await expect(quickBar(page, "西湖")).toBeVisible();
+  await expect(timeline.getByRole("group", { name: "没排时间" })).toHaveCount(0);
 
   // 点开详情：从屏幕底部浮起，左右铺满、贴着底边，上面至少露出两成屏幕；里面只有标题这些，时间、开销在快捷条上
-  await openDetails(tray.getByRole("button", { name: "西湖 整天" }));
+  await openDetails(lake);
   const panel = page.getByRole("dialog", { name: "西湖" });
   const box = (await panel.boundingBox())!;
   expect(Math.round(box.x)).toBe(0);
@@ -133,17 +135,20 @@ test("手机上只在时间线里：展开那天下面加事 → 点开从底部
   await page.mouse.click(195, box.y / 2);
   await expect(panel).toBeHidden();
 
-  // 快捷条上的「时间」：排上 09:00 起 1 小时（手机上不能拖，这是排时间的入口）
+  // 快捷条上的「时间」：改成 10:00 起 2 小时（要对到某一分钟走这里）
+  // 关掉详情后还选中着：再点一下色块取消选中（两端把手在块外面，一小时的窄块也点得到），再点一下选中
+  await lake.click();
+  await expect(quickBar(page, "西湖")).toBeHidden();
+  await lake.click();
   const bar = quickBar(page, "西湖");
-  await bar.getByRole("button", { name: "时间：整天" }).click();
+  await bar.getByRole("button", { name: "时间：09:00–10:00" }).click();
   const time = page.getByRole("group", { name: "西湖 的时间" });
-  await time.getByLabel("开始").fill("09:00");
-  await time.getByRole("spinbutton", { name: "小时" }).fill("1");
+  await time.getByLabel("开始").fill("10:00");
+  await time.getByRole("spinbutton", { name: "小时" }).fill("2");
   await time.getByRole("spinbutton", { name: "分钟" }).fill("0");
-  await time.getByRole("button", { name: "排上时间" }).click();
-  await expect(days.nth(0).getByRole("button", { name: "西湖 09:00–10:00" })).toBeVisible();
-  await expect(tray).toHaveCount(0);
-  await expect(bar.getByRole("button", { name: "时间：09:00–10:00" })).toBeVisible();
+  await time.getByRole("button", { name: "保存" }).click();
+  await expect(days.nth(0).getByRole("button", { name: /^西湖 10:00–12:00/ })).toBeVisible();
+  await expect(bar.getByRole("button", { name: "时间：10:00–12:00" })).toBeVisible();
 
   // 这天的菜单：在下面插一天，变成三天，原来的第 2 天成了「第 3 天 · 10.3 周六」
   await days.nth(0).getByRole("button", { name: "这天的操作" }).click();
