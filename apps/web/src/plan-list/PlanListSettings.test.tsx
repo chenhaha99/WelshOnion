@@ -33,7 +33,7 @@ async function storePlan(name = "关西 10 天"): Promise<{ planId: string; file
 }
 
 async function cardNames(): Promise<string[]> {
-  const headings = await screen.findAllByRole("heading", { level: 2 });
+  const headings = await screen.findAllByRole("heading", { level: 3 });
   return headings.map((heading) => heading.textContent ?? "");
 }
 

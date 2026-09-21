@@ -1,9 +1,12 @@
+import type { LibraryView, PlanView } from "@welshonion/core";
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Menu } from "../app/Menu";
 import { navigate, planHref } from "../app/route";
 import { useLibrary, useNow, useTimeZone } from "../app/services";
 import { todayIn } from "../plan/day-labels";
 import { deletePlan, duplicatePlan } from "../storage/plans";
 import { planSummaryLine, type PlanSummaryFields } from "./format";
+import { PlanThumb } from "./PlanThumb";
 
 interface CardPlan extends PlanSummaryFields {
   plan_id: string;
@@ -12,22 +15,35 @@ interface CardPlan extends PlanSummaryFields {
 
 type Mode = "normal" | "confirm-delete" | "duplicate";
 
-export function PlanCard({ plan, currentYear }: { plan: CardPlan; currentYear: number }) {
+interface PlanCardProps {
+  plan: CardPlan;
+  currentYear: number;
+  /** 计划的内容（画迷你时间线）；还没读出来是 undefined，先画个空框 */
+  preview: PlanView | undefined;
+  libraryView: LibraryView;
+  /**
+   * 最上面那张「下一趟」（照 Apple Invites 的「下一个活动」倒计时）：卡片放大，标签写「下一趟」或「正在进行」，
+   * 名字下面多几行（「还有 11 天出发」「下一件 14:00 灵隐寺」）。别的和普通卡片一样，也有「⋯」
+   */
+  featured?: { label: string; lines: string[] };
+}
+
+export function PlanCard({ plan, currentYear, preview, libraryView, featured }: PlanCardProps) {
   const library = useLibrary();
   const [mode, setMode] = useState<Mode>("normal");
   const [deleting, setDeleting] = useState(false);
 
-  // 取消后焦点回到点开这一步的按钮，键盘用户不会丢位置
-  const deleteButton = useRef<HTMLButtonElement>(null);
-  const duplicateButton = useRef<HTMLButtonElement>(null);
+  // 取消后焦点回到「⋯」，键盘用户不会丢位置
+  const card = useRef<HTMLLIElement>(null);
   const previousMode = useRef<Mode>("normal");
   useEffect(() => {
-    if (mode === "normal" && previousMode.current === "confirm-delete") deleteButton.current?.focus();
-    if (mode === "normal" && previousMode.current === "duplicate") duplicateButton.current?.focus();
+    if (mode === "normal" && previousMode.current !== "normal") moreButton(card.current)?.focus();
     previousMode.current = mode;
   }, [mode]);
 
-  const title = <h2 className="truncate text-lg font-medium text-ink">{plan.name}</h2>;
+  const title = (
+    <h3 className={`truncate font-medium text-ink ${featured ? "text-2xl" : "text-lg"}`}>{plan.name}</h3>
+  );
   const backToNormal = () => setMode("normal");
 
   if (mode === "confirm-delete") {
@@ -67,12 +83,27 @@ export function PlanCard({ plan, currentYear }: { plan: CardPlan; currentYear: n
   }
 
   return (
-    <li className="glass-card glass-card-hover relative flex items-center gap-4 p-5">
+    <li
+      ref={card}
+      className={`plan-card glass-card glass-card-hover relative${featured ? " is-featured" : ""}`}
+      // 手机上长按卡片、电脑上右键：弹出和「⋯」同一个菜单（照备忘录、Final Cut Pro 长按出菜单）
+      onContextMenu={(event) => {
+        event.preventDefault();
+        moreButton(card.current)?.click();
+      }}
+    >
+      <div className="plan-card-thumb">{preview && <PlanThumb plan={preview} library={libraryView} />}</div>
       <a
         href={planHref(plan.plan_id)}
         className="flex min-w-0 flex-1 flex-col gap-1 rounded-sm after:absolute after:inset-0 after:rounded-2xl"
       >
+        {featured && <p className="text-sm font-medium text-sage-deep">{featured.label}</p>}
         {title}
+        {featured?.lines.map((line, index) => (
+          <p key={index} className={index === 0 ? "text-lg text-ink" : "text-ink-muted"}>
+            {line}
+          </p>
+        ))}
         {/* 手机上一行放不下时只在「 · 」处换行，「1 人」这样的一项不拆开 */}
         <p className="text-sm text-ink-muted tabular-nums">
           {planSummaryLine(plan, currentYear)
@@ -85,15 +116,35 @@ export function PlanCard({ plan, currentYear }: { plan: CardPlan; currentYear: n
             ))}
         </p>
       </a>
-      <div className="relative z-10 flex gap-1">
-        <button ref={duplicateButton} type="button" className="btn btn-ghost" onClick={() => setMode("duplicate")}>
-          复制
-        </button>
-        <button ref={deleteButton} type="button" className="btn btn-ghost" onClick={() => setMode("confirm-delete")}>
-          删除
-        </button>
+      {/* 复制、删除收在「⋯」里（照 iMovie Mac 项目名旁的「⋯」、Final Cut Pro 长按）：删除不该一伸手就点到 */}
+      <div className="relative z-10 self-start">
+        <Menu
+          label={`「${plan.name}」的操作`}
+          triggerClassName="btn btn-ghost btn-icon"
+          items={[
+            { label: "复制…", onSelect: () => setMode("duplicate") },
+            { label: "删除…", danger: true, onSelect: () => setMode("confirm-delete") },
+          ]}
+        >
+          <MoreIcon />
+        </Menu>
       </div>
     </li>
+  );
+}
+
+/** 卡片上「⋯」那个按钮 */
+function moreButton(card: HTMLElement | null): HTMLButtonElement | null {
+  return card?.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]') ?? null;
+}
+
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden fill="currentColor">
+      <circle cx="4.5" cy="10" r="1.6" />
+      <circle cx="10" cy="10" r="1.6" />
+      <circle cx="15.5" cy="10" r="1.6" />
+    </svg>
   );
 }
 

@@ -3,9 +3,9 @@ import * as Y from "yjs";
 import { addBlocks, addMoney, DAY1, newPlan, rowOf, schedule, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-/** 列表里计划卡片的标题；面板开着时它的标题也是二级标题，不在列表项里，不算。 */
+/** 列表里计划卡片的标题（三级标题）；只算列表项里的。 */
 function cardTitles(page: Page) {
-  return page.getByRole("listitem").getByRole("heading", { level: 2 });
+  return page.getByRole("listitem").getByRole("heading", { level: 3 });
 }
 
 /** 列表页上点「设置」；计划页的「计划设置」名字里也有「设置」，要精确匹配。 */
@@ -40,8 +40,9 @@ test("导出 → 删掉 → 空列表上导入恢复 → 再导入另存一份 �
   await expect(panel).toBeHidden();
 
   // 删掉计划，列表空了；空列表上也有「设置」，导入：进入计划，块和开销都在
-  const card = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: "国庆杭州" }) });
-  await card.getByRole("button", { name: "删除" }).click();
+  const card = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3, name: "国庆杭州" }) });
+  await card.getByRole("button", { name: "「国庆杭州」的操作" }).click();
+  await page.getByRole("menu").getByRole("menuitem", { name: "删除…" }).click();
   await card.getByRole("button", { name: "确认删除" }).click();
   await expect(page.getByRole("button", { name: "新建第一个计划" })).toBeVisible();
   await shot(page, "02-empty-with-settings");
@@ -56,7 +57,8 @@ test("导出 → 删掉 → 空列表上导入恢复 → 再导入另存一份 �
   await (await openSettings(page)).getByLabel("选择计划文件").setInputFiles(file);
   await expect(page.getByRole("heading", { level: 1, name: "国庆杭州（导入）" })).toBeVisible();
   await page.getByRole("link", { name: /我的计划/ }).click();
-  await expect(cardTitles(page)).toHaveText(["国庆杭州（导入）", "国庆杭州"]);
+  // 两份出发日期一样：谁在「下一趟」、谁在「即将出发」看 id，不比顺序
+  await expect.poll(async () => (await cardTitles(page).allTextContents()).sort()).toEqual(["国庆杭州", "国庆杭州（导入）"]);
 
   // 选一个不是计划的文件：写明原因，面板还开着，计划没变
   const wrong = await openSettings(page);

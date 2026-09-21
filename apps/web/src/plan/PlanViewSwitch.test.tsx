@@ -108,7 +108,7 @@ describe("时间线和日程切换着看", () => {
     await user.click(within(await viewSwitch()).getByRole("button", { name: "时间线" }));
 
     await user.click(screen.getByRole("link", { name: /我的计划/ }));
-    await user.click(await screen.findByRole("link", { name: /^测试计划/ }));
+    await user.click(await screen.findByRole("link", { name: /测试计划/ }));
 
     await waitFor(() => expect(pressedView()).toBe("时间线"));
     expect(await screen.findByRole("region", { name: "时间线" })).toBeTruthy();

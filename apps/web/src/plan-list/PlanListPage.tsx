@@ -1,12 +1,15 @@
-import { readLibrary } from "@welshonion/core";
+import { readLibrary, type LibraryView, type PlanIndexEntryView, type PlanView } from "@welshonion/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LateNotice } from "../app/Notice";
-import { useLibrary, useNow } from "../app/services";
+import { planHref } from "../app/route";
+import { useLibrary, useNow, useTimeZone } from "../app/services";
 import { useDocVersion } from "../app/use-doc-version";
 import { chipClass } from "../plan/FilterChips";
-import { reconcilePlans } from "../storage/plans";
+import { todayIn } from "../plan/day-labels";
+import { readPlanPreview, reconcilePlans } from "../storage/plans";
 import { AppSettings } from "./AppSettings";
 import { NewPlan } from "./NewPlan";
+import { countdownLine, groupPlans, nextPlan, nextThingLine } from "./home-groups";
 import { PlanCard } from "./PlanCard";
 import { PlansCalendar } from "./PlansCalendar";
 
@@ -51,7 +54,12 @@ export function PlanListPage() {
   }, [library, now]);
 
   const version = useDocVersion(library);
-  const plans = useMemo(() => byLastOpened([...readLibrary(library).planIndex.values()]), [library, version]);
+  const libraryView = useMemo(() => readLibrary(library), [library, version]);
+  const plans = useMemo(() => byLastOpened([...libraryView.planIndex.values()]), [libraryView]);
+  const timeZone = useTimeZone();
+  const today = todayIn(now(), timeZone);
+  const previews = usePlanPreviews(reconciled, plans);
+  const [pastOpen, setPastOpen] = useState(false);
 
   if (!reconciled) return <LateNotice>正在打开…</LateNotice>;
 
@@ -87,7 +95,7 @@ export function PlanListPage() {
 
   const currentYear = Number(now().slice(0, 4));
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-12">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-medium text-ink">我的计划</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -104,17 +112,142 @@ export function PlanListPage() {
         ))}
       </div>
       {view === "list" ? (
-        <ul className="flex flex-col gap-3">
-          {plans.map((plan) => (
-            <PlanCard key={plan.plan_id} plan={plan} currentYear={currentYear} />
-          ))}
-        </ul>
+        <PlanGroupsList
+          plans={plans}
+          today={today}
+          nowIso={now()}
+          currentYear={currentYear}
+          previews={previews}
+          libraryView={libraryView}
+          pastOpen={pastOpen}
+          onPastOpen={setPastOpen}
+        />
       ) : (
         <PlansCalendar plans={plans} currentYear={currentYear} />
       )}
       {settingsPanel}
     </main>
   );
+}
+
+/**
+ * 首页的列表：最上面「下一趟」大卡片，下面按时间分组（照 Apple Invites、TripIt）；已结束的默认收起。
+ * 「下一趟」那一趟不在下面的组里再出现一次。
+ */
+function PlanGroupsList({
+  plans,
+  today,
+  nowIso,
+  currentYear,
+  previews,
+  libraryView,
+  pastOpen,
+  onPastOpen,
+}: {
+  plans: PlanIndexEntryView[];
+  today: string;
+  nowIso: string;
+  currentYear: number;
+  previews: ReadonlyMap<string, PlanView>;
+  libraryView: LibraryView;
+  pastOpen: boolean;
+  onPastOpen: (open: boolean) => void;
+}) {
+  const groups = groupPlans(plans, today);
+  const next = nextPlan(groups);
+  const without = (list: PlanIndexEntryView[]) => list.filter((plan) => plan !== next);
+  const card = (plan: PlanIndexEntryView) => (
+    <PlanCard
+      key={plan.plan_id}
+      plan={plan}
+      currentYear={currentYear}
+      preview={previews.get(plan.plan_id)}
+      libraryView={libraryView}
+    />
+  );
+  const section = (label: string, list: PlanIndexEntryView[]) =>
+    list.length > 0 && (
+      <section aria-label={label} className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-ink-muted">{label}</h2>
+        <ul className="plan-grid">{list.map(card)}</ul>
+      </section>
+    );
+
+  return (
+    <div className="flex flex-col gap-8">
+      {next !== null && (
+        <section aria-label="下一趟">
+          <ul className="flex flex-col">
+            <PlanCard
+              plan={next}
+              currentYear={currentYear}
+              preview={previews.get(next.plan_id)}
+              libraryView={libraryView}
+              featured={featuredOf(next, today, nowIso, previews.get(next.plan_id), libraryView)}
+            />
+          </ul>
+        </section>
+      )}
+      {section("进行中", without(groups.ongoing))}
+      {section("即将出发", without(groups.upcoming))}
+      {section("还没排日期", groups.undated)}
+      {groups.past.length > 0 && (
+        <section aria-label="已结束" className="flex flex-col gap-3">
+          <button
+            type="button"
+            aria-expanded={pastOpen}
+            className="self-start text-sm font-medium text-ink-muted hover:text-ink"
+            onClick={() => onPastOpen(!pastOpen)}
+          >
+            {`已结束 · ${groups.past.length} ${pastOpen ? "▾" : "▸"}`}
+          </button>
+          {pastOpen && <ul className="plan-grid">{groups.past.map(card)}</ul>}
+        </section>
+      )}
+    </div>
+  );
+}
+
+/** 「下一趟」卡片上的标签和几行字：进行中写第几天、今天的下一件；还没出发写还有几天。 */
+function featuredOf(
+  plan: PlanIndexEntryView,
+  today: string,
+  nowIso: string,
+  preview: PlanView | undefined,
+  libraryView: LibraryView,
+): { label: string; lines: string[] } {
+  const ongoing = plan.date_start !== null && plan.date_start <= today;
+  const thing = ongoing && preview ? nextThingLine(preview, libraryView, nowIso) : null;
+  return { label: ongoing ? "正在进行" : "下一趟", lines: [countdownLine(plan, today), ...(thing === null ? [] : [thing])] };
+}
+
+/**
+ * 每个计划的内容（迷你时间线、今天的下一件要用）：对账完挨个只读打开、读完就关（不改最近打开）。
+ * 计划增删、改名时重读；读出来之前卡片先画空框。
+ */
+function usePlanPreviews(ready: boolean, plans: readonly PlanIndexEntryView[]): ReadonlyMap<string, PlanView> {
+  const library = useLibrary();
+  const [previews, setPreviews] = useState<ReadonlyMap<string, PlanView>>(new Map());
+  const key = plans.map((plan) => `${plan.plan_id}:${plan.day_count}:${plan.date_start}`).join("|");
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    void (async () => {
+      const next = new Map<string, PlanView>();
+      for (const plan of plans) {
+        const view = await readPlanPreview(library, plan.plan_id);
+        if (cancelled) return;
+        if (view !== null) next.set(plan.plan_id, view);
+      }
+      setPreviews(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // 只在计划的增删、日期变了时重读；plans 每次都是新数组
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, library, key]);
+  return previews;
 }
 
 /** 最近打开的排最前；打开时间相同的按 plan_id 排，顺序固定。 */

@@ -70,6 +70,21 @@ export async function exportPlanFile(library: Y.Doc, planId: string, now: string
   return { name, fileName: planFileName(name), text };
 }
 
+/**
+ * 首页读一个计划的内容（迷你时间线、今天的下一件）：只读，读完就关，不接标签页同步、不改最近打开。
+ * 本机没有（打开时顺手建出了空数据库）就删掉那个空库，返回 null。
+ */
+export async function readPlanPreview(library: Y.Doc, planId: string): Promise<core.PlanView | null> {
+  const stored = await loadPlan(planId);
+  if (!stored) {
+    await deleteDatabase(planDbName(planId));
+    return null;
+  }
+  const view = core.readPlan(stored.doc, core.readLibrary(library));
+  await stored.close();
+  return view;
+}
+
 /** 「计划名.welshonion.json」：文件名不能用的字符（按最严的 Windows）换成下划线，空了用「未命名计划」。 */
 export function planFileName(name: string): string {
   const safe = [...name].map((char) => (char < " " || '\\/:*?"<>|'.includes(char) ? "_" : char)).join("").trim();

@@ -89,7 +89,7 @@ describe("计划设置抽屉", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "关西 10 天" })).toBeTruthy();
     await user.click(screen.getByRole("link", { name: /我的计划/ }));
-    expect(await screen.findByRole("heading", { level: 2, name: "关西 10 天" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 3, name: "关西 10 天" })).toBeTruthy();
   });
 
   it("改每公里成本：按元填，存成分", async () => {

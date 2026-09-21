@@ -67,11 +67,11 @@ test("几天：新建 → 定 3 天 → 键盘插天 → 撤销重做 → 改时
   await expect(page.getByRole("button", { name: "国庆中秋 · 华东自驾" })).toBeFocused();
 
   await page.getByRole("link", { name: /我的计划/ }).click();
-  await expect(page.getByRole("heading", { level: 2, name: "国庆中秋 · 华东自驾" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 3, name: "国庆中秋 · 华东自驾" })).toBeVisible();
   await expect(page.getByText("10.1 – 10.4 · 4 天 · 3 人")).toBeVisible();
   await shot(page, "06-list-updated");
 
-  await page.getByRole("heading", { level: 2, name: "国庆中秋 · 华东自驾" }).click();
+  await page.getByRole("heading", { level: 3, name: "国庆中秋 · 华东自驾" }).click();
   await expect(list).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await shot(page, "07-mobile-days");

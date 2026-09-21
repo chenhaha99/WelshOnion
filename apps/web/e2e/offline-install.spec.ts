@@ -115,7 +115,7 @@ test("断网刷新：列表和计划页照常，能加一件事", async ({ page,
   const days = page.getByRole("list", { name: "每天" }).getByRole("listitem");
   await expect(days).toHaveCount(3);
   await page.getByRole("link", { name: /我的计划/ }).click();
-  const card = page.getByRole("heading", { level: 2, name: "关西 10 天" });
+  const card = page.getByRole("heading", { level: 3, name: "关西 10 天" });
   await expect(card).toBeVisible();
 
   // 离线缓存装好再断网、刷新

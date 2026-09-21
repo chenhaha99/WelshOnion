@@ -31,8 +31,10 @@ test("复制计划：有块有开销的计划 → 日程里复制到明年 → �
 
   // 回列表，在卡片上复制到 2027-04-29
   await page.getByRole("link", { name: /我的计划/ }).click();
-  const sourceCard = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: "关西 10 天", exact: true }) });
-  await sourceCard.getByRole("button", { name: "复制" }).click();
+  const sourceCard = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3, name: "关西 10 天", exact: true }) });
+  const moreButton = sourceCard.getByRole("button", { name: "「关西 10 天」的操作" });
+  await moreButton.click();
+  await page.getByRole("menu").getByRole("menuitem", { name: "复制…" }).click();
   await expect(sourceCard.getByLabel("名字")).toHaveValue("关西 10 天 副本");
   await expect(sourceCard.getByLabel("名字")).toBeFocused();
   await sourceCard.getByLabel("新的出发日期").fill("2027-04-29");
@@ -52,16 +54,17 @@ test("复制计划：有块有开销的计划 → 日程里复制到明年 → �
   await expect(copiedLake.locator("[data-money-cell]")).toHaveText("¥300");
   await shot(page, "02-copied-plan");
 
-  // 回列表两张卡；在原计划卡上只用键盘打开复制再 Esc：焦点回到「复制」
+  // 回列表两张卡；在原计划卡上只用键盘从「⋯」打开复制再 Esc：焦点回到「⋯」
   await page.getByRole("link", { name: /我的计划/ }).click();
-  await expect(page.getByRole("heading", { level: 2 })).toHaveCount(2);
-  const copyButton = sourceCard.getByRole("button", { name: "复制" });
-  await copyButton.focus();
+  await expect(page.getByRole("heading", { level: 3 })).toHaveCount(2);
+  await moreButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menuitem", { name: "复制…" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(sourceCard.getByLabel("名字")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(sourceCard.getByLabel("名字")).toHaveCount(0);
-  await expect(copyButton).toBeFocused();
+  await expect(moreButton).toBeFocused();
 
   await page.setViewportSize({ width: 390, height: 844 });
   // 手机上卡片摘要一行放不下：只在「 · 」处换行，「1 人」这样的一项不拆开
@@ -69,7 +72,8 @@ test("复制计划：有块有开销的计划 → 日程里复制到明年 → �
   await expect(summaryParts).toHaveCount(3);
   expect(await summaryParts.evaluateAll((spans) => spans.every((span) => span.getClientRects().length === 1))).toBe(true);
   await shot(page, "03-mobile-list");
-  await copyButton.click();
+  await moreButton.click();
+  await page.getByRole("menu").getByRole("menuitem", { name: "复制…" }).click();
   await shot(page, "04-mobile-form");
 
   expect(errors).toEqual([]);

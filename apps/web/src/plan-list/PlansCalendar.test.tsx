@@ -46,7 +46,7 @@ describe("列表和日历切换着看", () => {
 
     const group = await views();
     expect(within(group).getByRole("button", { name: "列表", pressed: true })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "秋游", level: 2 })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "秋游", level: 3 })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "日历" })).toBeNull();
   });
 

@@ -179,7 +179,7 @@ describe("总览：一个环加圆心的开关", () => {
     await showRing(user, await card(), "时间");
 
     await user.click(screen.getByRole("link", { name: /我的计划/ }));
-    await user.click(await screen.findByRole("link", { name: /^测试计划/ }));
+    await user.click(await screen.findByRole("link", { name: /测试计划/ }));
 
     await waitFor(async () => expect(bigOne(await card())).toBe("16 小时"));
   });

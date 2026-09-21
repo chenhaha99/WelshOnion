@@ -3,11 +3,27 @@ import { shot, watchErrors } from "./walkthrough";
 
 /** 页面报错、React 在控制台喊的警告，都算走查不通过。 */
 function cardTitles(page: Page) {
-  return page.getByRole("heading", { level: 2 });
+  return page.getByRole("heading", { level: 3 });
+}
+
+/** 卡片名（不排序比）：没排日期的计划在「还没排日期」组里按 id 排，顺序不固定 */
+async function expectCards(page: Page, names: string[]): Promise<void> {
+  await expect.poll(async () => (await cardTitles(page).allTextContents()).sort()).toEqual([...names].sort());
 }
 
 function card(page: Page, name: string) {
-  return page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name }) });
+  return page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3, name }) });
+}
+
+/** 卡片右上的「⋯」 */
+function moreButton(page: Page, name: string) {
+  return card(page, name).getByRole("button", { name: `「${name}」的操作` });
+}
+
+/** 点「⋯」再点菜单里的一项 */
+async function chooseAction(page: Page, name: string, item: "复制…" | "删除…"): Promise<void> {
+  await moreButton(page, name).click();
+  await page.getByRole("menu").getByRole("menuitem", { name: item }).click();
 }
 
 async function createPlan(page: Page, button: string, name: string): Promise<void> {
@@ -38,23 +54,32 @@ test("第一次打开 → 新建 → 回列表 → 打开 → 删除", async ({ 
 
   await createPlan(page, "新建计划", "关西 10 天");
   await page.getByRole("link", { name: /我的计划/ }).click();
-  await expect(cardTitles(page)).toHaveText(["关西 10 天", "国庆中秋 · 华东自驾"]);
+  await expectCards(page, ["关西 10 天", "国庆中秋 · 华东自驾"]);
+  // 都没排日期：在「还没排日期」组里
+  await expect(page.getByRole("region", { name: "还没排日期" }).getByRole("heading", { level: 3 })).toHaveCount(2);
   await shot(page, "05-list-two");
 
-  // 打开旧的那个，用浏览器的后退回来，它排到最前
+  // 打开一个，用浏览器的后退回来，两张卡都还在
   await card(page, "国庆中秋 · 华东自驾").getByRole("link").click();
   await expect(page.getByRole("heading", { level: 1, name: "国庆中秋 · 华东自驾" })).toBeVisible();
   await page.goBack();
-  await expect(cardTitles(page)).toHaveText(["国庆中秋 · 华东自驾", "关西 10 天"]);
-  await shot(page, "06-reordered");
+  await expectCards(page, ["国庆中秋 · 华东自驾", "关西 10 天"]);
 
-  // 删除：确认时焦点在「取消」；Esc 取消后焦点回到「删除」
-  await card(page, "关西 10 天").getByRole("button", { name: "删除" }).click();
+  // 右键卡片也打开「⋯」菜单，Esc 关掉
+  await card(page, "关西 10 天").click({ button: "right" });
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(moreButton(page, "关西 10 天")).toHaveAttribute("aria-expanded", "true");
+  await shot(page, "06-context-menu");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toBeHidden();
+
+  // 删除：从「⋯」进；确认时焦点在「取消」；Esc 取消后焦点回到「⋯」
+  await chooseAction(page, "关西 10 天", "删除…");
   await expect(card(page, "关西 10 天").getByRole("button", { name: "取消" })).toBeFocused();
   await shot(page, "07-confirm");
   await page.keyboard.press("Escape");
-  await expect(card(page, "关西 10 天").getByRole("button", { name: "删除" })).toBeFocused();
-  await card(page, "关西 10 天").getByRole("button", { name: "删除" }).click();
+  await expect(moreButton(page, "关西 10 天")).toBeFocused();
+  await chooseAction(page, "关西 10 天", "删除…");
   await card(page, "关西 10 天").getByRole("button", { name: "确认删除" }).click();
   await expect(cardTitles(page)).toHaveText(["国庆中秋 · 华东自驾"]);
   await shot(page, "08-after-delete");
@@ -87,7 +112,7 @@ test("两个标签页：一边新建另一边就出现；开着的计划被删�
   await expect(tabA.getByRole("heading", { level: 1, name: "杭州" })).toBeVisible();
 
   await tabB.getByRole("link", { name: /我的计划/ }).click();
-  await card(tabB, "杭州").getByRole("button", { name: "删除" }).click();
+  await chooseAction(tabB, "杭州", "删除…");
   await card(tabB, "杭州").getByRole("button", { name: "确认删除" }).click();
   await expect(tabB.getByRole("button", { name: "新建第一个计划" })).toBeVisible();
   await expect(tabA.getByRole("heading", { name: "这个计划已经删除了" })).toBeVisible();

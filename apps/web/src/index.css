@@ -1862,3 +1862,95 @@
   min-width: 0;
   flex: 1;
 }
+
+/*
+ * 首页（计划列表）：卡片带迷你时间线当缩略图（照 iMovie 取一帧当项目缩略图，我们的画面就是时间线）。
+ * 手机上一列，缩略图在左；宽了排成两三列，缩略图在上面
+ */
+.plan-grid {
+  display: grid;
+  gap: 0.75rem;
+  @media (width >= 40rem) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (width >= 64rem) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.plan-card {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 0.75rem 0.875rem 0.875rem;
+  @media (width >= 40rem) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 1rem;
+    & > .plan-card-thumb {
+      grid-column: 1 / -1;
+      height: 4.5rem;
+    }
+  }
+}
+
+.plan-card-thumb {
+  height: 3.25rem;
+  border-radius: 0.5rem;
+  background-color: rgb(47 58 69 / 0.045);
+  overflow: hidden;
+}
+
+/* 迷你时间线：每天一条，天多了条变细，最粗 9 像素 */
+.plan-thumb {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 6px;
+}
+
+.plan-thumb-row {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 1px;
+  max-height: 9px;
+  border-radius: 2px;
+  background-color: rgb(47 58 69 / 0.05);
+}
+
+.plan-thumb-bar,
+.plan-thumb-back {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background-color: var(--kind-color);
+}
+
+.plan-thumb-back {
+  background-color: color-mix(in srgb, var(--kind-color) 25%, transparent);
+}
+
+/* 最上面「下一趟」：一张放大的卡片，字在左、迷你时间线在右；手机上迷你时间线挪到下面 */
+.plan-card.is-featured {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 1.25rem;
+  & > .plan-card-thumb {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: 6.5rem;
+  }
+  & .plan-thumb-row {
+    max-height: 13px;
+  }
+  @media (width >= 40rem) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+    padding: 1.5rem;
+    & > .plan-card-thumb {
+      grid-column: 2;
+      grid-row: 1;
+    }
+  }
+}
