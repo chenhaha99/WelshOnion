@@ -1,6 +1,8 @@
 import { useMemo, useSyncExternalStore } from "react";
 
-export type Route = { page: "list" } | { page: "plan"; planId: string };
+export type Route = { page: "list" } | { page: "plan"; planId: string } | { page: "help" };
+
+export const HELP_HREF = "#/help";
 
 export const LIST_HREF = "#/";
 
@@ -8,8 +10,9 @@ export function planHref(planId: string): string {
   return `#/plans/${planId}`;
 }
 
-/** `#/plans/<id>` 是计划页，其他网址一律当列表。 */
+/** `#/plans/<id>` 是计划页，`#/help` 是「怎么用」，其他网址一律当列表。 */
 export function parseRoute(hash: string): Route {
+  if (hash === HELP_HREF) return { page: "help" };
   const match = /^#\/plans\/([^/]+)$/.exec(hash);
   return match?.[1] ? { page: "plan", planId: match[1] } : { page: "list" };
 }

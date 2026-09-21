@@ -1,3 +1,5 @@
+import { markUsed } from "../help/help-usage";
+import { bumpCount } from "../help/tips";
 import {
   duplicateBlock,
   followersOf,
@@ -48,6 +50,7 @@ import {
   droppedRows,
   ontoAt,
   placementOf,
+  type DropAction,
   type DropInput,
 } from "./timeline-drop";
 import type { WideMetrics } from "./timeline-geometry";
@@ -579,6 +582,7 @@ export function useTimelineDrag({
    */
   const finishBlank = (done: Drag) => {
     if (done.cancelled || (!done.active && (done.touch || done.blankBusy))) return;
+    markUsed("blank-add");
     latest.current.onBlankRange?.(blankRangeOf(done, latest.current.plan.bases.length));
   };
 
@@ -587,6 +591,7 @@ export function useTimelineDrag({
     const { doc, library, plan, libraryView } = latest.current;
     const action = dropAction(done, plan);
     if (!action) return;
+    recordUsage(done, action);
     switch (action.kind) {
       case "undated": {
         if (!action.copy) {
@@ -855,6 +860,18 @@ export function useTimelineDrag({
     },
     containerRef,
   };
+}
+
+/**
+ * 拖完了：记下用过哪个藏起来的手势（场景小提示用过就不再出、「怎么用」页上打勾），再数一次拖过几次（提示的出现条件）。
+ */
+function recordUsage(done: Drag, action: DropAction): void {
+  bumpCount("drags");
+  if (action.kind === "move" && action.copy && !done.forceCopy) markUsed("alt-copy");
+  if ((action.kind === "move" || action.kind === "timed") && action.ontoId !== null) markUsed("onto");
+  if (done.source === "chip" && action.kind === "timed") markUsed("tray-to-axis");
+  if (done.touch && done.hold && done.source === "segment" && done.mode === "move") markUsed("long-press-drag");
+  if (done.touch && !done.hold && done.mode !== "move") markUsed("handle-drag");
 }
 
 /**

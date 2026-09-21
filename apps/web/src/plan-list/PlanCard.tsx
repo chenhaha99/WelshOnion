@@ -1,3 +1,4 @@
+import { markUsed } from "../help/help-usage";
 import type { LibraryView, PlanView } from "@welshonion/core";
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Menu } from "../app/Menu";
@@ -7,6 +8,7 @@ import { todayIn } from "../plan/day-labels";
 import { deletePlan, duplicatePlan } from "../storage/plans";
 import { planSummaryLine, type PlanSummaryFields } from "./format";
 import { PlanThumb } from "./PlanThumb";
+import { isSamplePlan } from "./sample-plan";
 
 interface CardPlan extends PlanSummaryFields {
   plan_id: string;
@@ -42,7 +44,11 @@ export function PlanCard({ plan, currentYear, preview, libraryView, featured }: 
   }, [mode]);
 
   const title = (
-    <h3 className={`truncate font-medium text-ink ${featured ? "text-2xl" : "text-lg"}`}>{plan.name}</h3>
+    <div className="flex min-w-0 items-center gap-2">
+      <h3 className={`truncate font-medium text-ink ${featured ? "text-2xl" : "text-lg"}`}>{plan.name}</h3>
+      {/* 示例计划挂个角标：一眼看出这趟不是你自己排的 */}
+      {isSamplePlan(plan) && <span className="sample-badge">示例</span>}
+    </div>
   );
   const backToNormal = () => setMode("normal");
 
@@ -89,6 +95,7 @@ export function PlanCard({ plan, currentYear, preview, libraryView, featured }: 
       // 手机上长按卡片、电脑上右键：弹出和「⋯」同一个菜单（照备忘录、Final Cut Pro 长按出菜单）
       onContextMenu={(event) => {
         event.preventDefault();
+        markUsed("card-menu");
         moreButton(card.current)?.click();
       }}
     >

@@ -185,6 +185,24 @@ describe("一个计划都没有时", () => {
   });
 });
 
+describe("示例计划（照 Final Cut Pro 的演示项目）", () => {
+  it("一个计划都没有时点「看看示例计划」：进入一趟排好的杭州三日游，回到首页它是「下一趟」，挂着「示例」角标", async () => {
+    const user = userEvent.setup();
+    renderApp("#/");
+
+    await user.click(await screen.findByRole("button", { name: "看看示例计划" }));
+
+    // 计划页标题是一个能点了改名的按钮
+    expect(await screen.findByRole("button", { name: "示例：杭州三日游" })).toBeTruthy();
+    await user.click(screen.getByRole("link", { name: /我的计划/ }));
+    const next = await screen.findByRole("region", { name: "下一趟" });
+    expect(within(next).getByRole("heading", { name: "示例：杭州三日游", level: 3 })).toBeTruthy();
+    expect(within(next).getByText("示例")).toBeTruthy();
+    // 今天 9.14，示例从下周 9.21 开始
+    expect(within(next).getByText("还有 7 天出发")).toBeTruthy();
+  });
+});
+
 describe("新建计划", () => {
   it("填了名字：按回车，进入计划，回到列表能看到", async () => {
     const user = userEvent.setup();

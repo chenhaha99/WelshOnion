@@ -1,3 +1,4 @@
+import { HELP_HREF } from "../app/route";
 import type { PlanIndexEntryView } from "@welshonion/core";
 import { useRef, useState, type ChangeEvent } from "react";
 import { saveJsonFile } from "../app/download";
@@ -76,6 +77,12 @@ export function AppSettings({ plans, onClose }: AppSettingsProps) {
 
   return (
     <Drawer title="设置" onClose={onClose}>
+      <section className="flex flex-col gap-1">
+        <a href={HELP_HREF} className="self-start text-sm font-medium text-sage-deep hover:underline">
+          怎么用
+        </a>
+        <p className="text-xs text-ink-muted">界面上看不出来的手势和快捷键；还能再拿一份示例计划</p>
+      </section>
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-medium text-ink">导出计划</h3>

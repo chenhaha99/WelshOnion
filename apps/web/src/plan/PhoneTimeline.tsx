@@ -1,3 +1,4 @@
+import { markUsed } from "../help/help-usage";
 import { baseStartUtcMs, type LibraryView, type PlanView, type StatsFilter } from "@welshonion/core";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
@@ -176,6 +177,7 @@ export function PhoneTimeline({
       event.preventDefault();
       const next = pinchZoom(pinch.zoom, pinch.distance, spread(event.touches));
       if (next === zoomRef.current) return;
+      markUsed("pinch");
       anchor.current = { focusX: pinch.focusX, scrollLeft: node.scrollLeft, oldWidth: baseAxisRef.current * zoomRef.current };
       onZoomRef.current(next);
     };

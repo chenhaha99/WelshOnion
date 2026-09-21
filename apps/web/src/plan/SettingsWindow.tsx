@@ -1,3 +1,4 @@
+import { HELP_HREF } from "../app/route";
 import {
   backfillFuel,
   countBlocksUsing,
@@ -66,6 +67,10 @@ export function SettingsWindow({ doc, library, libraryView, plan, settings, onCl
               {label}
             </button>
           ))}
+          {/* 不是设置，是帮助：放在分区下面，点了去「怎么用」那一页 */}
+          <a href={HELP_HREF} className="mt-3 rounded-lg px-2.5 py-2 text-sm text-ink-muted hover:text-ink">
+            怎么用
+          </a>
         </div>
 
         <div

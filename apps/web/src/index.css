@@ -1954,3 +1954,53 @@
     }
   }
 }
+
+/* 示例计划卡片上的角标 */
+.sample-badge {
+  flex: none;
+  border: 1px solid color-mix(in srgb, var(--color-sage) 40%, transparent);
+  border-radius: 999px;
+  padding: 0 0.4rem;
+  font-size: 0.6875rem;
+  line-height: 1.1rem;
+  color: var(--color-sage-deep);
+}
+
+/* 「怎么用」页的一条：左边手势，右边做什么；手机上上下排 */
+.help-item {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  gap: 0.125rem 1rem;
+  font-size: 0.875rem;
+  @media (width < 40rem) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 用过的那条后面的勾 */
+.help-used {
+  margin-left: 0.5rem;
+  white-space: nowrap;
+  color: var(--color-sage-deep);
+  &::before {
+    content: "✓ ";
+  }
+}
+
+/* 场景小提示：嵌在界面里的一小条（照 TipKit 的 inline 提示，不挡住下面的东西） */
+.tip-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--color-sage) 30%, transparent);
+  border-radius: 0.75rem;
+  background-color: color-mix(in srgb, var(--color-sage) 8%, white);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.tip-bar-icon {
+  flex: none;
+  line-height: 1.35;
+}

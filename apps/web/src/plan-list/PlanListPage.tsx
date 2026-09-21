@@ -1,3 +1,4 @@
+import { HOME_TIPS, TipBar, useTip } from "../help/tips";
 import { readLibrary, type LibraryView, type PlanIndexEntryView, type PlanView } from "@welshonion/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LateNotice } from "../app/Notice";
@@ -11,6 +12,7 @@ import { AppSettings } from "./AppSettings";
 import { NewPlan } from "./NewPlan";
 import { countdownLine, groupPlans, nextPlan, nextThingLine } from "./home-groups";
 import { PlanCard } from "./PlanCard";
+import { SamplePlanButton } from "./SamplePlanButton";
 import { PlansCalendar } from "./PlansCalendar";
 
 // 列表还是日历，记在这台设备上（和计划页记住看哪个视图一样，不进资料库）
@@ -86,7 +88,10 @@ export function PlanListPage() {
         <main className="mx-auto flex max-w-xl flex-col items-center gap-5 px-6 py-28 text-center">
           <h1 className="text-4xl font-medium tracking-wider text-ink">葱葱</h1>
           <p className="text-ink-muted">把旅行排进时间线，每天满不满、钱花在哪，一眼看得见。</p>
-          <NewPlan label="新建第一个计划" />
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <NewPlan label="新建第一个计划" />
+            <SamplePlanButton />
+          </div>
         </main>
         {settingsPanel}
       </div>
@@ -175,6 +180,7 @@ function PlanGroupsList({
 
   return (
     <div className="flex flex-col gap-8">
+      <HomeTip plans={plans.length} />
       {next !== null && (
         <section aria-label="下一趟">
           <ul className="flex flex-col">
@@ -206,6 +212,12 @@ function PlanGroupsList({
       )}
     </div>
   );
+}
+
+/** 首页顶上那条提示 */
+function HomeTip({ plans }: { plans: number }) {
+  const { tip, close } = useTip(HOME_TIPS, { plans });
+  return tip === null ? null : <TipBar tip={tip} onClose={close} />;
 }
 
 /** 「下一趟」卡片上的标签和几行字：进行中写第几天、今天的下一件；还没出发写还有几天。 */

@@ -1,3 +1,4 @@
+import { bumpCount, readCounts, TIMELINE_TIPS, TipBar, useTip, type TimelineTipContext } from "../help/tips";
 import type { BaseView, BlockView, LibraryView, PlanView, StatsFilter } from "@welshonion/core";
 import {
   useLayoutEffect,
@@ -132,6 +133,12 @@ export function Timeline({
     );
   }, [plan, libraryView, filter]);
   const hasTimed = [...plan.blocks.values()].some((block) => block.start_minute !== null);
+  // 场景小提示（你同意的，照苹果 TipKit）：打开一次时间线数一次，提示的出现条件要用
+  const [counts] = useState(() => {
+    bumpCount("timelineVisits");
+    return readCounts();
+  });
+  const tipSelection = useBlockSelection();
   const wide = useWideScreen();
   // 「加第一件事」：电脑上点开第 1 天那一行的「＋」（弹出的框自己拿焦点）；
   // 手机上给展开那天的框焦点，一天都没展开（框不在）就先展开第 1 天，画完再给焦点
@@ -154,6 +161,18 @@ export function Timeline({
 
   return (
     <section ref={section} aria-label="时间线" className="glass-card flex flex-col gap-2 px-5 py-3 select-none">
+      {plan.blocks.size > 0 && (
+        <TimelineTip
+          ctx={{
+            phone: !wide,
+            selected: tipSelection.selectedId !== null,
+            hasTimed,
+            hasUndated: [...plan.blocks.values()].some((block) => block.start_minute === null),
+            visits: counts.timelineVisits,
+            drags: counts.drags,
+          }}
+        />
+      )}
       {/* 卡片名不写出来：上面「时间线」那个 tab 按着呢，读屏名在 section 的 aria-label 上 */}
       {plan.blocks.size === 0 ? (
         // 一件事都没有：栏是空的，栏下面的「加一件事」不显眼，直接给个按钮
@@ -224,6 +243,12 @@ interface WideTimelineProps {
   titleLines: number;
   hours: HourWindow;
   onExpandHours: () => void;
+}
+
+/** 时间线顶上那条提示：有该出的就出，没有就什么都不画 */
+function TimelineTip({ ctx }: { ctx: TimelineTipContext }) {
+  const { tip, close } = useTip(TIMELINE_TIPS, ctx);
+  return tip === null ? null : <TipBar tip={tip} onClose={close} />;
 }
 
 /**
