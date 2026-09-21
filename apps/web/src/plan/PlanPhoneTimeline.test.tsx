@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as Y from "yjs";
 import { releaseAll } from "../storage/test-helpers";
 import type { MoneyCell } from "./money-cells";
-import { firstOpenDay, tagText } from "./PhoneTimeline";
+import { firstOpenDay, tagItems, tagText } from "./PhoneTimeline";
+import type { RowLayout } from "./timeline-layout";
 import { daysFromOct1, openStoredPlan, showView, stubNarrowScreen } from "./test-helpers";
 
 // 测试里「现在」是 2026-09-14 18:00（北京），系统时区是北京，见 app/test-render.tsx
@@ -263,9 +264,10 @@ describe("一件事都没有", () => {
 });
 
 describe("展开的那天", () => {
-  it("底下一行写排了多久、还有几件没排时间，旁边是「这天的操作」", async () => {
+  it("没有概况那一行；「这天的操作」在「加一件事」同一行的右边", async () => {
     await openStoredPlan((plan, library) => {
       const [oct1] = daysFromOct1(plan, 1);
+      block(plan, library, { baseId: oct1!, kindId: "stay", title: "在杭州", minute: 0, duration: 1440 });
       block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
       block(plan, library, { baseId: oct1!, kindId: "sight", title: "灵隐寺", slot: "day" });
     });
@@ -273,20 +275,32 @@ describe("展开的那天", () => {
     const region = await timeline();
     const open = region.querySelector<HTMLElement>("li[data-open]")!;
 
-    expect(open.textContent).toContain("排了 3 小时 · 还有 1 件没排时间");
-    expect(within(open).getByRole("button", { name: "这天的操作" })).toBeTruthy();
+    expect(open.textContent).not.toContain("排了");
+    expect(open.textContent).not.toContain("件没排时间");
+    const add = within(open).getByRole("textbox", { name: "加一件事" });
+    const menu = within(open).getByRole("button", { name: "这天的操作" });
+    expect(menu.closest("[data-add-row]")).toBe(add.closest("[data-add-row]"));
+    expect(add.closest("[data-add-row]")).not.toBeNull();
   });
 
-  it("底层类型（停留）的标题写在概况最前面：这天在哪", async () => {
-    await openStoredPlan((plan, library) => {
-      const [oct1] = daysFromOct1(plan, 1);
-      block(plan, library, { baseId: oct1!, kindId: "stay", title: "在杭州", minute: 0, duration: 1440 });
-      block(plan, library, { baseId: oct1!, kindId: "sight", title: "西湖", minute: 540, duration: 180 });
-    });
+  it("底层类型（停留）也排进条下面那几行：只写名字，不写时长", () => {
+    const plan = {
+      blocks: new Map([
+        ["stay", { title: "在杭州" }],
+        ["lake", { title: "西湖" }],
+      ]),
+    } as unknown as PlanView;
+    const layout = {
+      background: [{ blockId: "stay", from: 0, to: 1440 }],
+      main: [{ blockId: "lake", from: 540, to: 720 }],
+    } as unknown as RowLayout;
+    const text = (blockId: string, minutes: number, background: boolean) =>
+      tagText(plan, blockId, minutes, { title: true, duration: true, money: false }, new Map(), background);
 
-    const region = await timeline();
-
-    expect(region.querySelector("li[data-open]")!.textContent).toContain("在杭州 · 排了 3 小时");
+    expect(tagItems(plan, layout, text)).toEqual([
+      { blockId: "stay", from: 0, full: "在杭州", short: "在杭州" },
+      { blockId: "lake", from: 540, full: "西湖 3 小时", short: "西湖" },
+    ]);
   });
 
   it("这天没排时间的那几件列出来，下面能加一件事", async () => {

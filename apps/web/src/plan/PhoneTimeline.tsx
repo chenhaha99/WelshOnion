@@ -213,7 +213,7 @@ export function PhoneTimeline({
                   width={trackWidth}
                   measure={measure}
                   filter={filter}
-                  tagText={(blockId, minutes) => tagText(plan, blockId, minutes, blockText, moneyCells)}
+                  tagText={(blockId, minutes, background) => tagText(plan, blockId, minutes, blockText, moneyCells, background)}
                 />
               )}
             </li>
@@ -345,11 +345,6 @@ function OpenDay({
   return (
     <div className="phone-open">
       {width > 0 && <DayLabels plan={plan} layout={layout} hours={hours} width={width} measure={measure} tagText={tagText} />}
-      <div className="phone-day-foot">
-        <span>{dayFoot(plan, layout, undated.length)}</span>
-        {dayMenu.menu}
-      </div>
-      {dayMenu.form !== null && <div className="select-text">{dayMenu.form}</div>}
       {/* 这天没排时间的那几件：点一下选中，快捷条上排时间 */}
       {undated.length > 0 && (
         <div className="flex flex-col gap-1">
@@ -368,7 +363,12 @@ function OpenDay({
           />
         </div>
       )}
-      <TimelineAddBlock doc={doc} library={library} plan={plan} baseId={base.id} filter={filter} className="input-bare select-text" />
+      {/* 最后一行：加一件事，右边是这天的操作（原来单独一行概况「在杭州 · 排了 N 小时 · 还有 K 件没排时间」，和角标、条下面的名字重复，去掉了） */}
+      <div data-add-row className="phone-add-row">
+        <TimelineAddBlock doc={doc} library={library} plan={plan} baseId={base.id} filter={filter} className="input-bare select-text" />
+        {dayMenu.menu}
+      </div>
+      {dayMenu.form !== null && <div className="select-text">{dayMenu.form}</div>}
     </div>
   );
 }
@@ -376,7 +376,7 @@ function OpenDay({
 const noop = () => {};
 
 /** 条下面一件事写什么：full 写得下写全，short 是右边放不下时退回的那版；「条上写」全关了是 null，这件事不写字也不画点 */
-type TagText = (blockId: string, minutes: number) => { full: string; short: string } | null;
+type TagText = (blockId: string, minutes: number, background: boolean) => { full: string; short: string } | null;
 
 /** 按「条上写」拼：标题、时长、开销依次，退回时只留第一样；没填开销的不写「填开销」（那是电脑上点了能填的按钮） */
 export function tagText(
@@ -385,15 +385,34 @@ export function tagText(
   minutes: number,
   shown: BlockText,
   moneyCells: Map<string, MoneyCell>,
+  background = false,
 ): { full: string; short: string } | null {
+  const title = plan.blocks.get(blockId)!.title;
+  // 底层类型（停留）铺满整条，时长、开销没意思：只写名字（这天在哪），关了「标题」就不写
+  if (background) return shown.title && title !== "" ? { full: title, short: title } : null;
   const cell = moneyCells.get(blockId);
   const parts = [
-    shown.title ? plan.blocks.get(blockId)!.title : null,
+    shown.title ? title : null,
     shown.duration ? durationLabel(minutes) : null,
     shown.money && !moneyCellEmpty(cell) ? moneyCellLabel(cell) : null,
   ].filter((part): part is string => part !== null && part !== "");
   if (parts.length === 0) return null;
   return { full: parts.join(" "), short: parts[0]! };
+}
+
+/** 条下面要写的几件：底层类型（停留）在前（跨天的也融进来，你提的：「跨天内容融合进去即可」），再是主轨上的事 */
+export function tagItems(
+  plan: PlanView,
+  layout: Pick<RowLayout, "background" | "main">,
+  tagText: TagText,
+): { blockId: string; from: number; full: string; short: string }[] {
+  return [
+    ...layout.background.map((item) => ({ item, background: true })),
+    ...layout.main.map((item) => ({ item, background: false })),
+  ].flatMap(({ item, background }) => {
+    const text = tagText(item.blockId, item.to - item.from, background);
+    return text === null ? [] : [{ blockId: item.blockId, from: item.from, ...text }];
+  });
 }
 
 /** 展开那天条下面的几行字：点钉在块的左边沿，一条同色的淡线直上直下连过去 */
@@ -412,17 +431,12 @@ function DayLabels({
   measure: (text: string) => number;
   tagText: TagText;
 }) {
-  const items: LabelInput[] = layout.main.flatMap((item) => {
-    const text = tagText(item.blockId, item.to - item.from);
-    if (text === null) return [];
-    return [
-      {
-        key: `${item.blockId}-${item.from}`,
-        x: (axisOffset(hours, item.from).pct / 100) * width + axisOffset(hours, item.from).px,
-        ...text,
-      },
-    ];
-  });
+  const items: LabelInput[] = tagItems(plan, layout, tagText).map(({ blockId, from, full, short }) => ({
+    key: `${blockId}-${from}`,
+    x: (axisOffset(hours, from).pct / 100) * width + axisOffset(hours, from).px,
+    full,
+    short,
+  }));
   const placed = packLabels(items, measure, width + SLOT);
   const rowCount = placed.length === 0 ? 0 : Math.max(...placed.map((label) => label.row)) + 1;
   if (rowCount === 0) return null;
@@ -462,11 +476,3 @@ function DayLabels({
   );
 }
 
-/** 展开那天底下那一行：这天在哪（底层类型那几件的标题，比如「在杭州」）、排了多久、还有几件没排 */
-function dayFoot(plan: PlanView, layout: RowLayout, undated: number): string {
-  const where = [...new Set(layout.background.map((item) => plan.blocks.get(item.blockId)!.title))];
-  const minutes = layout.main.reduce((sum, item) => sum + (item.to - item.from), 0);
-  const parts = [...where, minutes > 0 ? `排了 ${durationLabel(minutes)}` : "这天还没排时间"];
-  if (undated > 0) parts.push(`还有 ${undated} 件没排时间`);
-  return parts.join(" · ");
-}

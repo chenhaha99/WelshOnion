@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { DAY1, DAY2, DAY3, addBlocks, newPlan, pickKind, schedule, showView } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-/** 三天：第 1 天排满、夜里还有夜车；第 2 天两段；第 3 天一段 */
+/** 三天：第 1 天排满、夜里还有夜车；第 2 天住苏州（停留）加两段；第 3 天一段 */
 async function trip(page: Page): Promise<void> {
   await newPlan(page, 3, { width: 360, height: 844 });
   const d1 = page.getByRole("table", { name: DAY1 });
@@ -17,7 +17,9 @@ async function trip(page: Page): Promise<void> {
   await schedule(page, d1, "灵隐寺", "15:00", "3");
   await schedule(page, d1, "夜车去苏州", "20:00", "10", "10");
   const d2 = page.getByRole("table", { name: DAY2 });
-  await addBlocks(page, d2, ["苏州园林", "平江路"]);
+  await addBlocks(page, d2, ["住苏州", "苏州园林", "平江路"]);
+  await pickKind(page, d2, "住苏州", "停留");
+  await schedule(page, d2, "住苏州", "00:00", "24");
   await schedule(page, d2, "苏州园林", "09:00", "3");
   await schedule(page, d2, "平江路", "14:00", "3");
   const d3 = page.getByRole("table", { name: DAY3 });
@@ -71,7 +73,9 @@ test("手机上的时间线：一天一条横的 → 每天的条一样宽 → �
     }
   }
   expect(new Set(boxes.map((b) => b.t)).size).toBeLessThanOrEqual(3);
-  await expect(open).toContainText("排了 12.3 小时 · 还有 1 件没排时间");
+  // 没有概况那一行（和角标、名字重复）；「这天的操作」在「加一件事」那一行
+  await expect(open).not.toContainText("排了");
+  await expect(open.locator("[data-add-row]").getByRole("button", { name: "这天的操作" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   await shot(page, "01-phone-timeline");
 
@@ -79,6 +83,8 @@ test("手机上的时间线：一天一条横的 → 每天的条一样宽 → �
   await days.nth(1).getByRole("button", { name: /^第 2 天/ }).click();
   await expect(days.nth(1)).toHaveAttribute("data-open", "true");
   await expect(days.first()).not.toHaveAttribute("data-open", "true");
+  // 停留也排进条下面那几行，只写名字
+  await expect(days.nth(1).locator(".phone-tag", { hasText: "住苏州" })).toHaveText("住苏州");
 
   // 点色块：选中，屏幕底部浮出快捷条
   await region.getByRole("button", { name: /^苏州园林 / }).click();

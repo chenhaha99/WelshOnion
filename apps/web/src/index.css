@@ -1762,11 +1762,13 @@
   background-color: color-mix(in srgb, var(--kind-color) 45%, transparent);
 }
 
-.phone-day-foot {
+/* 展开那天最后一行：加一件事占满，右边是这天的操作 */
+.phone-add-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  font-size: 0.625rem;
-  color: var(--color-ink-muted);
+  gap: 0.25rem;
+}
+.phone-add-row > :first-child {
+  min-width: 0;
+  flex: 1;
 }
