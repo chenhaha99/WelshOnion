@@ -4,7 +4,7 @@ import { readLibrary, readPlan, type PlanView } from "../read";
 import { initLibraryDoc, initPlanDoc } from "../schema";
 import { addBase, addBlock as seedBlock, addExpense } from "../testing";
 import { previewSetBlockTimed, setBlockTimed } from "./blocks";
-import { duplicateBlock, moveBlock, previewDrop, resizeBlockStart, setBlockLayer, shiftDayFrom } from "./drag";
+import { duplicateBlock, moveBlock, previewDrop, resizeBlockStart, setBlockLayer } from "./drag";
 import { createPlanUndoManager } from "./origin";
 import type { OpResult } from "./result";
 
@@ -369,37 +369,5 @@ describe("叠放或拿出来", () => {
     setBlockLayer(planDoc, library, "lunch", "stay");
 
     expect(raw("lunch")?.has("layer")).toBe(false);
-  });
-});
-
-describe("从这里往后整体推迟", () => {
-  beforeEach(() => {
-    seedBlock(planDoc, "a", { start_base_id: "d1", start_minute: 780, duration_min: 300 });
-    seedBlock(planDoc, "b", { start_base_id: "d1", start_minute: 900, duration_min: 60 });
-    seedBlock(planDoc, "c", { start_base_id: "d1", start_minute: 1140, duration_min: 60 });
-  });
-
-  test("从 15:00 往后推迟 40 分钟", () => {
-    expect(shiftDayFrom(planDoc, library, "d1", 900, 40).ok).toBe(true);
-
-    expect(position("a")).toEqual(["d1", 780]);
-    expect(position("b")).toEqual(["d1", 940]);
-    expect(position("c")).toEqual(["d1", 1180]);
-  });
-
-  test("推迟到跨过午夜", () => {
-    seedBlock(planDoc, "e", { start_base_id: "d1", start_minute: 1430, duration_min: 30 });
-
-    shiftDayFrom(planDoc, library, "d1", 900, 40);
-
-    expect(position("e")).toEqual(["d2", 30]);
-  });
-
-  test("提前半小时", () => {
-    shiftDayFrom(planDoc, library, "d1", 900, -30);
-
-    expect(position("a")).toEqual(["d1", 780]);
-    expect(position("b")).toEqual(["d1", 870]);
-    expect(position("c")).toEqual(["d1", 1110]);
   });
 });

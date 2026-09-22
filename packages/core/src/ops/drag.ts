@@ -1,5 +1,5 @@
 /**
- * 拖拽那一族：挪块、复制块、拖左端改开始、叠放或拿出来、从这里往后整体推迟。
+ * 拖拽那一族：挪块、复制块、拖左端改开始、叠放或拿出来。
  * 跟着走的块在操作开始时只算一次；时间、层、跟着走的块在同一个事务里处理完，是一步撤销。
  *
  * 位置按「一行一天、每行 1440 分钟」换算：排好序的底座编号 0、1、2……，位置 = 行号 × 1440 + 分钟。
@@ -200,37 +200,6 @@ export function setBlockLayer(planDoc: Y.Doc, library: Y.Doc, blockId: string, o
     if (layerDelta === 0) return;
     for (const id of followerIds) {
       rawBlock(planDoc, id).set("layer", effectiveLayer(plan.blocks.get(id) as BlockView, libraryView) + layerDelta);
-    }
-  }, LOCAL_ORIGIN);
-  return done();
-}
-
-/** 这天、从这个分钟起开始的定时块（连同它们会带走的块）整体平移；已经开始的块不动，层不变。 */
-export function shiftDayFrom(
-  planDoc: Y.Doc,
-  library: Y.Doc,
-  baseId: string,
-  minute: number,
-  deltaMin: number,
-): OpResult {
-  const libraryView = readLibrary(library);
-  const plan = readPlan(planDoc, libraryView);
-  const rows = rowsOf(plan);
-  if (!rows.index.has(baseId)) return fail({ code: "NOT_FOUND", id: baseId });
-
-  const moving = new Set<string>();
-  for (const block of plan.blocks.values()) {
-    if (block.start_base_id === baseId && block.start_minute !== null && block.start_minute >= minute) {
-      moving.add(block.id);
-    }
-  }
-  for (const id of [...moving]) {
-    for (const follower of followersOf(plan, libraryView, id)) moving.add(follower);
-  }
-
-  planDoc.transact(() => {
-    for (const id of moving) {
-      place(rawBlock(planDoc, id), shifted(rows, plan.blocks.get(id) as BlockView, deltaMin));
     }
   }, LOCAL_ORIGIN);
   return done();

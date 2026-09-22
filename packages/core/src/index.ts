@@ -57,7 +57,6 @@ export {
   previewDrop,
   resizeBlockStart,
   setBlockLayer,
-  shiftDayFrom,
 } from "./ops/drag";
 export type { DropTarget } from "./ops/drag";
 export { addExpense, deleteExpense, linkExpense, unlinkExpense, updateExpense } from "./ops/expenses";
