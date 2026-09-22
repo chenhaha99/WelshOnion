@@ -200,8 +200,8 @@ describe("示例计划（照 Final Cut Pro 的演示项目）", () => {
     const next = await screen.findByRole("region", { name: "下一趟" });
     expect(within(next).getByRole("heading", { name: "示例：广州三日游", level: 3 })).toBeTruthy();
     expect(within(next).getByText("示例")).toBeTruthy();
-    // 今天 9.14，示例从下周 9.21 开始
-    expect(within(next).getByText("还有 7 天出发")).toBeTruthy();
+    // 今天 9.14（周一），示例从至少一周后的第一个周五 9.25 出发
+    expect(within(next).getByText("还有 11 天出发")).toBeTruthy();
   });
 });
 

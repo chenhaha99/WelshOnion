@@ -13,8 +13,19 @@ function freshPlan() {
 }
 
 describe("示例计划", () => {
-  it("从下周开始：今天 9.14 → 9.21", () => {
-    expect(sampleStartDate("2026-09-14")).toBe("2026-09-21");
+  it("至少一周后的第一个周五出发：今天 9.14（周一）→ 9.25（周五）", () => {
+    expect(sampleStartDate("2026-09-14")).toBe("2026-09-25");
+  });
+
+  it("不管今天星期几，都是周五出发、7 到 13 天后：三处的闭馆日都避开（陈家祠周二，南越王墓、省博周一）", () => {
+    for (let offset = 0; offset < 7; offset++) {
+      const today = new Date(Date.UTC(2026, 8, 21 + offset)).toISOString().slice(0, 10);
+      const start = sampleStartDate(today);
+      const days = (Date.parse(start) - Date.parse(today)) / 86_400_000;
+      expect(new Date(`${start}T00:00:00Z`).getUTCDay(), today).toBe(5);
+      expect(days, today).toBeGreaterThanOrEqual(7);
+      expect(days, today).toBeLessThanOrEqual(13);
+    }
   });
 
   it("一趟三天的广州，把功能都用上", () => {

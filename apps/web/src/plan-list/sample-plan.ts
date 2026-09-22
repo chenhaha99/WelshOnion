@@ -23,10 +23,15 @@ export function isSamplePlan(plan: { name: string }): boolean {
   return plan.name.startsWith("示例：");
 }
 
-/** 从下周开始：首页「下一趟」会是它，打开就看得到倒计时 */
+/**
+ * 至少一周后的第一个周五出发，周五到周日：首页「下一趟」会是它，打开就看得到倒计时；
+ * 固定周五还为了避开闭馆日——陈家祠（第 1 天）周二闭馆，南越王墓（第 2 天）、省博（第 3 天）周一闭馆
+ */
 export function sampleStartDate(today: string): string {
   const date = new Date(`${today}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + 7);
+  const FRIDAY = 5;
+  date.setUTCDate(date.getUTCDate() + ((FRIDAY - date.getUTCDay() + 7) % 7));
   return date.toISOString().slice(0, 10);
 }
 
