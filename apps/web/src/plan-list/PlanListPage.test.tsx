@@ -181,22 +181,24 @@ describe("一个计划都没有时", () => {
   it("第一次用", async () => {
     renderApp("#/");
     expect(await screen.findByRole("button", { name: "新建第一个计划" })).toBeTruthy();
-    expect(screen.getByText(/把旅行排进时间线/)).toBeTruthy();
+    // 口号和它下面那一句（和官网首屏一样）
+    expect(screen.getByText("流光可见，行程有度")).toBeTruthy();
+    expect(screen.getByText("把远方的每一刻，安放在时间线上")).toBeTruthy();
   });
 });
 
 describe("示例计划（照 Final Cut Pro 的演示项目）", () => {
-  it("一个计划都没有时点「看看示例计划」：进入一趟排好的杭州三日游，回到首页它是「下一趟」，挂着「示例」角标", async () => {
+  it("一个计划都没有时点「看看示例计划」：进入一趟排好的广州三日游，回到首页它是「下一趟」，挂着「示例」角标", async () => {
     const user = userEvent.setup();
     renderApp("#/");
 
     await user.click(await screen.findByRole("button", { name: "看看示例计划" }));
 
     // 计划页标题是一个能点了改名的按钮
-    expect(await screen.findByRole("button", { name: "示例：杭州三日游" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "示例：广州三日游" })).toBeTruthy();
     await user.click(screen.getByRole("link", { name: /我的计划/ }));
     const next = await screen.findByRole("region", { name: "下一趟" });
-    expect(within(next).getByRole("heading", { name: "示例：杭州三日游", level: 3 })).toBeTruthy();
+    expect(within(next).getByRole("heading", { name: "示例：广州三日游", level: 3 })).toBeTruthy();
     expect(within(next).getByText("示例")).toBeTruthy();
     // 今天 9.14，示例从下周 9.21 开始
     expect(within(next).getByText("还有 7 天出发")).toBeTruthy();
