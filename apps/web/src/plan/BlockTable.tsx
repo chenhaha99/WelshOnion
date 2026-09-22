@@ -17,9 +17,10 @@ import { CommitInput } from "../app/CommitInput";
 import { Menu, type MenuItem } from "../app/Menu";
 import { AddAtTime } from "./AddAtTime";
 import { AddBlock, addKindIdFor, addTagIdsFor, useJustAdded } from "./AddBlock";
-import { deleteBlockWithNotice, deleteLabel, undatedArrangeItems } from "./block-actions";
+import { copyBlockWithNotice, deleteBlockWithNotice, deleteLabel, undatedArrangeItems } from "./block-actions";
 import { blockTimeLabel, clock, durationLabel } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
+import { dayRowLabels } from "./day-labels";
 import { useNotifyDone } from "./DoneNotice";
 import { linkableExpenses } from "./expense-links";
 import { MoneyEditor } from "./MoneyEditor";
@@ -121,6 +122,9 @@ export function BlockTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleIds]);
   const kinds = [...libraryView.kinds.values()].sort(byOrder);
+  // 「复制到…」列出的每一天：一张表算一次，不在每一行里算
+  const labels = dayRowLabels(plan.bases);
+  const days = plan.bases.map((base, index) => ({ baseId: base.id, label: labels[index]! }));
   const tags = [...libraryView.tags.values()].sort(byOrder);
   const countKindUsing = (kindId: string) => countBlocksUsing(plan, { kindId });
 
@@ -176,6 +180,7 @@ export function BlockTable({
                 followerCount={followersOf(plan, libraryView, row.block.id).length}
                 countKindUsing={countKindUsing}
                 moneyCell={moneyCells.get(row.block.id)}
+                days={days}
               />
             );
           })}
@@ -270,6 +275,8 @@ interface BlockRowProps {
   countKindUsing: (kindId: string) => number;
   /** 这块的开销格摘要；一笔开销都没挂就是 undefined */
   moneyCell: MoneyCell | undefined;
+  /** 计划里的每一天和它的标签，「复制到…」列出来选 */
+  days: ReadonlyArray<{ baseId: string; label: string }>;
 }
 
 function BlockRow({
@@ -283,11 +290,12 @@ function BlockRow({
   followerCount,
   countKindUsing,
   moneyCell,
+  days,
 }: BlockRowProps) {
   const [timeOpen, setTimeOpen] = useState(false);
   const [moneyOpen, setMoneyOpen] = useState(false);
   const row = useRef<HTMLTableRowElement>(null);
-  const notifyDeleted = useNotifyDone();
+  const notifyDone = useNotifyDone();
   const openBlock = useOpenBlock();
   const color = block.kind.deleted ? DELETED_COLOR : block.kind.color;
   const indent = block.indent ?? 0;
@@ -298,7 +306,7 @@ function BlockRow({
   const deleteItem: MenuItem = {
     label: deleteLabel(followerCount),
     danger: true,
-    onSelect: () => notifyDeleted(deleteBlockWithNotice(doc, library, block, followerCount)),
+    onSelect: () => notifyDone(deleteBlockWithNotice(doc, library, block, followerCount)),
   };
   // 「详情…」打开详情气泡（时间线上点开的也是它），贴着这一行的「这件事的操作」弹出
   const detailsItem: MenuItem = {
@@ -321,9 +329,20 @@ function BlockRow({
   };
   const subtitleLine = [block.subtitle, block.note === null ? null : "有长备注"].filter((part) => part !== null).join(" · ");
   const moneyNote = moneyCellNote(moneyCell);
+  // 「复制到…」：在哪天的同一时刻多一份（时间线上是快捷条的「复制」）；没排时间的没有，两边一样
+  const copyItem: MenuItem = {
+    label: "复制到…",
+    submenu: days.map((day) => ({
+      label: day.baseId === block.start_base_id ? `${day.label}（这天）` : day.label,
+      onSelect: () => {
+        const done = copyBlockWithNotice(doc, library, block, followerCount, day);
+        if (done) notifyDone(done);
+      },
+    })),
+  };
   const items: MenuItem[] = undated
     ? [...undatedArrangeItems(doc, plan, block), ...markItems(doc, block), detailsItem, deleteItem]
-    : [...markItems(doc, block), detailsItem, deleteItem];
+    : [...markItems(doc, block), detailsItem, copyItem, deleteItem];
 
   return (
     <>

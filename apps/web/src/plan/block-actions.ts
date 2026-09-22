@@ -1,4 +1,4 @@
-import { deleteBlock, moveUndated, setBlockIndent, type BlockView, type PlanView } from "@welshonion/core";
+import { deleteBlock, duplicateBlock, moveUndated, setBlockIndent, type BlockView, type PlanView } from "@welshonion/core";
 import type * as Y from "yjs";
 import type { MenuItem } from "../app/Menu";
 import type { DoneNotice } from "./DoneNotice";
@@ -41,6 +41,23 @@ export function undatedArrangeItems(doc: Y.Doc, plan: PlanView, block: BlockView
 /** 删除的字：套着会被带走的事时写明几件。 */
 export function deleteLabel(followerCount: number): string {
   return followerCount > 0 ? `删除（连同里面的 ${followerCount} 件）` : "删除";
+}
+
+/**
+ * 把排上时间的这件事（连同会被带走的块和挂的开销）复制到某一天的同一个开始时刻，放旁边不叠；返回刚做完的提示。
+ * 选的是它自己那天，就是原地多一份（同时间线上点快捷条的「复制」）。这件事已经没了（别的标签页删了）就什么都不做。
+ */
+export function copyBlockWithNotice(
+  doc: Y.Doc,
+  library: Y.Doc,
+  block: BlockView,
+  followerCount: number,
+  to: { baseId: string; label: string },
+): DoneNotice | null {
+  const result = duplicateBlock(doc, library, block.id, { baseId: to.baseId, minute: block.start_minute!, placement: "beside" });
+  if (!result.ok) return null;
+  const what = followerCount > 0 ? `「${block.title}」和里面的 ${followerCount} 件` : `「${block.title}」`;
+  return { message: `把${what}复制到了${to.label}`, focusAfterUndo: blockFocusSelector(block.id) };
 }
 
 /** 删掉这件事（连同会被带走的块），返回刚做完的提示：删除不再确认，靠撤销。 */
