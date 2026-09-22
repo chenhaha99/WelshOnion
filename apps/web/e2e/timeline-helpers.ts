@@ -137,7 +137,7 @@ export async function countRows(table: Locator, title: string): Promise<number> 
 
 export async function timeOf(table: Locator, title: string): Promise<string> {
   // 读 textContent 不读 innerText：日程里屏幕外的那几天先不排版（content-visibility），没排版的字 innerText 读出来是空的
-  return inList(table.page(), async () => (await rowOf(table, title)).locator("[data-block-time]").textContent() ?? "");
+  return inList(table.page(), async () => (await (await rowOf(table, title)).locator("[data-block-time]").textContent()) ?? "");
 }
 
 export async function pickKind(page: Page, table: Locator, title: string, kind: string): Promise<void> {
