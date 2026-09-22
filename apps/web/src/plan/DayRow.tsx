@@ -16,6 +16,10 @@ interface DayRowProps {
   index: number;
   count: number;
   moneyCells: ReadonlyMap<string, MoneyCell>;
+  /** 全计划每件事会带走几件 */
+  followerCounts: ReadonlyMap<string, number>;
+  /** 计划里的每一天和它的标签，「复制到…」列出来选 */
+  dayChoices: ReadonlyArray<{ baseId: string; label: string }>;
   /** 筛选；没开是 undefined */
   filter?: StatsFilter;
 }
@@ -24,7 +28,20 @@ interface DayRowProps {
  * 日程视图里的一天：组头（标签、这天的菜单）、展开的表单、这天怎么样，下面是这天的时刻表。
  * 电脑上（这天宽 40rem 起）组头在左边一列，其余在右边；窄的时候组头在上面（见 index.css 的 day-layout）。
  */
-export function DayRow({ doc, library, libraryView, plan, base, label, index, count, moneyCells, filter }: DayRowProps) {
+export function DayRow({
+  doc,
+  library,
+  libraryView,
+  plan,
+  base,
+  label,
+  index,
+  count,
+  moneyCells,
+  followerCounts,
+  dayChoices,
+  filter,
+}: DayRowProps) {
   const dayMenu = useDayMenu({ doc, library, libraryView, plan, base, label, index, count, filter });
   const facts = dayFactsParts(plan, base, moneyCells, filter);
   // 「第 1 天 · 10.1 周四」拆成两截：电脑上「第 1 天」大字一行、日期（和城市）小字一行
@@ -34,7 +51,7 @@ export function DayRow({ doc, library, libraryView, plan, base, label, index, co
   return (
     <li
       data-base-id={base.id}
-      className="glass-card @container relative px-5 py-3 has-[[aria-expanded=true]]:z-10"
+      className="schedule-day glass-card @container relative px-5 py-3 has-[[aria-expanded=true]]:z-10"
     >
       <div className="day-layout">
         <div data-day-side className="day-side">
@@ -68,6 +85,8 @@ export function DayRow({ doc, library, libraryView, plan, base, label, index, co
             date={base.date}
             dayLabel={label}
             moneyCells={moneyCells}
+            followerCounts={followerCounts}
+            dayChoices={dayChoices}
             filter={filter}
             onEmptyFocus={dayMenu.focusMenu}
           />

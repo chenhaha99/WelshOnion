@@ -21,30 +21,58 @@ export function effectiveLayer(block: BlockView, library: LibraryView): number {
   return block.layer ?? kindLayer(block, library);
 }
 
+/** 判断「会不会被带走」要用的：绝对起止、类型的层、有效层 */
+interface Placed {
+  id: string;
+  interval: Interval;
+  kindLayer: number;
+  layer: number;
+}
+
+function placed(block: BlockView, bases: ReadonlyMap<string, BaseView>, library: LibraryView): Placed | null {
+  const interval = intervalOf(block, bases);
+  if (!interval) return null;
+  return { id: block.id, interval, kindLayer: kindLayer(block, library), layer: effectiveLayer(block, library) };
+}
+
+/** block 会不会被 outer 带走：起止都在 outer 的时间范围内、类型层和 outer 相同、有效层严格大于 outer。 */
+function follows(block: Placed, outer: Placed): boolean {
+  return (
+    block.id !== outer.id &&
+    block.interval.start >= outer.interval.start &&
+    block.interval.end <= outer.interval.end &&
+    block.kindLayer === outer.kindLayer &&
+    block.layer > outer.layer
+  );
+}
+
 /**
  * outer 移动、复制、删除时会被带走的块：已排时间、起止都在 outer 的时间范围内、
  * 类型层和 outer 相同、有效层严格大于 outer。
  * 满足这几条的块，它自己会带走的块也一定满足，所以不用再递归。
  */
 export function followersOf(plan: PlanView, library: LibraryView, outerId: string): string[] {
-  const outer = plan.blocks.get(outerId);
+  const outerBlock = plan.blocks.get(outerId);
+  if (!outerBlock) return [];
+  const bases = basesById(plan);
+  const outer = placed(outerBlock, bases, library);
   if (!outer) return [];
-  const bases = new Map(plan.bases.map((base) => [base.id, base]));
-  const outerInterval = intervalOf(outer, bases);
-  if (!outerInterval) return [];
-  const outerKindLayer = kindLayer(outer, library);
-  const outerLayer = effectiveLayer(outer, library);
-
   const followers: string[] = [];
   for (const block of plan.blocks.values()) {
-    if (block.id === outerId) continue;
-    const interval = intervalOf(block, bases);
-    if (!interval || interval.start < outerInterval.start || interval.end > outerInterval.end) continue;
-    if (kindLayer(block, library) !== outerKindLayer) continue;
-    if (effectiveLayer(block, library) <= outerLayer) continue;
-    followers.push(block.id);
+    const candidate = placed(block, bases, library);
+    if (candidate && follows(candidate, outer)) followers.push(block.id);
   }
   return followers.sort(compareStrings);
+}
+
+/**
+ * 全计划每件排了时间的事会带走几件（没排时间的不在里面），一次算好：每件事的时间只换算一次。
+ * 日程每一行的「删除（连同里面的 N 件）」用；一行行各调 followersOf，大计划一次要换算几万次。
+ */
+export function followerCounts(plan: PlanView, library: LibraryView): Map<string, number> {
+  const bases = basesById(plan);
+  const all = [...plan.blocks.values()].flatMap((block) => placed(block, bases, library) ?? []);
+  return new Map(all.map((outer) => [outer.id, all.filter((block) => follows(block, outer)).length]));
 }
 
 /**
@@ -61,6 +89,10 @@ export function layerWhenOnto(
   if (!target || target.start_minute === null) return null;
   if (kindLayer(target, library) !== kindLayer(dragged, library)) return null;
   return effectiveLayer(target, library) + 1;
+}
+
+function basesById(plan: PlanView): Map<string, BaseView> {
+  return new Map(plan.bases.map((base) => [base.id, base]));
 }
 
 function intervalOf(block: BlockView, bases: ReadonlyMap<string, BaseView>): Interval | null {

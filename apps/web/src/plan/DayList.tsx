@@ -1,4 +1,5 @@
 import {
+  followerCounts,
   passesFilter,
   type BlockMark,
   type KindView,
@@ -223,6 +224,10 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
   }, [kindKey, tagKey, markKey, dayKey]);
   // 开销格的摘要整份算一次：共用的开销要看全计划才知道显示在哪块
   const cells = useMemo(() => moneyCells(plan, filter), [plan, filter]);
+  // 每件事会带走几件（删除写「连同 N 件」）也整份算一次：一行行各算，大计划一次要换算几万次
+  const followers = useMemo(() => followerCounts(plan, libraryView), [plan, libraryView]);
+  // 「复制到…」列出的每一天
+  const dayChoices = bases.map((base, index) => ({ baseId: base.id, label: labels[index]! }));
   const hiddenCents = useMemo(() => moneyOnHiddenBlocks(plan, filter), [plan, filter]);
 
   // 选中的那件没了（删了、撤销掉了）、被筛掉了、切到了日程：取消选中
@@ -622,6 +627,8 @@ export function DayList({ top, doc, library, libraryView, plan, planId, searchAn
                         index={index}
                         count={bases.length}
                         moneyCells={cells}
+                        followerCounts={followers}
+                        dayChoices={dayChoices}
                         filter={filter}
                       />
                     ),

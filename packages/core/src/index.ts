@@ -33,7 +33,7 @@ export {
 export type { InsertDayOptions } from "./ops/days";
 export { baseStartUtcMs, blockInterval } from "./time";
 export type { Interval } from "./time";
-export { effectiveLayer, followersOf, kindLayer, layerWhenOnto } from "./nesting";
+export { effectiveLayer, followerCounts, followersOf, kindLayer, layerWhenOnto } from "./nesting";
 export {
   addBlock,
   deleteBlock,

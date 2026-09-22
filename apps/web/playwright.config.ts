@@ -13,8 +13,9 @@ export default defineConfig({
   testDir: "e2e",
   workers: 1,
   projects: [
-    { name: "dev", testIgnore: /offline-install\.spec\.ts/, use: { ...browser, baseURL: "http://localhost:5199" } },
-    { name: "built", testMatch: /offline-install\.spec\.ts/, use: { ...browser, baseURL: "http://localhost:5200" } },
+    // 离线安装和测速要构建版：开发版没有离线缓存，React 也慢很多、量不准
+    { name: "dev", testIgnore: /(offline-install|large-plan-speed)\.spec\.ts/, use: { ...browser, baseURL: "http://localhost:5199" } },
+    { name: "built", testMatch: /(offline-install|large-plan-speed)\.spec\.ts/, use: { ...browser, baseURL: "http://localhost:5200" } },
   ],
   webServer: [
     {

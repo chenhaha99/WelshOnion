@@ -1,6 +1,5 @@
 import {
   countBlocksUsing,
-  followersOf,
   freeGaps,
   passesFilter,
   updateBlock,
@@ -20,7 +19,6 @@ import { AddBlock, addKindIdFor, addTagIdsFor, useJustAdded } from "./AddBlock";
 import { copyBlockWithNotice, deleteBlockWithNotice, deleteLabel, undatedArrangeItems } from "./block-actions";
 import { blockTimeLabel, clock, durationLabel } from "./block-time";
 import { blocksOfDay } from "./day-blocks";
-import { dayRowLabels } from "./day-labels";
 import { useNotifyDone } from "./DoneNotice";
 import { linkableExpenses } from "./expense-links";
 import { MoneyEditor } from "./MoneyEditor";
@@ -50,6 +48,10 @@ interface BlockTableProps {
   dayLabel: string;
   /** 全计划的开销格摘要，按块 id */
   moneyCells: ReadonlyMap<string, MoneyCell>;
+  /** 全计划每件事会带走几件，按块 id；没排时间的不在里面 */
+  followerCounts: ReadonlyMap<string, number>;
+  /** 计划里的每一天和它的标签，「复制到…」列出来选 */
+  dayChoices: ReadonlyArray<{ baseId: string; label: string }>;
   /** 筛选；没开是 undefined */
   filter?: StatsFilter;
   /** 这天一行都不剩时把焦点交出去（落到这天的菜单按钮） */
@@ -81,6 +83,8 @@ export function BlockTable({
   date,
   dayLabel,
   moneyCells,
+  followerCounts,
+  dayChoices,
   filter,
   onEmptyFocus,
 }: BlockTableProps) {
@@ -122,9 +126,6 @@ export function BlockTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleIds]);
   const kinds = [...libraryView.kinds.values()].sort(byOrder);
-  // 「复制到…」列出的每一天：一张表算一次，不在每一行里算
-  const labels = dayRowLabels(plan.bases);
-  const days = plan.bases.map((base, index) => ({ baseId: base.id, label: labels[index]! }));
   const tags = [...libraryView.tags.values()].sort(byOrder);
   const countKindUsing = (kindId: string) => countBlocksUsing(plan, { kindId });
 
@@ -177,10 +178,10 @@ export function BlockTable({
                 date={date}
                 kinds={kinds}
                 tags={tags}
-                followerCount={followersOf(plan, libraryView, row.block.id).length}
+                followerCount={followerCounts.get(row.block.id) ?? 0}
                 countKindUsing={countKindUsing}
                 moneyCell={moneyCells.get(row.block.id)}
-                days={days}
+                days={dayChoices}
               />
             );
           })}

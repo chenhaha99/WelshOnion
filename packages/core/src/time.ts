@@ -9,13 +9,24 @@ export interface Interval {
 }
 
 /**
+ * 算过的「日期 + 时区」记住结果：结果只看这两样，一个计划只有几十种。
+ * 不记的话大计划一个画面要换算几万次，每次都新建一个浏览器的时区换算器（几十微秒），切到日程要一秒多。
+ */
+const baseStarts = new Map<string, number>();
+
+/**
  * 底座这一天 00:00（按底座自己的时区）对应的绝对时刻，毫秒。
  * 只换算一次时区偏移：夏令时换时的那一天会差 1 小时。
  */
 export function baseStartUtcMs(date: string, tz: string): number {
+  const key = `${date} ${tz}`;
+  const known = baseStarts.get(key);
+  if (known !== undefined) return known;
   const [year, month, day] = date.split("-").map(Number) as [number, number, number];
   const utcMidnight = Date.UTC(year, month - 1, day);
-  return utcMidnight - tzOffsetMinutes(utcMidnight, tz) * MS_PER_MINUTE;
+  const start = utcMidnight - tzOffsetMinutes(utcMidnight, tz) * MS_PER_MINUTE;
+  baseStarts.set(key, start);
+  return start;
 }
 
 /** 定时块的绝对起止；未定时块返回 null。 */
