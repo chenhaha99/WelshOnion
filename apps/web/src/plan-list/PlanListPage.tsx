@@ -87,10 +87,10 @@ export function PlanListPage() {
         <div className="absolute top-6 right-6">{settings}</div>
         <main className="mx-auto flex max-w-xl flex-col items-center gap-5 px-6 py-28 text-center">
           <h1 className="text-4xl font-medium tracking-wider text-ink">葱葱</h1>
-          {/* 口号和它下面那一句，和官网首屏一样 */}
+          {/* 口号和它下面那一句，和官网首屏一样：口号管雅，下面这句用大白话说清特点；窄屏折行只在标点后面断，两行差不多长 */}
           <div className="flex flex-col gap-2">
             <p className="text-xl text-ink">流光可见，行程有度</p>
-            <p className="text-ink-muted">把远方的每一刻，安放在时间线上</p>
+            <p className="break-keep text-balance text-ink-muted">每件事按时长排在时间线上，出发前哪里赶、哪里空，一眼就知道</p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <NewPlan label="新建第一个计划" />

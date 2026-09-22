@@ -183,7 +183,7 @@ describe("一个计划都没有时", () => {
     expect(await screen.findByRole("button", { name: "新建第一个计划" })).toBeTruthy();
     // 口号和它下面那一句（和官网首屏一样）
     expect(screen.getByText("流光可见，行程有度")).toBeTruthy();
-    expect(screen.getByText("把远方的每一刻，安放在时间线上")).toBeTruthy();
+    expect(screen.getByText("每件事按时长排在时间线上，出发前哪里赶、哪里空，一眼就知道")).toBeTruthy();
   });
 });
 
