@@ -1,14 +1,26 @@
 apply plugin: 'com.android.application'
 
+// 打官方包时，包名、版本号、签名用的密钥都从外面传进来（见私有仓库里的打包脚本）：
+//   ./gradlew assembleRelease -PwelshonionAppId=… -PwelshonionVersionCode=… -PwelshonionVersionName=… -PwelshonionSigning=<属性文件路径>
+// 什么都不传就是开源版：开源包名、版本 1.0、不签名（assembleDebug 照旧用调试签名，谁都能打）。
+def welshonionAppId = project.findProperty('welshonionAppId') ?: 'io.github.chenhaha99.welshonion'
+def welshonionVersionCode = (project.findProperty('welshonionVersionCode') ?: '1') as Integer
+def welshonionVersionName = project.findProperty('welshonionVersionName') ?: '1.0'
+def welshonionSigningFile = project.findProperty('welshonionSigning')
+def welshonionSigning = new Properties()
+if (welshonionSigningFile) {
+    file(welshonionSigningFile).withInputStream { welshonionSigning.load(it) }
+}
+
 android {
     namespace = "io.github.chenhaha99.welshonion"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "io.github.chenhaha99.welshonion"
+        applicationId welshonionAppId
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode welshonionVersionCode
+        versionName welshonionVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +28,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    if (welshonionSigningFile) {
+        signingConfigs {
+            release {
+                storeFile file(welshonionSigning.storeFile)
+                storePassword welshonionSigning.storePassword
+                keyAlias welshonionSigning.keyAlias
+                keyPassword welshonionSigning.keyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (welshonionSigningFile) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
