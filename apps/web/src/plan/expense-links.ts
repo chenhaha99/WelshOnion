@@ -3,8 +3,8 @@ import { blocksOfDay } from "./day-blocks";
 import { dateWithWeekday } from "./day-labels";
 import { formatYuan } from "./money";
 
-/** 整个行程里块的先后：按天的顺序，把每天时刻表的顺序接起来。 */
-function tripOrderOf(plan: PlanView): Map<string, number> {
+/** 整个计划里块的先后：按天的顺序，把每天时刻表的顺序接起来。 */
+function planOrderOf(plan: PlanView): Map<string, number> {
   const order = new Map<string, number>();
   for (const base of plan.bases) {
     for (const block of blocksOfDay(plan, base.id)) order.set(block.id, order.size);
@@ -18,11 +18,11 @@ function blockLabeller(plan: PlanView): (block: BlockView) => string {
   return (block) => `${dateWithWeekday(dates.get(block.start_base_id)!)} ${block.title}`;
 }
 
-/** 「挂在 10.1 周四 民宿、10.2 周五 民宿」，按行程的先后；一块都不挂写「不属于任何一天」。 */
+/** 「挂在 10.1 周四 民宿、10.2 周五 民宿」，按计划的先后；一块都不挂写「不属于任何一天」。 */
 function attachedLabel(
   expense: ExpenseView,
   plan: PlanView,
-  tripOrder: ReadonlyMap<string, number>,
+  planOrder: ReadonlyMap<string, number>,
   blockLabel: (block: BlockView) => string,
 ): string {
   const blocks = expense.block_ids
@@ -30,19 +30,19 @@ function attachedLabel(
       const block = plan.blocks.get(blockId);
       return block ? [block] : [];
     })
-    .sort((a, b) => (tripOrder.get(a.id) ?? 0) - (tripOrder.get(b.id) ?? 0));
+    .sort((a, b) => (planOrder.get(a.id) ?? 0) - (planOrder.get(b.id) ?? 0));
   return blocks.length === 0 ? "不属于任何一天" : `挂在 ${blocks.map(blockLabel).join("、")}`;
 }
 
 /**
- * 「挂上已有的一笔」的选项：计划里还没挂在这块上的开销（不管筛选）。按它最早那块在行程里的先后，
+ * 「挂上已有的一笔」的选项：计划里还没挂在这块上的开销（不管筛选）。按它最早那块在计划里的先后，
  * 不属于任何一天的在最后、之间按 id（id 带着创建时间）。每项写「住宿 ¥800 民宿两晚 · 挂在 10.1 周四 民宿」。
  */
 export function linkableExpenses(plan: PlanView, blockId: string): Array<{ id: string; label: string }> {
-  const tripOrder = tripOrderOf(plan);
+  const planOrder = planOrderOf(plan);
   const blockLabel = blockLabeller(plan);
   const place = (expense: ExpenseView) =>
-    Math.min(Number.POSITIVE_INFINITY, ...expense.block_ids.map((id) => tripOrder.get(id) ?? Number.POSITIVE_INFINITY));
+    Math.min(Number.POSITIVE_INFINITY, ...expense.block_ids.map((id) => planOrder.get(id) ?? Number.POSITIVE_INFINITY));
   return (
     [...plan.expenses.values()]
       .filter((expense) => !expense.block_ids.includes(blockId))
@@ -51,7 +51,7 @@ export function linkableExpenses(plan: PlanView, blockId: string): Array<{ id: s
       .sort((a, b) => a.order - b.order || (a.expense.id < b.expense.id ? -1 : a.expense.id > b.expense.id ? 1 : 0))
       .map(({ expense }) => ({
         id: expense.id,
-        label: `${expenseText(expense)} · ${attachedLabel(expense, plan, tripOrder, blockLabel)}`,
+        label: `${expenseText(expense)} · ${attachedLabel(expense, plan, planOrder, blockLabel)}`,
       }))
   );
 }

@@ -250,7 +250,7 @@ describe("把已有的一笔挂到这件事上", () => {
     );
   });
 
-  it("选项的先后和写法：按行程先后，不属于任何一天的在最后；这件事已经挂着的不列", async () => {
+  it("选项的先后和写法：按计划先后，不属于任何一天的在最后；这件事已经挂着的不列", async () => {
     const user = userEvent.setup();
     await openStoredPlan((plan, library) => {
       const [oct1, oct2] = daysFromOct1(plan, 2);

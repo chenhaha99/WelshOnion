@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { addBlocks, addMoney, DAY1, newPlan, quickBar, schedule, segment, showView, timelineRow } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-// 「现在」固定在 9.14，行程 10.1 还没出发
+// 「现在」固定在 9.14，计划 10.1 还没出发
 const BEFORE_TRIP = new Date("2026-09-14T06:20:00Z");
 const LONG_TITLE = "西湖边走一整圈再去断桥看荷花然后坐船去三潭印月";
 

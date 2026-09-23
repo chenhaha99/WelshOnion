@@ -294,7 +294,7 @@ describe("第一次打开展开哪天", () => {
     expect(firstOpenDay(dates.map((date) => ({ date })), "2026-09-14")).toBe(expected);
   });
 
-  it("行程进行中：打开就展开今天那条", async () => {
+  it("计划进行中：打开就展开今天那条", async () => {
     await openStoredPlan((plan) => daysFrom(plan, "2026-09-13", 3));
 
     const region = await timeline();

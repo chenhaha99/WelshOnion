@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { addBlocks, DAY1, DAY2, DAY3, newPlan, quickBar, schedule, segment, showView, timelineRow } from "./timeline-helpers";
 import { shot, watchErrors } from "./walkthrough";
 
-// 「现在」固定在 9.14，行程 10.1 还没出发：手机上打开展开第一天
+// 「现在」固定在 9.14，计划 10.1 还没出发：手机上打开展开第一天
 const BEFORE_TRIP = new Date("2026-09-14T06:20:00Z");
 
 /** 元素整个在浏览器窗口里（上下左右都没出去）。 */

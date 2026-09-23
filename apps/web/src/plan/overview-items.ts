@@ -17,8 +17,8 @@ export interface OverviewItem {
   blockId: string | null;
 }
 
-/** 整个行程里块的先后：按天的顺序，把每天时刻表的顺序接起来。 */
-function tripOrder(plan: PlanView): Map<string, number> {
+/** 整个计划里块的先后：按天的顺序，把每天时刻表的顺序接起来。 */
+function planOrder(plan: PlanView): Map<string, number> {
   const order = new Map<string, number>();
   for (const base of plan.bases) {
     for (const block of blocksOfDay(plan, base.id)) order.set(block.id, order.size);
@@ -33,10 +33,10 @@ function dayOf(plan: PlanView, baseId: string): string {
 /**
  * 点开开销里的一类后列的每一笔：「房费 ¥480 · 10.1 民宿」。
  * 挂了几块写「挂在 2 件事上」，一块不挂写「不属于任何一天」；没填金额写「没填」；说明空着写「没写说明」。
- * 按它最早那块在行程里的先后排，不属于任何一天的在最后。
+ * 按它最早那块在计划里的先后排，不属于任何一天的在最后。
  */
 export function moneyItemsOfKind(plan: PlanView, kindId: string, filter?: StatsFilter): OverviewItem[] {
-  const order = tripOrder(plan);
+  const order = planOrder(plan);
   const rows = [...plan.expenses.values()]
     .filter((expense) => expense.kind.id === kindId && expensePasses(expense, plan, filter))
     .map((expense) => {
@@ -75,7 +75,7 @@ export function timeItemsOfKind(
   kindId: string,
   filter?: StatsFilter,
 ): OverviewItem[] {
-  const order = tripOrder(plan);
+  const order = planOrder(plan);
   const occupied = occupiedMinutes(plan, library, filter);
   return [...occupied]
     .flatMap(([blockId, minutes]) => {
